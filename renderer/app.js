@@ -429,7 +429,6 @@ function initEventListeners() {
     };
 
     // Console Management
-    if (elements.clearConsole) elements.clearConsole.onclick = () => elements.consoleOutput.innerHTML = '';
     document.querySelectorAll('.console-tab').forEach(tab => {
         tab.onclick = () => switchConsoleTab(tab);
     });
