@@ -5,6 +5,7 @@ let isRendering = false;
 let hideIgnoredFiles = false;
 let settings = { shell: 'powershell.exe', rootRepoDir: '', githubToken: '' };
 let selectedNodes = new Set();
+let expandedNodes = new Set();
 let monacoEditor = null;
 let currentEditingPath = null;
 let activeTasks = 0;
@@ -375,7 +376,8 @@ function initEventListeners() {
     if (elements.sidebarCollapse) elements.sidebarCollapse.onclick = () => {
         const containers = elements.repoTree.querySelectorAll('.children-container');
         containers.forEach(c => c.remove());
-        elements.repoTree.querySelectorAll('.chevron').forEach(ch => { if(ch.textContent === 'v') ch.textContent = '>'; });
+        elements.repoTree.querySelectorAll('.chevron').forEach(ch => { if (ch.textContent !== '') ch.textContent = '▸'; });
+        expandedNodes.clear();
     };
 
     if (elements.repoFilter) elements.repoFilter.oninput = () => renderTree(elements.repoFilter.value);
@@ -1327,6 +1329,20 @@ async function renderTree(filter = '') {
             }
         }
         elements.repoTree.appendChild(fragment);
+
+        // PERSISTENCE: Restore previous expansion state
+        await restoreAllExpansions();
+
+        // SCROLL: Bring active project to the top
+        if (activeRepo) {
+            const repoPath = activeRepo.path.replace(/\\/g, '/').toLowerCase();
+            const repoRoot = Array.from(elements.repoTree.querySelectorAll('.repo-root')).find(el =>
+                el.dataset.path.replace(/\\/g, '/').toLowerCase() === repoPath
+            );
+            if (repoRoot) {
+                repoRoot.scrollIntoView({ behavior: 'auto', block: 'start' });
+            }
+        }
     }
     isRendering = false;
 }
@@ -1405,8 +1421,18 @@ async function toggleFolder(container, dirPath, depth, repo) {
     const item = container.querySelector('.tree-node');
     const chevron = item.querySelector('.chevron');
     const existing = container.querySelector('.children-container');
-    if (existing) { existing.remove(); if (chevron) chevron.textContent = '▸'; return; }
+    const normPath = dirPath.replace(/\\/g, '/').toLowerCase();
+
+    if (existing) {
+        existing.remove();
+        if (chevron) chevron.textContent = '▸';
+        expandedNodes.delete(normPath);
+        return;
+    }
+
     if (chevron) chevron.textContent = '▾';
+    expandedNodes.add(normPath);
+
     try {
         const children = await window.electronAPI.listDirectory(dirPath, !hideIgnoredFiles);
         const childrenContainer = document.createElement('div');
@@ -1416,6 +1442,37 @@ async function toggleFolder(container, dirPath, depth, repo) {
         }
         container.appendChild(childrenContainer);
     } catch (e) { logToConsole(e.message, 'error'); }
+}
+
+async function restoreAllExpansions() {
+    const rootNodes = Array.from(elements.repoTree.querySelectorAll(':scope > div'));
+    for (const root of rootNodes) {
+        const repoPath = root.querySelector('.tree-node').dataset.path;
+        const repo = repositories.find(r => r.path === repoPath);
+        await restoreExpansionRecursive(root, 0, repo);
+    }
+}
+
+async function restoreExpansionRecursive(container, depth, repo) {
+    const node = container.querySelector('.tree-node');
+    if (!node) return;
+    const path = node.dataset.path.replace(/\\/g, '/').toLowerCase();
+
+    if (expandedNodes.has(path)) {
+        if (!container.querySelector('.children-container')) {
+            // Need to avoid infinite recursion since toggleFolder adds to expandedNodes
+            // But expandedNodes is a Set, so adding same path is fine.
+            await toggleFolder(container, node.dataset.path, depth, repo);
+        }
+
+        const childrenContainer = container.querySelector('.children-container');
+        if (childrenContainer) {
+            const children = Array.from(childrenContainer.querySelectorAll(':scope > div'));
+            for (const child of children) {
+                await restoreExpansionRecursive(child, depth + 1, repo);
+            }
+        }
+    }
 }
 
 async function showDashboard() {
@@ -2440,7 +2497,7 @@ async function revealInTree(fullPath) {
     const repoNode = Array.from(document.querySelectorAll('.repo-root')).find(n => n.dataset.path.replace(/\\/g, '/').toLowerCase() === repoPath.toLowerCase());
     if (!repoNode) return;
 
-    repoNode.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    repoNode.scrollIntoView({ behavior: 'auto', block: 'start' });
 
     // 2. Break down the relative path into segments
     const relPath = normTarget.replace(repoPath.toLowerCase(), '');
@@ -2477,13 +2534,12 @@ async function revealInTree(fullPath) {
         selectedNodes.clear();
         selectedNodes.add(finalNode.dataset.path);
         updateTreeSelectionUI();
-        finalNode.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
 }
 
 function scrollToRepoInTree(path) {
     const node = Array.from(document.querySelectorAll('.repo-root')).find(n => n.dataset.path.replace(/\\/g, '/').toLowerCase() === path.replace(/\\/g, '/').toLowerCase());
-    if (node) node.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    if (node) node.scrollIntoView({ behavior: 'auto', block: 'start' });
 }
 
 async function updateBranchSelector(path) { try { const res = await window.electronAPI.getBranches(path); elements.branchSelect.innerHTML = res.all.map(b => `<option value="${b}" ${b === res.current ? 'selected' : ''}>${b}</option>`).join(''); } catch(e) {} }
