@@ -1,0 +1,39 @@
+{
+  "name": "gitscope-desktop",
+  "version": "1.0.0",
+  "description": "A local-first desktop wrapper for Git repository management.",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "build": {
+    "appId": "com.gitscope.desktop",
+    "win": {
+      "target": "portable",
+      "icon": "ICON.png"
+    }
+  },
+  "keywords": [
+    "git",
+    "desktop",
+    "electron"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "chokidar": "^3.5.3",
+    "fs-extra": "^11.1.1",
+    "marked": "^5.1.2",
+    "monaco-editor": "^0.43.0",
+    "node-pty": "^1.0.0",
+    "simple-git": "^3.19.0",
+    "xterm": "^5.2.1",
+    "xterm-addon-fit": "^0.7.0"
+  },
+  "devDependencies": {
+    "electron": "^25.3.0",
+    "electron-builder": "^26.15.3"
+  }
+}
