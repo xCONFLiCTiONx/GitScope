@@ -46,7 +46,7 @@ A dedicated interface to manage your work-in-progress. Save, List, Pop, Apply, a
 ### 💻 Integrated Environment
 - **Monaco Editor:** A high-performance code editor built-in for quick edits and .gitignore management.
 - **Pro Terminal:** A full xterm.js terminal embedded directly in the app.
-- **AI Commits:** Automated commit message generation based on your actual file diffs.
+- **Commits:** Automated commit message generation based on your actual file diffs.
 
 ## 🛠️ Technology Stack
 
