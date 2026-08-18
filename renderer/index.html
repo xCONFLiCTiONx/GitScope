@@ -90,6 +90,7 @@
         /* Activity Bar (Nav Rail) */
         #nav-rail {
             width: 48px;
+            flex-shrink: 0;
             background-color: var(--nav-rail-bg);
             display: flex;
             flex-direction: column;
@@ -119,6 +120,7 @@
         /* Sidebar */
         #sidebar {
             width: 260px;
+            flex: 0 0 auto;
             background-color: var(--bg-sidebar);
             border-right: 1px solid var(--border-color);
             display: flex;
@@ -252,7 +254,6 @@
         /* Views common padding */
         #dashboard-view, #repo-view, #settings-view, #editor-view, #git-config-view {
             padding: 20px 24px;
-            width: 100%;
             flex: 1;
             min-height: 0;
             display: none;
