@@ -839,6 +839,20 @@ ipcMain.handle('trash-item', async (event, filePath) => {
 });
 
 ipcMain.handle('show-context-menu', (event, options) => {
+  if (options.type === 'terminal') {
+    const template = [
+      { label: 'Copy', click: () => event.sender.send('terminal-command', 'copy') },
+      { label: 'Paste', click: () => event.sender.send('terminal-command', 'paste') },
+      { type: 'separator' },
+      { label: 'Select All', click: () => event.sender.send('terminal-command', 'select-all') },
+      { type: 'separator' },
+      { label: 'Clear Console', click: () => event.sender.send('terminal-command', 'clear') }
+    ];
+    const menu = Menu.buildFromTemplate(template);
+    menu.popup(BrowserWindow.fromWebContents(event.sender));
+    return;
+  }
+
   const paths = options.paths || [options.path];
 
   // Intelligence: Categorize the selection to provide accurate labels

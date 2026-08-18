@@ -548,8 +548,10 @@ function switchConsoleTab(tab) {
     if (target) {
         target.classList.add('active');
         if (targetId === 'terminal-container' && window.terminal) {
-            window.terminal.fitAddon.fit();
-            window.terminal.term.focus();
+            setTimeout(() => {
+                window.terminal.fitAddon.fit();
+                window.terminal.term.focus();
+            }, 50);
         }
     }
 }

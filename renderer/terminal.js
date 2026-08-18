@@ -7,8 +7,6 @@ const term = new Terminal({
     fontFamily: 'Consolas, "Courier New", monospace',
     allowProposedApi: true,
     windowsMode: window.electronAPI.isWindows,
-    scrollSensitivity: 0.3, // Aggressive fix for Windows 3-line jump
-    smoothScrollDuration: 200,
     theme: {
         background: '#000000',
         foreground: '#cccccc',
@@ -41,81 +39,61 @@ resizeObserver.observe(terminalContainer);
 
 // Keyboard support for Copy/Paste
 term.attachCustomKeyEventHandler((e) => {
-    if (e.type === 'keydown' && e.ctrlKey && e.shiftKey) {
-        if (e.key === 'C') {
+    if (e.type === 'keydown' && e.ctrlKey) {
+        const key = e.key.toLowerCase();
+        // Copy only if there is a selection
+        if (key === 'c' && term.hasSelection()) {
             const selection = term.getSelection();
-            if (selection) {
-                navigator.clipboard.writeText(selection);
-                return false;
-            }
+            navigator.clipboard.writeText(selection);
+            return false;
         }
-        if (e.key === 'V') {
-            navigator.clipboard.readText().then(text => {
-                window.electronAPI.terminalInput(text);
-            });
+        // Let Ctrl+V fall through to the 'paste' event listener below
+        if (key === 'v') return true;
+        // Select All
+        if (key === 'a') {
+            term.selectAll();
             return false;
         }
     }
     return true;
 });
 
+// Single point of truth for all paste operations (Ctrl+V, Menu, etc.)
+terminalContainer.addEventListener('paste', (e) => {
+    e.preventDefault();
+    const text = e.clipboardData.getData('text');
+    if (text) term.paste(text);
+});
+
 // Enable selection and Context Menu
 terminalContainer.addEventListener('contextmenu', (e) => {
     e.preventDefault();
-    const selectedText = term.getSelection();
+    window.electronAPI.showContextMenu({ type: 'terminal' });
+});
 
-    const menu = document.createElement('div');
-    menu.style.position = 'fixed';
-    menu.style.left = `${e.clientX}px`;
-    menu.style.top = `${e.clientY}px`;
-    menu.style.backgroundColor = '#252526';
-    menu.style.border = '1px solid #454545';
-    menu.style.zIndex = '1000';
-    menu.style.padding = '5px 0';
-    menu.style.fontSize = '12px';
-    menu.style.color = '#ccc';
-    menu.style.boxShadow = '0 4px 8px rgba(0,0,0,0.5)';
-
-    const createItem = (label, action) => {
-        const item = document.createElement('div');
-        item.textContent = label;
-        item.style.padding = '5px 20px';
-        item.style.cursor = 'pointer';
-        item.onmouseover = () => item.style.backgroundColor = '#094771';
-        item.onmouseout = () => item.style.backgroundColor = 'transparent';
-        item.onclick = () => {
-            action();
-            if (document.body.contains(menu)) document.body.removeChild(menu);
-        };
-        return item;
-    };
-
-    menu.appendChild(createItem('Copy', () => {
-        if (selectedText) navigator.clipboard.writeText(selectedText);
-    }));
-
-    menu.appendChild(createItem('Paste', async () => {
-        const text = await navigator.clipboard.readText();
-        window.electronAPI.terminalInput(text);
-    }));
-
-    document.body.appendChild(menu);
-
-    const closeMenu = (ev) => {
-        if (!menu.contains(ev.target)) {
-            if (document.body.contains(menu)) document.body.removeChild(menu);
-            document.removeEventListener('mousedown', closeMenu);
-        }
-    };
-    document.addEventListener('mousedown', closeMenu);
+window.electronAPI.onTerminalCommand((command) => {
+    if (command === 'copy') {
+        const selection = term.getSelection();
+        if (selection) navigator.clipboard.writeText(selection);
+    } else if (command === 'paste') {
+        navigator.clipboard.readText().then(text => {
+            if (text) term.paste(text);
+        });
+    } else if (command === 'select-all') {
+        term.selectAll();
+    } else if (command === 'clear') {
+        term.clear();
+        window.electronAPI.terminalInput('\f');
+    }
 });
 
 // Handle data flow
 term.onData(data => window.electronAPI.terminalInput(data));
 window.electronAPI.onTerminalData(data => {
     term.write(data);
-    // Explicitly scroll to bottom on new data
-    term.scrollToBottom();
+    requestAnimationFrame(() => {
+        term.scrollToBottom();
+    });
 });
 
 // Expose terminal to app.js
