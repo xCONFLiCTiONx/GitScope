@@ -2214,7 +2214,7 @@ async function saveCurrentFile() {
     try { await window.electronAPI.writeFile(currentEditingPath, monacoEditor.getValue()); logToConsole('Saved.', 'success'); updateTreeHighlights(); } catch (e) { logToConsole(e.message, 'error'); }
 }
 
-function closeEditor() { elements.editorView.style.display = 'none'; if (activeRepo) elements.repoView.style.display = 'block'; else showDashboard(); }
+function closeEditor() { elements.editorView.style.display = 'none'; if (activeRepo) elements.repoView.style.display = 'flex'; else showDashboard(); }
 
 function logToConsole(msg, type = 'info') {
     if (!elements.consoleOutput) return;
@@ -2807,6 +2807,11 @@ async function showFileDiff(filePath) {
     if (!repo) return;
 
     currentEditingPath = filePath;
+
+    // Ensure we are in Repo View and hide Editor
+    elements.editorView.style.display = 'none';
+    elements.repoView.style.display = 'flex';
+
     elements.messageView.style.display = 'none';
     elements.diffView.style.display = 'flex';
     elements.statusView.style.display = 'none';
