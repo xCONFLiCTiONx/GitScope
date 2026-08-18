@@ -3021,28 +3021,55 @@ async function showBulkOpModal(sourcePath) {
     sourceList.innerHTML = '<div style="padding:10px; color:var(--text-muted);">Scanning source...</div>';
     targetTree.innerHTML = '<div style="padding:10px; color:var(--text-muted);">Loading targets...</div>';
 
-    // 1. Populate Source (Project A) - Radio Buttons
+    // 1. Populate Source (Project A) - Tree View with Single-Select Checkboxes
     try {
         const normSource = sourcePath.replace(/\\/g, '/').toLowerCase();
         const sourceRepo = repositories.find(r => normSource === r.path.toLowerCase() || normSource.startsWith(r.path.toLowerCase() + '/'));
         if (!sourceRepo) throw new Error('Source project not found.');
 
-        const children = await window.electronAPI.listDirectory(sourceRepo.path);
         sourceList.innerHTML = '';
+        await buildBulkSourceTree(sourceRepo.path, sourceList, 0);
 
-        children.forEach((f, idx) => {
-            const div = document.createElement('div');
-            div.style.padding = '4px 0';
-            div.innerHTML = `
-                <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
-                    <input type="radio" name="bulk-source-item" value="${f.path}" data-name="${f.name}" ${idx === 0 ? 'checked' : ''}>
-                    <span style="font-size:12px; color:#fff;">${f.isDirectory ? '📁' : '📄'} ${f.name}</span>
-                </label>
-            `;
-            sourceList.appendChild(div);
+        // Ensure single selection logic for source checkboxes
+        sourceList.addEventListener('change', (e) => {
+            if (e.target.classList.contains('bulk-source-cb') && e.target.checked) {
+                sourceList.querySelectorAll('.bulk-source-cb').forEach(cb => {
+                    if (cb !== e.target) cb.checked = false;
+                });
+            }
         });
     } catch (e) {
         sourceList.innerHTML = `<div style="color:var(--accent-red); padding:10px;">${e.message}</div>`;
+    }
+
+    async function buildBulkSourceTree(dirPath, container, depth) {
+        try {
+            const children = await window.electronAPI.listDirectory(dirPath, !hideIgnoredFiles);
+            for (const f of children) {
+                const itemDiv = document.createElement('div');
+                itemDiv.style.margin = '2px 0';
+                itemDiv.style.paddingLeft = `${depth * 12}px`;
+
+                const row = document.createElement('div');
+                row.style.display = 'flex';
+                row.style.alignItems = 'center';
+                row.style.gap = '8px';
+
+                row.innerHTML = `
+                    <input type="checkbox" class="bulk-source-cb" value="${f.path}" data-name="${f.name}">
+                    <span style="font-size:12px; color:#fff;">${f.isDirectory ? '📁' : '📄'} ${f.name}</span>
+                `;
+
+                itemDiv.appendChild(row);
+                container.appendChild(itemDiv);
+
+                if (f.isDirectory) {
+                    const subContainer = document.createElement('div');
+                    itemDiv.appendChild(subContainer);
+                    await buildBulkSourceTree(f.path, subContainer, depth + 1);
+                }
+            }
+        } catch (e) {}
     }
 
     // 2. Populate Target Folder Tree (All Projects) - Checkboxes
@@ -3125,11 +3152,11 @@ async function showBulkOpModal(sourcePath) {
     }
 
     const perform = async (action) => {
-        const selectedRadio = sourceList.querySelector('input[name="bulk-source-item"]:checked');
-        if (!selectedRadio) return showAlert('Select a source item to transfer.', 'Source Required');
+        const selectedCb = sourceList.querySelector('input.bulk-source-cb:checked');
+        if (!selectedCb) return showAlert('Select a source item to transfer.', 'Source Required');
 
-        const srcPath = selectedRadio.value;
-        const srcName = selectedRadio.dataset.name;
+        const srcPath = selectedCb.value;
+        const srcName = selectedCb.dataset.name;
 
         const targets = Array.from(targetTree.querySelectorAll('input.bulk-target-cb:checked')).map(i => i.value);
         if (targets.length === 0) return showAlert('Select at least one target folder.', 'Selection Required');
