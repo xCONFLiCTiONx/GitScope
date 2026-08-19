@@ -144,10 +144,18 @@ const elements = {
     get dashboardBulkCommitBtn() { return document.getElementById('dashboard-bulk-commit-btn'); },
     get dashboardBulkRestoreBtn() { return document.getElementById('dashboard-bulk-restore-btn'); },
     get bulkCommitModal() { return document.getElementById('bulk-commit-modal'); },
+    get bulkCommitRepoList() { return document.getElementById('bulk-commit-repo-list'); },
+    get bulkCommitSelectAll() { return document.getElementById('bulk-commit-select-all'); },
     get bulkCommitMsg() { return document.getElementById('bulk-commit-msg'); },
     get bulkCommitAutoMsg() { return document.getElementById('bulk-commit-auto-msg'); },
     get bulkCommitConfirm() { return document.getElementById('bulk-commit-confirm'); },
     get bulkCommitCancel() { return document.getElementById('bulk-commit-cancel'); },
+
+    get bulkRestoreModal() { return document.getElementById('bulk-restore-modal'); },
+    get bulkRestoreRepoList() { return document.getElementById('bulk-restore-repo-list'); },
+    get bulkRestoreSelectAll() { return document.getElementById('bulk-restore-select-all'); },
+    get bulkRestoreConfirm() { return document.getElementById('bulk-restore-confirm'); },
+    get bulkRestoreCancel() { return document.getElementById('bulk-restore-cancel'); },
     get unbornFoldersModal() { return document.getElementById('unborn-folders-modal'); },
     get unbornFoldersList() { return document.getElementById('unborn-folders-list'); },
     get unbornFoldersClose() { return document.getElementById('unborn-folders-close'); },
@@ -1975,7 +1983,7 @@ function updateStatusFeed(stats = null) {
             messages.push({
                 text: `GitHub connection is healthy. Token expires in ${days} days.`,
                 color: 'var(--accent-blue)',
-                action: { label: 'SETTINGS', url: 'https://github.com/settings/tokens' }
+                action: { label: 'UPDATE', url: 'https://github.com/settings/tokens' }
             });
         }
     }
@@ -2120,98 +2128,114 @@ function updateDashboardSummary(stats) {
 async function showBulkCommitModal() {
     elements.bulkCommitModal.style.display = 'flex';
     elements.bulkCommitMsg.value = '';
-    elements.bulkCommitMsg.focus();
+    elements.bulkCommitRepoList.innerHTML = '<div style="color:var(--text-muted); font-size:11px; padding:10px;">Analyzing workspace...</div>';
+
+    // Fetch fresh status for all projects to see who actually has changes
+    const projectsWithChanges = [];
+    for (const repo of repositories) {
+        try {
+            const status = await window.electronAPI.gitStatus(repo.path);
+            const hasChanges = (status.modified || 0) + (status.not_added || 0) + (status.deleted || 0) > 0;
+            if (hasChanges) projectsWithChanges.push({ repo, status });
+        } catch(e) {}
+    }
+
+    if (projectsWithChanges.length === 0) {
+        elements.bulkCommitRepoList.innerHTML = '<div style="color:var(--accent-green); font-size:11px; padding:10px;">Everything is clean! Nothing to commit.</div>';
+        elements.bulkCommitConfirm.disabled = true;
+    } else {
+        elements.bulkCommitConfirm.disabled = false;
+        elements.bulkCommitRepoList.innerHTML = projectsWithChanges.map(({ repo, status }) => {
+            const total = (status.modified || 0) + (status.not_added || 0) + (status.deleted || 0);
+            return `
+                <label style="display:flex; align-items:center; gap:8px; cursor:pointer; padding:8px; background:rgba(255,255,255,0.02); border-radius:4px; margin-bottom:4px;">
+                    <input type="checkbox" class="bulk-commit-item-cb" value="${repo.path}" data-name="${repo.name}" checked>
+                    <div style="flex:1; min-width:0;">
+                        <div style="font-size:12px; font-weight:600; color:#fff; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${repo.name}</div>
+                        <div style="font-size:10px; color:var(--text-muted);">${total} changes pending</div>
+                    </div>
+                </label>
+            `;
+        }).join('');
+    }
+
+    elements.bulkCommitSelectAll.onchange = (e) => {
+        elements.bulkCommitRepoList.querySelectorAll('.bulk-commit-item-cb').forEach(cb => cb.checked = e.target.checked);
+    };
 
     elements.bulkCommitCancel.onclick = () => elements.bulkCommitModal.style.display = 'none';
     elements.bulkCommitConfirm.onclick = async () => {
+        const selectedCbs = Array.from(elements.bulkCommitRepoList.querySelectorAll('.bulk-commit-item-cb:checked'));
+        if (selectedCbs.length === 0) return showAlert('Select at least one project to commit.', 'Selection Required');
+
         const globalMsg = elements.bulkCommitMsg.value.trim();
         const useAI = elements.bulkCommitAutoMsg.checked;
 
         if (!globalMsg && !useAI) return showAlert('Please enter a message or enable AI.', 'Missing Info');
 
         elements.bulkCommitModal.style.display = 'none';
-        logToConsole('🚀 Launching Workspace-Wide Bulk Commit & Push...', 'info');
+        logToConsole(`🚀 Launching Bulk Commit & Push for ${selectedCbs.length} projects...`, 'info');
         setTaskState(true);
 
         let successCount = 0;
         let failCount = 0;
-        let skipCount = 0;
 
         try {
-            const targets = [...repositories];
-            logToConsole(`Analyzing ${targets.length} projects...`, 'info');
-
-            for (const repo of targets) {
+            for (const cb of selectedCbs) {
+                const path = cb.value;
+                const name = cb.dataset.name;
                 try {
                     // 1. Force Stage Everything (git add .)
-                    await window.electronAPI.gitStageAll(repo.path);
+                    await window.electronAPI.gitStageAll(path);
 
-                    // 2. Check Status
-                    const status = await window.electronAPI.gitStatus(repo.path);
-                    const mod = parseInt(status.modified) || 0;
-                    const add = parseInt(status.not_added) || 0;
-                    const del = parseInt(status.deleted) || 0;
-                    const staged = parseInt(status.staged) || 0;
-
-                    const hasChanges = (mod + add + del + staged) > 0;
-
-                    if (!hasChanges) {
-                        skipCount++;
-                        continue;
-                    }
-
-                    logToConsole(`📦 [${repo.name}]: Found changes. Processing...`, 'info');
+                    logToConsole(`📦 [${name}]: Processing...`, 'info');
 
                     let commitMsg = globalMsg;
                     if (useAI) {
                         try {
-                            const diff = await window.electronAPI.getFullDiff(repo.path);
+                            const diff = await window.electronAPI.getFullDiff(path);
                             if (diff) commitMsg = await window.electronAPI.generateCommitMsg(diff);
                         } catch(aiErr) {
-                            console.warn(`AI failed for ${repo.name}:`, aiErr);
+                            console.warn(`AI failed for ${name}:`, aiErr);
                         }
                     }
 
-                    // 3. Commit
-                    const commitRes = await window.electronAPI.gitCommit(repo.path, commitMsg || 'chore: bulk update');
+                    // 2. Commit
+                    const commitRes = await window.electronAPI.gitCommit(path, commitMsg || 'chore: bulk update');
                     if (commitRes.success) {
-                        logToConsole(`   ✅ Committed: ${repo.name}`, 'success');
+                        logToConsole(`   ✅ Committed: ${name}`, 'success');
 
-                        // 4. Push (Hardened with -u)
-                        logToConsole(`   ⬆️ Pushing: ${repo.name}...`, 'info');
-                        const pushRes = await window.electronAPI.gitPush(repo.path);
+                        // 3. Push
+                        logToConsole(`   ⬆️ Pushing: ${name}...`, 'info');
+                        const pushRes = await window.electronAPI.gitPush(path);
 
                         if (pushRes.success) {
-                            logToConsole(`   🚀 Pushed: ${repo.name}`, 'success');
+                            logToConsole(`   🚀 Pushed: ${name}`, 'success');
                             successCount++;
                         } else {
-                            logToConsole(`   ❌ Push Failed [${repo.name}]: ${pushRes.output}`, 'error');
+                            logToConsole(`   ❌ Push Failed [${name}]: ${pushRes.output}`, 'error');
                             failCount++;
                         }
                     } else {
-                        logToConsole(`   ❌ Commit Failed [${repo.name}]: ${commitRes.output}`, 'error');
+                        logToConsole(`   ❌ Commit Failed [${name}]: ${commitRes.output}`, 'error');
                         failCount++;
                     }
                 } catch (repoErr) {
-                    logToConsole(`   ⚠️ Fatal Error [${repo.name}]: ${repoErr.message}`, 'error');
+                    logToConsole(`   ⚠️ Fatal Error [${name}]: ${repoErr.message}`, 'error');
                     failCount++;
                 }
             }
 
             logToConsole('🏁 Bulk Sequence Finished.', 'info');
-
             if (failCount > 0) {
                 showAlert(`Bulk update finished with ${failCount} errors.`, 'Sync Completed with Errors');
             } else if (successCount > 0) {
                 showAlert(`Successfully updated ${successCount} projects!`, 'Bulk Update Success');
+                await smartRefreshTree();
+                showDashboard();
             } else {
                 showAlert(`All projects are already up to date.`, 'Nothing to Update');
             }
-
-            await showDashboard();
-            await smartRefreshTree();
-        } catch (e) {
-            logToConsole(`Bulk operation encountered a system error: ${e.message}`, 'error');
         } finally {
             setTaskState(false);
         }
@@ -2219,24 +2243,77 @@ async function showBulkCommitModal() {
 }
 
 async function handleBulkRestore() {
-    const warning = "NUCLEAR OPTION: BULK RESTORE ALL PROJECTS?\n\nThis will wipe ALL uncommitted changes in EVERY project in your workspace.\n\nTHIS CANNOT BE UNDONE.";
-    if (await showConfirm(warning, "Bulk Restore")) {
-        if (await showConfirm("FINAL WARNING: Wipe all local work across all repositories?", "DANGER: Bulk Restore")) {
-            logToConsole('Launching Bulk Restore sequence...', 'info');
-            setTaskState(true);
-            let success = 0; let fail = 0;
-            try {
-                for (const repo of repositories) {
-                    try {
-                        const res = await window.electronAPI.gitRestoreToHead(repo.path);
-                        if (res.success) success++; else fail++;
-                    } catch (e) { fail++; }
-                }
-                logToConsole(`Bulk Restore Complete. Success: ${success}, Failed: ${fail}`, 'info');
-                showDashboard();
-            } finally { setTaskState(false); }
-        }
+    elements.bulkRestoreModal.style.display = 'flex';
+    elements.bulkRestoreRepoList.innerHTML = '<div style="color:var(--text-muted); font-size:11px; padding:10px;">Analyzing workspace...</div>';
+
+    // Fetch fresh status for all projects to see who actually has changes
+    const projectsWithChanges = [];
+    for (const repo of repositories) {
+        try {
+            const status = await window.electronAPI.gitStatus(repo.path);
+            const hasChanges = (status.modified || 0) + (status.not_added || 0) + (status.deleted || 0) > 0;
+            if (hasChanges) projectsWithChanges.push({ repo, status });
+        } catch(e) {}
     }
+
+    if (projectsWithChanges.length === 0) {
+        elements.bulkRestoreRepoList.innerHTML = '<div style="color:var(--accent-green); font-size:11px; padding:10px;">All projects are already clean.</div>';
+        elements.bulkRestoreConfirm.disabled = true;
+    } else {
+        elements.bulkRestoreConfirm.disabled = false;
+        elements.bulkRestoreRepoList.innerHTML = projectsWithChanges.map(({ repo, status }) => {
+            const total = (status.modified || 0) + (status.not_added || 0) + (status.deleted || 0);
+            return `
+                <label style="display:flex; align-items:center; gap:8px; cursor:pointer; padding:8px; background:rgba(255,255,255,0.02); border-radius:4px; margin-bottom:4px;">
+                    <input type="checkbox" class="bulk-restore-item-cb" value="${repo.path}" data-name="${repo.name}" checked>
+                    <div style="flex:1; min-width:0;">
+                        <div style="font-size:12px; font-weight:600; color:#fff; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${repo.name}</div>
+                        <div style="font-size:10px; color:var(--accent-red);">${total} dirty files will be wiped</div>
+                    </div>
+                </label>
+            `;
+        }).join('');
+    }
+
+    elements.bulkRestoreSelectAll.onchange = (e) => {
+        elements.bulkRestoreRepoList.querySelectorAll('.bulk-restore-item-cb').forEach(cb => cb.checked = e.target.checked);
+    };
+
+    elements.bulkRestoreCancel.onclick = () => elements.bulkRestoreModal.style.display = 'none';
+    elements.bulkRestoreConfirm.onclick = async () => {
+        const selectedCbs = Array.from(elements.bulkRestoreRepoList.querySelectorAll('.bulk-restore-item-cb:checked'));
+        if (selectedCbs.length === 0) return showAlert('Select at least one project to restore.', 'Selection Required');
+
+        if (!(await showConfirm(`Are you sure you want to wipe all local changes in ${selectedCbs.length} projects?\n\nThis cannot be undone.`, "Confirm Bulk Restore"))) return;
+
+        elements.bulkRestoreModal.style.display = 'none';
+        logToConsole(`Launching Bulk Restore sequence for ${selectedCbs.length} projects...`, 'info');
+        setTaskState(true);
+
+        let success = 0; let fail = 0;
+        try {
+            for (const cb of selectedCbs) {
+                const path = cb.value;
+                const name = cb.dataset.name;
+                try {
+                    const res = await window.electronAPI.gitRestoreToHead(path);
+                    if (res.success) {
+                        logToConsole(`   ✅ Restored: ${name}`, 'success');
+                        success++;
+                    } else {
+                        logToConsole(`   ❌ Restore Failed [${name}]: ${res.output}`, 'error');
+                        fail++;
+                    }
+                } catch (e) {
+                    logToConsole(`   ⚠️ Error [${name}]: ${e.message}`, 'error');
+                    fail++;
+                }
+            }
+            logToConsole(`Bulk Restore Complete. Success: ${success}, Failed: ${fail}`, 'info');
+            await smartRefreshTree();
+            showDashboard();
+        } finally { setTaskState(false); }
+    };
 }
 
 async function showUnbornFoldersModal(unbornList) {
