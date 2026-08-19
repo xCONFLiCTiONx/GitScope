@@ -188,7 +188,7 @@
         }
         .tree-node:hover { background-color: var(--hover-bg); }
         .tree-node.active { background-color: #1f6feb22; color: #fff; border-left: 2px solid var(--accent-blue); border-radius: 0; }
-        .tree-node.changed-file { color: var(--accent-red) !important; font-weight: 500; }
+        .tree-node.changed-file, .tree-node.changed-file .node-name { color: var(--accent-red) !important; font-weight: 500; }
 
         .children-container {
             border-left: 1px solid rgba(255, 255, 255, 0.05);
@@ -206,26 +206,17 @@
         }
         .status-dot-mini.active { background-color: var(--accent-blue); opacity: 1; }
 
-        .file-badge {
-            font-size: 8px;
-            font-weight: 800;
-            padding: 1px 3px;
-            border-radius: 3px;
-            background: rgba(255,255,255,0.1);
-            color: #fff;
-            min-width: 14px;
-            text-align: center;
-            text-transform: uppercase;
-            line-height: 1;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-        }
-        .badge-js { color: #f1e05a; border: 1px solid rgba(241, 224, 90, 0.3); }
-        .badge-ts { color: #3178c6; border: 1px solid rgba(49, 120, 198, 0.3); }
-        .badge-html { color: #e34c26; border: 1px solid rgba(227, 76, 38, 0.3); }
-        .badge-css { color: #563d7c; border: 1px solid rgba(86, 61, 124, 0.3); }
-        .badge-md { color: #4e94ff; border: 1px solid rgba(78, 148, 255, 0.3); }
+        /* File Type Colors (Visual Studio Dark) */
+        .file-type-js { color: #DCDCAA; }
+        .file-type-ts { color: #4EC9B0; }
+        .file-type-html, .file-type-xml { color: #CE9178; }
+        .file-type-css { color: #CE9178; }
+        .file-type-md, .file-type-json { color: #9CDCFE; }
+        .file-type-gitignore { color: #808080; opacity: 0.6; font-style: italic; }
+        .file-type-png, .file-type-jpg, .file-type-ico, .file-type-svg { color: #D7BA7D; }
+        .file-type-kt, .file-type-kts { color: #569CD6; }
+        .file-type-py { color: #3572A5; }
+        .file-type-py { color: #3572a5; }
 
         .sidebar-action-icon {
             font-size: 14px;
@@ -252,12 +243,18 @@
         }
 
         /* Views common padding */
-        #dashboard-view, #repo-view, #settings-view, #editor-view, #git-config-view {
+        #dashboard-view, #repo-view, #settings-view, #editor-view, #git-config-view, #theme-editor-view {
             padding: 20px 24px;
             flex: 1;
             min-height: 0;
             display: none;
             flex-direction: column;
+        }
+
+        #theme-monaco-container {
+            flex-grow: 1;
+            position: relative;
+            min-height: 200px;
         }
 
         #diff-view, #status-view {
@@ -855,6 +852,9 @@
             <div id="nav-git-config" class="nav-item" title="Global Git Configuration" style="margin-top: auto;">
                 <svg height="18" width="18" viewBox="0 0 16 16" fill="currentColor" style="display:inline-block;vertical-align:middle;color:var(--text-muted);"><path d="M1 2.75C1 1.784 1.784 1 2.75 1h10.5c.966 0 1.75.784 1.75 1.75v10.5A1.75 1.75 0 0 1 13.25 15H2.75A1.75 1.75 0 0 1 1 13.25V2.75Zm1.75-.25a.25.25 0 0 0-.25.25v10.5c0 .138.112.25.25.25h10.5a.25.25 0 0 0 .25-.25V2.75a.25.25 0 0 0-.25-.25H2.75ZM5 4.5h6a.75.25 0 0 1 0 1.5H5a.75.75 0 0 1 0-1.5Zm0 3.5h6a.75.25 0 0 1 0 1.5H5a.75.75 0 0 1 0-1.5Zm0 3.5h3a.75.25 0 0 1 0 1.5H5a.75.75 0 0 1 0-1.5Z"></path></svg>
             </div>
+            <div id="nav-theme" class="nav-item" title="Theme Editor">
+                <svg height="18" width="18" viewBox="0 0 16 16" fill="currentColor" style="display:inline-block;vertical-align:middle;color:var(--text-muted);"><path d="M6 0C2.69 0 0 2.69 0 6c0 1.31.42 2.53 1.13 3.53l-1.07 1.07a.751.751 0 0 0 .018 1.042l1.25 1.25a.75.75 0 0 0 1.06 0l1.07-1.07C4.47 12.58 5.69 13 7 13c3.31 0 6-2.69 6-6V3c0-.55-.45-1-1-1H9c0-1.1-.9-2-2.5-2H6Zm0 1.5h.5c.83 0 1 0 1 .5V3h5v3c0 2.48-1.52 4.5-4.5 4.5s-4.5-2.02-4.5-4.5c0-1.24.51-2.36 1.33-3.17.29-.29.62-.55.98-.77.16-.09.19-.31.06-.45l-.5-.5a.25.25 0 0 1 .13-.11ZM11.5 5h1a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-.5.5h-1a.5.5 0 0 1-.5-.5v-2a.5.5 0 0 1 .5-.5Z"></path></svg>
+            </div>
             <div id="nav-settings" class="nav-item nav-item-bottom" title="Settings" style="margin-top: 0;">⚙</div>
         </div>
 
@@ -1038,6 +1038,9 @@
                 <div id="editor-container-wrapper" style="flex-grow: 1; position: relative;">
                     <div id="monaco-container" style="position: absolute; inset: 0; border: 1px solid var(--border-color); border-radius: 6px; overflow: hidden;"></div>
                     <div id="markdown-preview" style="position: absolute; inset: 0; border: 1px solid var(--border-color); border-radius: 6px; overflow-y: auto; background: var(--bg-surface); padding: 20px; display: none; color: var(--text-main); font-size: 14px; line-height: 1.6;"></div>
+                    <div id="image-preview" style="position: absolute; inset: 0; border: 1px solid var(--border-color); border-radius: 6px; overflow: auto; background: var(--bg-surface); display: none; align-items: center; justify-content: center; padding: 20px;">
+                        <img id="preview-img" alt="Image Preview" style="max-width: 100%; max-height: 100%; object-fit: contain; box-shadow: 0 4px 20px rgba(0,0,0,0.5);">
+                    </div>
                 </div>
             </div>
 
@@ -1076,6 +1079,13 @@
                             <button id="browse-custom-shell" class="button">Browse</button>
                         </div>
                     </div>
+                    <div class="settings-section">
+                        <h3>Editor Theme (Obsidian)</h3>
+                        <p>Customize the code editor using a simplified Obsidian style format.</p>
+                        <div class="settings-control">
+                            <button id="open-theme-editor-btn" class="button button-blue" style="width: 100%; padding: 10px; font-weight: 600;">OPEN ADVANCED THEME EDITOR</button>
+                        </div>
+                    </div>
                     <div class="settings-section" style="border-bottom: none;">
                         <h3 style="color: var(--accent-red);">Danger Zone</h3>
                         <p>Permanently remove all settings and projects from the application.</p>
@@ -1087,6 +1097,22 @@
                         <button id="save-settings-btn" class="button button-primary">Apply & Save All</button>
                     </div>
                 </div>
+            </div>
+
+            <!-- Theme Editor View -->
+            <div id="theme-editor-view" style="display: none;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; border-bottom: 1px solid var(--border-color); padding-bottom: 16px;">
+                    <div>
+                        <h1 style="margin: 0;">Theme Editor</h1>
+                        <p style="margin: 4px 0 0 0; color: var(--text-muted); font-size: 13px;">Customize the visual workspace experience using Obsidian syntax.</p>
+                    </div>
+                    <div style="display: flex; gap: 8px;">
+                        <button id="theme-reset-btn" class="button" title="Restore Default Theme">Reset to Default</button>
+                        <button id="theme-save-btn" class="button button-primary">Save & Apply Theme</button>
+                        <button id="theme-close-btn" class="button">Close</button>
+                    </div>
+                </div>
+                <div id="theme-monaco-container" style="flex-grow: 1; border: 1px solid var(--border-color); border-radius: 8px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.3);"></div>
             </div>
 
             <!-- Global Git Config View -->

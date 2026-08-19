@@ -3,11 +3,12 @@ let repositories = [];
 let activeRepo = null;
 let isRendering = false;
 let hideIgnoredFiles = false;
-let settings = { shell: 'powershell.exe', rootRepoDir: '', githubToken: '' };
+let settings = { shell: 'powershell.exe', rootRepoDir: '', githubToken: '', obsidianIni: '' };
 let selectedNodes = new Set();
 let expandedNodes = new Set();
 let tokenExpiration = null;
 let monacoEditor = null;
+let themeEditor = null;
 let currentEditingPath = null;
 let activeTasks = 0;
 let lastSelectedPath = null;
@@ -113,6 +114,8 @@ const elements = {
     get editorPreviewToggle() { return document.getElementById('editor-preview-toggle'); },
     get gitignoreScanBtn() { return document.getElementById('gitignore-scan-btn'); },
     get markdownPreview() { return document.getElementById('markdown-preview'); },
+    get imagePreview() { return document.getElementById('image-preview'); },
+    get previewImg() { return document.getElementById('preview-img'); },
     get monacoContainer() { return document.getElementById('monaco-container'); },
     get settingsView() { return document.getElementById('settings-view'); },
     get branchSelect() { return document.getElementById('branch-select'); },
@@ -199,7 +202,14 @@ const elements = {
     get smartSyncRun() { return document.getElementById('smart-sync-run'); },
     get smartSyncCancel() { return document.getElementById('smart-sync-cancel'); },
     get navGitConfig() { return document.getElementById('nav-git-config'); },
+    get navTheme() { return document.getElementById('nav-theme'); },
     get gitConfigView() { return document.getElementById('git-config-view'); },
+    get themeEditorView() { return document.getElementById('theme-editor-view'); },
+    get themeMonacoContainer() { return document.getElementById('theme-monaco-container'); },
+    get themeSaveBtn() { return document.getElementById('theme-save-btn'); },
+    get themeResetBtn() { return document.getElementById('theme-reset-btn'); },
+    get themeCloseBtn() { return document.getElementById('theme-close-btn'); },
+    get openThemeEditorBtn() { return document.getElementById('open-theme-editor-btn'); },
     get gitConfigSections() { return document.getElementById('git-config-sections'); },
     get gitConfigPathDisplay() { return document.getElementById('git-config-path-display'); },
     get saveGitConfigBtn() { return document.getElementById('save-git-config-btn'); },
@@ -241,6 +251,14 @@ window.onload = async () => {
         if (elements.rootRepoDirInput) elements.rootRepoDirInput.value = settings.rootRepoDir || '';
         if (elements.githubPatInput) elements.githubPatInput.value = settings.githubToken || '';
 
+        // Intelligence: If Obsidian theme is empty, use the new simplified default
+        if (!settings.obsidianIni) {
+            settings.obsidianIni = DEFAULT_THEME_INI;
+            window.electronAPI.saveSettings(settings);
+        }
+
+        if (elements.obsidianIniEditor) elements.obsidianIniEditor.value = settings.obsidianIni || '';
+
         // 5. Hydrate Repositories
         const savedRepos = await reposPromise;
         repositories = (savedRepos || []).map(r => ({
@@ -278,18 +296,140 @@ function initEditor() {
     if (typeof require !== 'undefined') {
         require.config({ paths: { 'vs': '../node_modules/monaco-editor/min/vs' } });
         require(['vs/editor/editor.main'], function () {
+            // 1. Define the theme BEFORE creating any editor instances
+            if (settings.obsidianIni) {
+                applyObsidianTheme(settings.obsidianIni);
+            }
+
+            // 2. Create the editor with the 'obsidian' theme already active
             monacoEditor = monaco.editor.create(elements.monacoContainer, {
-                theme: 'vs-dark',
+                theme: settings.obsidianIni ? 'obsidian' : 'vs-dark',
                 automaticLayout: true,
                 tabSize: 4,
                 insertSpaces: true,
                 formatOnPaste: true,
                 formatOnType: true,
-                minimap: { enabled: false }
+                minimap: { enabled: false },
+                fontFamily: 'Cascadia Mono, Consolas, monospace',
+                fontSize: 13
             });
             logToConsole('Code Editor ready.', 'info');
         });
     }
+}
+
+function applyObsidianTheme(iniContent) {
+    if (!iniContent || typeof monaco === 'undefined') return;
+    try {
+        const themeData = parseObsidianIni(iniContent);
+
+        // Define or Update the 'obsidian' theme
+        monaco.editor.defineTheme('obsidian', {
+            base: 'vs-dark',
+            inherit: true,
+            rules: themeData.rules,
+            colors: themeData.colors
+        });
+
+        // FORCE APPLY to all editor instances
+        if (monaco.editor.setTheme) {
+            monaco.editor.setTheme('obsidian');
+        }
+
+        if (monacoEditor) {
+            if (themeData.fontFamily) {
+                monacoEditor.updateOptions({ fontFamily: themeData.fontFamily });
+            }
+        }
+
+        // Intelligence: Update the Dashboard/UI to match the theme background for a unified feel
+        const bg = themeData.colors['editor.background'];
+        if (bg) {
+            document.body.style.backgroundColor = bg;
+            document.querySelectorAll('.dashboard-card, .summary-card, .settings-card').forEach(el => {
+                el.style.backgroundColor = 'rgba(255,255,255,0.02)';
+            });
+        }
+    } catch (e) {
+        console.error('Failed to apply theme:', e);
+    }
+}
+
+const DEFAULT_THEME_INI = `[Theme]
+; Global Workspace Colors
+Font=Cascadia Mono
+Background=#1e1e1e
+Foreground=#d4d4d4
+LineNumbers=#858585
+Selection=#264f78
+Cursor=#569cd6
+
+[Syntax]
+; Code Element Colors
+Comment=#6a9955
+String=#ce9178
+Number=#b5cea8
+Keyword=#569cd6
+Operator=#d4d4d4
+Identifier=#9cdcfe
+Preprocessor=#c586c0
+Tag=#569cd6
+Attribute=#9cdcfe
+Value=#ce9178`;
+
+function parseObsidianIni(ini) {
+    const lines = ini.split('\n');
+    const sections = {};
+    let currentSection = null;
+
+    for (let line of lines) {
+        line = line.trim();
+        if (!line || line.startsWith(';') || line.startsWith('#')) continue;
+        if (line.startsWith('[') && line.endsWith(']')) {
+            currentSection = line.substring(1, line.length - 1).toLowerCase();
+            sections[currentSection] = {};
+            continue;
+        }
+        if (currentSection) {
+            const eqIdx = line.indexOf('=');
+            if (eqIdx !== -1) {
+                const key = line.substring(0, eqIdx).trim().toLowerCase();
+                const value = line.substring(eqIdx + 1).trim();
+                sections[currentSection][key] = value;
+            }
+        }
+    }
+
+    const theme = sections['theme'] || {};
+    const syntax = sections['syntax'] || {};
+
+    const rules = [
+        { token: 'comment', foreground: syntax['comment'] || '#6a9955' },
+        { token: 'string', foreground: syntax['string'] || '#ce9178' },
+        { token: 'number', foreground: syntax['number'] || '#b5cea8' },
+        { token: 'keyword', foreground: syntax['keyword'] || '#569cd6' },
+        { token: 'operator', foreground: syntax['operator'] || '#d4d4d4' },
+        { token: 'identifier', foreground: syntax['identifier'] || '#9cdcfe' },
+        { token: 'metatag', foreground: syntax['preprocessor'] || '#c586c0' },
+        { token: 'tag', foreground: syntax['tag'] || '#569cd6' },
+        { token: 'attribute.name', foreground: syntax['attribute'] || '#9cdcfe' },
+        { token: 'attribute.value', foreground: syntax['value'] || '#ce9178' }
+    ];
+
+    const colors = {
+        'editor.background': theme['background'] || '#1e1e1e',
+        'editor.foreground': theme['foreground'] || '#d4d4d4',
+        'editorLineNumber.foreground': theme['linenumbers'] || '#858585',
+        'editor.selectionBackground': theme['selection'] || '#264f78',
+        'editorCursor.foreground': theme['cursor'] || '#569cd6',
+        'editor.lineHighlightBackground': (theme['background'] || '#1e1e1e') + '44'
+    };
+
+    return {
+        rules,
+        colors,
+        fontFamily: theme['font'] || 'Cascadia Mono, Consolas, monospace'
+    };
 }
 
 function initResizers() {
@@ -365,6 +505,19 @@ function initEventListeners() {
     if (elements.navGitConfig) elements.navGitConfig.onclick = () => {
         setActiveNavItem(elements.navGitConfig);
         showGitConfigView();
+    };
+    if (elements.navTheme) elements.navTheme.onclick = () => {
+        setActiveNavItem(elements.navTheme);
+        showThemeEditor();
+    };
+    if (elements.openThemeEditorBtn) elements.openThemeEditorBtn.onclick = () => showThemeEditor();
+    if (elements.themeSaveBtn) elements.themeSaveBtn.onclick = () => saveThemeFromEditor();
+    if (elements.themeResetBtn) elements.themeResetBtn.onclick = () => {
+        if (themeEditor) themeEditor.setValue(DEFAULT_THEME_INI);
+    };
+    if (elements.themeCloseBtn) elements.themeCloseBtn.onclick = () => {
+        elements.themeEditorView.style.display = 'none';
+        showDashboard();
     };
 
     // Sidebar Header Actions
@@ -551,6 +704,7 @@ function setActiveNavItem(item) {
     elements.editorView.style.display = 'none';
     elements.settingsView.style.display = 'none';
     elements.gitConfigView.style.display = 'none';
+    elements.themeEditorView.style.display = 'none';
     elements.statusView.style.display = 'none';
     document.querySelectorAll('.modal').forEach(m => m.style.display = 'none');
 }
@@ -886,6 +1040,7 @@ async function saveGlobalSettings() {
         logToConsole('Settings saved.', 'success');
         if (settings.githubToken) checkGitHubTokenLife();
         if (settings.rootRepoDir) await autoImportFromRoot(settings.rootRepoDir);
+        applyObsidianTheme(settings.obsidianIni);
         renderTree();
     } catch (e) { logToConsole(e.message, 'error'); }
 }
@@ -1392,13 +1547,11 @@ function createTreeNode(name, fullPath, isDirectory, depth, repo) {
     const normPath = fullPath.replace(/\\/g, '/').toLowerCase();
     let isChanged = false; if (!isDirectory && repo && repo.changedFiles) isChanged = repo.changedFiles.includes(normPath);
     item.className = `tree-node ${depth === 0 ? 'repo-root' : ''} ${isChanged ? 'changed-file' : ''}`;
-    if (isChanged) item.style.color = '#f85149';
     item.style.paddingLeft = `${depth * 12 + 16}px`;
     if (selectedNodes.has(fullPath)) item.classList.add('active');
     const ext = name.split('.').pop().toLowerCase();
-    const badges = { 'js': 'JS', 'ts': 'TS', 'html': 'HT', 'css': 'CS', 'md': 'MD' };
-    const badge = (!isDirectory && badges[ext]) ? `<span class="file-badge badge-${ext}">${badges[ext]}</span>` : '';
-    item.innerHTML = `<span class="chevron">${isDirectory ? '▸' : ''}</span>${badge}<span class="node-name">${name}</span>${(isDirectory && isChanged) ? '<span class="status-dot-mini active"></span>' : ''}`;
+    const fileClass = !isDirectory ? `file-type-${ext.replace(/[^a-z0-9]/g, '-')}` : '';
+    item.innerHTML = `<span class="chevron">${isDirectory ? '▸' : ''}</span><span class="node-name ${fileClass}">${name}</span>${(isDirectory && isChanged) ? '<span class="status-dot-mini active"></span>' : ''}`;
     item.dataset.path = fullPath;
     item.oncontextmenu = (e) => {
         e.preventDefault(); e.stopPropagation();
@@ -1672,6 +1825,106 @@ async function showDashboard() {
 
     updateDashboardSummary(stats);
     updateStatusFeed(stats);
+}
+
+async function showThemeEditor() {
+    setActiveNavItem(null);
+    elements.themeEditorView.style.display = 'flex';
+
+    // Intelligence: If the current theme is in the old massive format, offer to clean it
+    let currentIni = settings.obsidianIni || DEFAULT_THEME_INI;
+    if (currentIni.includes('[Common Base]') || currentIni.length > 5000) {
+        const confirm = await showConfirm("Your current theme is in the old complex format. Would you like to migrate it to the new clean format?", "Theme Migration");
+        if (confirm) {
+            currentIni = migrateOldIniToNew(currentIni);
+            settings.obsidianIni = currentIni;
+            window.electronAPI.saveSettings(settings);
+        }
+    }
+
+    const initOrUpdate = () => {
+        if (!themeEditor && typeof monaco !== 'undefined') {
+            themeEditor = monaco.editor.create(elements.themeMonacoContainer, {
+                value: currentIni,
+                language: 'ini',
+                theme: 'vs-dark',
+                automaticLayout: true,
+                minimap: { enabled: false },
+                fontFamily: 'Cascadia Mono, Consolas, monospace',
+                fontSize: 13
+            });
+        } else if (themeEditor) {
+            themeEditor.setValue(currentIni);
+            themeEditor.layout();
+        }
+    };
+
+    setTimeout(initOrUpdate, 50);
+}
+
+function migrateOldIniToNew(oldIni) {
+    const lines = oldIni.split('\n');
+    const sections = {};
+    let currentSection = null;
+
+    for (let line of lines) {
+        line = line.trim();
+        if (!line || line.startsWith('#') || line.startsWith(';')) continue;
+        const sMatch = line.match(/^\[([^\]]+)\]/);
+        if (sMatch) {
+            currentSection = sMatch[1];
+            sections[currentSection] = {};
+            continue;
+        }
+        if (currentSection) {
+            const eqIdx = line.indexOf('=');
+            if (eqIdx !== -1) {
+                const key = line.substring(0, eqIdx).trim();
+                const value = line.substring(eqIdx + 1).trim();
+                sections[currentSection][key] = value;
+            }
+        }
+    }
+
+    const getVal = (sec, key) => (sections[sec] || {})[key] || (sections['Common Base'] || {})[key] || '';
+    const getFore = (style) => (style.match(/fore:(#[0-9a-fA-F]{3,6})/) || [null, ''])[1];
+    const getBack = (style) => (style.match(/back:(#[0-9a-fA-F]{3,6})/) || [null, ''])[1];
+
+    let bg = getBack(getVal('Common Base', 'Default Style')) || '#1e1e1e';
+    if (bg === '#000000' || bg === '#000') bg = '#1e1e1e';
+
+    return `[Theme]
+; Essential Workspace Styling
+Font=${getVal('Common Base', 'Default Style').match(/font:([^;]+)/)?.[1] || 'Cascadia Mono'}
+Background=${bg}
+Foreground=${getFore(getVal('Common Base', 'Default Style')) || '#d4d4d4'}
+LineNumbers=${getFore(getVal('Common Base', 'Margins and Line Numbers')) || '#858585'}
+Selection=${getBack(getVal('Common Base', 'Selected Text (Colors)')) || '#264f78'}
+Cursor=${getFore(getVal('Common Base', 'Caret (Color, Size 1-3)')) || '#569cd6'}
+
+[Syntax]
+; Code Element Highlighting
+Comment=${getFore(getVal('JavaScript', 'Comment')) || '#6a9955'}
+String=${getFore(getVal('JavaScript', 'String')) || '#ce9178'}
+Number=${getFore(getVal('JavaScript', 'Number')) || '#b5cea8'}
+Keyword=${getFore(getVal('JavaScript', 'Keyword')) || '#569cd6'}
+Operator=${getFore(getVal('JavaScript', 'Operator')) || '#d4d4d4'}
+Identifier=${getFore(getVal('JavaScript', 'Identifier')) || '#9cdcfe'}
+Preprocessor=${getFore(getVal('JavaScript', 'Preprocessor')) || '#c586c0'}
+Tag=${getFore(getVal('XML Document', 'XML Tag')) || '#569cd6'}
+Attribute=${getFore(getVal('XML Document', 'XML Attribute')) || '#9cdcfe'}
+Value=${getFore(getVal('XML Document', 'XML Value')) || '#ce9178'}`;
+}
+
+async function saveThemeFromEditor() {
+    if (!themeEditor) return;
+    const newIni = themeEditor.getValue();
+    settings.obsidianIni = newIni;
+    try {
+        await window.electronAPI.saveSettings(settings);
+        applyObsidianTheme(newIni);
+        logToConsole('Theme updated and applied.', 'success');
+    } catch (e) { logToConsole(e.message, 'error'); }
 }
 
 async function showGitConfigView() {
@@ -2437,27 +2690,45 @@ async function refreshActiveRepoUI(silent = false) {
 async function openFileInEditor(filePath) {
     if (!monacoEditor) return;
     try {
-        const content = await window.electronAPI.readFile(filePath);
+        const ext = filePath.split('.').pop().toLowerCase();
+        const imageExts = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'ico', 'svg'];
+
         currentEditingPath = filePath;
         setActiveNavItem(null);
         elements.editorView.style.display = 'flex';
         elements.editorFileName.textContent = filePath.split(/[\\\/]/).pop();
 
-        const ext = filePath.split('.').pop().toLowerCase();
-        const langMap = { 'js': 'javascript', 'ts': 'typescript', 'html': 'html', 'css': 'css', 'md': 'markdown', 'json': 'json', 'txt': 'plaintext' };
-
-        elements.editorPreviewToggle.style.display = (ext === 'md') ? 'block' : 'none';
-        elements.gitignoreScanBtn.style.display = (filePath.endsWith('.gitignore')) ? 'block' : 'none';
-
-        // RESET: Always switch back to editor mode when opening a new file
+        // RESET UI States
         elements.markdownPreview.style.display = 'none';
-        elements.monacoContainer.style.display = 'block';
-        elements.editorPreviewToggle.textContent = 'Preview';
-        elements.markdownPreview.innerHTML = '';
+        elements.monacoContainer.style.display = 'none';
+        elements.imagePreview.style.display = 'none';
+        elements.editorPreviewToggle.style.display = 'none';
+        elements.gitignoreScanBtn.style.display = 'none';
+        elements.editorSaveBtn.style.display = 'block';
 
-        const model = monaco.editor.createModel(content, langMap[ext] || 'plaintext');
-        monacoEditor.setModel(model);
-        monacoEditor.layout();
+        if (imageExts.includes(ext)) {
+            // Handle Image Preview
+            const base64 = await window.electronAPI.readFileBase64(filePath);
+            const mimeMap = { 'svg': 'image/svg+xml', 'ico': 'image/x-icon', 'jpg': 'image/jpeg', 'jpeg': 'image/jpeg', 'png': 'image/png', 'gif': 'image/gif', 'webp': 'image/webp' };
+            elements.previewImg.src = `data:${mimeMap[ext] || 'image/' + ext};base64,${base64}`;
+            elements.imagePreview.style.display = 'flex';
+            elements.editorSaveBtn.style.display = 'none'; // Can't save images in text editor
+        } else {
+            // Handle Text Editor
+            const content = await window.electronAPI.readFile(filePath);
+            const langMap = { 'js': 'javascript', 'ts': 'typescript', 'html': 'html', 'css': 'css', 'md': 'markdown', 'json': 'json', 'txt': 'plaintext' };
+
+            elements.editorPreviewToggle.style.display = (ext === 'md') ? 'block' : 'none';
+            elements.gitignoreScanBtn.style.display = (filePath.endsWith('.gitignore')) ? 'block' : 'none';
+
+            elements.monacoContainer.style.display = 'block';
+            elements.editorPreviewToggle.textContent = 'Preview';
+            elements.markdownPreview.innerHTML = '';
+
+            const model = monaco.editor.createModel(content, langMap[ext] || 'plaintext');
+            monacoEditor.setModel(model);
+            monacoEditor.layout();
+        }
     } catch (e) { logToConsole(e.message, 'error'); }
 }
 

@@ -254,6 +254,15 @@ ipcMain.handle('read-file', async (event, filePath) => {
   }
 });
 
+ipcMain.handle('read-file-base64', async (event, filePath) => {
+  try {
+    const buffer = await fs.readFile(filePath);
+    return buffer.toString('base64');
+  } catch (e) {
+    throw e;
+  }
+});
+
 ipcMain.handle('write-file', async (event, filePath, content) => {
   try {
     await fs.writeFile(filePath, content, 'utf8');

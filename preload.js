@@ -6,6 +6,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   scanDirectory: (path) => ipcRenderer.invoke('scan-directory', path),
   listDirectory: (path, showIgnored) => ipcRenderer.invoke('list-directory', path, showIgnored),
   readFile: (path) => ipcRenderer.invoke('read-file', path),
+  readFileBase64: (path) => ipcRenderer.invoke('read-file-base64', path),
   writeFile: (path, content) => ipcRenderer.invoke('write-file', path, content),
   moveFile: (src, dest) => ipcRenderer.invoke('move-file', src, dest),
   moveFileForce: (src, dest) => ipcRenderer.invoke('move-file-force', src, dest),
