@@ -411,6 +411,18 @@ ipcMain.handle('git-unstage-file', async (event, path, filePath) => {
   return await gitActions.unstageFile(path, filePath);
 });
 
+ipcMain.handle('git-stop-tracking', async (event, path, filePath) => {
+  return await gitActions.stopTracking(path, filePath);
+});
+
+ipcMain.handle('git-start-tracking', async (event, path, filePath) => {
+  return await gitActions.startTracking(path, filePath);
+});
+
+ipcMain.handle('git-is-tracked', async (event, path, filePath) => {
+  return await gitActions.isTracked(path, filePath);
+});
+
 ipcMain.handle('git-get-branches', async (event, path) => {
   return await gitActions.getBranches(path);
 });
@@ -926,6 +938,15 @@ ipcMain.handle('show-context-menu', (event, options) => {
   ];
 
   if (!options.isRepoRoot) {
+    template.push({ type: 'separator' });
+    template.push({
+      label: options.isTracked ? 'Stop Tracking' : 'Start Tracking',
+      click: () => event.sender.send('context-menu-command', {
+        command: options.isTracked ? 'stop-tracking' : 'start-tracking',
+        path: paths[0],
+        repoPath: options.repoPath
+      })
+    });
     template.push({ type: 'separator' });
     if (!isMulti) {
       template.push({

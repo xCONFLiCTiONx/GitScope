@@ -215,6 +215,7 @@
         .file-type-gitignore { color: #808080; opacity: 0.6; font-style: italic; }
         .file-type-png, .file-type-jpg, .file-type-ico, .file-type-svg { color: #D7BA7D; }
         .file-type-kt, .file-type-kts { color: #569CD6; }
+        .file-type-cs { color: #569CD6; }
         .file-type-py { color: #3572A5; }
         .file-type-py { color: #3572a5; }
 
@@ -1107,12 +1108,22 @@
                         <p style="margin: 4px 0 0 0; color: var(--text-muted); font-size: 13px;">Customize the visual workspace experience using Obsidian syntax.</p>
                     </div>
                     <div style="display: flex; gap: 8px;">
-                        <button id="theme-reset-btn" class="button" title="Restore Default Theme">Reset to Default</button>
+                        <button id="theme-undo-btn" class="button" title="Undo Last Change">Undo</button>
+                        <button id="theme-reset-btn" class="button" title="Set to Factory Default Theme">Set Default</button>
                         <button id="theme-save-btn" class="button button-primary">Save & Apply Theme</button>
                         <button id="theme-close-btn" class="button">Close</button>
                     </div>
                 </div>
-                <div id="theme-monaco-container" style="flex-grow: 1; border: 1px solid var(--border-color); border-radius: 8px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.3);"></div>
+
+                <div style="display: flex; flex: 1; gap: 20px; min-height: 0;">
+                    <!-- Left: Visual Controls -->
+                    <div id="theme-visual-controls" style="width: 320px; overflow-y: auto; background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: 8px; padding: 20px; display: flex; flex-direction: column; gap: 24px;">
+                        <!-- Injected via JS -->
+                    </div>
+
+                    <!-- Right: Raw Code -->
+                    <div id="theme-monaco-container" style="flex: 1; border: 1px solid var(--border-color); border-radius: 8px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.3);"></div>
+                </div>
             </div>
 
             <!-- Global Git Config View -->

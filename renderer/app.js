@@ -206,7 +206,9 @@ const elements = {
     get gitConfigView() { return document.getElementById('git-config-view'); },
     get themeEditorView() { return document.getElementById('theme-editor-view'); },
     get themeMonacoContainer() { return document.getElementById('theme-monaco-container'); },
+    get themeVisualControls() { return document.getElementById('theme-visual-controls'); },
     get themeSaveBtn() { return document.getElementById('theme-save-btn'); },
+    get themeUndoBtn() { return document.getElementById('theme-undo-btn'); },
     get themeResetBtn() { return document.getElementById('theme-reset-btn'); },
     get themeCloseBtn() { return document.getElementById('theme-close-btn'); },
     get openThemeEditorBtn() { return document.getElementById('open-theme-editor-btn'); },
@@ -358,7 +360,7 @@ function applyObsidianTheme(iniContent) {
 const DEFAULT_THEME_INI = `[Theme]
 ; Global Workspace Colors
 Font=Cascadia Mono
-Background=#1e1e1e
+Background=#121314
 Foreground=#d4d4d4
 LineNumbers=#858585
 Selection=#264f78
@@ -410,6 +412,9 @@ function parseObsidianIni(ini) {
         { token: 'keyword', foreground: syntax['keyword'] || '#569cd6' },
         { token: 'operator', foreground: syntax['operator'] || '#d4d4d4' },
         { token: 'identifier', foreground: syntax['identifier'] || '#9cdcfe' },
+        { token: 'type', foreground: syntax['attribute'] || '#4ec9b0' },
+        { token: 'class', foreground: syntax['attribute'] || '#4ec9b0' },
+        { token: 'namespace', foreground: syntax['keyword'] || '#569cd6' },
         { token: 'metatag', foreground: syntax['preprocessor'] || '#c586c0' },
         { token: 'tag', foreground: syntax['tag'] || '#569cd6' },
         { token: 'attribute.name', foreground: syntax['attribute'] || '#9cdcfe' },
@@ -417,12 +422,12 @@ function parseObsidianIni(ini) {
     ];
 
     const colors = {
-        'editor.background': theme['background'] || '#1e1e1e',
+        'editor.background': theme['background'] || '#121314',
         'editor.foreground': theme['foreground'] || '#d4d4d4',
         'editorLineNumber.foreground': theme['linenumbers'] || '#858585',
         'editor.selectionBackground': theme['selection'] || '#264f78',
         'editorCursor.foreground': theme['cursor'] || '#569cd6',
-        'editor.lineHighlightBackground': (theme['background'] || '#1e1e1e') + '44'
+        'editor.lineHighlightBackground': (theme['background'] || '#121314') + '44'
     };
 
     return {
@@ -512,8 +517,14 @@ function initEventListeners() {
     };
     if (elements.openThemeEditorBtn) elements.openThemeEditorBtn.onclick = () => showThemeEditor();
     if (elements.themeSaveBtn) elements.themeSaveBtn.onclick = () => saveThemeFromEditor();
-    if (elements.themeResetBtn) elements.themeResetBtn.onclick = () => {
-        if (themeEditor) themeEditor.setValue(DEFAULT_THEME_INI);
+    if (elements.themeUndoBtn) elements.themeUndoBtn.onclick = () => {
+        if (themeEditor) themeEditor.trigger('keyboard', 'undo', null);
+    };
+    if (elements.themeResetBtn) elements.themeResetBtn.onclick = async () => {
+        if (themeEditor) {
+            themeEditor.setValue(DEFAULT_THEME_INI);
+            await saveThemeFromEditor();
+        }
     };
     if (elements.themeCloseBtn) elements.themeCloseBtn.onclick = () => {
         elements.themeEditorView.style.display = 'none';
@@ -1553,7 +1564,7 @@ function createTreeNode(name, fullPath, isDirectory, depth, repo) {
     const fileClass = !isDirectory ? `file-type-${ext.replace(/[^a-z0-9]/g, '-')}` : '';
     item.innerHTML = `<span class="chevron">${isDirectory ? '▸' : ''}</span><span class="node-name ${fileClass}">${name}</span>${(isDirectory && isChanged) ? '<span class="status-dot-mini active"></span>' : ''}`;
     item.dataset.path = fullPath;
-    item.oncontextmenu = (e) => {
+    item.oncontextmenu = async (e) => {
         e.preventDefault(); e.stopPropagation();
         if (!selectedNodes.has(fullPath)) { selectedNodes.clear(); selectedNodes.add(fullPath); updateTreeSelectionUI(); }
 
@@ -1561,11 +1572,24 @@ function createTreeNode(name, fullPath, isDirectory, depth, repo) {
         const repoPaths = selection.filter(p => repositories.some(r => r.path.replace(/\\/g, '/').toLowerCase() === p.replace(/\\/g, '/').toLowerCase()));
         const filePaths = selection.filter(p => !repoPaths.includes(p));
 
+        let isTracked = true;
+        const isRepoRoot = repositories.some(r => r.path.replace(/\\/g, '/').toLowerCase() === fullPath.replace(/\\/g, '/').toLowerCase());
+
+        if (!isRepoRoot && repo) {
+            const relPath = fullPath.substring(repo.path.length).replace(/^[\\\/]/, '').replace(/\\/g, '/');
+            try {
+                isTracked = await window.electronAPI.gitIsTracked(repo.path, relPath);
+            } catch (err) { isTracked = false; }
+        }
+
         window.electronAPI.showContextMenu({
             paths: selection,
             repoPaths,
             filePaths,
-            isRepoRoot: repositories.some(r => r.path.replace(/\\/g, '/').toLowerCase() === fullPath.replace(/\\/g, '/').toLowerCase())
+            repoPath: repo.path,
+            isTracked,
+            hideIgnoredFiles,
+            isRepoRoot
         });
     };
     item.onclick = (e) => {
@@ -1853,13 +1877,192 @@ async function showThemeEditor() {
                 fontFamily: 'Cascadia Mono, Consolas, monospace',
                 fontSize: 13
             });
+
+            themeEditor.onDidChangeModelContent(() => {
+                if (isSyncingTheme) return;
+                const val = themeEditor.getValue();
+                renderThemeVisualControls(val, true);
+                applyObsidianTheme(val); // Live preview
+            });
         } else if (themeEditor) {
             themeEditor.setValue(currentIni);
             themeEditor.layout();
         }
+
+        renderThemeVisualControls(currentIni);
     };
 
     setTimeout(initOrUpdate, 50);
+}
+
+let isSyncingTheme = false;
+
+function renderThemeVisualControls(ini, fromEditor = false) {
+    const container = elements.themeVisualControls;
+    if (!container) return;
+
+    // Defined set of supported keys to keep things clean
+    const supported = {
+        'theme': ['Background', 'Foreground', 'LineNumbers', 'Selection', 'Cursor'],
+        'syntax': ['Comment', 'String', 'Number', 'Keyword', 'Operator', 'Identifier', 'Preprocessor', 'Tag', 'Attribute', 'Value']
+    };
+
+    // Parse INI
+    const lines = ini.split('\n');
+    const data = { 'theme': {}, 'syntax': {} };
+    let currentSection = null;
+
+    lines.forEach(line => {
+        const trimmed = line.trim();
+        if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
+            currentSection = trimmed.substring(1, trimmed.length - 1).toLowerCase();
+        } else if (currentSection && trimmed.includes('=') && !trimmed.startsWith(';') && !trimmed.startsWith('#')) {
+            const eqIdx = trimmed.indexOf('=');
+            const key = trimmed.substring(0, eqIdx).trim();
+            const val = trimmed.substring(eqIdx + 1).trim();
+            const lowerKey = key.toLowerCase();
+
+            // Normalize case for matching
+            const match = (supported[currentSection] || []).find(k => k.toLowerCase() === lowerKey);
+            if (match && val.startsWith('#')) {
+                data[currentSection][match] = val;
+            }
+        }
+    });
+
+    if (fromEditor && container.querySelectorAll('input:focus').length > 0) return;
+
+    container.innerHTML = '';
+
+    // Add Font separately as it's not a color
+    const fontVal = ini.match(/Font=([^;\r\n]+)/)?.[1] || 'Cascadia Mono';
+    const fontGroup = document.createElement('div');
+    fontGroup.style.marginBottom = '24px';
+    fontGroup.innerHTML = `
+        <h4 style="margin: 0 0 12px 0; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 1.5px; color: var(--accent-blue);">Workspace Font</h4>
+        <input type="text" id="theme-font-input" class="settings-input" style="width: 100%;" value="${fontVal}">
+    `;
+    fontGroup.querySelector('input').onchange = (e) => {
+        updateIniFromGui('Theme', 'Font', e.target.value, false);
+    };
+    container.appendChild(fontGroup);
+
+    Object.keys(supported).forEach(sectionId => {
+        const sectionName = sectionId.charAt(0).toUpperCase() + sectionId.slice(1);
+        const sectionDiv = document.createElement('div');
+        sectionDiv.style.marginBottom = '24px';
+        sectionDiv.innerHTML = `<h4 style="margin: 0 0 12px 0; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 1.5px; color: var(--accent-blue); opacity: 0.8;">${sectionName} Colors</h4>`;
+
+        const list = document.createElement('div');
+        list.style.display = 'flex';
+        list.style.flexDirection = 'column';
+        list.style.gap = '12px';
+
+        supported[sectionId].forEach(key => {
+            const val = data[sectionId][key] || (sectionId === 'theme' ? '#1e1e1e' : '#ffffff');
+
+            const row = document.createElement('div');
+            row.style.display = 'flex';
+            row.style.alignItems = 'center';
+            row.style.justifyContent = 'space-between';
+            row.style.gap = '16px';
+
+            const left = document.createElement('div');
+            left.style.display = 'flex';
+            left.style.flexDirection = 'column';
+            left.style.gap = '2px';
+            left.innerHTML = `<span style="font-size: 12px; font-weight: 600; color: #fff;">${key}</span>`;
+
+            const right = document.createElement('div');
+            right.style.display = 'flex';
+            right.style.alignItems = 'center';
+            right.style.gap = '8px';
+
+            const swatch = document.createElement('div');
+            swatch.style.width = '24px';
+            swatch.style.height = '24px';
+            swatch.style.borderRadius = '6px';
+            swatch.style.backgroundColor = val;
+            swatch.style.border = '1px solid var(--border-color)';
+            swatch.style.cursor = 'pointer';
+            swatch.style.boxShadow = '0 2px 4px rgba(0,0,0,0.2)';
+
+            const picker = document.createElement('input');
+            picker.type = 'color';
+            let pickerVal = val;
+            if (pickerVal.length === 4) pickerVal = '#' + pickerVal[1] + pickerVal[1] + pickerVal[2] + pickerVal[2] + pickerVal[3] + pickerVal[3];
+            picker.value = pickerVal;
+            picker.style.position = 'absolute';
+            picker.style.opacity = '0';
+            picker.style.width = '0';
+            picker.style.height = '0';
+            picker.style.pointerEvents = 'none';
+
+            swatch.onclick = () => picker.click();
+
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.value = val.toUpperCase();
+            input.className = 'settings-input';
+            input.style.padding = '4px 8px';
+            input.style.fontSize = '12px';
+            input.style.fontFamily = 'monospace';
+            input.style.width = '75px';
+            input.style.textAlign = 'center';
+
+            const update = (newVal) => {
+                newVal = newVal.toUpperCase();
+                input.value = newVal;
+                swatch.style.backgroundColor = newVal;
+                updateIniFromGui(sectionName, key, newVal);
+            };
+
+            picker.oninput = (e) => update(e.target.value);
+            input.onchange = (e) => {
+                const v = e.target.value.trim();
+                if (/^#[0-9A-F]{3,6}$/i.test(v)) update(v);
+            };
+
+            right.appendChild(input);
+            right.appendChild(swatch);
+            right.appendChild(picker);
+
+            row.appendChild(left);
+            row.appendChild(right);
+            list.appendChild(row);
+        });
+        sectionDiv.appendChild(list);
+        container.appendChild(sectionDiv);
+    });
+}
+
+function updateIniFromGui(section, key, value, isColor = true) {
+    if (!themeEditor) return;
+    isSyncingTheme = true;
+    let content = themeEditor.getValue();
+    const lines = content.split('\n');
+    let inSection = false;
+
+    const newLines = lines.map(line => {
+        const trimmed = line.trim();
+        if (trimmed.toLowerCase() === `[${section.toLowerCase()}]`) {
+            inSection = true;
+            return line;
+        }
+        if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
+            inSection = false;
+            return line;
+        }
+        if (inSection && trimmed.toLowerCase().startsWith(key.toLowerCase() + '=')) {
+            return `${line.split('=')[0]}=${value}`;
+        }
+        return line;
+    });
+
+    const newContent = newLines.join('\n');
+    themeEditor.setValue(newContent);
+    applyObsidianTheme(newContent);
+    isSyncingTheme = false;
 }
 
 function migrateOldIniToNew(oldIni) {
@@ -1890,8 +2093,8 @@ function migrateOldIniToNew(oldIni) {
     const getFore = (style) => (style.match(/fore:(#[0-9a-fA-F]{3,6})/) || [null, ''])[1];
     const getBack = (style) => (style.match(/back:(#[0-9a-fA-F]{3,6})/) || [null, ''])[1];
 
-    let bg = getBack(getVal('Common Base', 'Default Style')) || '#1e1e1e';
-    if (bg === '#000000' || bg === '#000') bg = '#1e1e1e';
+    let bg = getBack(getVal('Common Base', 'Default Style')) || '#121314';
+    if (bg === '#000000' || bg === '#000') bg = '#121314';
 
     return `[Theme]
 ; Essential Workspace Styling
@@ -2716,7 +2919,21 @@ async function openFileInEditor(filePath) {
         } else {
             // Handle Text Editor
             const content = await window.electronAPI.readFile(filePath);
-            const langMap = { 'js': 'javascript', 'ts': 'typescript', 'html': 'html', 'css': 'css', 'md': 'markdown', 'json': 'json', 'txt': 'plaintext' };
+            const langMap = {
+                'js': 'javascript',
+                'ts': 'typescript',
+                'html': 'html',
+                'css': 'css',
+                'md': 'markdown',
+                'json': 'json',
+                'txt': 'plaintext',
+                'cs': 'csharp',
+                'kt': 'kotlin',
+                'py': 'python',
+                'xml': 'xml',
+                'yaml': 'yaml',
+                'yml': 'yaml'
+            };
 
             elements.editorPreviewToggle.style.display = (ext === 'md') ? 'block' : 'none';
             elements.gitignoreScanBtn.style.display = (filePath.endsWith('.gitignore')) ? 'block' : 'none';
@@ -2843,7 +3060,7 @@ async function smartRefreshTree() {
     }
 }
 
-async function handleContextMenuCommand({ command, paths, path }) {
+async function handleContextMenuCommand({ command, paths, path, repoPath }) {
     const targets = paths || [path];
     if (command === 'new-file') handleNewItem('file', targets[0]);
     else if (command === 'new-folder') handleNewItem('folder', targets[0]);
@@ -2860,6 +3077,8 @@ async function handleContextMenuCommand({ command, paths, path }) {
     else if (command === 'create-readme') handleCreateReadme(targets[0]);
     else if (command === 'generate-gitignore') handleGenerateGitignore(targets[0]);
     else if (command === 'delete') showDeleteModal(targets);
+    else if (command === 'stop-tracking') handleStopTracking(targets[0], repoPath);
+    else if (command === 'start-tracking') handleStartTracking(targets[0], repoPath);
     else if (command === 'remove') {
         logToConsole(`Context Menu: Removing ${targets.length} items...`, 'info');
         removeRepositories(targets);
@@ -2964,6 +3183,90 @@ async function handleGenerateGitignore(repoPath) {
     }
 
     cancelBtn.onclick = () => modal.style.display = 'none';
+}
+
+async function handleStopTracking(fullPath, providedRepoPath = null) {
+    // 1. Determine the repository
+    let repo = null;
+    if (providedRepoPath) {
+        repo = repositories.find(r => r.path === providedRepoPath);
+    }
+
+    // Fallback: search by path with normalization
+    if (!repo) {
+        const normFull = fullPath.replace(/\\/g, '/').toLowerCase();
+        repo = repositories.find(r => {
+            const normRepo = r.path.replace(/\\/g, '/').toLowerCase();
+            return normFull.startsWith(normRepo);
+        });
+    }
+
+    if (!repo) {
+        logToConsole(`Stop Tracking Failed: Could not find repo for ${fullPath}`, 'error');
+        showAlert('Could not determine the repository for this item.', 'Error');
+        return;
+    }
+
+    // 2. Calculate relative path with normalization
+    const normFull = fullPath.replace(/\\/g, '/').toLowerCase();
+    const normRepo = repo.path.replace(/\\/g, '/').toLowerCase();
+
+    // Ensure we take the relative part from the original path to preserve casing if possible
+    // though git usually doesn't care much about casing on Windows for relative paths
+    const relativePath = fullPath.substring(repo.path.length).replace(/^[\\\/]/, '').replace(/\\/g, '/');
+
+    if (!(await showConfirm(`Stop tracking "${relativePath}"?\n\nThis will remove it from Git (cached) but keep the physical file, and add it to your .gitignore.`, 'Stop Tracking'))) {
+        return;
+    }
+
+    try {
+        setTaskState(true);
+        const res = await window.electronAPI.gitStopTracking(repo.path, relativePath);
+        if (res.success) {
+            logToConsole(res.output, 'success');
+            await smartRefreshTree();
+        } else {
+            showAlert(`Failed to stop tracking: ${res.output}`, 'Git Error');
+        }
+    } catch (e) {
+        logToConsole(`Stop Tracking Error: ${e.message}`, 'error');
+    } finally {
+        setTaskState(false);
+    }
+}
+
+async function handleStartTracking(fullPath, providedRepoPath = null) {
+    let repo = null;
+    if (providedRepoPath) {
+        repo = repositories.find(r => r.path === providedRepoPath);
+    }
+
+    if (!repo) {
+        const normFull = fullPath.replace(/\\/g, '/').toLowerCase();
+        repo = repositories.find(r => r.path.replace(/\\/g, '/').toLowerCase().startsWith(normFull));
+    }
+
+    if (!repo) {
+        showAlert('Could not determine the repository for this item.', 'Error');
+        return;
+    }
+
+    const relativePath = fullPath.substring(repo.path.length).replace(/^[\\\/]/, '').replace(/\\/g, '/');
+
+    try {
+        setTaskState(true);
+        const res = await window.electronAPI.gitStartTracking(repo.path, relativePath);
+        if (res.success) {
+            logToConsole(res.output, 'success');
+            await smartRefreshTree();
+        } else {
+            showAlert(`Failed to start tracking: ${res.output}`, 'Git Error');
+        }
+    } catch (e) {
+        logToConsole(`Start Tracking Error: ${e.message}`, 'error');
+    } finally {
+        setTaskState(false);
+    }
 }
 
 async function handleRename(oldPath) {
