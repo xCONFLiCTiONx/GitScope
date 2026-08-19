@@ -286,14 +286,22 @@
         .dashboard-card {
             background-color: var(--bg-surface);
             border: 1px solid var(--border-color);
-            border-radius: 6px;
+            border-radius: 12px;
             padding: 16px;
             cursor: pointer;
-            transition: border-color 0.2s ease, box-shadow 0.2s ease;
+            transition: all 0.2s ease;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            position: relative;
         }
-        .dashboard-card:hover { border-color: var(--text-muted); box-shadow: 0 4px 12px rgba(0,0,0,0.3); }
-        .dashboard-card.has-changes { border-top: 3px solid var(--accent-red); }
-        .dashboard-card.is-clean { border-top: 3px solid var(--accent-green); }
+        .dashboard-card:hover {
+            border-color: #555;
+            transform: translateY(-4px);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+        }
+        .dashboard-card.has-changes { border-top: 4px solid var(--accent-red); }
+        .dashboard-card.is-clean { border-top: 4px solid var(--accent-green); }
 
         .quick-actions {
             display: flex;
@@ -620,12 +628,14 @@
 
         .summary-card.active {
             border-color: var(--accent-blue) !important;
-            background: rgba(31, 111, 235, 0.05) !important;
-            box-shadow: 0 0 15px rgba(31, 111, 235, 0.1);
+            background: rgba(255, 255, 255, 0.02) !important;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
         }
         .summary-card:hover {
-            border-color: var(--text-muted) !important;
-            transform: translateY(-2px);
+            border-color: #555 !important;
+            background: rgba(255, 255, 255, 0.04) !important;
+            transform: translateY(-4px);
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
         }
 
         .bulk-target-cb { accent-color: var(--accent-blue); }
@@ -871,8 +881,20 @@
         <div id="main-content">
             <!-- Dashboard View -->
             <div id="dashboard-view">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
-                    <h1 style="margin: 0;">Workspace Overview</h1>
+                <div id="status-feed-banner" style="display: none; background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: 8px; padding: 10px 20px; margin-bottom: 24px; align-items: center; justify-content: space-between; font-size: 13px; min-height: 44px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
+                    <div style="display: flex; align-items: center; gap: 16px; flex: 1; min-width: 0;">
+                        <span id="feed-label" style="font-weight: 800; font-size: 9px; text-transform: uppercase; letter-spacing: 1.5px; color: var(--accent-blue); white-space: nowrap; border: 1px solid var(--accent-blue); padding: 2px 6px; border-radius: 4px;">FEED</span>
+                        <div id="feed-content-area" style="flex: 1; min-width: 0; color: var(--text-main); font-weight: 500; transition: opacity 0.3s ease, transform 0.3s ease;">
+                            Initializing workspace intelligence...
+                        </div>
+                    </div>
+                    <div id="feed-action-area" style="margin-left: 20px;"></div>
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 24px; border-bottom: 1px solid var(--border-color); padding-bottom: 16px;">
+                    <div>
+                        <h1 style="margin: 0; font-size: 28px; font-weight: 700;">Workspace</h1>
+                        <p style="margin: 4px 0 0 0; color: var(--text-muted); font-size: 13px;">Overview and health of your projects.</p>
+                    </div>
                     <div style="display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end;">
                         <button id="dashboard-bulk-commit-btn" class="button button-blue" title="Commit & Push all projects with changes">Bulk Commit & Push</button>
                         <button id="dashboard-bulk-restore-btn" class="button button-danger" title="Wipe all uncommitted changes in ALL projects">Bulk Restore to HEAD</button>

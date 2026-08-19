@@ -12,6 +12,9 @@ let currentEditingPath = null;
 let activeTasks = 0;
 let lastSelectedPath = null;
 let currentDashboardFilter = 'all';
+let feedMessages = [];
+let currentFeedIndex = 0;
+let feedTimer = null;
 
 function setTaskState(running) {
     activeTasks = running ? activeTasks + 1 : Math.max(0, activeTasks - 1);
@@ -562,14 +565,30 @@ function switchConsoleTab(tab) {
 
 async function autoImportFromRoot(rootPath) {
     try {
+        // CLEANUP: Deduplicate existing list first to handle any prior bugs
+        const unique = [];
+        const seen = new Set();
+        repositories.forEach(r => {
+            const norm = r.path.replace(/\\/g, '/').toLowerCase();
+            if (!seen.has(norm)) {
+                seen.add(norm);
+                unique.push(r);
+            }
+        });
+        repositories = unique;
+
         const children = await window.electronAPI.listDirectory(rootPath, true); // Always show all for auto-import
         let addedCount = 0;
         for (const dir of children.filter(c => c.isDirectory)) {
             const scan = await window.electronAPI.scanDirectory(dir.path);
             if (scan.type === 'single') {
-                const normPath = scan.path.replace(/\\/g, '/').toLowerCase();
-                if (!repositories.find(r => r.path.toLowerCase() === normPath)) {
-                    repositories.push({ ...scan, expanded: false });
+                const normPath = scan.path.replace(/\\/g, '/');
+                const alreadyExists = repositories.some(r =>
+                    r.path.replace(/\\/g, '/').toLowerCase() === normPath.toLowerCase()
+                );
+
+                if (!alreadyExists) {
+                    repositories.push({ ...scan, path: normPath, expanded: false });
                     addedCount++;
                 }
             }
@@ -1490,7 +1509,7 @@ async function showDashboard() {
     elements.dashboardView.style.display = 'flex';
     elements.dashboardGrid.innerHTML = '<div style="color: var(--text-muted);">Syncing workspace...</div>';
 
-    let stats = { total: repositories.length, attention: 0, sync: 0, local: 0, unborn: 0, missing: 0 };
+    let stats = { total: repositories.length, attention: 0, sync: 0, local: 0, unborn: 0 };
     let unbornList = [];
 
     // Fetch unborn folder list from root directory
@@ -1513,48 +1532,6 @@ async function showDashboard() {
             card.className = 'dashboard-card';
 
             if (!exists) {
-                stats.missing++;
-                if (currentDashboardFilter === 'all' || currentDashboardFilter === 'missing') {
-                    const escPath = repo.path.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
-                    card.className = 'dashboard-card has-changes';
-                    card.style.borderTopColor = 'var(--accent-red)';
-                    card.innerHTML = `
-                        <div class="card-header">
-                            <span class="card-title">${repo.name}</span>
-                            <span class="card-branch" style="color:var(--accent-red);">MISSING</span>
-                        </div>
-                        <div style="font-size:12px; color:var(--text-muted); margin-bottom:12px; overflow:hidden; text-overflow:ellipsis;">
-                            Path: ${repo.path}
-                        </div>
-                        <div style="display:flex; justify-content:space-between; align-items:center;">
-                            <div style="display:flex; gap:4px;">
-                                <button class="button locate-btn" style="font-size:10px;">LOCATE</button>
-                                <button class="button explorer-btn" style="font-size:10px;" title="Open Parent Folder">📂</button>
-                            </div>
-                            <button class="button button-danger quick-btn remove-btn">×</button>
-                        </div>
-                    `;
-
-                    card.querySelector('.locate-btn').onclick = (e) => {
-                        e.stopPropagation();
-                        relocateRepository(repo.path);
-                    };
-
-                    card.querySelector('.explorer-btn').onclick = (e) => {
-                        e.stopPropagation();
-                        // For missing repos, we try to open the parent folder so they can see where it was
-                        const lastSlash = Math.max(repo.path.lastIndexOf('/'), repo.path.lastIndexOf('\\'));
-                        const parentPath = lastSlash !== -1 ? repo.path.substring(0, lastSlash) : repo.path;
-                        window.electronAPI.openPath(parentPath);
-                    };
-
-                    card.querySelector('.remove-btn').onclick = (e) => {
-                        e.stopPropagation();
-                        removeRepositories([repo.path], true);
-                    };
-
-                    return { card, type: 'missing' };
-                }
                 return { type: 'missing' };
             }
 
@@ -1579,22 +1556,33 @@ async function showDashboard() {
                 card.className = `dashboard-card ${hasChanges || needsSync ? 'has-changes' : 'is-clean'}`;
                 card.onclick = () => selectRepo(repo, true);
                 card.innerHTML = `
-                    <div class="card-header">
-                        <span class="card-title">${repo.name}</span>
-                        <span class="card-branch">${status.current || 'unknown'}</span>
+                    <div class="card-header" style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:12px;">
+                        <div style="flex:1; min-width:0;">
+                            <div class="card-title" style="font-weight:600; color:var(--accent-blue); font-size:15px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; margin-bottom: 2px;">${repo.name}</div>
+                            <div class="card-branch" style="font-size:11px; color:var(--text-muted); display: flex; align-items: center; gap: 4px;">
+                                branch: ${status.current || 'unknown'}
+                            </div>
+                        </div>
+                        <div style="font-size: 10px; color: var(--text-muted); text-transform: uppercase; font-weight: 700; opacity: 0.6;">
+                            ${isLocal ? 'LOCAL' : 'REMOTE'}
+                        </div>
                     </div>
-                    <div class="stat-row">
-                        <span>Uncommitted</span>
-                        <span class="${hasChanges ? 'val-bad' : 'val-good'}">${(status.modified || 0) + (status.not_added || 0)}</span>
+
+                    <div style="display:flex; flex-direction:column; gap:8px; flex:1;">
+                        <div class="stat-row" style="display:flex; justify-content:space-between; align-items: center; font-size:12px;">
+                            <span style="color:var(--text-muted);">Uncommitted Changes</span>
+                            <span style="font-weight:600; color:${hasChanges ? 'var(--accent-red)' : 'var(--text-muted)'}">${(status.modified || 0) + (status.not_added || 0)}</span>
+                        </div>
+                        <div class="stat-row" style="display:flex; justify-content:space-between; align-items: center; font-size:12px;">
+                            <span style="color:var(--text-muted);">Sync Status</span>
+                            <span style="font-weight:600; color:${needsSync ? '#e3b341' : 'var(--text-muted)'}">↑ ${status.ahead || 0}  ↓ ${status.behind || 0}</span>
+                        </div>
                     </div>
-                    <div class="stat-row">
-                        <span>Ahead/Behind</span>
-                        <span><span class="${(status.ahead || 0) > 0 ? 'val-bad' : ''}">${status.ahead || 0}</span> / <span class="${(status.behind || 0) > 0 ? 'val-bad' : ''}">${status.behind || 0}</span></span>
-                    </div>
-                    <div class="quick-actions">
-                        <button class="button quick-btn explorer-btn" title="Open in Explorer">📂</button>
-                        <button class="button quick-btn pull-btn" title="Pull">↓</button>
-                        <button class="button quick-btn button-primary push-btn" title="Push">↑</button>
+
+                    <div class="quick-actions" style="display:flex; gap:6px; margin-top:16px; padding-top:12px; border-top:1px solid var(--border-color);">
+                        <button class="button quick-btn explorer-btn" title="Open in Explorer" style="flex:1; padding:4px; font-size:11px;">EXPLORE</button>
+                        <button class="button quick-btn pull-btn" title="Pull" style="flex:1; padding:4px; font-size:11px;">PULL</button>
+                        <button class="button quick-btn button-primary push-btn" title="Push" style="flex:1; padding:4px; font-size:11px;">PUSH</button>
                     </div>`;
 
                 card.querySelector('.explorer-btn').onclick = (e) => {
@@ -1674,6 +1662,7 @@ async function showDashboard() {
     }
 
     updateDashboardSummary(stats);
+    updateStatusFeed(stats);
 }
 
 async function showGitConfigView() {
@@ -1944,13 +1933,133 @@ function updateTokenExpirationUI(expiration) {
     const fullDateStr = date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
 
     // Update Settings UI
-    const container = document.getElementById('token-expiry-container-settings');
-    const link = document.getElementById('token-expiry-link-settings');
-    if (container && link) {
-        container.style.display = 'block';
-        link.textContent = `${displayStr} (${fullDateStr})`;
-        if (days < 7) link.style.color = 'var(--accent-red)';
-        else link.style.color = 'var(--accent-blue)';
+    const containerSettings = document.getElementById('token-expiry-container-settings');
+    const linkSettings = document.getElementById('token-expiry-link-settings');
+    if (containerSettings && linkSettings) {
+        containerSettings.style.display = 'block';
+        linkSettings.textContent = `${displayStr} (${fullDateStr})`;
+        if (days < 7) linkSettings.style.color = 'var(--accent-red)';
+        else linkSettings.style.color = 'var(--accent-blue)';
+    }
+
+    // Passively Refresh Feed (don't force a full dashboard refresh)
+    if (elements.dashboardView.style.display !== 'none') {
+        updateStatusFeed();
+    }
+}
+
+function updateStatusFeed(stats = null) {
+    const banner = document.getElementById('status-feed-banner');
+    const content = document.getElementById('feed-content-area');
+    const actions = document.getElementById('feed-action-area');
+    if (!banner || !content) return;
+
+    // 1. Collect potential messages
+    const messages = [];
+
+    // GitHub Token (High Priority)
+    if (tokenExpiration) {
+        const date = new Date(tokenExpiration);
+        const days = Math.floor((date - new Date()) / (1000 * 60 * 60 * 24));
+        if (days < 7) {
+            messages.push({
+                text: `⚠ Warning: GitHub token is expiring in ${days === 0 ? 'less than a day' : days + ' days'}!`,
+                color: 'var(--accent-red)',
+                action: { label: 'RENEW NOW', url: 'https://github.com/settings/tokens' }
+            });
+        } else {
+            messages.push({
+                text: `GitHub connection is healthy. Token expires in ${days} days.`,
+                color: 'var(--accent-blue)',
+                action: { label: 'SETTINGS', url: 'https://github.com/settings/tokens' }
+            });
+        }
+    }
+
+    // Project Statuses (Only if stats provided)
+    if (stats) {
+        if (stats.attention > 0) {
+            messages.push({
+                text: `${stats.attention} projects have uncommitted changes that need review.`,
+                color: 'var(--accent-red)',
+                action: { label: 'VIEW ALL', filter: 'attention' }
+            });
+        }
+        if (stats.sync > 0) {
+            messages.push({
+                text: `${stats.sync} projects are out of sync with their origin remotes.`,
+                color: '#e3b341',
+                action: { label: 'SYNC NOW', filter: 'sync' }
+            });
+        }
+        if (stats.local > 0) {
+            messages.push({
+                text: `You have ${stats.local} local-only projects that haven't been published to GitHub yet.`,
+                color: 'var(--accent-green)',
+                action: { label: 'PUBLISH', filter: 'local' }
+            });
+        }
+    }
+
+    // Default if no specific news
+    if (messages.length === 0) {
+        messages.push({ text: "All projects are clean and synced. Good work!", color: 'var(--text-muted)' });
+    }
+
+    // 2. State Management for Feed
+    feedMessages = messages;
+    if (currentFeedIndex >= feedMessages.length) currentFeedIndex = 0;
+
+    // 3. Display Logic
+    banner.style.display = 'flex';
+
+    const showMessage = (idx) => {
+        const msg = feedMessages[idx];
+
+        // Transition: Fade out
+        content.style.opacity = '0';
+        content.style.transform = 'translateY(5px)';
+
+        setTimeout(() => {
+            content.textContent = msg.text;
+            content.style.color = msg.color || 'var(--text-main)';
+
+            // Render Action
+            actions.innerHTML = '';
+            if (msg.action) {
+                const btn = document.createElement('button');
+                btn.className = 'button';
+                btn.style.fontSize = '10px';
+                btn.style.padding = '2px 8px';
+                btn.style.borderColor = msg.color || 'var(--border-color)';
+                btn.style.color = msg.color || 'var(--text-main)';
+                btn.textContent = msg.action.label;
+                btn.onclick = () => {
+                    if (msg.action.url) window.electronAPI.openExternal(msg.action.url);
+                    if (msg.action.filter) {
+                        currentDashboardFilter = msg.action.filter;
+                        showDashboard();
+                    }
+                };
+                actions.appendChild(btn);
+            }
+
+            // Transition: Fade in
+            content.style.opacity = '1';
+            content.style.transform = 'translateY(0)';
+        }, 300);
+    };
+
+    // Initial show
+    showMessage(currentFeedIndex);
+
+    // 4. Start Cycling if more than 1 message
+    if (feedTimer) clearInterval(feedTimer);
+    if (feedMessages.length > 1) {
+        feedTimer = setInterval(() => {
+            currentFeedIndex = (currentFeedIndex + 1) % feedMessages.length;
+            showMessage(currentFeedIndex);
+        }, 10000); // 10 seconds per message
     }
 }
 
@@ -1963,40 +2072,33 @@ function updateDashboardSummary(stats) {
     summary.style.gap = '12px';
 
     const items = [
-        { id: 'all', label: 'Total', value: stats.total, color: '#fff' },
-        { id: 'attention', label: 'Attention', value: stats.attention, color: 'var(--accent-red)' },
-        { id: 'sync', label: 'Sync', value: stats.sync, color: 'var(--accent-blue)' },
-        { id: 'local', label: 'Local Only', value: stats.local, color: 'var(--accent-green)' },
-        { id: 'unborn', label: 'Unborn', value: stats.unborn, color: '#e3b341' },
-        { id: 'missing', label: 'Missing', value: stats.missing, color: 'var(--accent-red)' }
+        { id: 'all', label: 'Total Projects', value: stats.total, color: 'var(--accent-blue)' },
+        { id: 'attention', label: 'Needs Attention', value: stats.attention, color: 'var(--accent-red)' },
+        { id: 'sync', label: 'Out of Sync', value: stats.sync, color: '#e3b341' },
+        { id: 'local', label: 'Offline Only', value: stats.local, color: 'var(--accent-green)' },
+        { id: 'unborn', label: 'Empty Repos', value: stats.unborn, color: '#8b949e' }
     ];
 
-    if (tokenExpiration) {
-        const date = new Date(tokenExpiration);
-        const diff = date - new Date();
-        const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-        items.push({
-            id: 'token',
-            label: 'Token Life',
-            value: days > 0 ? `${days}d` : (days === 0 ? 'Today' : 'EXP'),
-            color: days < 7 ? 'var(--accent-red)' : 'var(--accent-blue)',
-            isLink: true
-        });
-    }
+    summary.innerHTML = items.map(item => {
+        const isActive = currentDashboardFilter === item.id;
+        const hasValue = (item.value !== 0 && item.value !== '0' && item.value !== '0d');
+        const valColor = hasValue ? item.color : 'var(--text-muted)';
 
-    summary.innerHTML = items.map(item => `
-        <div class="summary-card ${currentDashboardFilter === item.id ? 'active' : ''}" data-filter="${item.id}" ${item.isLink ? 'data-link="true"' : ''} style="flex:1; background:var(--bg-surface); border:1px solid var(--border-color); border-radius:8px; padding:16px; cursor:pointer; transition:all 0.2s;">
-            <div style="font-size:11px; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.5px;">${item.label}</div>
-            <div style="font-size:28px; font-weight:600; color:${(item.value === 0 || item.value === '0') ? '#fff' : item.color}; margin-top:4px;">${item.value}</div>
-        </div>
-    `).join('');
+        return `
+            <div class="summary-card ${isActive ? 'active' : ''}" data-filter="${item.id}"
+                 style="flex:1; background:var(--bg-surface); border:1px solid ${isActive ? item.color : 'var(--border-color)'}; border-radius:12px; padding:16px; cursor:pointer; transition:all 0.2s; position:relative; overflow:hidden; min-width: 120px;">
+
+                <div style="font-size:9px; font-weight:800; color:var(--text-muted); text-transform:uppercase; letter-spacing:1px; white-space: nowrap; margin-bottom: 12px;">${item.label}</div>
+
+                <div style="font-size:24px; font-weight:700; color:${valColor}; line-height:1; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;">${item.value}</div>
+
+                ${isActive ? `<div style="position:absolute; bottom:0; left:0; right:0; height:3px; background:${item.color};"></div>` : ''}
+            </div>
+        `;
+    }).join('');
 
     summary.querySelectorAll('.summary-card').forEach(card => {
         card.onclick = () => {
-            if (card.dataset.link === 'true') {
-                window.electronAPI.openExternal('https://github.com/settings/tokens');
-                return;
-            }
             currentDashboardFilter = card.dataset.filter;
             showDashboard();
         };
@@ -3553,23 +3655,6 @@ async function removeRepositories(paths, skipConfirm = false) {
         window.electronAPI.saveRepositories(repositories);
         renderTree();
         if (elements.dashboardView.style.display !== 'none') showDashboard();
-    }
-}
-
-async function relocateRepository(oldPath) {
-    const newPath = await window.electronAPI.openDirectory();
-    if (newPath) {
-        const normOld = oldPath.replace(/\\/g, '/').toLowerCase();
-        const repo = repositories.find(r => r.path.toLowerCase() === normOld);
-        if (repo) {
-            repo.path = newPath.replace(/\\/g, '/');
-            repo.name = newPath.split(/[\\\/]/).pop();
-            sortRepositories();
-            window.electronAPI.saveRepositories(repositories);
-            logToConsole(`Relocated ${repo.name} to new path.`, 'success');
-            renderTree();
-            showDashboard();
-        }
     }
 }
 
