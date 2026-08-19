@@ -6,6 +6,7 @@ let hideIgnoredFiles = false;
 let settings = { shell: 'powershell.exe', rootRepoDir: '', githubToken: '' };
 let selectedNodes = new Set();
 let expandedNodes = new Set();
+let tokenExpiration = null;
 let monacoEditor = null;
 let currentEditingPath = null;
 let activeTasks = 0;
@@ -245,6 +246,10 @@ window.onload = async () => {
         // 7. Non-critical Background tasks
         if (settings.rootRepoDir) {
             autoImportFromRoot(settings.rootRepoDir);
+        }
+
+        if (settings.githubToken) {
+            checkGitHubTokenLife();
         }
 
         window.electronAPI.getAvailableShells().then(shells => {
@@ -851,6 +856,7 @@ async function saveGlobalSettings() {
     try {
         await window.electronAPI.saveSettings(settings);
         logToConsole('Settings saved.', 'success');
+        if (settings.githubToken) checkGitHubTokenLife();
         if (settings.rootRepoDir) await autoImportFromRoot(settings.rootRepoDir);
         renderTree();
     } catch (e) { logToConsole(e.message, 'error'); }
@@ -1137,9 +1143,11 @@ async function handlePublishGitHub() {
         try {
             // 1. Create repo on GitHub via REST API
             logToConsole(`Creating GitHub repository: ${repoName}...`, 'info');
-            let ghRepo;
+            let ghRes;
             try {
-                ghRepo = await window.electronAPI.createGitHubRepo(settings.githubToken, repoName, isPrivate);
+                ghRes = await window.electronAPI.createGitHubRepo(settings.githubToken, repoName, isPrivate);
+                if (ghRes.expiration) updateTokenExpirationUI(ghRes.expiration);
+                ghRepo = ghRes.repo;
             } catch (err) {
                 if (err.message.includes('422')) {
                     logToConsole('Repository already exists on GitHub. Attempting to link and push anyway...', 'warn');
@@ -1221,6 +1229,7 @@ async function handleDeleteGitHubRepo() {
 
                 try {
                     const res = await window.electronAPI.deleteGitHubRepo(settings.githubToken, owner, repoName);
+                    if (res.expiration) updateTokenExpirationUI(res.expiration);
                     if (res.success) {
                         logToConsole(`Successfully deleted repository from GitHub.`, 'success');
 
@@ -1911,6 +1920,40 @@ function renderGitConfig(content) {
     };
 }
 
+async function checkGitHubTokenLife() {
+    if (!settings.githubToken) return;
+    try {
+        const res = await window.electronAPI.fetchGitHubRepos(settings.githubToken);
+        if (res.expiration) {
+            updateTokenExpirationUI(res.expiration);
+        }
+    } catch (e) {
+        console.warn('Token life check failed:', e);
+    }
+}
+
+function updateTokenExpirationUI(expiration) {
+    if (!expiration) return;
+    tokenExpiration = expiration;
+    const date = new Date(expiration);
+    const now = new Date();
+    const timeRemainingMs = date - now;
+    const days = Math.floor(timeRemainingMs / (1000 * 60 * 60 * 24));
+
+    const displayStr = days > 0 ? `${days} days left` : (days === 0 ? 'Expiring today!' : 'Expired!');
+    const fullDateStr = date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
+
+    // Update Settings UI
+    const container = document.getElementById('token-expiry-container-settings');
+    const link = document.getElementById('token-expiry-link-settings');
+    if (container && link) {
+        container.style.display = 'block';
+        link.textContent = `${displayStr} (${fullDateStr})`;
+        if (days < 7) link.style.color = 'var(--accent-red)';
+        else link.style.color = 'var(--accent-blue)';
+    }
+}
+
 function updateDashboardSummary(stats) {
     const summary = elements.dashboardSummary;
     summary.style.display = 'flex';
@@ -1928,15 +1971,32 @@ function updateDashboardSummary(stats) {
         { id: 'missing', label: 'Missing', value: stats.missing, color: 'var(--accent-red)' }
     ];
 
+    if (tokenExpiration) {
+        const date = new Date(tokenExpiration);
+        const diff = date - new Date();
+        const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+        items.push({
+            id: 'token',
+            label: 'Token Life',
+            value: days > 0 ? `${days}d` : (days === 0 ? 'Today' : 'EXP'),
+            color: days < 7 ? 'var(--accent-red)' : 'var(--accent-blue)',
+            isLink: true
+        });
+    }
+
     summary.innerHTML = items.map(item => `
-        <div class="summary-card ${currentDashboardFilter === item.id ? 'active' : ''}" data-filter="${item.id}" style="flex:1; background:var(--bg-surface); border:1px solid var(--border-color); border-radius:8px; padding:16px; cursor:pointer; transition:all 0.2s;">
+        <div class="summary-card ${currentDashboardFilter === item.id ? 'active' : ''}" data-filter="${item.id}" ${item.isLink ? 'data-link="true"' : ''} style="flex:1; background:var(--bg-surface); border:1px solid var(--border-color); border-radius:8px; padding:16px; cursor:pointer; transition:all 0.2s;">
             <div style="font-size:11px; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.5px;">${item.label}</div>
-            <div style="font-size:28px; font-weight:600; color:${item.value > 0 ? item.color : '#fff'}; margin-top:4px;">${item.value}</div>
+            <div style="font-size:28px; font-weight:600; color:${(item.value === 0 || item.value === '0') ? '#fff' : item.color}; margin-top:4px;">${item.value}</div>
         </div>
     `).join('');
 
     summary.querySelectorAll('.summary-card').forEach(card => {
         card.onclick = () => {
+            if (card.dataset.link === 'true') {
+                window.electronAPI.openExternal('https://github.com/settings/tokens');
+                return;
+            }
             currentDashboardFilter = card.dataset.filter;
             showDashboard();
         };
@@ -2942,7 +3002,10 @@ async function showGitHubImportModal() {
     const modal = document.getElementById('github-import-modal'); const list = document.getElementById('github-repo-list');
     modal.style.display = 'flex'; list.innerHTML = '<p>Connecting...</p>';
     try {
-        const repos = await window.electronAPI.fetchGitHubRepos(settings.githubToken);
+        const res = await window.electronAPI.fetchGitHubRepos(settings.githubToken);
+        const repos = res.repos || [];
+        if (res.expiration) updateTokenExpirationUI(res.expiration);
+
         list.innerHTML = ''; repos.forEach(r => { const div = document.createElement('div'); div.style.padding = '8px'; div.style.borderBottom = '1px solid var(--border-color)'; div.innerHTML = `<label style="display: flex; justify-content: space-between; align-items: center; cursor: pointer;"><div><div style="font-weight: 600; color: #fff;">${r.full_name}</div><div style="font-size: 11px; color: var(--text-muted);">${r.description || 'No description'}</div></div><input type="checkbox" name="github-repo" value="${r.clone_url}" data-name="${r.name}"></label>`; list.appendChild(div); });
         document.getElementById('import-confirm').disabled = false;
         document.getElementById('import-confirm').onclick = async () => {
