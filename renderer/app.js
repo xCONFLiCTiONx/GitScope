@@ -307,6 +307,7 @@ function initEditor() {
             monacoEditor = monaco.editor.create(elements.monacoContainer, {
                 theme: settings.obsidianIni ? 'obsidian' : 'vs-dark',
                 automaticLayout: true,
+                bracketPairColorization: { enabled: true },
                 tabSize: 4,
                 insertSpaces: true,
                 formatOnPaste: true,
@@ -377,7 +378,10 @@ Identifier=#9cdcfe
 Preprocessor=#c586c0
 Tag=#569cd6
 Attribute=#9cdcfe
-Value=#ce9178`;
+Value=#ce9178
+Bracket1=#ffd700
+Bracket2=#da70d6
+Bracket3=#179fff`;
 
 function parseObsidianIni(ini) {
     const lines = ini.split('\n');
@@ -427,7 +431,10 @@ function parseObsidianIni(ini) {
         'editorLineNumber.foreground': theme['linenumbers'] || '#858585',
         'editor.selectionBackground': theme['selection'] || '#264f78',
         'editorCursor.foreground': theme['cursor'] || '#569cd6',
-        'editor.lineHighlightBackground': (theme['background'] || '#121314') + '44'
+        'editor.lineHighlightBackground': (theme['background'] || '#121314') + '44',
+        'editorBracketHighlight.foreground1': syntax['bracket1'] || '#ffd700',
+        'editorBracketHighlight.foreground2': syntax['bracket2'] || '#da70d6',
+        'editorBracketHighlight.foreground3': syntax['bracket3'] || '#179fff',
     };
 
     return {
@@ -1873,6 +1880,7 @@ async function showThemeEditor() {
                 language: 'ini',
                 theme: 'vs-dark',
                 automaticLayout: true,
+                bracketPairColorization: { enabled: true },
                 minimap: { enabled: false },
                 fontFamily: 'Cascadia Mono, Consolas, monospace',
                 fontSize: 13
@@ -1904,7 +1912,7 @@ function renderThemeVisualControls(ini, fromEditor = false) {
     // Defined set of supported keys to keep things clean
     const supported = {
         'theme': ['Background', 'Foreground', 'LineNumbers', 'Selection', 'Cursor'],
-        'syntax': ['Comment', 'String', 'Number', 'Keyword', 'Operator', 'Identifier', 'Preprocessor', 'Tag', 'Attribute', 'Value']
+        'syntax': ['Comment', 'String', 'Number', 'Keyword', 'Operator', 'Identifier', 'Preprocessor', 'Tag', 'Attribute', 'Value', 'Bracket1', 'Bracket2', 'Bracket3']
     };
 
     // Parse INI
@@ -1977,6 +1985,7 @@ function renderThemeVisualControls(ini, fromEditor = false) {
             right.style.display = 'flex';
             right.style.alignItems = 'center';
             right.style.gap = '8px';
+            right.style.position = 'relative';
 
             const swatch = document.createElement('div');
             swatch.style.width = '24px';
@@ -1993,9 +2002,13 @@ function renderThemeVisualControls(ini, fromEditor = false) {
             if (pickerVal.length === 4) pickerVal = '#' + pickerVal[1] + pickerVal[1] + pickerVal[2] + pickerVal[2] + pickerVal[3] + pickerVal[3];
             picker.value = pickerVal;
             picker.style.position = 'absolute';
+            picker.style.bottom = '0';
+            picker.style.right = '0';
+            picker.style.width = '24px';
+            picker.style.height = '24px';
             picker.style.opacity = '0';
-            picker.style.width = '0';
-            picker.style.height = '0';
+            picker.style.border = 'none';
+            picker.style.padding = '0';
             picker.style.pointerEvents = 'none';
 
             swatch.onclick = () => picker.click();
@@ -2034,6 +2047,11 @@ function renderThemeVisualControls(ini, fromEditor = false) {
         sectionDiv.appendChild(list);
         container.appendChild(sectionDiv);
     });
+
+    // Add extra space at the bottom to ensure color pickers don't get cut off by screen edges
+    const spacer = document.createElement('div');
+    spacer.style.height = '100px';
+    container.appendChild(spacer);
 }
 
 function updateIniFromGui(section, key, value, isColor = true) {
