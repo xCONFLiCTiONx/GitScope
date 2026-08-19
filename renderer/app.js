@@ -15,6 +15,7 @@ let currentDashboardFilter = 'all';
 let feedMessages = [];
 let currentFeedIndex = 0;
 let feedTimer = null;
+let lastKnownStats = null;
 
 function setTaskState(running) {
     activeTasks = running ? activeTasks + 1 : Math.max(0, activeTasks - 1);
@@ -1954,6 +1955,9 @@ function updateStatusFeed(stats = null) {
     const actions = document.getElementById('feed-action-area');
     if (!banner || !content) return;
 
+    if (stats) lastKnownStats = stats;
+    const currentStats = stats || lastKnownStats;
+
     // 1. Collect potential messages
     const messages = [];
 
@@ -1977,26 +1981,34 @@ function updateStatusFeed(stats = null) {
     }
 
     // Project Statuses (Only if stats provided)
-    if (stats) {
-        if (stats.attention > 0) {
+    if (currentStats) {
+        if (currentStats.attention > 0) {
             messages.push({
-                text: `${stats.attention} projects have uncommitted changes that need review.`,
+                text: `${currentStats.attention} projects have uncommitted changes that need review.`,
                 color: 'var(--accent-red)',
                 action: { label: 'VIEW ALL', filter: 'attention' }
             });
         }
-        if (stats.sync > 0) {
+        if (currentStats.sync > 0) {
             messages.push({
-                text: `${stats.sync} projects are out of sync with their origin remotes.`,
+                text: `${currentStats.sync} projects are out of sync with their origin remotes.`,
                 color: '#e3b341',
                 action: { label: 'SYNC NOW', filter: 'sync' }
             });
         }
-        if (stats.local > 0) {
+        if (currentStats.local > 0) {
             messages.push({
-                text: `You have ${stats.local} local-only projects that haven't been published to GitHub yet.`,
+                text: `You have ${currentStats.local} local-only projects that haven't been published to GitHub yet.`,
                 color: 'var(--accent-green)',
                 action: { label: 'PUBLISH', filter: 'local' }
+            });
+        }
+
+        // Intelligence: Always ensure a "Good News" message if everything is clean/synced
+        if (currentStats.attention === 0 && currentStats.sync === 0) {
+            messages.push({
+                text: "Workspace Status: All tracked projects are clean and synced with remote.",
+                color: 'var(--accent-green)'
             });
         }
     }
