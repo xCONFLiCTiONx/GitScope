@@ -72,6 +72,17 @@ function createWindow() {
   // Performance: Show window as soon as content is ready
   mainWindow.once('ready-to-show', () => {
     mainWindow.show();
+
+    // Defer heavy background work until window is visible
+    setTimeout(() => {
+        setupPTY();
+        try {
+            if (fs.existsSync(configPath)) {
+                const config = fs.readJsonSync(configPath);
+                if (config.repositories) setupWatcher(config.repositories);
+            }
+        } catch(e) {}
+    }, 100);
   });
 
   if (state.isMaximized) {
@@ -99,16 +110,6 @@ function createWindow() {
   mainWindow.on('close', saveWindowState);
   mainWindow.on('resize', saveWindowState);
   mainWindow.on('move', saveWindowState);
-
-  setupPTY();
-
-  // Initial watcher setup
-  try {
-    if (fs.existsSync(configPath)) {
-      const config = fs.readJsonSync(configPath);
-      if (config.repositories) setupWatcher(config.repositories);
-    }
-  } catch(e) {}
 
   const menuTemplate = [
     {

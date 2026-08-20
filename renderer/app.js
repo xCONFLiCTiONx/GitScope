@@ -271,24 +271,28 @@ window.onload = async () => {
 
         sortRepositories();
 
-        // 6. Initial Render (Shell is already visible)
-        await renderTree();
-        await showDashboard();
+        // 6. Initial Render (Deferred to next tick to let browser finish loading script)
+        setTimeout(() => {
+            renderTree();
+            showDashboard();
+        }, 0);
 
-        // 7. Non-critical Background tasks
-        if (settings.rootRepoDir) {
-            autoImportFromRoot(settings.rootRepoDir);
-        }
-
-        if (settings.githubToken) {
-            checkGitHubTokenLife();
-        }
-
-        window.electronAPI.getAvailableShells().then(shells => {
-            if (elements.shellSelect) {
-                elements.shellSelect.innerHTML = shells.map(s => `<option value="${s.path}" ${s.path === settings.shell ? 'selected' : ''}>${s.name}</option>`).join('');
+        // 7. Non-critical Background tasks (Deferred for speed)
+        setTimeout(() => {
+            if (settings.rootRepoDir) {
+                autoImportFromRoot(settings.rootRepoDir);
             }
-        });
+
+            if (settings.githubToken) {
+                checkGitHubTokenLife();
+            }
+
+            window.electronAPI.getAvailableShells().then(shells => {
+                if (elements.shellSelect) {
+                    elements.shellSelect.innerHTML = shells.map(s => `<option value="${s.path}" ${s.path === settings.shell ? 'selected' : ''}>${s.name}</option>`).join('');
+                }
+            });
+        }, 500);
     } catch (e) {
         console.error('FATAL STARTUP ERROR:', e);
     }
@@ -760,7 +764,11 @@ async function autoImportFromRoot(rootPath) {
 
         const children = await window.electronAPI.listDirectory(rootPath, true); // Always show all for auto-import
         let addedCount = 0;
+
         for (const dir of children.filter(c => c.isDirectory)) {
+            // Small pause to keep UI responsive during mass scan
+            await new Promise(r => setTimeout(resolve => r(), 10));
+
             const scan = await window.electronAPI.scanDirectory(dir.path);
             if (scan.type === 'single') {
                 const normPath = scan.path.replace(/\\/g, '/');
@@ -1488,74 +1496,82 @@ async function handleNukeReinit() {
 async function renderTree(filter = '') {
     if (isRendering) return;
     isRendering = true;
-    const search = (filter || '').toLowerCase();
-    const filtered = repositories.filter(r => {
-        if (!r || !r.name) return false;
-        return r.name.toLowerCase().includes(search);
-    });
 
-    elements.repoTree.innerHTML = '';
-    if (filtered.length === 0) {
-        elements.repoTree.innerHTML = '<div style="padding:20px; color:var(--text-muted); text-align:center;">No projects found.</div>';
-    } else {
-        const fragment = document.createDocumentFragment();
-        // High-Performance Instant Rendering
-        for (const repo of filtered) {
-            try {
-                // Check if directory exists first
-                const exists = await window.electronAPI.pathExists(repo.path);
+    try {
+        const search = (filter || '').toLowerCase();
+        const filtered = repositories.filter(r => {
+            if (!r || !r.name) return false;
+            return r.name.toLowerCase().includes(search);
+        });
 
-                // 1. Create the node immediately (Sync)
-                const node = createTreeNode(repo.name, repo.path, true, 0, repo);
-                if (node) {
-                    fragment.appendChild(node);
+        if (!elements.repoTree) return;
+        elements.repoTree.innerHTML = '';
 
-                    if (!exists) {
-                        node.querySelector('.node-name').style.color = '#da3633';
-                        node.querySelector('.node-name').textContent += ' (MISSING)';
-                    }
-                }
+        if (filtered.length === 0) {
+            elements.repoTree.innerHTML = '<div style="padding:20px; color:var(--text-muted); text-align:center;">No projects found.</div>';
+        } else {
+            const fragment = document.createDocumentFragment();
+            // High-Performance Instant Rendering
+            for (const repo of filtered) {
+                try {
+                    // 1. Create the node immediately (Sync)
+                    const node = createTreeNode(repo.name, repo.path, true, 0, repo);
+                    if (node) {
+                        fragment.appendChild(node);
 
-                // 2. Fetch status in background (Async) - only if exists
-                if (exists) {
-                    (async () => {
-                        try {
-                            const changes = await window.electronAPI.getDetailedChanges(repo.path);
-                            repo.changedFiles = [...changes.staged, ...changes.unstaged, ...changes.untracked].map(f => `${repo.path.replace(/\\/g, '/')}/${f.replace(/\\/g, '/')}`.toLowerCase());
+                        // 2. Hydrate metadata in background
+                        (async () => {
+                            try {
+                                const exists = await window.electronAPI.pathExists(repo.path);
+                                if (!exists) {
+                                    const nameEl = node.querySelector('.node-name');
+                                    if (nameEl) {
+                                        nameEl.style.color = '#da3633';
+                                        nameEl.textContent += ' (MISSING)';
+                                    }
+                                } else {
+                                    const changes = await window.electronAPI.getDetailedChanges(repo.path);
+                                    repo.changedFiles = [...changes.staged, ...changes.unstaged, ...changes.untracked].map(f => `${repo.path.replace(/\\/g, '/')}/${f.replace(/\\/g, '/')}`.toLowerCase());
 
-                            if (changes.staged.length || changes.unstaged.length || changes.untracked.length) {
-                                const statusDot = node.querySelector('.status-dot-mini');
-                                if (statusDot) {
-                                    statusDot.classList.add('active');
-                                    statusDot.style.opacity = '1';
+                                    if (changes.staged.length || changes.unstaged.length || changes.untracked.length) {
+                                        const statusDot = node.querySelector('.status-dot-mini');
+                                        if (statusDot) {
+                                            statusDot.classList.add('active');
+                                            statusDot.style.opacity = '1';
+                                        }
+                                        const nameEl = node.querySelector('.node-name');
+                                        if (nameEl) nameEl.style.color = '#f85149';
+                                    }
                                 }
-                                const nameEl = node.querySelector('.node-name');
-                                if (nameEl) nameEl.style.color = '#f85149';
-                            }
-                        } catch (e) {}
-                    })();
+                            } catch (e) {}
+                        })();
+                    }
+                } catch (err) {
+                    console.error(`Error rendering node for ${repo.name}:`, err);
                 }
-            } catch (err) {
-                console.error(`Error rendering node for ${repo.name}:`, err);
+            }
+            elements.repoTree.appendChild(fragment);
+
+            // PERSISTENCE: Restore previous expansion state (Non-blocking)
+            restoreAllExpansions();
+
+            // UI Sync
+            updateTreeSelectionUI();
+
+            // SCROLL: Bring active project to the top
+            if (activeRepo) {
+                const repoPath = activeRepo.path.replace(/\\/g, '/').toLowerCase();
+                const repoRoot = Array.from(elements.repoTree.querySelectorAll('.repo-root')).find(el =>
+                    el.dataset.path.replace(/\\/g, '/').toLowerCase() === repoPath
+                );
+                if (repoRoot) repoRoot.scrollIntoView({ behavior: 'auto', block: 'start' });
             }
         }
-        elements.repoTree.appendChild(fragment);
-
-        // PERSISTENCE: Restore previous expansion state
-        await restoreAllExpansions();
-
-        // SCROLL: Bring active project to the top
-        if (activeRepo) {
-            const repoPath = activeRepo.path.replace(/\\/g, '/').toLowerCase();
-            const repoRoot = Array.from(elements.repoTree.querySelectorAll('.repo-root')).find(el =>
-                el.dataset.path.replace(/\\/g, '/').toLowerCase() === repoPath
-            );
-            if (repoRoot) {
-                repoRoot.scrollIntoView({ behavior: 'auto', block: 'start' });
-            }
-        }
+    } catch (fatal) {
+        console.error('FATAL TREE RENDER ERROR:', fatal);
+    } finally {
+        isRendering = false;
     }
-    isRendering = false;
 }
 
 function createTreeNode(name, fullPath, isDirectory, depth, repo) {
@@ -1668,11 +1684,14 @@ async function toggleFolder(container, dirPath, depth, repo) {
 
 async function restoreAllExpansions() {
     const rootNodes = Array.from(elements.repoTree.querySelectorAll(':scope > div'));
-    for (const root of rootNodes) {
-        const repoPath = root.querySelector('.tree-node').dataset.path;
+    const tasks = rootNodes.map(root => {
+        const node = root.querySelector('.tree-node');
+        if (!node) return Promise.resolve();
+        const repoPath = node.dataset.path;
         const repo = repositories.find(r => r.path === repoPath);
-        await restoreExpansionRecursive(root, 0, repo);
-    }
+        return restoreExpansionRecursive(root, 0, repo);
+    });
+    await Promise.all(tasks);
 }
 
 async function restoreExpansionRecursive(container, depth, repo) {
@@ -1682,17 +1701,14 @@ async function restoreExpansionRecursive(container, depth, repo) {
 
     if (expandedNodes.has(path)) {
         if (!container.querySelector('.children-container')) {
-            // Need to avoid infinite recursion since toggleFolder adds to expandedNodes
-            // But expandedNodes is a Set, so adding same path is fine.
             await toggleFolder(container, node.dataset.path, depth, repo);
         }
 
         const childrenContainer = container.querySelector('.children-container');
         if (childrenContainer) {
             const children = Array.from(childrenContainer.querySelectorAll(':scope > div'));
-            for (const child of children) {
-                await restoreExpansionRecursive(child, depth + 1, repo);
-            }
+            const tasks = children.map(child => restoreExpansionRecursive(child, depth + 1, repo));
+            await Promise.all(tasks);
         }
     }
 }
@@ -1700,162 +1716,178 @@ async function restoreExpansionRecursive(container, depth, repo) {
 async function showDashboard() {
     setActiveNavItem(elements.navHome);
     elements.dashboardView.style.display = 'flex';
-    elements.dashboardGrid.innerHTML = '<div style="color: var(--text-muted);">Syncing workspace...</div>';
+    elements.dashboardGrid.innerHTML = ''; // Clear and start fresh
 
     let stats = { total: repositories.length, attention: 0, sync: 0, local: 0, unborn: 0 };
     let unbornList = [];
 
-    // Fetch unborn folder list from root directory
-    if (settings.rootRepoDir) {
-        try {
-            const wsStats = await window.electronAPI.getWorkspaceStats(settings.rootRepoDir);
-            unbornList = wsStats.unborn || [];
-            stats.unborn = unbornList.length;
-        } catch (e) {}
-    }
+    // Fetch unborn folder list from root directory (Non-blocking)
+    (async () => {
+        if (settings.rootRepoDir) {
+            try {
+                const wsStats = await window.electronAPI.getWorkspaceStats(settings.rootRepoDir);
+                unbornList = wsStats.unborn || [];
+                stats.unborn = unbornList.length;
 
-    const allCards = [];
+                // Render Unborn Folders as virtual cards
+                if (currentDashboardFilter === 'all' || currentDashboardFilter === 'unborn') {
+                    unbornList.forEach(folder => {
+                        const card = createUnbornCard(folder);
+                        elements.dashboardGrid.appendChild(card);
+                    });
+                }
+                updateDashboardSummary(stats);
+            } catch (e) {}
+        }
+    })();
+
     const dashboardRepos = [...repositories];
 
-    // Create cards for real repositories
-    const repoPromises = dashboardRepos.map(async (repo) => {
-        try {
-            const exists = await window.electronAPI.pathExists(repo.path);
-            const card = document.createElement('div');
-            card.className = 'dashboard-card';
+    // 1. Instant Rendering of Repo Cards
+    dashboardRepos.forEach(repo => {
+        const card = document.createElement('div');
+        card.className = 'dashboard-card';
+        card.innerHTML = `
+            <div class="card-header">
+                <div class="card-title" style="font-weight:600; color:var(--accent-blue); font-size:15px;">${repo.name}</div>
+                <div class="card-branch" style="font-size:11px; color:var(--text-muted);">Loading status...</div>
+            </div>
+            <div style="padding: 20px; text-align: center; opacity: 0.5;">
+                <div class="spinner-mini"></div>
+            </div>
+        `;
 
-            if (!exists) {
-                return { type: 'missing' };
-            }
+        elements.dashboardGrid.appendChild(card);
 
-            const status = await window.electronAPI.gitStatus(repo.path);
-            const remotes = await window.electronAPI.getRemotes(repo.path);
+        // 2. Background Hydration
+        (async () => {
+            try {
+                const exists = await window.electronAPI.pathExists(repo.path);
+                if (!exists) {
+                    card.innerHTML = `<div class="card-header"><span class="card-title">${repo.name}</span></div><p style="color:var(--accent-red); padding:10px;">Directory Missing</p>`;
+                    return;
+                }
 
-            const isLocal = remotes.length === 0;
-            const needsSync = (status.ahead || 0) > 0 || (status.behind || 0) > 0;
-            const hasChanges = (status.modified || 0) + (status.not_added || 0) + (status.deleted || 0) > 0;
+                const status = await window.electronAPI.gitStatus(repo.path);
+                const remotes = await window.electronAPI.getRemotes(repo.path);
 
-            if (isLocal) stats.local++;
-            if (hasChanges) stats.attention++;
-            if (needsSync) stats.sync++;
+                const isLocal = remotes.length === 0;
+                const needsSync = (status.ahead || 0) > 0 || (status.behind || 0) > 0;
+                const hasChanges = (status.modified || 0) + (status.not_added || 0) + (status.deleted || 0) > 0;
 
-            const matchesFilter =
-                currentDashboardFilter === 'all' ||
-                (currentDashboardFilter === 'attention' && hasChanges) ||
-                (currentDashboardFilter === 'sync' && needsSync) ||
-                (currentDashboardFilter === 'local' && isLocal);
+                if (isLocal) stats.local++;
+                if (hasChanges) stats.attention++;
+                if (needsSync) stats.sync++;
 
-            if (matchesFilter) {
-                card.className = `dashboard-card ${hasChanges || needsSync ? 'has-changes' : 'is-clean'}`;
-                card.onclick = () => selectRepo(repo, true);
-                card.innerHTML = `
-                    <div class="card-header" style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:12px;">
-                        <div style="flex:1; min-width:0;">
-                            <div class="card-title" style="font-weight:600; color:var(--accent-blue); font-size:15px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; margin-bottom: 2px;">${repo.name}</div>
-                            <div class="card-branch" style="font-size:11px; color:var(--text-muted); display: flex; align-items: center; gap: 4px;">
-                                branch: ${status.current || 'unknown'}
+                const matchesFilter =
+                    currentDashboardFilter === 'all' ||
+                    (currentDashboardFilter === 'attention' && hasChanges) ||
+                    (currentDashboardFilter === 'sync' && needsSync) ||
+                    (currentDashboardFilter === 'local' && isLocal);
+
+                if (!matchesFilter) {
+                    card.remove();
+                } else {
+                    card.className = `dashboard-card ${hasChanges || needsSync ? 'has-changes' : 'is-clean'}`;
+                    card.onclick = () => selectRepo(repo, true);
+                    card.innerHTML = `
+                        <div class="card-header" style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:12px;">
+                            <div style="flex:1; min-width:0;">
+                                <div class="card-title" style="font-weight:600; color:var(--accent-blue); font-size:15px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; margin-bottom: 2px;">${repo.name}</div>
+                                <div class="card-branch" style="font-size:11px; color:var(--text-muted); display: flex; align-items: center; gap: 4px;">
+                                    branch: ${status.current || 'unknown'}
+                                </div>
+                            </div>
+                            <div style="font-size: 10px; color: var(--text-muted); text-transform: uppercase; font-weight: 700; opacity: 0.6;">
+                                ${isLocal ? 'LOCAL' : 'REMOTE'}
                             </div>
                         </div>
-                        <div style="font-size: 10px; color: var(--text-muted); text-transform: uppercase; font-weight: 700; opacity: 0.6;">
-                            ${isLocal ? 'LOCAL' : 'REMOTE'}
+
+                        <div style="display:flex; flex-direction:column; gap:8px; flex:1;">
+                            <div class="stat-row" style="display:flex; justify-content:space-between; align-items: center; font-size:12px;">
+                                <span style="color:var(--text-muted);">Uncommitted Changes</span>
+                                <span style="font-weight:600; color:${hasChanges ? 'var(--accent-red)' : 'var(--text-muted)'}">${(status.modified || 0) + (status.not_added || 0)}</span>
+                            </div>
+                            <div class="stat-row" style="display:flex; justify-content:space-between; align-items: center; font-size:12px;">
+                                <span style="color:var(--text-muted);">Sync Status</span>
+                                <span style="font-weight:600; color:${needsSync ? '#e3b341' : 'var(--text-muted)'}">↑ ${status.ahead || 0}  ↓ ${status.behind || 0}</span>
+                            </div>
                         </div>
-                    </div>
 
-                    <div style="display:flex; flex-direction:column; gap:8px; flex:1;">
-                        <div class="stat-row" style="display:flex; justify-content:space-between; align-items: center; font-size:12px;">
-                            <span style="color:var(--text-muted);">Uncommitted Changes</span>
-                            <span style="font-weight:600; color:${hasChanges ? 'var(--accent-red)' : 'var(--text-muted)'}">${(status.modified || 0) + (status.not_added || 0)}</span>
-                        </div>
-                        <div class="stat-row" style="display:flex; justify-content:space-between; align-items: center; font-size:12px;">
-                            <span style="color:var(--text-muted);">Sync Status</span>
-                            <span style="font-weight:600; color:${needsSync ? '#e3b341' : 'var(--text-muted)'}">↑ ${status.ahead || 0}  ↓ ${status.behind || 0}</span>
-                        </div>
-                    </div>
+                        <div class="quick-actions" style="display:flex; gap:6px; margin-top:16px; padding-top:12px; border-top:1px solid var(--border-color);">
+                            <button class="button quick-btn explorer-btn" title="Open in Explorer" style="flex:1; padding:4px; font-size:11px;">EXPLORE</button>
+                            <button class="button quick-btn pull-btn" title="Pull" style="flex:1; padding:4px; font-size:11px;">PULL</button>
+                            <button class="button quick-btn button-primary push-btn" title="Push" style="flex:1; padding:4px; font-size:11px;">PUSH</button>
+                        </div>`;
 
-                    <div class="quick-actions" style="display:flex; gap:6px; margin-top:16px; padding-top:12px; border-top:1px solid var(--border-color);">
-                        <button class="button quick-btn explorer-btn" title="Open in Explorer" style="flex:1; padding:4px; font-size:11px;">EXPLORE</button>
-                        <button class="button quick-btn pull-btn" title="Pull" style="flex:1; padding:4px; font-size:11px;">PULL</button>
-                        <button class="button quick-btn button-primary push-btn" title="Push" style="flex:1; padding:4px; font-size:11px;">PUSH</button>
-                    </div>`;
+                    card.querySelector('.explorer-btn').onclick = (e) => {
+                        e.stopPropagation();
+                        window.electronAPI.openPath(repo.path);
+                    };
 
-                card.querySelector('.explorer-btn').onclick = (e) => {
-                    e.stopPropagation();
-                    // This opens the explorer directly INSIDE the project directory
-                    window.electronAPI.openPath(repo.path);
-                };
+                    card.querySelector('.pull-btn').onclick = (e) => {
+                        e.stopPropagation();
+                        activeRepo = repo;
+                        quickGitAction('pull');
+                    };
 
-                card.querySelector('.pull-btn').onclick = (e) => {
-                    e.stopPropagation();
-                    activeRepo = repo;
-                    quickGitAction('pull');
-                };
+                    card.querySelector('.push-btn').onclick = (e) => {
+                        e.stopPropagation();
+                        activeRepo = repo;
+                        quickGitAction('push');
+                    };
+                }
 
-                card.querySelector('.push-btn').onclick = (e) => {
-                    e.stopPropagation();
-                    activeRepo = repo;
-                    quickGitAction('push');
-                };
-
-                return { card, type: 'repo' };
+                updateDashboardSummary(stats);
+                updateStatusFeed(stats);
+            } catch (e) {
+                console.error(`Error hydrating dashboard card for ${repo.name}:`, e);
             }
-            return { type: 'repo' };
-        } catch (e) {
-            return null;
-        }
+        })();
     });
 
-    const results = await Promise.all(repoPromises);
-    results.forEach(res => { if (res && res.card) allCards.push(res.card); });
-
-    // Handle Unborn Folders as virtual cards if filtered
-    if (currentDashboardFilter === 'all' || currentDashboardFilter === 'unborn') {
-        unbornList.forEach(folder => {
-            const card = document.createElement('div');
-            card.className = 'dashboard-card has-changes';
-            card.style.borderTopColor = 'var(--accent-blue)';
-
-            const isRepo = folder.reason.toLowerCase().includes('commits');
-            const btnText = isRepo ? 'DETAILS' : 'INIT GIT';
-
-            card.innerHTML = `
-                <div class="card-header">
-                    <span class="card-title">${folder.name}</span>
-                    <span class="card-branch" style="color:var(--accent-blue);">UNBORN</span>
-                </div>
-                <div style="font-size:11px; color:var(--text-muted); margin-bottom:12px;">${folder.reason}</div>
-                <div style="text-align:right;">
-                    <button class="button button-primary" style="font-size:10px; width:100%;">${btnText}</button>
-                </div>
-            `;
-
-            const btn = card.querySelector('button');
-            btn.onclick = async (e) => {
-                e.stopPropagation();
-                if (isRepo) {
-                    addRepository({ name: folder.name, path: folder.path }, false, false);
-                    const repo = repositories.find(r => r.path.replace(/\\/g, '/').toLowerCase() === folder.path.replace(/\\/g, '/').toLowerCase());
-                    if (repo) selectRepo(repo);
-                } else {
-                    btn.disabled = true;
-                    btn.textContent = 'INIT...';
-                    const res = await window.electronAPI.gitInit(folder.path);
-                    if (res.success) { showDashboard(); }
-                    else { btn.disabled = false; btn.textContent = 'RETRY'; }
-                }
-            };
-            allCards.push(card);
-        });
-    }
-
-    elements.dashboardGrid.innerHTML = '';
-    if (allCards.length === 0) {
-        elements.dashboardGrid.innerHTML = `<div style="padding:40px; color:var(--text-muted); text-align:center; width:100%;">No projects match the "${currentDashboardFilter}" filter.</div>`;
-    } else {
-        allCards.forEach(c => elements.dashboardGrid.appendChild(c));
+    if (dashboardRepos.length === 0 && unbornList.length === 0) {
+        elements.dashboardGrid.innerHTML = `<div style="padding:40px; color:var(--text-muted); text-align:center; width:100%;">No projects found. Use the sidebar to add some.</div>`;
     }
 
     updateDashboardSummary(stats);
-    updateStatusFeed(stats);
+}
+
+function createUnbornCard(folder) {
+    const card = document.createElement('div');
+    card.className = 'dashboard-card has-changes';
+    card.style.borderTopColor = 'var(--accent-blue)';
+
+    const isRepo = folder.reason.toLowerCase().includes('commits');
+    const btnText = isRepo ? 'DETAILS' : 'INIT GIT';
+
+    card.innerHTML = `
+        <div class="card-header">
+            <span class="card-title">${folder.name}</span>
+            <span class="card-branch" style="color:var(--accent-blue);">UNBORN</span>
+        </div>
+        <div style="font-size:11px; color:var(--text-muted); margin-bottom:12px;">${folder.reason}</div>
+        <div style="text-align:right;">
+            <button class="button button-primary" style="font-size:10px; width:100%;">${btnText}</button>
+        </div>
+    `;
+
+    const btn = card.querySelector('button');
+    btn.onclick = async (e) => {
+        e.stopPropagation();
+        if (isRepo) {
+            addRepository({ name: folder.name, path: folder.path }, false, false);
+            const repo = repositories.find(r => r.path.replace(/\\/g, '/').toLowerCase() === folder.path.replace(/\\/g, '/').toLowerCase());
+            if (repo) selectRepo(repo);
+        } else {
+            btn.disabled = true;
+            btn.textContent = 'INIT...';
+            const res = await window.electronAPI.gitInit(folder.path);
+            if (res.success) { showDashboard(); }
+            else { btn.disabled = false; btn.textContent = 'RETRY'; }
+        }
+    };
+    return card;
 }
 
 async function showThemeEditor() {
