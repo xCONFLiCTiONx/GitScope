@@ -175,38 +175,55 @@ function setupPTY() {
     try { ptyProcess.kill(); } catch(e) {}
   }
 
-  ptyProcess = pty.spawn(shell, [], {
-    name: 'xterm-256color',
-    cols: 80,
-    rows: 24,
-    cwd: settings.rootRepoDir || process.env.HOME || process.env.USERPROFILE,
-    env: process.env,
-    useConpty: true // Force official Windows ConPTY engine
-  });
+  // Determine and validate CWD to prevent Error 267 (Invalid Directory)
+  let workingDir = settings.rootRepoDir || process.env.HOME || process.env.USERPROFILE || process.cwd();
 
-  ptyProcess.on('data', (data) => {
+  // Final safety check: If the path doesn't exist, fallback to the app's current directory
+  if (!fs.existsSync(workingDir)) {
+    console.warn(`PTY: Directory ${workingDir} not found, falling back to process.cwd()`);
+    workingDir = process.cwd();
+  }
+
+  try {
+    ptyProcess = pty.spawn(shell, [], {
+      name: 'xterm-256color',
+      cols: 80,
+      rows: 24,
+      cwd: workingDir,
+      env: process.env,
+      useConpty: true // Force official Windows ConPTY engine
+    });
+
+    ptyProcess.on('data', (data) => {
+      if (mainWindow) {
+        mainWindow.webContents.send('terminal-data', data);
+      }
+    });
+
+    // Re-bind input
+    ipcMain.removeAllListeners('terminal-input');
+    ipcMain.on('terminal-input', (event, data) => {
+      if (ptyProcess) ptyProcess.write(data);
+    });
+
+    ipcMain.removeAllListeners('terminal-resize');
+    ipcMain.on('terminal-resize', (event, data) => {
+      const { cols, rows } = data || {};
+      if (ptyProcess && cols > 0 && rows > 0) {
+          try {
+              ptyProcess.resize(cols, rows);
+          } catch (e) {
+              console.error('Terminal resize failed:', e);
+          }
+      }
+    });
+  } catch (err) {
+    console.error('Failed to spawn PTY:', err);
+    // Notify the renderer so the user knows why the terminal is dead
     if (mainWindow) {
-      mainWindow.webContents.send('terminal-data', data);
+      mainWindow.webContents.send('terminal-data', `\r\n\x1b[31m[ERROR] Failed to start terminal: ${err.message}\x1b[0m\r\n`);
     }
-  });
-
-  // Re-bind input
-  ipcMain.removeAllListeners('terminal-input');
-  ipcMain.on('terminal-input', (event, data) => {
-    if (ptyProcess) ptyProcess.write(data);
-  });
-
-  ipcMain.removeAllListeners('terminal-resize');
-  ipcMain.on('terminal-resize', (event, data) => {
-    const { cols, rows } = data || {};
-    if (ptyProcess && cols > 0 && rows > 0) {
-        try {
-            ptyProcess.resize(cols, rows);
-        } catch (e) {
-            console.error('Terminal resize failed:', e);
-        }
-    }
-  });
+  }
 }
 
 app.whenReady().then(createWindow);
