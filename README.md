@@ -71,6 +71,21 @@ A dedicated interface to manage your work-in-progress. Save, List, Pop, Apply, a
    npm start
    ```
 
+## 🏗️ Building for Production (.exe)
+To package GitScope as a standalone, portable Windows executable:
+
+1. **Add the builder** (if not already present):
+   ```bash
+   npm install electron-builder --save-dev
+   ```
+2. **Generate the binary**:
+   Run the following command for a high-speed build (skipping unnecessary native rebuilds):
+   ```bash
+   npx electron-builder -c.npmRebuild=false
+   ```
+3. **Locate your App**:
+   The standalone binary will be generated in the `/dist` directory. Subsequent builds only require running the step 2 command.
+
 ## ⚙️ Configuration
 
 - **Root Directory:** Set your primary repositories folder in Settings. GitScope will watch it and keep your dashboard synced.
