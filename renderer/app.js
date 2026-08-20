@@ -3694,8 +3694,9 @@ async function showFileDiff(filePath) {
     elements.diffFileName.textContent = filePath.split(/[\\\/]/).pop();
 
     try {
-        const repoBase = repo.path.replace(/\\/g, '/').toLowerCase();
-        let relPath = normPath.replace(repoBase, '');
+        const repoBase = repo.path.replace(/\\/g, '/');
+        const fPath = filePath.replace(/\\/g, '/');
+        let relPath = fPath.substring(repoBase.length);
         if (relPath.startsWith('/')) relPath = relPath.substring(1);
 
         const diffLines = await window.electronAPI.getFileDiff(repo.path, relPath);
