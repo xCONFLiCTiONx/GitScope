@@ -14,13 +14,31 @@ let ptyProcess;
 const configPath = path.join(app.getPath('userData'), 'config.json');
 const settingsPath = path.join(app.getPath('userData'), 'settings.json');
 const windowStatePath = path.join(app.getPath('userData'), 'window-state.json');
+const themesPath = path.join(app.getPath('userData'), 'themes.json');
+
+function getThemes() {
+  try {
+    if (fs.existsSync(themesPath)) {
+      return fs.readJsonSync(themesPath);
+    }
+  } catch (e) {
+    console.error('Failed to get themes:', e);
+  }
+  return {};
+}
+
+function saveThemes(themes) {
+  fs.writeJsonSync(themesPath, themes);
+}
 
 function getSettings() {
   try {
     if (fs.existsSync(settingsPath)) {
       return fs.readJsonSync(settingsPath);
     }
-  } catch (e) {}
+  } catch (e) {
+    console.error('Failed to get settings:', e);
+  }
   return {
     shell: process.platform === 'win32' ? 'C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe' : '/bin/bash',
     rootRepoDir: '',
@@ -37,7 +55,9 @@ function getWindowState() {
     if (fs.existsSync(windowStatePath)) {
       return fs.readJsonSync(windowStatePath);
     }
-  } catch (e) {}
+  } catch (e) {
+    console.error('Failed to get window state:', e);
+  }
   return { width: 1200, height: 800 };
 }
 
@@ -163,6 +183,8 @@ function getAvailableShells() {
 ipcMain.handle('get-available-shells', () => {
   return getAvailableShells();
 });
+
+ipcMain.handle('heartbeat', () => "OK");
 
 function setupPTY() {
   const settings = getSettings();
@@ -798,6 +820,70 @@ ipcMain.handle('reset-app', async () => {
     if (fs.existsSync(configPath)) await fs.remove(configPath);
     if (fs.existsSync(settingsPath)) await fs.remove(settingsPath);
     if (fs.existsSync(windowStatePath)) await fs.remove(windowStatePath);
+    if (fs.existsSync(themesPath)) await fs.remove(themesPath);
+    app.relaunch();
+    app.exit(0);
+    return { success: true };
+  } catch (e) {
+    return { success: false, error: e.message };
+  }
+});
+
+ipcMain.handle('get-themes', async () => {
+  return getThemes();
+});
+
+ipcMain.handle('save-theme', async (event, { name, ini }) => {
+  const themes = getThemes();
+  themes[name] = ini;
+  saveThemes(themes);
+  return { success: true };
+});
+
+ipcMain.handle('delete-theme', async (event, name) => {
+  const themes = getThemes();
+  delete themes[name];
+  saveThemes(themes);
+  return { success: true };
+});
+
+ipcMain.handle('export-settings', async () => {
+  const { canceled, filePath } = await dialog.showSaveDialog(mainWindow, {
+    title: 'Export GitScope Settings',
+    defaultPath: 'gitscope_settings_backup.json',
+    filters: [{ name: 'JSON', extensions: ['json'] }]
+  });
+
+  if (canceled) return { success: false };
+
+  try {
+    const backup = {
+      settings: getSettings(),
+      repositories: fs.existsSync(configPath) ? fs.readJsonSync(configPath).repositories : [],
+      themes: getThemes()
+    };
+    await fs.writeJson(filePath, backup, { spaces: 2 });
+    return { success: true, path: filePath };
+  } catch (e) {
+    return { success: false, error: e.message };
+  }
+});
+
+ipcMain.handle('import-settings', async () => {
+  const { canceled, filePaths } = await dialog.showOpenDialog(mainWindow, {
+    title: 'Import GitScope Settings',
+    filters: [{ name: 'JSON', extensions: ['json'] }],
+    properties: ['openFile']
+  });
+
+  if (canceled) return { success: false };
+
+  try {
+    const backup = await fs.readJson(filePaths[0]);
+    if (backup.settings) saveSettings(backup.settings);
+    if (backup.repositories) await fs.writeJson(configPath, { repositories: backup.repositories });
+    if (backup.themes) saveThemes(backup.themes);
+
     app.relaunch();
     app.exit(0);
     return { success: true };

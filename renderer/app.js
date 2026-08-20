@@ -10,6 +10,7 @@ let tokenExpiration = null;
 let monacoEditor = null;
 let themeEditor = null;
 let currentEditingPath = null;
+let originalFileContent = null;
 let activeTasks = 0;
 let lastSelectedPath = null;
 let currentDashboardFilter = 'all';
@@ -17,6 +18,28 @@ let feedMessages = [];
 let currentFeedIndex = 0;
 let feedTimer = null;
 let lastKnownStats = null;
+
+// Global Error Handling for Total Visibility
+window.onerror = function(message, source, lineno, colno, error) {
+    const errorMsg = `[Global Error] ${message}\nAt: ${source}:${lineno}:${colno}`;
+    console.error(errorMsg, error);
+    if (typeof showError === 'function') {
+        showError(errorMsg, 'Unhandled Application Error');
+    } else {
+        alert(errorMsg);
+    }
+    return false;
+};
+
+window.onunhandledrejection = function(event) {
+    const errorMsg = `[Unhandled Promise Rejection] ${event.reason}`;
+    console.error(errorMsg);
+    if (typeof showError === 'function') {
+        showError(errorMsg, 'Async Logic Error');
+    } else {
+        alert(errorMsg);
+    }
+};
 
 function setTaskState(running) {
     activeTasks = running ? activeTasks + 1 : Math.max(0, activeTasks - 1);
@@ -42,9 +65,15 @@ function showAlert(message, title = 'Notification') {
         const okBtn = document.getElementById('confirm-ok');
         const cancelBtn = document.getElementById('confirm-cancel');
 
+        if (!modal || !titleEl || !msgEl || !okBtn) {
+            alert(title + ": " + message);
+            resolve(true);
+            return;
+        }
+
         titleEl.textContent = title;
         msgEl.textContent = message;
-        cancelBtn.style.display = 'none';
+        if (cancelBtn) cancelBtn.style.display = 'none';
         modal.style.display = 'flex';
 
         okBtn.onclick = () => {
@@ -62,6 +91,12 @@ function showConfirm(message, title = 'Confirm Action') {
         const okBtn = document.getElementById('confirm-ok');
         const cancelBtn = document.getElementById('confirm-cancel');
 
+        if (!modal || !titleEl || !msgEl || !okBtn || !cancelBtn) {
+            const res = confirm(title + "\n\n" + message);
+            resolve(res);
+            return;
+        }
+
         titleEl.textContent = title;
         msgEl.textContent = message;
         cancelBtn.style.display = 'block';
@@ -78,12 +113,42 @@ function showConfirm(message, title = 'Confirm Action') {
     });
 }
 
+function showError(message, title = 'Error') {
+    return new Promise((resolve) => {
+        const modal = document.getElementById('confirm-modal');
+        const titleEl = document.getElementById('confirm-title');
+        const msgEl = document.getElementById('confirm-message');
+        const okBtn = document.getElementById('confirm-ok');
+        const cancelBtn = document.getElementById('confirm-cancel');
+
+        if (!modal || !titleEl || !msgEl || !okBtn) {
+            alert("ERROR: " + title + "\n\n" + message);
+            resolve(true);
+            return;
+        }
+
+        titleEl.textContent = title;
+        titleEl.style.color = 'var(--accent-red)';
+        msgEl.textContent = message;
+        if (cancelBtn) cancelBtn.style.display = 'none';
+        modal.style.display = 'flex';
+
+        okBtn.onclick = () => {
+            titleEl.style.color = '';
+            modal.style.display = 'none';
+            resolve(true);
+        };
+    });
+}
+
 // DOM Elements Mapping (Getter-based for total resilience)
 const elements = {
     get navHome() { return document.getElementById('nav-home'); },
     get navGithub() { return document.getElementById('nav-github'); },
     get navNew() { return document.getElementById('nav-new'); },
     get navAdd() { return document.getElementById('nav-add'); },
+    get navGitConfig() { return document.getElementById('nav-git-config'); },
+    get navTheme() { return document.getElementById('nav-theme'); },
     get navSettings() { return document.getElementById('nav-settings'); },
     get appLogoBox() { return document.getElementById('app-logo-box'); },
     get repoTree() { return document.getElementById('repo-tree'); },
@@ -106,10 +171,12 @@ const elements = {
     get statusContainer() { return document.getElementById('status-container'); },
     get statusBackBtn() { return document.getElementById('status-back-btn'); },
     get repoStatusBtn() { return document.getElementById('repo-status-btn'); },
+    get repoStashBtn() { return document.getElementById('repo-stash-btn'); },
     get editorView() { return document.getElementById('editor-view'); },
     get editorFileName() { return document.getElementById('editor-file-name'); },
     get editorSaveBtn() { return document.getElementById('editor-save-btn'); },
     get editorRestoreBtn() { return document.getElementById('editor-restore-btn'); },
+    get editorUndoBtn() { return document.getElementById('editor-undo-btn'); },
     get editorCloseBtn() { return document.getElementById('editor-close-btn'); },
     get editorPreviewToggle() { return document.getElementById('editor-preview-toggle'); },
     get gitignoreScanBtn() { return document.getElementById('gitignore-scan-btn'); },
@@ -118,6 +185,22 @@ const elements = {
     get previewImg() { return document.getElementById('preview-img'); },
     get monacoContainer() { return document.getElementById('monaco-container'); },
     get settingsView() { return document.getElementById('settings-view'); },
+    get gitConfigView() { return document.getElementById('git-config-view'); },
+    get themeEditorView() { return document.getElementById('theme-editor-view'); },
+    get themeVisualControls() { return document.getElementById('theme-visual-controls'); },
+    get themeDynamicControls() { return document.getElementById('theme-dynamic-controls'); },
+    get themeMonacoContainer() { return document.getElementById('theme-monaco-container'); },
+    get themeSaveBtn() { return document.getElementById('theme-save-btn'); },
+    get themeUndoBtn() { return document.getElementById('theme-undo-btn'); },
+    get themeResetBtn() { return document.getElementById('theme-reset-btn'); },
+    get themeCloseBtn() { return document.getElementById('theme-close-btn'); },
+    get openThemeEditorBtn() { return document.getElementById('open-theme-editor-btn'); },
+    get themePresetsSelect() { return document.getElementById('theme-presets-select'); },
+    get newThemeNameInput() { return document.getElementById('new-theme-name'); },
+    get themeSavePresetBtn() { return document.getElementById('theme-save-preset-btn'); },
+    get themeDeletePresetBtn() { return document.getElementById('theme-delete-preset-btn'); },
+    get exportSettingsBtn() { return document.getElementById('export-settings-btn'); },
+    get importSettingsBtn() { return document.getElementById('import-settings-btn'); },
     get branchSelect() { return document.getElementById('branch-select'); },
     get remoteSelect() { return document.getElementById('remote-select'); },
     get openRemoteBtn() { return document.getElementById('open-remote-btn'); },
@@ -134,7 +217,6 @@ const elements = {
     get nukeReinitBtn() { return document.getElementById('nuke-reinit-btn'); },
     get restoreFileBtn() { return document.getElementById('restore-file-btn'); },
     get consoleOutput() { return document.getElementById('console-output'); },
-    get clearConsole() { return document.getElementById('clear-console'); },
     get sidebarCollapse() { return document.getElementById('sidebar-collapse'); },
     get sidebarToggleIgnored() { return document.getElementById('sidebar-toggle-ignored'); },
     get sidebarRefresh() { return document.getElementById('sidebar-refresh'); },
@@ -153,7 +235,6 @@ const elements = {
     get bulkCommitAutoMsg() { return document.getElementById('bulk-commit-auto-msg'); },
     get bulkCommitConfirm() { return document.getElementById('bulk-commit-confirm'); },
     get bulkCommitCancel() { return document.getElementById('bulk-commit-cancel'); },
-
     get bulkRestoreModal() { return document.getElementById('bulk-restore-modal'); },
     get bulkRestoreRepoList() { return document.getElementById('bulk-restore-repo-list'); },
     get bulkRestoreSelectAll() { return document.getElementById('bulk-restore-select-all'); },
@@ -201,17 +282,6 @@ const elements = {
     get smartSyncOverwrite() { return document.getElementById('smart-sync-overwrite'); },
     get smartSyncRun() { return document.getElementById('smart-sync-run'); },
     get smartSyncCancel() { return document.getElementById('smart-sync-cancel'); },
-    get navGitConfig() { return document.getElementById('nav-git-config'); },
-    get navTheme() { return document.getElementById('nav-theme'); },
-    get gitConfigView() { return document.getElementById('git-config-view'); },
-    get themeEditorView() { return document.getElementById('theme-editor-view'); },
-    get themeMonacoContainer() { return document.getElementById('theme-monaco-container'); },
-    get themeVisualControls() { return document.getElementById('theme-visual-controls'); },
-    get themeSaveBtn() { return document.getElementById('theme-save-btn'); },
-    get themeUndoBtn() { return document.getElementById('theme-undo-btn'); },
-    get themeResetBtn() { return document.getElementById('theme-reset-btn'); },
-    get themeCloseBtn() { return document.getElementById('theme-close-btn'); },
-    get openThemeEditorBtn() { return document.getElementById('open-theme-editor-btn'); },
     get gitConfigSections() { return document.getElementById('git-config-sections'); },
     get gitConfigPathDisplay() { return document.getElementById('git-config-path-display'); },
     get saveGitConfigBtn() { return document.getElementById('save-git-config-btn'); },
@@ -226,7 +296,6 @@ const elements = {
     get renameBranchNewName() { return document.getElementById('rename-branch-new-name'); },
     get renameBranchConfirm() { return document.getElementById('rename-branch-confirm'); },
     get renameBranchCancel() { return document.getElementById('rename-branch-cancel'); },
-    get repoStashBtn() { return document.getElementById('repo-stash-btn'); },
     get stashModal() { return document.getElementById('stash-modal'); },
     get stashMessageInput() { return document.getElementById('stash-message-input'); },
     get stashSaveBtn() { return document.getElementById('stash-save-btn'); },
@@ -236,11 +305,19 @@ const elements = {
 
 // Initialize app
 window.onload = async () => {
-    // 1. Setup UI Mechanics (Instant - No async work here)
-    initResizers();
-    initEventListeners();
+    try {
+        // 1. Setup UI Mechanics (Instant - No async work here)
+        initResizers();
+        initEventListeners();
+    } catch (e) {
+        console.error("CRITICAL UI INIT FAILURE:", e);
+    }
 
     try {
+        if (!window.electronAPI) {
+            throw new Error("window.electronAPI is undefined. Preload script failure.");
+        }
+
         // 2. Parallel Data Loading
         const settingsPromise = window.electronAPI.getSettings();
         const reposPromise = window.electronAPI.getRepositories();
@@ -259,8 +336,6 @@ window.onload = async () => {
             window.electronAPI.saveSettings(settings);
         }
 
-        if (elements.obsidianIniEditor) elements.obsidianIniEditor.value = settings.obsidianIni || '';
-
         // 5. Hydrate Repositories
         const savedRepos = await reposPromise;
         repositories = (savedRepos || []).map(r => ({
@@ -275,6 +350,7 @@ window.onload = async () => {
         setTimeout(() => {
             renderTree();
             showDashboard();
+            console.log("Initial render complete.");
         }, 0);
 
         // 7. Non-critical Background tasks (Deferred for speed)
@@ -295,6 +371,7 @@ window.onload = async () => {
         }, 500);
     } catch (e) {
         console.error('FATAL STARTUP ERROR:', e);
+        showError(e.message, 'Fatal Startup Error');
     }
 };
 
@@ -320,6 +397,12 @@ function initEditor() {
                 fontFamily: 'Cascadia Mono, Consolas, monospace',
                 fontSize: 13
             });
+
+            // PRO FEATURE: Save with Ctrl+S
+            monacoEditor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => {
+                saveCurrentFile();
+            });
+
             logToConsole('Code Editor ready.', 'info');
         });
     }
@@ -599,6 +682,10 @@ function initEventListeners() {
     // Editor Actions
     if (elements.editorSaveBtn) elements.editorSaveBtn.onclick = () => saveCurrentFile();
     if (elements.editorRestoreBtn) elements.editorRestoreBtn.onclick = () => handleRestoreFile();
+    if (elements.editorUndoBtn) elements.editorUndoBtn.onclick = () => {
+        if (monacoEditor) monacoEditor.focus();
+        monacoEditor.trigger('source', 'undo');
+    };
     if (elements.editorCloseBtn) elements.editorCloseBtn.onclick = () => closeEditor();
     if (elements.editorPreviewToggle) elements.editorPreviewToggle.onclick = () => toggleMarkdownPreview();
     if (elements.gitignoreScanBtn) elements.gitignoreScanBtn.onclick = () => runGitignoreScan();
@@ -637,6 +724,12 @@ function initEventListeners() {
     // Settings Panel
     if (elements.saveSettingsBtn) elements.saveSettingsBtn.onclick = () => saveGlobalSettings();
     if (elements.resetAppBtn) elements.resetAppBtn.onclick = () => handleResetApp();
+    if (elements.exportSettingsBtn) elements.exportSettingsBtn.onclick = () => handleExportSettings();
+    if (elements.importSettingsBtn) elements.importSettingsBtn.onclick = () => handleImportSettings();
+
+    if (elements.themeSavePresetBtn) elements.themeSavePresetBtn.onclick = () => saveThemePreset();
+    if (elements.themeDeletePresetBtn) elements.themeDeletePresetBtn.onclick = () => deleteThemePreset();
+    if (elements.themePresetsSelect) elements.themePresetsSelect.onchange = () => loadSelectedThemePreset();
 
     if (elements.renameCancel) elements.renameCancel.onclick = () => {
         elements.renameModal.style.display = 'none';
@@ -810,8 +903,12 @@ async function quickGitAction(action) {
     try {
         const res = await window.electronAPI[`git${action.charAt(0).toUpperCase() + action.slice(1)}`](activeRepo.path);
         logToConsole(res.output, res.success ? 'success' : 'error');
+        if (!res.success) showError(res.output, `Git ${action.toUpperCase()} Failed`);
         await refreshActiveRepoUI();
-    } catch (e) { logToConsole(e.message, 'error'); }
+    } catch (e) {
+        logToConsole(e.message, 'error');
+        showError(e.message, 'System Error');
+    }
     finally { setTaskState(false); }
 }
 
@@ -826,9 +923,11 @@ async function handleStageAll() {
             await refreshActiveRepoUI();
         } else {
             logToConsole(`Stage Failed: ${res.output}`, 'error');
+            showError(res.output, 'Stage Failed');
         }
     } catch (e) {
         logToConsole(`System Error: ${e.message}`, 'error');
+        showError(e.message, 'System Error');
     } finally { setTaskState(false); }
 }
 
@@ -843,9 +942,11 @@ async function handleUnstageAll() {
             await refreshActiveRepoUI();
         } else {
             logToConsole(`Unstage Failed: ${res.output}`, 'error');
+            showError(res.output, 'Unstage Failed');
         }
     } catch (e) {
         logToConsole(`System Error: ${e.message}`, 'error');
+        showError(e.message, 'System Error');
     } finally { setTaskState(false); }
 }
 
@@ -886,10 +987,13 @@ async function handleCommit(pushAfter = false) {
             logToConsole(`Commit Failed: ${errorMsg}`, 'error');
             if (errorMsg.includes('nothing to commit')) {
                 showAlert("Nothing to commit. Make some changes first!", "Clean Tree");
+            } else {
+                showError(errorMsg, 'Commit Failed');
             }
         }
     } catch (e) {
         logToConsole(`System Error during commit: ${e.message}`, 'error');
+        showError(e.message, 'System Error');
     }
     finally {
         elements.commitBtn.disabled = false;
@@ -922,8 +1026,12 @@ async function handleBranchChange() {
     try {
         const res = await window.electronAPI.switchBranch(activeRepo.path, branch);
         logToConsole(res.output, res.success ? 'success' : 'error');
+        if (!res.success) showError(res.output, 'Branch Switch Failed');
         await refreshActiveRepoUI();
-    } catch (e) { logToConsole(e.message, 'error'); }
+    } catch (e) {
+        logToConsole(e.message, 'error');
+        showError(e.message, 'System Error');
+    }
 }
 
 async function handleCreateBranch() {
@@ -952,10 +1060,11 @@ async function handleCreateBranch() {
                 await refreshActiveRepoUI();
             } else {
                 logToConsole(`Creation failed: ${res.output}`, 'error');
-                alert(`Creation Error: ${res.output}`);
+                showError(`Creation Error: ${res.output}`, 'Error');
             }
         } catch (e) {
             logToConsole(`System Error: ${e.message}`, 'error');
+            showError(e.message, 'System Error');
         }
     };
 
@@ -1005,11 +1114,11 @@ async function handleDeleteBranch() {
                 await refreshActiveRepoUI();
             } else {
                 logToConsole(`Delete failed: ${res.output}`, 'error');
-                showAlert(`Delete Error: ${res.output}\n\nThis can happen if the branch is open in another Git worktree or IDE.`, 'Error');
+                showError(`Delete Error: ${res.output}\n\nThis can happen if the branch is open in another Git worktree or IDE.`, 'Error');
             }
         } catch (e) {
             logToConsole(`System Error: ${e.message}`, 'error');
-            showAlert(`Error: ${e.message}`, 'Error');
+            showError(`Error: ${e.message}`, 'Error');
         }
     }
 }
@@ -1044,10 +1153,11 @@ async function handleRenameBranch() {
                 await refreshActiveRepoUI();
             } else {
                 logToConsole(`Rename failed: ${res.output}`, 'error');
-                showAlert(`Rename Error: ${res.output}`, 'Error');
+                showError(`Rename Error: ${res.output}`, 'Error');
             }
         } catch (e) {
             logToConsole(`System Error: ${e.message}`, 'error');
+            showError(e.message, 'System Error');
         } finally {
             setTaskState(false);
         }
@@ -1069,6 +1179,98 @@ async function saveGlobalSettings() {
         applyObsidianTheme(settings.obsidianIni);
         renderTree();
     } catch (e) { logToConsole(e.message, 'error'); }
+}
+
+async function loadThemePresets() {
+    try {
+        const themes = await window.electronAPI.getThemes();
+        if (elements.themePresetsSelect) {
+            elements.themePresetsSelect.innerHTML = '<option value="">-- Select Preset --</option>' +
+                Object.keys(themes).sort().map(name => `<option value="${name}">${name}</option>`).join('');
+            elements.newThemeNameInput.value = '';
+            elements.themeDeletePresetBtn.style.display = 'none';
+        }
+    } catch (e) {
+        logToConsole(`Failed to load themes: ${e.message}`, 'error');
+    }
+}
+
+async function saveThemePreset() {
+    const name = elements.newThemeNameInput.value.trim();
+    if (!name) {
+        showAlert('Please enter a name for the theme.', 'Invalid Name');
+        return;
+    }
+
+    if (!themeEditor) return;
+    const ini = themeEditor.getValue();
+
+    try {
+        await window.electronAPI.saveTheme(name, ini);
+        logToConsole(`Theme "${name}" saved to presets.`, 'success');
+        await loadThemePresets();
+    } catch (e) {
+        logToConsole(`Failed to save theme: ${e.message}`, 'error');
+    }
+}
+
+async function deleteThemePreset() {
+    const name = elements.themePresetsSelect.value;
+    if (!name) return;
+
+    if (await showConfirm(`Delete theme preset "${name}"?`, 'Confirm Delete')) {
+        try {
+            await window.electronAPI.deleteTheme(name);
+            logToConsole(`Theme "${name}" deleted.`, 'info');
+            await loadThemePresets();
+        } catch (e) {
+            logToConsole(`Failed to delete theme: ${e.message}`, 'error');
+        }
+    }
+}
+
+async function loadSelectedThemePreset() {
+    const name = elements.themePresetsSelect.value;
+    if (!name) {
+        elements.themeDeletePresetBtn.style.display = 'none';
+        return;
+    }
+
+    elements.themeDeletePresetBtn.style.display = 'block';
+
+    try {
+        const themes = await window.electronAPI.getThemes();
+        const ini = themes[name];
+        if (ini && themeEditor) {
+            themeEditor.setValue(ini);
+            elements.newThemeNameInput.value = name;
+        }
+    } catch (e) {
+        logToConsole(`Failed to load theme: ${e.message}`, 'error');
+    }
+}
+
+async function handleExportSettings() {
+    try {
+        const res = await window.electronAPI.exportSettings();
+        if (res.success) {
+            logToConsole(`Settings exported successfully to: ${res.path}`, 'success');
+            showAlert(`Settings exported successfully to:\n${res.path}`, 'Export Complete');
+        }
+    } catch (e) {
+        logToConsole(`Export failed: ${e.message}`, 'error');
+    }
+}
+
+async function handleImportSettings() {
+    if (await showConfirm("⚠ WARNING ⚠\n\nImporting settings will OVERWRITE your current configuration and RESTART the application. Continue?", "Confirm Import")) {
+        try {
+            await window.electronAPI.importSettings();
+            // App will restart via main process
+        } catch (e) {
+            logToConsole(`Import failed: ${e.message}`, 'error');
+        }
+    }
 }
 
 async function handleResetApp() {
@@ -1385,6 +1587,7 @@ async function handlePublishGitHub() {
             } else {
                 logToConsole(`Push sequence failed: ${publishRes.output}`, 'error');
                 logToConsole('The repository exists on GitHub, but the push failed. You can retry anytime.', 'warn');
+                showError(`Link successful but push failed: ${publishRes.output}`, 'Publish Partially Failed');
                 await refreshActiveRepoUI();
             }
         } catch (e) {
@@ -1393,7 +1596,7 @@ async function handlePublishGitHub() {
             if (e.message.includes('403')) {
                 friendlyMsg = "GitHub API Error 403: Permission Denied.\n\nThis usually means your Personal Access Token (PAT) is missing the 'repo' scope (Classic) or isn't set to 'All Repositories' with 'Administration: Read & Write' (Fine-grained).";
             }
-            showAlert(friendlyMsg, 'Error Publishing Project');
+            showError(friendlyMsg, 'Error Publishing Project');
         } finally {
             setTaskState(false);
         }
@@ -1458,7 +1661,7 @@ async function handleDeleteGitHubRepo() {
                     } else if (e.message.includes('404')) {
                         friendlyMsg = "GitHub API Error 404: Repository not found.\n\nThe repository might have already been deleted or your token doesn't have permission to see it.";
                     }
-                    showAlert(friendlyMsg, 'Error Deleting Repository');
+                    showError(friendlyMsg, 'Error Deleting Repository');
                 } finally {
                     setTaskState(false);
                 }
@@ -1466,6 +1669,7 @@ async function handleDeleteGitHubRepo() {
         }
     } catch (e) {
         logToConsole(`System Error: ${e.message}`, 'error');
+        showError(e.message, 'System Error');
     }
 }
 
@@ -1485,9 +1689,11 @@ async function handleNukeReinit() {
                     renderTree();
                 } else {
                     logToConsole(`Nuke failed: ${res.output}`, 'error');
+                    showError(res.output, 'Nuke Failed');
                 }
             } catch (e) {
                 logToConsole(`Nuke error: ${e.message}`, 'error');
+                showError(e.message, 'System Error');
             } finally { setTaskState(false); }
         }
     }
@@ -1930,6 +2136,7 @@ async function showThemeEditor() {
         }
 
         renderThemeVisualControls(currentIni);
+        loadThemePresets(); // Load saved presets
     };
 
     setTimeout(initOrUpdate, 50);
@@ -1972,118 +2179,99 @@ function renderThemeVisualControls(ini, fromEditor = false) {
 
     if (fromEditor && container.querySelectorAll('input:focus').length > 0) return;
 
-    container.innerHTML = '';
+    const dynamicContainer = elements.themeDynamicControls;
+    if (!dynamicContainer) return;
+    dynamicContainer.innerHTML = '';
 
-    // Add Font separately as it's not a color
+    // 1. Add Font Control
     const fontVal = ini.match(/Font=([^;\r\n]+)/)?.[1] || 'Cascadia Mono';
-    const fontGroup = document.createElement('div');
-    fontGroup.style.marginBottom = '24px';
-    fontGroup.innerHTML = `
-        <h4 style="margin: 0 0 12px 0; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 1.5px; color: var(--accent-blue);">Workspace Font</h4>
+    const fontSection = document.createElement('div');
+    fontSection.className = 'settings-section';
+    fontSection.style.marginBottom = '20px';
+    fontSection.innerHTML = `
+        <h3 style="margin-bottom: 12px; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 1.5px; color: var(--accent-blue);">Workspace Font</h3>
         <input type="text" id="theme-font-input" class="settings-input" style="width: 100%;" value="${fontVal}">
     `;
-    fontGroup.querySelector('input').onchange = (e) => {
+    fontSection.querySelector('input').onchange = (e) => {
         updateIniFromGui('Theme', 'Font', e.target.value, false);
     };
-    container.appendChild(fontGroup);
+    dynamicContainer.appendChild(fontSection);
 
+    // 2. Add Color Controls
     Object.keys(supported).forEach(sectionId => {
-        const sectionName = sectionId.charAt(0).toUpperCase() + sectionId.slice(1);
-        const sectionDiv = document.createElement('div');
-        sectionDiv.style.marginBottom = '24px';
-        sectionDiv.innerHTML = `<h4 style="margin: 0 0 12px 0; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 1.5px; color: var(--accent-blue); opacity: 0.8;">${sectionName} Colors</h4>`;
+        const sectionName = sectionId === 'theme' ? 'UI Elements' : 'Syntax Colors';
+        const sectionEl = document.createElement('div');
+        sectionEl.className = 'settings-section';
+        sectionEl.style.marginBottom = '20px';
+        sectionEl.innerHTML = `<h3 style="margin-bottom: 12px; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 1.5px; color: var(--accent-blue);">${sectionName}</h3>`;
 
-        const list = document.createElement('div');
-        list.style.display = 'flex';
-        list.style.flexDirection = 'column';
-        list.style.gap = '12px';
+        const grid = document.createElement('div');
+        grid.style.display = 'grid';
+        grid.style.gridTemplateColumns = '1fr 1fr';
+        grid.style.gap = '12px';
 
         supported[sectionId].forEach(key => {
-            const val = data[sectionId][key] || (sectionId === 'theme' ? '#1e1e1e' : '#ffffff');
-
             const row = document.createElement('div');
             row.style.display = 'flex';
-            row.style.alignItems = 'center';
-            row.style.justifyContent = 'space-between';
-            row.style.gap = '16px';
+            row.style.flexDirection = 'column';
+            row.style.gap = '4px';
 
-            const left = document.createElement('div');
-            left.style.display = 'flex';
-            left.style.flexDirection = 'column';
-            left.style.gap = '2px';
-            left.innerHTML = `<span style="font-size: 12px; font-weight: 600; color: #fff;">${key}</span>`;
-
-            const right = document.createElement('div');
-            right.style.display = 'flex';
-            right.style.alignItems = 'center';
-            right.style.gap = '8px';
-            right.style.position = 'relative';
-
-            const swatch = document.createElement('div');
-            swatch.style.width = '24px';
-            swatch.style.height = '24px';
-            swatch.style.borderRadius = '6px';
-            swatch.style.backgroundColor = val;
-            swatch.style.border = '1px solid var(--border-color)';
-            swatch.style.cursor = 'pointer';
-            swatch.style.boxShadow = '0 2px 4px rgba(0,0,0,0.2)';
-
-            const picker = document.createElement('input');
-            picker.type = 'color';
-            let pickerVal = val;
-            if (pickerVal.length === 4) pickerVal = '#' + pickerVal[1] + pickerVal[1] + pickerVal[2] + pickerVal[2] + pickerVal[3] + pickerVal[3];
-            picker.value = pickerVal;
-            picker.style.position = 'absolute';
-            picker.style.bottom = '0';
-            picker.style.right = '0';
-            picker.style.width = '24px';
-            picker.style.height = '24px';
-            picker.style.opacity = '0';
-            picker.style.border = 'none';
-            picker.style.padding = '0';
-            picker.style.pointerEvents = 'none';
-
-            swatch.onclick = () => picker.click();
+            const label = document.createElement('label');
+            label.style.fontSize = '11px';
+            label.style.color = 'var(--text-muted)';
+            label.textContent = key;
 
             const input = document.createElement('input');
-            input.type = 'text';
-            input.value = val.toUpperCase();
-            input.className = 'settings-input';
-            input.style.padding = '4px 8px';
-            input.style.fontSize = '12px';
-            input.style.fontFamily = 'monospace';
-            input.style.width = '75px';
-            input.style.textAlign = 'center';
+            input.type = 'color';
+            input.value = data[sectionId][key] || '#cccccc';
+            input.style.width = '100%';
+            input.style.height = '28px';
+            input.style.padding = '0';
+            input.style.border = '1px solid var(--border-color)';
+            input.style.borderRadius = '4px';
+            input.style.background = 'transparent';
+            input.style.cursor = 'pointer';
 
-            const update = (newVal) => {
-                newVal = newVal.toUpperCase();
-                input.value = newVal;
-                swatch.style.backgroundColor = newVal;
-                updateIniFromGui(sectionName, key, newVal);
+            input.oninput = () => {
+                isSyncingTheme = true;
+                const newVal = input.value.toUpperCase();
+                data[sectionId][key] = newVal;
+
+                // Update Monaco
+                const currentVal = themeEditor.getValue();
+                const lines = currentVal.split('\n');
+                let inSection = false;
+                const updatedLines = lines.map(l => {
+                    const t = l.trim();
+                    const secHeader = `[${sectionId.charAt(0).toUpperCase() + sectionId.slice(1)}]`;
+                    if (t === secHeader) inSection = true;
+                    else if (t.startsWith('[') && t.endsWith(']')) inSection = false;
+
+                    if (inSection && t.toLowerCase().startsWith(key.toLowerCase() + '=')) {
+                        return `${key}=${newVal}`;
+                    }
+                    return l;
+                });
+
+                const finalIni = updatedLines.join('\n');
+                themeEditor.setValue(finalIni);
+                applyObsidianTheme(finalIni);
+                isSyncingTheme = false;
             };
 
-            picker.oninput = (e) => update(e.target.value);
-            input.onchange = (e) => {
-                const v = e.target.value.trim();
-                if (/^#[0-9A-F]{3,6}$/i.test(v)) update(v);
-            };
-
-            right.appendChild(input);
-            right.appendChild(swatch);
-            right.appendChild(picker);
-
-            row.appendChild(left);
-            row.appendChild(right);
-            list.appendChild(row);
+            row.appendChild(label);
+            row.appendChild(input);
+            grid.appendChild(row);
         });
-        sectionDiv.appendChild(list);
-        container.appendChild(sectionDiv);
+
+        sectionEl.appendChild(grid);
+        dynamicContainer.appendChild(sectionEl);
     });
 
     // Add extra space at the bottom to ensure color pickers don't get cut off by screen edges
     const spacer = document.createElement('div');
     spacer.style.height = '100px';
-    container.appendChild(spacer);
+    dynamicContainer.appendChild(spacer);
 }
 
 function updateIniFromGui(section, key, value, isColor = true) {
@@ -2395,10 +2583,10 @@ function renderGitConfig(content) {
                 logToConsole('Global .gitconfig updated successfully.', 'success');
                 showAlert('Global Git configuration has been saved.', 'Success');
             } else {
-                showAlert(`Failed to save: ${res.error}`, 'Error');
+                showError(`Failed to save: ${res.error}`, 'Error');
             }
         } catch (e) {
-            showAlert(`System Error: ${e.message}`, 'Error');
+            showError(`System Error: ${e.message}`, 'Error');
         } finally {
             setTaskState(false);
         }
@@ -2969,6 +3157,8 @@ async function openFileInEditor(filePath) {
         } else {
             // Handle Text Editor
             const content = await window.electronAPI.readFile(filePath);
+            originalFileContent = content; // Store for change detection
+
             const langMap = {
                 'js': 'javascript',
                 'ts': 'typescript',
@@ -2992,16 +3182,59 @@ async function openFileInEditor(filePath) {
             elements.editorPreviewToggle.textContent = 'Preview';
             elements.markdownPreview.innerHTML = '';
 
+            // Memory Management: Dispose of the old model if it exists
+            const oldModel = monacoEditor.getModel();
+            if (oldModel) oldModel.dispose();
+
             const model = monaco.editor.createModel(content, langMap[ext] || 'plaintext');
             monacoEditor.setModel(model);
+
+            // Intelligence: Track changes to enable/disable buttons
+            model.onDidChangeContent(() => {
+                const currentContent = monacoEditor.getValue();
+                const hasChanges = currentContent !== originalFileContent;
+                updateEditorButtonStates(hasChanges);
+            });
+
+            // Initial state
+            updateEditorButtonStates(false);
+
             monacoEditor.layout();
         }
     } catch (e) { logToConsole(e.message, 'error'); }
 }
 
+function updateEditorButtonStates(hasChanges) {
+    if (elements.editorSaveBtn) {
+        elements.editorSaveBtn.disabled = !hasChanges;
+        elements.editorSaveBtn.style.opacity = hasChanges ? '1' : '0.5';
+    }
+    if (elements.editorRestoreBtn) {
+        elements.editorRestoreBtn.disabled = !hasChanges;
+        elements.editorRestoreBtn.style.opacity = hasChanges ? '1' : '0.5';
+    }
+    if (elements.editorUndoBtn) {
+        elements.editorUndoBtn.disabled = !hasChanges;
+        elements.editorUndoBtn.style.opacity = hasChanges ? '1' : '0.5';
+    }
+}
+
 async function saveCurrentFile() {
     if (!currentEditingPath || !monacoEditor) return;
-    try { await window.electronAPI.writeFile(currentEditingPath, monacoEditor.getValue()); logToConsole('Saved.', 'success'); updateTreeHighlights(); } catch (e) { logToConsole(e.message, 'error'); }
+    try {
+        const newContent = monacoEditor.getValue();
+        await window.electronAPI.writeFile(currentEditingPath, newContent);
+        logToConsole('Saved.', 'success');
+
+        // Reset original content to new saved state
+        originalFileContent = newContent;
+        updateEditorButtonStates(false);
+
+        updateTreeHighlights();
+    } catch (e) {
+        logToConsole(e.message, 'error');
+        showError(e.message, 'Save Failed');
+    }
 }
 
 function closeEditor() { elements.editorView.style.display = 'none'; if (activeRepo) elements.repoView.style.display = 'flex'; else showDashboard(); }
@@ -3153,6 +3386,7 @@ async function handleCreateReadme(repoPath) {
         openFileInEditor(readmePath);
     } catch (e) {
         logToConsole(`Failed to create README: ${e.message}`, 'error');
+        showError(e.message, 'Create README Failed');
     }
 }
 
@@ -3222,6 +3456,7 @@ async function handleGenerateGitignore(repoPath) {
                 openFileInEditor(gitignorePath);
             } catch (err) {
                 logToConsole(`Failed to fetch template: ${err.message}`, 'error');
+                showError(err.message, 'Template Fetch Failed');
             } finally {
                 setTaskState(false);
             }
@@ -3649,7 +3884,7 @@ async function listStashes() {
                 logToConsole(`Applying stash@{${idx}}...`, 'info');
                 const res = await window.electronAPI.gitStashApply(activeRepo.path, idx);
                 if (res.success) { logToConsole('Stash applied.', 'success'); await refreshActiveRepoUI(); }
-                else showAlert(res.output, 'Apply Error');
+                else showError(res.output, 'Apply Error');
             };
 
             div.querySelector('.pop-btn').onclick = async () => {
@@ -3659,14 +3894,14 @@ async function listStashes() {
                     logToConsole('Stash popped.', 'success');
                     await listStashes();
                     await refreshActiveRepoUI();
-                } else showAlert(res.output, 'Pop Error');
+                } else showError(res.output, 'Pop Error');
             };
 
             div.querySelector('.drop-btn').onclick = async () => {
                 if (await showConfirm(`Delete stash@{${idx}} permanently?`, 'Confirm Drop')) {
                     const res = await window.electronAPI.gitStashDrop(activeRepo.path, idx);
                     if (res.success) await listStashes();
-                    else showAlert(res.output, 'Drop Error');
+                    else showError(res.output, 'Drop Error');
                 }
             };
 
@@ -3754,7 +3989,10 @@ async function handleNewItem(type, parentPath) {
                 const rootNode = Array.from(document.querySelectorAll('.repo-root')).find(n => n.dataset.path.toLowerCase() === repo.path.toLowerCase());
                 // We'd need a more complex recursive reveal here, but the refresh will show it
             }
-        } catch (e) { logToConsole(e.message, 'error'); }
+        } catch (e) {
+            logToConsole(e.message, 'error');
+            showError(e.message, 'System Error');
+        }
     };
 
     confirmBtn.onclick = execute;
@@ -3832,7 +4070,10 @@ async function showGitHubImportModal() {
             for (const input of selected) { const dest = `${settings.rootRepoDir}/${input.dataset.name}`; logToConsole(`Cloning ${input.dataset.name}...`, 'info'); await window.electronAPI.gitClone(input.value, dest); addRepository({ type: 'single', path: dest, name: input.dataset.name }, true); }
             sortRepositories(); window.electronAPI.saveRepositories(repositories); renderTree();
         };
-    } catch (e) { logToConsole(e.message, 'error'); }
+    } catch (e) {
+        logToConsole(e.message, 'error');
+        showError(e.message, 'GitHub API Error');
+    }
     document.getElementById('import-cancel').onclick = () => modal.style.display = 'none';
 }
 
@@ -3885,10 +4126,11 @@ function showCreateRepoModal() {
                 }
             } else {
                 logToConsole(`Failed to create repository: ${res.output}`, 'error');
-                showAlert(`Error creating repository: ${res.output}`, 'Error');
+                showError(`Error creating repository: ${res.output}`, 'Error');
             }
         } catch (e) {
             logToConsole(`Creation Error: ${e.message}`, 'error');
+            showError(e.message, 'System Error');
         } finally {
             setTaskState(false);
         }
@@ -4061,6 +4303,7 @@ async function showBulkOpModal(sourcePath) {
             logToConsole(`Bulk ${action} complete.`, 'success');
         } catch (e) {
             logToConsole(`Bulk operation fatal error: ${e.message}`, 'error');
+            showError(e.message, 'Bulk Operation Failed');
         } finally {
             setTaskState(false);
             selectedNodes.clear();
@@ -4214,6 +4457,7 @@ async function showSmartSyncModal(sourcePath) {
             logToConsole('Smart Sync Distribution complete.', 'success');
         } catch (e) {
             logToConsole(`Smart Sync Fatal Error: ${e.message}`, 'error');
+            showError(e.message, 'Smart Sync Failed');
         } finally {
             setTaskState(false);
             selectedNodes.clear();
@@ -4270,6 +4514,7 @@ async function showPatchModal(sourcePath) {
             await smartRefreshTree();
         } catch (e) {
             logToConsole(e.message, 'error');
+            showError(e.message, 'Patch Failed');
         }
     };
 
@@ -4281,7 +4526,7 @@ async function handleFileDrop(srcPath, destDir, destContainer, depth, sourceId) 
     const modal = document.getElementById('drop-action-modal'); modal.style.display = 'flex';
     const perform = async (type) => {
         modal.style.display = 'none'; const fileName = srcPath.split(/[\\\/]/).pop(); const destPath = `${destDir}/${fileName}`; if (srcPath === destPath) return;
-        try { const res = type === 'move' ? await window.electronAPI.moveFile(srcPath, destPath) : await window.electronAPI.copyFile(srcPath, destPath); if (res.success) renderTree(); } catch (e) {}
+        try { const res = type === 'move' ? await window.electronAPI.moveFile(srcPath, destPath) : await window.electronAPI.copyFile(srcPath, destPath); if (res.success) renderTree(); else showError(res.error, `${type.charAt(0).toUpperCase() + type.slice(1)} Failed`); } catch (e) { showError(e.message, 'System Error'); }
     };
     document.getElementById('drop-move').onclick = () => perform('move'); document.getElementById('drop-copy').onclick = () => perform('copy'); document.getElementById('drop-cancel').onclick = () => modal.style.display = 'none';
 }
@@ -4387,6 +4632,7 @@ function showDeleteModal(paths) {
                 successCount++;
             } else {
                 logToConsole(`Failed to delete ${p}: ${res.error}`, 'error');
+                showError(`Failed to delete ${p}: ${res.error}`, 'Delete Error');
             }
         }
         if (successCount > 0) logToConsole(`Successfully moved ${successCount} items to Recycle Bin.`, 'success');

@@ -2,6 +2,7 @@ const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('electronAPI', {
   openDirectory: () => ipcRenderer.invoke('open-directory'),
+  heartbeat: () => ipcRenderer.invoke('heartbeat'),
   openFile: () => ipcRenderer.invoke('open-file'),
   scanDirectory: (path) => ipcRenderer.invoke('scan-directory', path),
   listDirectory: (path, showIgnored) => ipcRenderer.invoke('list-directory', path, showIgnored),
@@ -59,6 +60,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
   saveRepositories: (repos) => ipcRenderer.invoke('save-repositories', repos),
   getSettings: () => ipcRenderer.invoke('get-settings'),
   saveSettings: (settings) => ipcRenderer.invoke('save-settings', settings),
+  getThemes: () => ipcRenderer.invoke('get-themes'),
+  saveTheme: (name, ini) => ipcRenderer.invoke('save-theme', { name, ini }),
+  deleteTheme: (name) => ipcRenderer.invoke('delete-theme', name),
+  exportSettings: () => ipcRenderer.invoke('export-settings'),
+  importSettings: () => ipcRenderer.invoke('import-settings'),
   getAvailableShells: () => ipcRenderer.invoke('get-available-shells'),
   fetchGitHubRepos: (token) => ipcRenderer.invoke('github-fetch-repos', token),
   createGitHubRepo: (token, name, isPrivate) => ipcRenderer.invoke('github-create-repo', token, name, isPrivate),

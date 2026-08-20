@@ -612,6 +612,7 @@
         }
         .button:hover { background-color: var(--hover-bg); border-color: var(--text-muted); color: #fff; }
         .button:active { transform: translateY(1px); }
+        .button:disabled { opacity: 0.4; cursor: not-allowed; pointer-events: none; filter: grayscale(1); }
 
         .button-primary { border-color: var(--accent-green); color: var(--accent-green); }
         .button-primary:hover { background-color: var(--accent-green); color: #fff; }
@@ -854,7 +855,7 @@
                 <svg height="18" width="18" viewBox="0 0 16 16" fill="currentColor" style="display:inline-block;vertical-align:middle;color:var(--text-muted);"><path d="M1 2.75C1 1.784 1.784 1 2.75 1h10.5c.966 0 1.75.784 1.75 1.75v10.5A1.75 1.75 0 0 1 13.25 15H2.75A1.75 1.75 0 0 1 1 13.25V2.75Zm1.75-.25a.25.25 0 0 0-.25.25v10.5c0 .138.112.25.25.25h10.5a.25.25 0 0 0 .25-.25V2.75a.25.25 0 0 0-.25-.25H2.75ZM5 4.5h6a.75.25 0 0 1 0 1.5H5a.75.75 0 0 1 0-1.5Zm0 3.5h6a.75.25 0 0 1 0 1.5H5a.75.75 0 0 1 0-1.5Zm0 3.5h3a.75.25 0 0 1 0 1.5H5a.75.75 0 0 1 0-1.5Z"></path></svg>
             </div>
             <div id="nav-theme" class="nav-item" title="Theme Editor">
-                <svg height="18" width="18" viewBox="0 0 16 16" fill="currentColor" style="display:inline-block;vertical-align:middle;color:var(--text-muted);"><path d="M6 0C2.69 0 0 2.69 0 6c0 1.31.42 2.53 1.13 3.53l-1.07 1.07a.751.751 0 0 0 .018 1.042l1.25 1.25a.75.75 0 0 0 1.06 0l1.07-1.07C4.47 12.58 5.69 13 7 13c3.31 0 6-2.69 6-6V3c0-.55-.45-1-1-1H9c0-1.1-.9-2-2.5-2H6Zm0 1.5h.5c.83 0 1 0 1 .5V3h5v3c0 2.48-1.52 4.5-4.5 4.5s-4.5-2.02-4.5-4.5c0-1.24.51-2.36 1.33-3.17.29-.29.62-.55.98-.77.16-.09.19-.31.06-.45l-.5-.5a.25.25 0 0 1 .13-.11ZM11.5 5h1a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-.5.5h-1a.5.5 0 0 1-.5-.5v-2a.5.5 0 0 1 .5-.5Z"></path></svg>
+                <svg height="18" width="18" viewBox="0 0 16 16" fill="currentColor" style="display:inline-block;vertical-align:middle;color:var(--accent-blue);"><path d="M8 0a8 8 0 1 1 0 16A8 8 0 0 1 8 0ZM3.5 7.5a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3Zm1.5 4.5a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3Zm4.5 1.5a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3Zm4.5-1.5a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3Zm1.5-4.5a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3Z"></path></svg>
             </div>
             <div id="nav-settings" class="nav-item nav-item-bottom" title="Settings" style="margin-top: 0;">⚙</div>
         </div>
@@ -1031,6 +1032,7 @@
                         <button id="gitignore-scan-btn" class="button" style="display: none; font-size: 10px; padding: 2px 8px; border-color: var(--accent-blue); color: var(--accent-blue);">Scan & Ignore</button>
                     </div>
                     <div style="display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end;">
+                        <button id="editor-undo-btn" class="button" style="font-size: 10px;" title="Undo (Ctrl+Z)">Undo</button>
                         <button id="editor-restore-btn" class="button button-danger" style="font-size: 10px;">Restore</button>
                         <button id="editor-save-btn" class="button button-primary">Save Changes</button>
                         <button id="editor-close-btn" class="button">Close</button>
@@ -1087,6 +1089,14 @@
                             <button id="open-theme-editor-btn" class="button button-blue" style="width: 100%; padding: 10px; font-weight: 600;">OPEN ADVANCED THEME EDITOR</button>
                         </div>
                     </div>
+                    <div class="settings-section">
+                        <h3>Backup & Portability</h3>
+                        <p>Export or import your entire CitScope configuration including themes and repositories.</p>
+                        <div class="settings-control" style="flex-direction: column; align-items: stretch; gap: 10px;">
+                            <button id="export-settings-btn" class="button button-blue" style="width: 100%; height: 38px; font-weight: 600;">EXPORT SETTINGS PACKAGE (.JSON)</button>
+                            <button id="import-settings-btn" class="button" style="width: 100%; height: 38px; font-weight: 600;">IMPORT SETTINGS PACKAGE (.JSON)</button>
+                        </div>
+                    </div>
                     <div class="settings-section" style="border-bottom: none;">
                         <h3 style="color: var(--accent-red);">Danger Zone</h3>
                         <p>Permanently remove all settings and projects from the application.</p>
@@ -1118,7 +1128,20 @@
                 <div style="display: flex; flex: 1; gap: 20px; min-height: 0;">
                     <!-- Left: Visual Controls -->
                     <div id="theme-visual-controls" style="width: 320px; overflow-y: auto; background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: 8px; padding: 20px; display: flex; flex-direction: column; gap: 24px;">
-                        <!-- Injected via JS -->
+                        <div class="settings-section" style="padding-bottom: 16px; border-bottom: 1px solid var(--border-color);">
+                            <h3>Theme Presets</h3>
+                            <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 10px;">
+                                <select id="theme-presets-select" class="settings-input" style="width: 100%;">
+                                    <option value="">-- Select Preset --</option>
+                                </select>
+                                <div style="display: flex; gap: 8px;">
+                                    <input type="text" id="new-theme-name" class="settings-input" placeholder="New theme name..." style="flex: 1;">
+                                    <button id="theme-save-preset-btn" class="button button-blue">Save</button>
+                                </div>
+                                <button id="theme-delete-preset-btn" class="button button-danger" style="width: 100%; display: none;">Delete Selected Preset</button>
+                            </div>
+                        </div>
+                        <div id="theme-dynamic-controls" style="display: flex; flex-direction: column; gap: 24px;"></div>
                     </div>
 
                     <!-- Right: Raw Code -->
