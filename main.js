@@ -278,12 +278,42 @@ ipcMain.handle('open-file', async () => {
   return canceled ? null : filePaths[0];
 });
 
+ipcMain.handle('show-save-dialog', async (event, options) => {
+  const { canceled, filePath } = await dialog.showSaveDialog(mainWindow, options);
+  return canceled ? null : filePath;
+});
+
+ipcMain.handle('show-open-dialog', async (event, options) => {
+  const { canceled, filePaths } = await dialog.showOpenDialog(mainWindow, options);
+  return canceled ? null : filePaths[0];
+});
+
 ipcMain.handle('scan-directory', async (event, path) => {
   return await scanDirectory(path);
 });
 
 ipcMain.handle('list-directory', async (event, path, showIgnored) => {
   return await listDirectory(path, showIgnored);
+});
+
+ipcMain.handle('search-files', async (event, repoPath, query) => {
+    try {
+        const simpleGit = require('simple-git');
+        const git = simpleGit(repoPath);
+        // Use ls-files for speed (tracked files)
+        // Also use --others --exclude-standard to get untracked but non-ignored files
+        const files = await git.raw(['ls-files', '-c', '-o', '--exclude-standard']);
+        const allFiles = files.split('\n').filter(f => f.trim() !== '');
+
+        const lowerQuery = query.toLowerCase();
+        const matches = allFiles.filter(f => f.toLowerCase().includes(lowerQuery));
+
+        // Return max 100 matches per repo for performance
+        return matches.slice(0, 100);
+    } catch (e) {
+        console.error('Search failed:', e);
+        return [];
+    }
 });
 
 ipcMain.handle('read-file', async (event, filePath) => {

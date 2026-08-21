@@ -191,6 +191,8 @@ const elements = {
     get themeDynamicControls() { return document.getElementById('theme-dynamic-controls'); },
     get themeMonacoContainer() { return document.getElementById('theme-monaco-container'); },
     get themeSaveBtn() { return document.getElementById('theme-save-btn'); },
+    get themeExportIniBtn() { return document.getElementById('theme-export-ini-btn'); },
+    get themeImportIniBtn() { return document.getElementById('theme-import-ini-btn'); },
     get themeUndoBtn() { return document.getElementById('theme-undo-btn'); },
     get themeResetBtn() { return document.getElementById('theme-reset-btn'); },
     get themeCloseBtn() { return document.getElementById('theme-close-btn'); },
@@ -272,6 +274,8 @@ const elements = {
     get publishCancel() { return document.getElementById('publish-cancel'); },
     get renameModal() { return document.getElementById('rename-modal'); },
     get renamePathDisplay() { return document.getElementById('rename-path-display'); },
+    get renameNewName() { return document.getElementById('rename-new-name'); },
+    get renameConfirm() { return document.getElementById('rename-confirm'); },
     get renameCancel() { return document.getElementById('rename-cancel'); },
     get smartSyncModal() { return document.getElementById('smart-sync-modal'); },
     get smartSyncSourceList() { return document.getElementById('smart-sync-source-list'); },
@@ -384,6 +388,23 @@ function initEditor() {
                 applyObsidianTheme(settings.obsidianIni);
             }
 
+            // Register Custom Language for Themes to prevent "Split Color" bug
+            monaco.languages.register({ id: 'green-latern' });
+            monaco.languages.setMonarchTokensProvider('green-latern', {
+                tokenizer: {
+                    root: [
+                        [/^\[.*\]/, 'header'],
+                        [/^;.*$/, 'comment'],
+                        [/^#.*$/, 'comment'],
+                        [/^([^=]+)(=)(.*)$/, [
+                            { token: 'key' },
+                            { token: 'operator' },
+                            { token: 'value' }
+                        ]]
+                    ]
+                }
+            });
+
             // 2. Create the editor with the 'obsidian' theme already active
             monacoEditor = monaco.editor.create(elements.monacoContainer, {
                 theme: settings.obsidianIni ? 'obsidian' : 'vs-dark',
@@ -432,6 +453,25 @@ function applyObsidianTheme(iniContent) {
             }
         }
 
+        // Apply font to Theme Editor as well
+        if (themeEditor) {
+            if (themeData.fontFamily) {
+                themeEditor.updateOptions({ fontFamily: themeData.fontFamily });
+            }
+        }
+
+        // Apply font to Terminal as well
+        if (window.terminal && window.terminal.term) {
+            if (themeData.fontFamily) {
+                window.terminal.term.options.fontFamily = themeData.fontFamily;
+            }
+        }
+
+        // Apply font to whole UI for a unified look
+        if (themeData.fontFamily) {
+            document.body.style.fontFamily = themeData.fontFamily + ', sans-serif';
+        }
+
         // Intelligence: Update the Dashboard/UI to match the theme background for a unified feel
         const bg = themeData.colors['editor.background'];
         if (bg) {
@@ -447,7 +487,7 @@ function applyObsidianTheme(iniContent) {
 
 const DEFAULT_THEME_INI = `[Theme]
 ; Global Workspace Colors
-Font=Cascadia Mono
+Font=JetBrains Mono, Cascadia Mono, Consolas
 Background=#121314
 Foreground=#d4d4d4
 LineNumbers=#858585
@@ -456,18 +496,17 @@ Cursor=#569cd6
 
 [Syntax]
 ; Code Element Colors
-Comment=#6a9955
-String=#ce9178
-Number=#b5cea8
-Keyword=#569cd6
+Comment=#008000
+String=#3ADB00
+Integer=#AFE1A2
+Keyword=#46AFAD
 Operator=#d4d4d4
 Identifier=#9cdcfe
-Preprocessor=#c586c0
+Preprocessor=#8EC587
 Tag=#569cd6
 Attribute=#9cdcfe
-Value=#ce9178
 Bracket1=#ffd700
-Bracket2=#da70d6
+Bracket2=#71DA94
 Bracket3=#179fff`;
 
 function parseObsidianIni(ini) {
@@ -498,18 +537,22 @@ function parseObsidianIni(ini) {
 
     const rules = [
         { token: 'comment', foreground: syntax['comment'] || '#6a9955' },
-        { token: 'string', foreground: syntax['string'] || '#ce9178' },
-        { token: 'number', foreground: syntax['number'] || '#b5cea8' },
+        { token: 'string', foreground: syntax['integer'] || syntax['number'] || syntax['string'] || '#ce9178' },
+        { token: 'number', foreground: syntax['integer'] || syntax['number'] || '#b5cea8' },
         { token: 'keyword', foreground: syntax['keyword'] || '#569cd6' },
         { token: 'operator', foreground: syntax['operator'] || '#d4d4d4' },
-        { token: 'identifier', foreground: syntax['identifier'] || '#9cdcfe' },
-        { token: 'type', foreground: syntax['attribute'] || '#4ec9b0' },
-        { token: 'class', foreground: syntax['attribute'] || '#4ec9b0' },
+        { token: 'identifier', foreground: theme['foreground'] || '#d4d4d4' },
+        { token: 'type', foreground: theme['foreground'] || '#d4d4d4' },
+        { token: 'class', foreground: theme['foreground'] || '#d4d4d4' },
         { token: 'namespace', foreground: syntax['keyword'] || '#569cd6' },
         { token: 'metatag', foreground: syntax['preprocessor'] || '#c586c0' },
         { token: 'tag', foreground: syntax['tag'] || '#569cd6' },
-        { token: 'attribute.name', foreground: syntax['attribute'] || '#9cdcfe' },
-        { token: 'attribute.value', foreground: syntax['value'] || '#ce9178' }
+        { token: 'attribute.name', foreground: theme['foreground'] || '#d4d4d4' },
+        { token: 'attribute.value', foreground: syntax['integer'] || syntax['number'] || '#b5cea8' },
+        // INI specific tokens
+        { token: 'header', foreground: syntax['keyword'] || '#569cd6' },
+        { token: 'key', foreground: theme['foreground'] || '#d4d4d4' },
+        { token: 'value', foreground: syntax['integer'] || syntax['number'] || '#b5cea8' }
     ];
 
     const colors = {
@@ -611,6 +654,8 @@ function initEventListeners() {
     };
     if (elements.openThemeEditorBtn) elements.openThemeEditorBtn.onclick = () => showThemeEditor();
     if (elements.themeSaveBtn) elements.themeSaveBtn.onclick = () => saveThemeFromEditor();
+    if (elements.themeExportIniBtn) elements.themeExportIniBtn.onclick = () => exportThemeToIni();
+    if (elements.themeImportIniBtn) elements.themeImportIniBtn.onclick = () => importThemeFromIni();
     if (elements.themeUndoBtn) elements.themeUndoBtn.onclick = () => {
         if (themeEditor) themeEditor.trigger('keyboard', 'undo', null);
     };
@@ -655,7 +700,13 @@ function initEventListeners() {
         expandedNodes.clear();
     };
 
-    if (elements.repoFilter) elements.repoFilter.oninput = () => renderTree(elements.repoFilter.value);
+    let filterTimeout;
+    if (elements.repoFilter) {
+        elements.repoFilter.oninput = () => {
+            clearTimeout(filterTimeout);
+            filterTimeout = setTimeout(() => renderTree(elements.repoFilter.value), 300);
+        };
+    }
 
     // Git Control Panel
     document.querySelectorAll('.git-btn').forEach(btn => {
@@ -1184,6 +1235,12 @@ async function saveGlobalSettings() {
 async function loadThemePresets() {
     try {
         const themes = await window.electronAPI.getThemes();
+
+        // Ensure "Green lantern" is always present as the default
+        if (!themes['Green lantern']) {
+            themes['Green lantern'] = DEFAULT_THEME_INI;
+        }
+
         if (elements.themePresetsSelect) {
             elements.themePresetsSelect.innerHTML = '<option value="">-- Select Preset --</option>' +
                 Object.keys(themes).sort().map(name => `<option value="${name}">${name}</option>`).join('');
@@ -1218,6 +1275,11 @@ async function deleteThemePreset() {
     const name = elements.themePresetsSelect.value;
     if (!name) return;
 
+    if (name === 'Green lantern') {
+        showAlert('The default "Green lantern" theme cannot be deleted.', 'Action Blocked');
+        return;
+    }
+
     if (await showConfirm(`Delete theme preset "${name}"?`, 'Confirm Delete')) {
         try {
             await window.electronAPI.deleteTheme(name);
@@ -1236,11 +1298,11 @@ async function loadSelectedThemePreset() {
         return;
     }
 
-    elements.themeDeletePresetBtn.style.display = 'block';
+    elements.themeDeletePresetBtn.style.display = name === 'Green lantern' ? 'none' : 'block';
 
     try {
         const themes = await window.electronAPI.getThemes();
-        const ini = themes[name];
+        const ini = (name === 'Green lantern' && !themes[name]) ? DEFAULT_THEME_INI : themes[name];
         if (ini && themeEditor) {
             themeEditor.setValue(ini);
             elements.newThemeNameInput.value = name;
@@ -1704,74 +1766,103 @@ async function renderTree(filter = '') {
     isRendering = true;
 
     try {
-        const search = (filter || '').toLowerCase();
-        const filtered = repositories.filter(r => {
-            if (!r || !r.name) return false;
-            return r.name.toLowerCase().includes(search);
-        });
-
+        const search = (filter || '').trim().toLowerCase();
         if (!elements.repoTree) return;
         elements.repoTree.innerHTML = '';
 
-        if (filtered.length === 0) {
-            elements.repoTree.innerHTML = '<div style="padding:20px; color:var(--text-muted); text-align:center;">No projects found.</div>';
-        } else {
-            const fragment = document.createDocumentFragment();
-            // High-Performance Instant Rendering
-            for (const repo of filtered) {
-                try {
-                    // 1. Create the node immediately (Sync)
-                    const node = createTreeNode(repo.name, repo.path, true, 0, repo);
-                    if (node) {
-                        fragment.appendChild(node);
+        const fragment = document.createDocumentFragment();
 
-                        // 2. Hydrate metadata in background
-                        (async () => {
-                            try {
-                                const exists = await window.electronAPI.pathExists(repo.path);
-                                if (!exists) {
-                                    const nameEl = node.querySelector('.node-name');
-                                    if (nameEl) {
-                                        nameEl.style.color = '#da3633';
-                                        nameEl.textContent += ' (MISSING)';
-                                    }
-                                } else {
-                                    const changes = await window.electronAPI.getDetailedChanges(repo.path);
-                                    repo.changedFiles = [...changes.staged, ...changes.unstaged, ...changes.untracked].map(f => `${repo.path.replace(/\\/g, '/')}/${f.replace(/\\/g, '/')}`.toLowerCase());
+        for (const repo of repositories) {
+            if (!repo || !repo.name) continue;
 
-                                    if (changes.staged.length || changes.unstaged.length || changes.untracked.length) {
-                                        const statusDot = node.querySelector('.status-dot-mini');
-                                        if (statusDot) {
-                                            statusDot.classList.add('active');
-                                            statusDot.style.opacity = '1';
-                                        }
-                                        const nameEl = node.querySelector('.node-name');
-                                        if (nameEl) nameEl.style.color = '#f85149';
-                                    }
-                                }
-                            } catch (e) {}
-                        })();
-                    }
-                } catch (err) {
-                    console.error(`Error rendering node for ${repo.name}:`, err);
-                }
+            const nameMatch = repo.name.toLowerCase().includes(search);
+            let fileMatches = [];
+
+            // Deep file search if query is at least 3 characters
+            if (search.length >= 3) {
+                fileMatches = await window.electronAPI.searchFiles(repo.path, search);
             }
+
+            if (!search || nameMatch || fileMatches.length > 0) {
+                const nodeContainer = createTreeNode(repo.name, repo.path, true, 0, repo);
+                fragment.appendChild(nodeContainer);
+
+                // If searching and found files, show them as direct children
+                if (search && fileMatches.length > 0) {
+                    const childrenContainer = document.createElement('div');
+                    childrenContainer.className = 'children-container';
+
+                    // Show top 100 matches to keep UI snappy
+                    for (const relPath of fileMatches.slice(0, 100)) {
+                        const fullPath = `${repo.path}/${relPath}`.replace(/\\/g, '/');
+                        // Use the relative path as name so user knows location
+                        childrenContainer.appendChild(createTreeNode(relPath, fullPath, false, 1, repo));
+                    }
+
+                    if (fileMatches.length > 100) {
+                        const more = document.createElement('div');
+                        more.style.padding = '4px 30px';
+                        more.style.fontSize = '10px';
+                        more.style.color = 'var(--text-muted)';
+                        more.style.fontStyle = 'italic';
+                        more.textContent = `+ ${fileMatches.length - 100} more matches...`;
+                        childrenContainer.appendChild(more);
+                    }
+
+                    nodeContainer.appendChild(childrenContainer);
+                    const chevron = nodeContainer.querySelector('.chevron');
+                    if (chevron) chevron.textContent = '▾';
+                }
+
+                // Metadata hydration (Status dots, missing indicators)
+                (async () => {
+                    try {
+                        const exists = await window.electronAPI.pathExists(repo.path);
+                        if (!exists) {
+                            const nameEl = nodeContainer.querySelector('.node-name');
+                            if (nameEl) {
+                                nameEl.style.color = '#da3633';
+                                nameEl.textContent += ' (MISSING)';
+                            }
+                        } else {
+                            const changes = await window.electronAPI.getDetailedChanges(repo.path);
+                            repo.changedFiles = [...changes.staged, ...changes.unstaged, ...changes.untracked].map(f => `${repo.path.replace(/\\/g, '/')}/${f.replace(/\\/g, '/')}`.toLowerCase());
+
+                            if (changes.staged.length || changes.unstaged.length || changes.untracked.length) {
+                                const statusDot = nodeContainer.querySelector('.status-dot-mini');
+                                if (statusDot) {
+                                    statusDot.classList.add('active');
+                                    statusDot.style.opacity = '1';
+                                }
+                                const nameEl = nodeContainer.querySelector('.node-name');
+                                if (nameEl) nameEl.style.color = '#f85149';
+                            }
+                        }
+                    } catch (e) {}
+                })();
+            }
+        }
+
+        if (fragment.children.length === 0) {
+            elements.repoTree.innerHTML = `<div style="padding:20px; color:var(--text-muted); text-align:center;">No matches for "${filter}"</div>`;
+        } else {
             elements.repoTree.appendChild(fragment);
 
-            // PERSISTENCE: Restore previous expansion state (Non-blocking)
-            restoreAllExpansions();
+            // Only restore normal tree expansions if NOT searching
+            if (!search) {
+                restoreAllExpansions();
 
-            // UI Sync
-            updateTreeSelectionUI();
-
-            // SCROLL: Bring active project to the top
-            if (activeRepo) {
-                const repoPath = activeRepo.path.replace(/\\/g, '/').toLowerCase();
-                const repoRoot = Array.from(elements.repoTree.querySelectorAll('.repo-root')).find(el =>
-                    el.dataset.path.replace(/\\/g, '/').toLowerCase() === repoPath
-                );
-                if (repoRoot) repoRoot.scrollIntoView({ behavior: 'auto', block: 'start' });
+                // Keep active project visible
+                if (activeRepo) {
+                    const repoPath = activeRepo.path.replace(/\\/g, '/').toLowerCase();
+                    const repoRoot = Array.from(elements.repoTree.querySelectorAll('.repo-root')).find(el =>
+                        el.dataset.path.replace(/\\/g, '/').toLowerCase() === repoPath
+                    );
+                    if (repoRoot) repoRoot.scrollIntoView({ behavior: 'auto', block: 'nearest' });
+                }
             }
+
+            updateTreeSelectionUI();
         }
     } catch (fatal) {
         console.error('FATAL TREE RENDER ERROR:', fatal);
@@ -2115,8 +2206,8 @@ async function showThemeEditor() {
         if (!themeEditor && typeof monaco !== 'undefined') {
             themeEditor = monaco.editor.create(elements.themeMonacoContainer, {
                 value: currentIni,
-                language: 'ini',
-                theme: 'vs-dark',
+                language: 'green-latern',
+                theme: 'obsidian',
                 automaticLayout: true,
                 bracketPairColorization: { enabled: true },
                 minimap: { enabled: false },
@@ -2151,7 +2242,14 @@ function renderThemeVisualControls(ini, fromEditor = false) {
     // Defined set of supported keys to keep things clean
     const supported = {
         'theme': ['Background', 'Foreground', 'LineNumbers', 'Selection', 'Cursor'],
-        'syntax': ['Comment', 'String', 'Number', 'Keyword', 'Operator', 'Identifier', 'Preprocessor', 'Tag', 'Attribute', 'Value', 'Bracket1', 'Bracket2', 'Bracket3']
+        'syntax': ['Integer', 'String', 'Comment', 'Keyword', 'Operator', 'Identifier', 'Preprocessor', 'Tag', 'Attribute', 'Bracket1', 'Bracket2', 'Bracket3']
+    };
+
+    // Unified Fallbacks for UI display
+    const fallbacks = {
+        'Background': '#121314', 'Foreground': '#d4d4d4', 'LineNumbers': '#858585', 'Selection': '#264f78', 'Cursor': '#569cd6',
+        'Comment': '#6a9955', 'String': '#ce9178', 'Integer': '#b5cea8', 'Keyword': '#569cd6', 'Operator': '#d4d4d4', 'Identifier': '#9cdcfe',
+        'Preprocessor': '#c586c0', 'Tag': '#569cd6', 'Attribute': '#9cdcfe', 'Bracket1': '#ffd700', 'Bracket2': '#da70d6', 'Bracket3': '#179fff'
     };
 
     // Parse INI
@@ -2184,17 +2282,47 @@ function renderThemeVisualControls(ini, fromEditor = false) {
     dynamicContainer.innerHTML = '';
 
     // 1. Add Font Control
-    const fontVal = ini.match(/Font=([^;\r\n]+)/)?.[1] || 'Cascadia Mono';
+    const fontVal = ini.match(/Font=([^;\r\n]+)/)?.[1] || 'JetBrains Mono';
+    const supportedFonts = [
+        'JetBrains Mono',
+        'Cascadia Mono',
+        'Consolas',
+        'Courier New',
+        'Lucida Console',
+        'Fira Code',
+        'Source Code Pro',
+        'Monaco'
+    ];
+
     const fontSection = document.createElement('div');
     fontSection.className = 'settings-section';
     fontSection.style.marginBottom = '20px';
     fontSection.innerHTML = `
         <h3 style="margin-bottom: 12px; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 1.5px; color: var(--accent-blue);">Workspace Font</h3>
-        <input type="text" id="theme-font-input" class="settings-input" style="width: 100%;" value="${fontVal}">
+        <select id="theme-font-select" class="settings-input" style="width: 100%;">
+            ${supportedFonts.map(f => `<option value="${f}" ${fontVal.includes(f) ? 'selected' : ''}>${f}</option>`).join('')}
+            <option value="custom" ${!supportedFonts.some(f => fontVal.includes(f)) ? 'selected' : ''}>-- Custom Font --</option>
+        </select>
+        <input type="text" id="theme-font-custom" class="settings-input" style="width: 100%; margin-top: 8px; display: ${supportedFonts.some(f => fontVal.includes(f)) ? 'none' : 'block'};" value="${fontVal}" placeholder="Enter font name...">
     `;
-    fontSection.querySelector('input').onchange = (e) => {
+
+    const fontSelect = fontSection.querySelector('#theme-font-select');
+    const fontCustom = fontSection.querySelector('#theme-font-custom');
+
+    fontSelect.onchange = (e) => {
+        if (e.target.value === 'custom') {
+            fontCustom.style.display = 'block';
+            fontCustom.focus();
+        } else {
+            fontCustom.style.display = 'none';
+            updateIniFromGui('Theme', 'Font', e.target.value, false);
+        }
+    };
+
+    fontCustom.onchange = (e) => {
         updateIniFromGui('Theme', 'Font', e.target.value, false);
     };
+
     dynamicContainer.appendChild(fontSection);
 
     // 2. Add Color Controls
@@ -2223,7 +2351,7 @@ function renderThemeVisualControls(ini, fromEditor = false) {
 
             const input = document.createElement('input');
             input.type = 'color';
-            input.value = data[sectionId][key] || '#cccccc';
+            input.value = data[sectionId][key] || fallbacks[key] || '#cccccc';
             input.style.width = '100%';
             input.style.height = '28px';
             input.style.padding = '0';
@@ -2241,17 +2369,29 @@ function renderThemeVisualControls(ini, fromEditor = false) {
                 const currentVal = themeEditor.getValue();
                 const lines = currentVal.split('\n');
                 let inSection = false;
-                const updatedLines = lines.map(l => {
-                    const t = l.trim();
-                    const secHeader = `[${sectionId.charAt(0).toUpperCase() + sectionId.slice(1)}]`;
-                    if (t === secHeader) inSection = true;
-                    else if (t.startsWith('[') && t.endsWith(']')) inSection = false;
 
-                    if (inSection && t.toLowerCase().startsWith(key.toLowerCase() + '=')) {
-                        return `${key}=${newVal}`;
+                const updatedLines = [];
+                const targetKey = key.toLowerCase();
+                const secHeader = `[${sectionId.charAt(0).toUpperCase() + sectionId.slice(1)}]`;
+
+                for (let l of lines) {
+                    const t = l.trim();
+                    if (t === secHeader) { inSection = true; updatedLines.push(l); continue; }
+                    else if (t.startsWith('[') && t.endsWith(']')) { inSection = false; updatedLines.push(l); continue; }
+
+                    if (inSection) {
+                        const currentLower = t.toLowerCase();
+                        // If setting Integer, purge legacy Number/Value lines
+                        if (key === 'Integer' && (currentLower.startsWith('number=') || currentLower.startsWith('value='))) {
+                            continue;
+                        }
+                        if (currentLower.startsWith(targetKey + '=')) {
+                            updatedLines.push(`${key}=${newVal}`);
+                            continue;
+                        }
                     }
-                    return l;
-                });
+                    updatedLines.push(l);
+                }
 
                 const finalIni = updatedLines.join('\n');
                 themeEditor.setValue(finalIni);
@@ -2347,14 +2487,16 @@ Cursor=${getFore(getVal('Common Base', 'Caret (Color, Size 1-3)')) || '#569cd6'}
 ; Code Element Highlighting
 Comment=${getFore(getVal('JavaScript', 'Comment')) || '#6a9955'}
 String=${getFore(getVal('JavaScript', 'String')) || '#ce9178'}
-Number=${getFore(getVal('JavaScript', 'Number')) || '#b5cea8'}
+Integer=${getFore(getVal('JavaScript', 'Number')) || '#b5cea8'}
 Keyword=${getFore(getVal('JavaScript', 'Keyword')) || '#569cd6'}
 Operator=${getFore(getVal('JavaScript', 'Operator')) || '#d4d4d4'}
 Identifier=${getFore(getVal('JavaScript', 'Identifier')) || '#9cdcfe'}
 Preprocessor=${getFore(getVal('JavaScript', 'Preprocessor')) || '#c586c0'}
 Tag=${getFore(getVal('XML Document', 'XML Tag')) || '#569cd6'}
 Attribute=${getFore(getVal('XML Document', 'XML Attribute')) || '#9cdcfe'}
-Value=${getFore(getVal('XML Document', 'XML Value')) || '#ce9178'}`;
+Bracket1=${syntax['bracket1'] || '#ffd700'}
+Bracket2=${syntax['bracket2'] || '#da70d6'}
+Bracket3=${syntax['bracket3'] || '#179fff'}`;
 }
 
 async function saveThemeFromEditor() {
@@ -2366,6 +2508,41 @@ async function saveThemeFromEditor() {
         applyObsidianTheme(newIni);
         logToConsole('Theme updated and applied.', 'success');
     } catch (e) { logToConsole(e.message, 'error'); }
+}
+
+async function exportThemeToIni() {
+    if (!themeEditor) return;
+    const content = themeEditor.getValue();
+    const filePath = await window.electronAPI.showSaveDialog({
+        title: 'Export Theme as .ini',
+        defaultPath: 'my_theme.ini',
+        filters: [{ name: 'INI Files', extensions: ['ini'] }]
+    });
+
+    if (filePath) {
+        try {
+            await window.electronAPI.writeFile(filePath, content);
+            logToConsole(`Theme exported to ${filePath}`, 'success');
+        } catch (e) { logToConsole(`Export failed: ${e.message}`, 'error'); }
+    }
+}
+
+async function importThemeFromIni() {
+    const filePath = await window.electronAPI.showOpenDialog({
+        title: 'Import Theme from .ini',
+        filters: [{ name: 'INI Files', extensions: ['ini'] }]
+    });
+
+    if (filePath) {
+        try {
+            const content = await window.electronAPI.readFile(filePath);
+            if (themeEditor) {
+                themeEditor.setValue(content);
+                applyObsidianTheme(content);
+                logToConsole(`Theme imported from ${filePath}`, 'success');
+            }
+        } catch (e) { logToConsole(`Import failed: ${e.message}`, 'error'); }
+    }
 }
 
 async function showGitConfigView() {
@@ -3172,7 +3349,14 @@ async function openFileInEditor(filePath) {
                 'py': 'python',
                 'xml': 'xml',
                 'yaml': 'yaml',
-                'yml': 'yaml'
+                'yml': 'yaml',
+                'ini': 'green-latern',
+                'inf': 'green-latern',
+                'bat': 'bat',
+                'cmd': 'bat',
+                'ps1': 'powershell',
+                'psm1': 'powershell',
+                'psd1': 'powershell'
             };
 
             elements.editorPreviewToggle.style.display = (ext === 'md') ? 'block' : 'none';
