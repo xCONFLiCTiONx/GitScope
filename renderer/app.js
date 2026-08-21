@@ -94,7 +94,7 @@ function checkFontAvailability(fontName) {
 // Re-render theme controls when fonts finish loading to update (Not Installed) labels
 if (document.fonts) {
     // Force browser to start loading project fonts by checking/requesting them
-    const projectFonts = ['Fira Code', 'JetBrains Mono'];
+    const projectFonts = ['Fira Code', 'JetBrains Mono', 'Source Code Pro'];
     projectFonts.forEach(f => document.fonts.load(`12px "${f}"`));
 
     document.fonts.ready.then(() => {
@@ -471,6 +471,7 @@ function initEditor() {
                 minimap: { enabled: false },
                 fontFamily: initialFont,
                 fontWeight: initialTheme.fontWeight || 'normal',
+                fontLigatures: initialTheme.fontLigatures !== false,
                 fontSize: 13
             });
 
@@ -508,14 +509,15 @@ function applyObsidianTheme(iniContent) {
             : (rawFont || 'Cascadia Mono, Consolas, monospace');
 
         const weight = themeData.fontWeight || 'normal';
+        const ligatures = themeData.fontLigatures !== false;
 
         if (monacoEditor) {
-            monacoEditor.updateOptions({ fontFamily: fontStack, fontWeight: weight });
+            monacoEditor.updateOptions({ fontFamily: fontStack, fontWeight: weight, fontLigatures: ligatures });
         }
 
         // Apply font to Theme Editor as well
         if (themeEditor) {
-            themeEditor.updateOptions({ fontFamily: fontStack, fontWeight: weight });
+            themeEditor.updateOptions({ fontFamily: fontStack, fontWeight: weight, fontLigatures: ligatures });
         }
 
         // Intelligence: Update the Dashboard/UI to match the theme background for a unified feel
@@ -535,6 +537,7 @@ const DEFAULT_THEME_INI = `[Theme]
 ; Global Workspace Colors
 Font=Cascadia Mono
 FontWeight=normal
+Ligatures=true
 Background=#121314
 Foreground=#d4d4d4
 LineNumbers=#858585
@@ -618,7 +621,8 @@ function parseObsidianIni(ini) {
         rules,
         colors,
         fontFamily: theme['font'] || 'Cascadia Mono',
-        fontWeight: theme['fontweight'] || 'normal'
+        fontWeight: theme['fontweight'] || 'normal',
+        fontLigatures: theme['ligatures'] !== 'false'
     };
 }
 
@@ -912,7 +916,19 @@ function initEventListeners() {
 function setActiveNavItem(item) {
     document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
     if (item) item.classList.add('active');
-    elements.mainContent.scrollTop = 0;
+
+    // Reset all scrollable view containers to top
+    const scrollableViews = [
+        elements.dashboardView,
+        elements.settingsView,
+        elements.gitConfigView,
+        elements.themeEditorView,
+        elements.mainContent
+    ];
+    scrollableViews.forEach(view => {
+        if (view) view.scrollTop = 0;
+    });
+
     elements.dashboardView.style.display = 'none';
     elements.repoView.style.display = 'none';
     elements.editorView.style.display = 'none';
@@ -2061,6 +2077,7 @@ async function restoreExpansionRecursive(container, depth, repo) {
 async function showDashboard() {
     setActiveNavItem(elements.navHome);
     elements.dashboardView.style.display = 'flex';
+    elements.dashboardView.scrollTop = 0;
     elements.dashboardGrid.innerHTML = ''; // Clear and start fresh
 
     let stats = { total: repositories.length, attention: 0, sync: 0, local: 0, unborn: 0 };
@@ -2266,6 +2283,7 @@ async function showThemeEditor() {
                 minimap: { enabled: false },
                 fontFamily: initialFont,
                 fontWeight: currentTheme.fontWeight || 'normal',
+                fontLigatures: currentTheme.fontLigatures !== false,
                 fontSize: 13
             });
 
@@ -2345,8 +2363,7 @@ function renderThemeVisualControls(ini, fromEditor = false) {
         'Courier New',
         'Lucida Console',
         'Fira Code',
-        'Source Code Pro',
-        'Monaco'
+        'Source Code Pro'
     ];
 
     const fontSection = document.createElement('div');
@@ -2375,24 +2392,48 @@ function renderThemeVisualControls(ini, fromEditor = false) {
         <div id="font-status-msg" style="font-size: 10px; margin-top: 6px; display: none;"></div>
         <input type="text" id="theme-font-custom" class="settings-input" style="width: 100%; margin-top: 8px; display: ${supportedFonts.some(f => fontVal.includes(f)) ? 'none' : 'block'};" value="${fontVal}" placeholder="Enter font name...">
 
-        <div style="margin-top: 12px;">
-            <label style="font-size: 11px; color: var(--text-muted); display: block; margin-bottom: 4px;">Weight</label>
-            <select id="theme-weight-select" class="settings-input" style="width: 100%;">
-                <option value="300" ${weightVal === '300' || weightVal === 'light' ? 'selected' : ''}>Light (300)</option>
-                <option value="normal" ${weightVal === 'normal' || weightVal === '400' ? 'selected' : ''}>Normal (400)</option>
-                <option value="500" ${weightVal === '500' || weightVal === 'medium' ? 'selected' : ''}>Medium (500)</option>
-                <option value="600" ${weightVal === '600' || weightVal === 'semibold' ? 'selected' : ''}>Semi-Bold (600)</option>
-                <option value="bold" ${weightVal === 'bold' || weightVal === '700' ? 'selected' : ''}>Bold (700)</option>
-            </select>
+        <div style="margin-top: 12px; display: flex; gap: 16px;">
+            <div style="flex: 1;">
+                <label style="font-size: 11px; color: var(--text-muted); display: block; margin-bottom: 4px;">Weight</label>
+                <select id="theme-weight-select" class="settings-input" style="width: 100%;">
+                    <option value="300" ${weightVal === '300' || weightVal === 'light' ? 'selected' : ''}>Light (300)</option>
+                    <option value="normal" ${weightVal === 'normal' || weightVal === '400' ? 'selected' : ''}>Normal (400)</option>
+                    <option value="500" ${weightVal === '500' || weightVal === 'medium' ? 'selected' : ''}>Medium (500)</option>
+                    <option value="600" ${weightVal === '600' || weightVal === 'semibold' ? 'selected' : ''}>Semi-Bold (600)</option>
+                    <option value="bold" ${weightVal === 'bold' || weightVal === '700' ? 'selected' : ''}>Bold (700)</option>
+                </select>
+            </div>
+            <div id="ligature-control-wrapper" style="flex: 0 0 auto; display: flex; flex-direction: column; justify-content: flex-end;">
+                <label style="display: flex; align-items: center; gap: 8px; font-size: 11px; color: var(--text-muted); cursor: pointer; height: 32px;">
+                    <input type="checkbox" id="theme-ligatures-check" ${ini.match(/Ligatures=(true|1)/i) || !ini.includes('Ligatures=') ? 'checked' : ''}>
+                    Ligatures
+                </label>
+            </div>
         </div>
     `;
 
     const fontSelect = fontSection.querySelector('#theme-font-select');
     const weightSelect = fontSection.querySelector('#theme-weight-select');
+    const ligaturesCheck = fontSection.querySelector('#theme-ligatures-check');
+    const ligatureWrapper = fontSection.querySelector('#ligature-control-wrapper');
     const fontCustom = fontSection.querySelector('#theme-font-custom');
     const fontStatus = fontSection.querySelector('#font-status-msg');
 
+    const ligatureFonts = ['Cascadia Mono', 'JetBrains Mono', 'Fira Code', 'Source Code Pro'];
+    const updateLigatureVisibility = (fontName) => {
+        if (ligatureFonts.includes(fontName)) {
+            ligatureWrapper.style.display = 'flex';
+        } else {
+            ligatureWrapper.style.display = 'none';
+        }
+    };
+
+    ligaturesCheck.onchange = (e) => {
+        updateIniFromGui('Theme', 'Ligatures', e.target.checked ? 'true' : 'false', false);
+    };
+
     const updateFontStatus = (fontName) => {
+        updateLigatureVisibility(fontName);
         if (fontName === 'custom') {
             fontStatus.style.display = 'none';
             return;
