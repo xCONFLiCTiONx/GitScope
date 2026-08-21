@@ -3052,7 +3052,7 @@ function updateStatusFeed(stats = null) {
         }
         if (currentStats.local > 0) {
             messages.push({
-                text: `You have ${currentStats.local} local-only projects that haven't been published to GitHub yet.`,
+                text: `You have ${currentStats.local} local-only projects that haven't been published yet.`,
                 color: 'var(--accent-green)',
                 action: { label: 'PUBLISH', filter: 'local' }
             });
