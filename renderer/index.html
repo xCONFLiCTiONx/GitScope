@@ -113,6 +113,56 @@
             font-style: italic;
         }
 
+        /* Cascadia Code Support */
+        @font-face {
+            font-family: 'Cascadia Code';
+            src: url('fonts/CascadiaCode-Regular.ttf') format('truetype');
+            font-weight: 400;
+            font-style: normal;
+        }
+        @font-face {
+            font-family: 'Cascadia Code';
+            src: url('fonts/CascadiaCode-Italic.ttf') format('truetype');
+            font-weight: 400;
+            font-style: italic;
+        }
+        @font-face {
+            font-family: 'Cascadia Code';
+            src: url('fonts/CascadiaCode-Medium.ttf') format('truetype');
+            font-weight: 500;
+            font-style: normal;
+        }
+        @font-face {
+            font-family: 'Cascadia Code';
+            src: url('fonts/CascadiaCode-MediumItalic.ttf') format('truetype');
+            font-weight: 500;
+            font-style: italic;
+        }
+        @font-face {
+            font-family: 'Cascadia Code';
+            src: url('fonts/CascadiaCode-SemiBold.ttf') format('truetype');
+            font-weight: 600;
+            font-style: normal;
+        }
+        @font-face {
+            font-family: 'Cascadia Code';
+            src: url('fonts/CascadiaCode-SemiBoldItalic.ttf') format('truetype');
+            font-weight: 600;
+            font-style: italic;
+        }
+        @font-face {
+            font-family: 'Cascadia Code';
+            src: url('fonts/CascadiaCode-Bold.ttf') format('truetype');
+            font-weight: 700;
+            font-style: normal;
+        }
+        @font-face {
+            font-family: 'Cascadia Code';
+            src: url('fonts/CascadiaCode-BoldItalic.ttf') format('truetype');
+            font-weight: 700;
+            font-style: italic;
+        }
+
         :root {
             --bg-main: #0d1117;
             --bg-surface: #161b22;
@@ -349,6 +399,9 @@
             position: relative;
             min-height: 0;
             overflow: hidden;
+            /* Force ligature support in the containers */
+            font-variant-ligatures: contextual;
+            font-feature-settings: "calt" 1, "liga" 1;
         }
 
         /* Views common padding */

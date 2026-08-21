@@ -94,7 +94,7 @@ function checkFontAvailability(fontName) {
 // Re-render theme controls when fonts finish loading to update (Not Installed) labels
 if (document.fonts) {
     // Force browser to start loading project fonts by checking/requesting them
-    const projectFonts = ['Fira Code', 'JetBrains Mono', 'Source Code Pro'];
+    const projectFonts = ['Fira Code', 'JetBrains Mono', 'Source Code Pro', 'Cascadia Code'];
     projectFonts.forEach(f => document.fonts.load(`12px "${f}"`));
 
     document.fonts.ready.then(() => {
@@ -471,7 +471,7 @@ function initEditor() {
                 minimap: { enabled: false },
                 fontFamily: initialFont,
                 fontWeight: initialTheme.fontWeight || 'normal',
-                fontLigatures: initialTheme.fontLigatures !== false,
+                fontLigatures: true,
                 fontSize: 13
             });
 
@@ -509,15 +509,22 @@ function applyObsidianTheme(iniContent) {
             : (rawFont || 'Cascadia Mono, Consolas, monospace');
 
         const weight = themeData.fontWeight || 'normal';
-        const ligatures = themeData.fontLigatures !== false;
 
         if (monacoEditor) {
-            monacoEditor.updateOptions({ fontFamily: fontStack, fontWeight: weight, fontLigatures: ligatures });
+            monacoEditor.updateOptions({
+                fontFamily: fontStack,
+                fontWeight: weight,
+                fontLigatures: true
+            });
         }
 
         // Apply font to Theme Editor as well
         if (themeEditor) {
-            themeEditor.updateOptions({ fontFamily: fontStack, fontWeight: weight, fontLigatures: ligatures });
+            themeEditor.updateOptions({
+                fontFamily: fontStack,
+                fontWeight: weight,
+                fontLigatures: true
+            });
         }
 
         // Intelligence: Update the Dashboard/UI to match the theme background for a unified feel
@@ -2283,7 +2290,7 @@ async function showThemeEditor() {
                 minimap: { enabled: false },
                 fontFamily: initialFont,
                 fontWeight: currentTheme.fontWeight || 'normal',
-                fontLigatures: currentTheme.fontLigatures !== false,
+                fontLigatures: true,
                 fontSize: 13
             });
 
@@ -2353,10 +2360,13 @@ function renderThemeVisualControls(ini, fromEditor = false) {
     if (!dynamicContainer) return;
     dynamicContainer.innerHTML = '';
 
-    // 1. Add Font Control
-    const fontVal = ini.match(/Font=([^;\r\n]+)/)?.[1] || 'Cascadia Mono';
-    const weightVal = ini.match(/FontWeight=([^;\r\n]+)/)?.[1] || 'normal';
+    const themeData = parseObsidianIni(ini);
+    const fontVal = themeData.fontFamily;
+    const weightVal = themeData.fontWeight;
+    const ligaturesEnabled = themeData.fontLigatures;
+
     const supportedFonts = [
+        'Cascadia Code',
         'Cascadia Mono',
         'JetBrains Mono',
         'Consolas',
@@ -2378,8 +2388,8 @@ function renderThemeVisualControls(ini, fromEditor = false) {
         const isAvailable = availabilityMap[f];
         const label = isAvailable ? f : `${f} (Not Installed)`;
         const style = isAvailable ? '' : 'opacity: 0.6;';
-        // Use a more robust check for the selected attribute
-        const isSelected = fontVal.trim() === f;
+        // Case-insensitive check for selection
+        const isSelected = fontVal.trim().toLowerCase() === f.toLowerCase();
         return `<option value="${f}" ${isSelected ? 'selected' : ''} style="${style} font-family: '${f}', monospace;">${label}</option>`;
     }).join('');
 
@@ -2403,37 +2413,15 @@ function renderThemeVisualControls(ini, fromEditor = false) {
                     <option value="bold" ${weightVal === 'bold' || weightVal === '700' ? 'selected' : ''}>Bold (700)</option>
                 </select>
             </div>
-            <div id="ligature-control-wrapper" style="flex: 0 0 auto; display: flex; flex-direction: column; justify-content: flex-end;">
-                <label style="display: flex; align-items: center; gap: 8px; font-size: 11px; color: var(--text-muted); cursor: pointer; height: 32px;">
-                    <input type="checkbox" id="theme-ligatures-check" ${ini.match(/Ligatures=(true|1)/i) || !ini.includes('Ligatures=') ? 'checked' : ''}>
-                    Ligatures
-                </label>
-            </div>
         </div>
     `;
 
     const fontSelect = fontSection.querySelector('#theme-font-select');
     const weightSelect = fontSection.querySelector('#theme-weight-select');
-    const ligaturesCheck = fontSection.querySelector('#theme-ligatures-check');
-    const ligatureWrapper = fontSection.querySelector('#ligature-control-wrapper');
     const fontCustom = fontSection.querySelector('#theme-font-custom');
     const fontStatus = fontSection.querySelector('#font-status-msg');
 
-    const ligatureFonts = ['Cascadia Mono', 'JetBrains Mono', 'Fira Code', 'Source Code Pro'];
-    const updateLigatureVisibility = (fontName) => {
-        if (ligatureFonts.includes(fontName)) {
-            ligatureWrapper.style.display = 'flex';
-        } else {
-            ligatureWrapper.style.display = 'none';
-        }
-    };
-
-    ligaturesCheck.onchange = (e) => {
-        updateIniFromGui('Theme', 'Ligatures', e.target.checked ? 'true' : 'false', false);
-    };
-
     const updateFontStatus = (fontName) => {
-        updateLigatureVisibility(fontName);
         if (fontName === 'custom') {
             fontStatus.style.display = 'none';
             return;
@@ -2467,6 +2455,10 @@ function renderThemeVisualControls(ini, fromEditor = false) {
             fontCustom.style.display = 'none';
             updateIniFromGui('Theme', 'Font', e.target.value, false);
         }
+    };
+
+    fontCustom.oninput = (e) => {
+        updateIniFromGui('Theme', 'Font', e.target.value, false);
     };
 
     weightSelect.onchange = (e) => {
