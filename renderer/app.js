@@ -56,6 +56,54 @@ function updateProgress(percent) {
     }
 }
 
+/**
+ * Checks if a font is available on the system or loaded via @font-face.
+ */
+function checkFontAvailability(fontName) {
+    if (!fontName || ['monospace', 'sans-serif', 'serif'].includes(fontName.toLowerCase())) return true;
+
+    // Modern check for loaded fonts (works best for project-bundled fonts)
+    try {
+        if (document.fonts && document.fonts.check) {
+            // Check for the font with a fallback to ensure it's specifically the font we want
+            // If the browser hasn't loaded it yet, check() returns false
+            if (document.fonts.check(`12px "${fontName}"`)) return true;
+        }
+    } catch (e) {}
+
+    const text = 'abcdefghijklmnopqrstuvwxyz0123456789';
+    const canvas = document.createElement('canvas');
+    const context = canvas.getContext('2d');
+
+    // Test against monospace
+    context.font = '72px monospace';
+    const baselineMono = context.measureText(text).width;
+    context.font = `72px "${fontName}", monospace`;
+    const testMono = context.measureText(text).width;
+
+    // Test against serif
+    context.font = '72px serif';
+    const baselineSerif = context.measureText(text).width;
+    context.font = `72px "${fontName}", serif`;
+    const testSerif = context.measureText(text).width;
+
+    // If it differs from generic fallbacks, it's installed
+    return (testMono !== baselineMono) || (testSerif !== baselineSerif);
+}
+
+// Re-render theme controls when fonts finish loading to update (Not Installed) labels
+if (document.fonts) {
+    // Force browser to start loading project fonts by checking/requesting them
+    const projectFonts = ['Fira Code', 'JetBrains Mono'];
+    projectFonts.forEach(f => document.fonts.load(`12px "${f}"`));
+
+    document.fonts.ready.then(() => {
+        if (elements.themeEditorView && elements.themeEditorView.style.display !== 'none' && themeEditor) {
+            renderThemeVisualControls(themeEditor.getValue());
+        }
+    });
+}
+
 // Global Custom Modals (Dark themed replacements for alert/confirm)
 function showAlert(message, title = 'Notification') {
     return new Promise((resolve) => {
@@ -405,6 +453,12 @@ function initEditor() {
                 }
             });
 
+            // Resolve initial font stack
+            const initialTheme = parseObsidianIni(settings.obsidianIni || DEFAULT_THEME_INI);
+            const initialFont = (initialTheme.fontFamily && !initialTheme.fontFamily.includes(','))
+                ? `"${initialTheme.fontFamily}", Cascadia Mono, Consolas, monospace`
+                : (initialTheme.fontFamily || 'Cascadia Mono, Consolas, monospace');
+
             // 2. Create the editor with the 'obsidian' theme already active
             monacoEditor = monaco.editor.create(elements.monacoContainer, {
                 theme: settings.obsidianIni ? 'obsidian' : 'vs-dark',
@@ -415,7 +469,8 @@ function initEditor() {
                 formatOnPaste: true,
                 formatOnType: true,
                 minimap: { enabled: false },
-                fontFamily: 'Cascadia Mono, Consolas, monospace',
+                fontFamily: initialFont,
+                fontWeight: initialTheme.fontWeight || 'normal',
                 fontSize: 13
             });
 
@@ -447,29 +502,20 @@ function applyObsidianTheme(iniContent) {
             monaco.editor.setTheme('obsidian');
         }
 
+        const rawFont = themeData.fontFamily;
+        const fontStack = (rawFont && !rawFont.includes(','))
+            ? `"${rawFont}", Cascadia Mono, Consolas, monospace`
+            : (rawFont || 'Cascadia Mono, Consolas, monospace');
+
+        const weight = themeData.fontWeight || 'normal';
+
         if (monacoEditor) {
-            if (themeData.fontFamily) {
-                monacoEditor.updateOptions({ fontFamily: themeData.fontFamily });
-            }
+            monacoEditor.updateOptions({ fontFamily: fontStack, fontWeight: weight });
         }
 
         // Apply font to Theme Editor as well
         if (themeEditor) {
-            if (themeData.fontFamily) {
-                themeEditor.updateOptions({ fontFamily: themeData.fontFamily });
-            }
-        }
-
-        // Apply font to Terminal as well
-        if (window.terminal && window.terminal.term) {
-            if (themeData.fontFamily) {
-                window.terminal.term.options.fontFamily = themeData.fontFamily;
-            }
-        }
-
-        // Apply font to whole UI for a unified look
-        if (themeData.fontFamily) {
-            document.body.style.fontFamily = themeData.fontFamily + ', sans-serif';
+            themeEditor.updateOptions({ fontFamily: fontStack, fontWeight: weight });
         }
 
         // Intelligence: Update the Dashboard/UI to match the theme background for a unified feel
@@ -487,7 +533,8 @@ function applyObsidianTheme(iniContent) {
 
 const DEFAULT_THEME_INI = `[Theme]
 ; Global Workspace Colors
-Font=JetBrains Mono, Cascadia Mono, Consolas
+Font=Cascadia Mono
+FontWeight=normal
 Background=#121314
 Foreground=#d4d4d4
 LineNumbers=#858585
@@ -570,7 +617,8 @@ function parseObsidianIni(ini) {
     return {
         rules,
         colors,
-        fontFamily: theme['font'] || 'Cascadia Mono, Consolas, monospace'
+        fontFamily: theme['font'] || 'Cascadia Mono',
+        fontWeight: theme['fontweight'] || 'normal'
     };
 }
 
@@ -2204,6 +2252,11 @@ async function showThemeEditor() {
 
     const initOrUpdate = () => {
         if (!themeEditor && typeof monaco !== 'undefined') {
+            const currentTheme = parseObsidianIni(currentIni);
+            const initialFont = (currentTheme.fontFamily && !currentTheme.fontFamily.includes(','))
+                ? `"${currentTheme.fontFamily}", Cascadia Mono, Consolas, monospace`
+                : (currentTheme.fontFamily || 'Cascadia Mono, Consolas, monospace');
+
             themeEditor = monaco.editor.create(elements.themeMonacoContainer, {
                 value: currentIni,
                 language: 'green-latern',
@@ -2211,7 +2264,8 @@ async function showThemeEditor() {
                 automaticLayout: true,
                 bracketPairColorization: { enabled: true },
                 minimap: { enabled: false },
-                fontFamily: 'Cascadia Mono, Consolas, monospace',
+                fontFamily: initialFont,
+                fontWeight: currentTheme.fontWeight || 'normal',
                 fontSize: 13
             });
 
@@ -2282,10 +2336,11 @@ function renderThemeVisualControls(ini, fromEditor = false) {
     dynamicContainer.innerHTML = '';
 
     // 1. Add Font Control
-    const fontVal = ini.match(/Font=([^;\r\n]+)/)?.[1] || 'JetBrains Mono';
+    const fontVal = ini.match(/Font=([^;\r\n]+)/)?.[1] || 'Cascadia Mono';
+    const weightVal = ini.match(/FontWeight=([^;\r\n]+)/)?.[1] || 'normal';
     const supportedFonts = [
-        'JetBrains Mono',
         'Cascadia Mono',
+        'JetBrains Mono',
         'Consolas',
         'Courier New',
         'Lucida Console',
@@ -2297,19 +2352,73 @@ function renderThemeVisualControls(ini, fromEditor = false) {
     const fontSection = document.createElement('div');
     fontSection.className = 'settings-section';
     fontSection.style.marginBottom = '20px';
+
+    // Cache availability for this render to ensure consistency between labels and status
+    const availabilityMap = {};
+    supportedFonts.forEach(f => availabilityMap[f] = checkFontAvailability(f));
+
+    const optionsHtml = supportedFonts.map(f => {
+        const isAvailable = availabilityMap[f];
+        const label = isAvailable ? f : `${f} (Not Installed)`;
+        const style = isAvailable ? '' : 'opacity: 0.6;';
+        // Use a more robust check for the selected attribute
+        const isSelected = fontVal.trim() === f;
+        return `<option value="${f}" ${isSelected ? 'selected' : ''} style="${style} font-family: '${f}', monospace;">${label}</option>`;
+    }).join('');
+
     fontSection.innerHTML = `
         <h3 style="margin-bottom: 12px; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 1.5px; color: var(--accent-blue);">Workspace Font</h3>
         <select id="theme-font-select" class="settings-input" style="width: 100%;">
-            ${supportedFonts.map(f => `<option value="${f}" ${fontVal.includes(f) ? 'selected' : ''}>${f}</option>`).join('')}
+            ${optionsHtml}
             <option value="custom" ${!supportedFonts.some(f => fontVal.includes(f)) ? 'selected' : ''}>-- Custom Font --</option>
         </select>
+        <div id="font-status-msg" style="font-size: 10px; margin-top: 6px; display: none;"></div>
         <input type="text" id="theme-font-custom" class="settings-input" style="width: 100%; margin-top: 8px; display: ${supportedFonts.some(f => fontVal.includes(f)) ? 'none' : 'block'};" value="${fontVal}" placeholder="Enter font name...">
+
+        <div style="margin-top: 12px;">
+            <label style="font-size: 11px; color: var(--text-muted); display: block; margin-bottom: 4px;">Weight</label>
+            <select id="theme-weight-select" class="settings-input" style="width: 100%;">
+                <option value="300" ${weightVal === '300' || weightVal === 'light' ? 'selected' : ''}>Light (300)</option>
+                <option value="normal" ${weightVal === 'normal' || weightVal === '400' ? 'selected' : ''}>Normal (400)</option>
+                <option value="500" ${weightVal === '500' || weightVal === 'medium' ? 'selected' : ''}>Medium (500)</option>
+                <option value="600" ${weightVal === '600' || weightVal === 'semibold' ? 'selected' : ''}>Semi-Bold (600)</option>
+                <option value="bold" ${weightVal === 'bold' || weightVal === '700' ? 'selected' : ''}>Bold (700)</option>
+            </select>
+        </div>
     `;
 
     const fontSelect = fontSection.querySelector('#theme-font-select');
+    const weightSelect = fontSection.querySelector('#theme-weight-select');
     const fontCustom = fontSection.querySelector('#theme-font-custom');
+    const fontStatus = fontSection.querySelector('#font-status-msg');
+
+    const updateFontStatus = (fontName) => {
+        if (fontName === 'custom') {
+            fontStatus.style.display = 'none';
+            return;
+        }
+        const available = checkFontAvailability(fontName);
+        if (!available) {
+            fontStatus.textContent = '⚠️ This font is not installed on your system. It will fallback to Cascadia Mono or Consolas.';
+            fontStatus.style.color = 'var(--accent-red)';
+            fontStatus.style.display = 'block';
+        } else {
+            fontStatus.textContent = '✓ Font detected and active.';
+            fontStatus.style.color = 'var(--accent-green)';
+            fontStatus.style.display = 'block';
+            // If the UI was showing "Not Installed" but now it's active, force a refresh of the labels
+            if (availabilityMap[fontName] === false) {
+                renderThemeVisualControls(ini);
+            }
+            setTimeout(() => { fontStatus.style.display = 'none'; }, 3000);
+        }
+    };
+
+    // Initial check
+    if (supportedFonts.includes(fontVal)) updateFontStatus(fontVal);
 
     fontSelect.onchange = (e) => {
+        updateFontStatus(e.target.value);
         if (e.target.value === 'custom') {
             fontCustom.style.display = 'block';
             fontCustom.focus();
@@ -2317,6 +2426,10 @@ function renderThemeVisualControls(ini, fromEditor = false) {
             fontCustom.style.display = 'none';
             updateIniFromGui('Theme', 'Font', e.target.value, false);
         }
+    };
+
+    weightSelect.onchange = (e) => {
+        updateIniFromGui('Theme', 'FontWeight', e.target.value, false);
     };
 
     fontCustom.onchange = (e) => {
@@ -2420,6 +2533,7 @@ function updateIniFromGui(section, key, value, isColor = true) {
     let content = themeEditor.getValue();
     const lines = content.split('\n');
     let inSection = false;
+    let found = false;
 
     const newLines = lines.map(line => {
         const trimmed = line.trim();
@@ -2432,14 +2546,33 @@ function updateIniFromGui(section, key, value, isColor = true) {
             return line;
         }
         if (inSection && trimmed.toLowerCase().startsWith(key.toLowerCase() + '=')) {
+            found = true;
             return `${line.split('=')[0]}=${value}`;
         }
         return line;
     });
 
-    const newContent = newLines.join('\n');
-    themeEditor.setValue(newContent);
-    applyObsidianTheme(newContent);
+    if (!found) {
+        // Find the section again and append the new key
+        let finalLines = [];
+        let sectionFound = false;
+        for (let i = 0; i < newLines.length; i++) {
+            finalLines.push(newLines[i]);
+            if (newLines[i].trim().toLowerCase() === `[${section.toLowerCase()}]`) {
+                finalLines.push(`${key}=${value}`);
+                sectionFound = true;
+            }
+        }
+        if (!sectionFound) {
+            finalLines.push(`[${section}]`);
+            finalLines.push(`${key}=${value}`);
+        }
+        themeEditor.setValue(finalLines.join('\n'));
+    } else {
+        themeEditor.setValue(newLines.join('\n'));
+    }
+
+    applyObsidianTheme(themeEditor.getValue());
     isSyncingTheme = false;
 }
 
