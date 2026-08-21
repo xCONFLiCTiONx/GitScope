@@ -456,8 +456,8 @@ function initEditor() {
             // Resolve initial font stack
             const initialTheme = parseObsidianIni(settings.obsidianIni || DEFAULT_THEME_INI);
             const initialFont = (initialTheme.fontFamily && !initialTheme.fontFamily.includes(','))
-                ? `"${initialTheme.fontFamily}", Cascadia Mono, Consolas, monospace`
-                : (initialTheme.fontFamily || 'Cascadia Mono, Consolas, monospace');
+                ? `"${initialTheme.fontFamily}", Cascadia Code, Cascadia Mono, Consolas, monospace`
+                : (initialTheme.fontFamily || 'Cascadia Code, Cascadia Mono, Consolas, monospace');
 
             // 2. Create the editor with the 'obsidian' theme already active
             monacoEditor = monaco.editor.create(elements.monacoContainer, {
@@ -505,8 +505,8 @@ function applyObsidianTheme(iniContent) {
 
         const rawFont = themeData.fontFamily;
         const fontStack = (rawFont && !rawFont.includes(','))
-            ? `"${rawFont}", Cascadia Mono, Consolas, monospace`
-            : (rawFont || 'Cascadia Mono, Consolas, monospace');
+            ? `"${rawFont}", Cascadia Code, Cascadia Mono, Consolas, monospace`
+            : (rawFont || 'Cascadia Code, Cascadia Mono, Consolas, monospace');
 
         const weight = themeData.fontWeight || 'normal';
 
@@ -542,7 +542,7 @@ function applyObsidianTheme(iniContent) {
 
 const DEFAULT_THEME_INI = `[Theme]
 ; Global Workspace Colors
-Font=Cascadia Mono
+Font=Cascadia Code
 FontWeight=normal
 Ligatures=true
 Background=#121314
@@ -627,7 +627,7 @@ function parseObsidianIni(ini) {
     return {
         rules,
         colors,
-        fontFamily: theme['font'] || 'Cascadia Mono',
+        fontFamily: theme['font'] || 'Cascadia Code',
         fontWeight: theme['fontweight'] || 'normal',
         fontLigatures: theme['ligatures'] !== 'false'
     };
@@ -2278,8 +2278,8 @@ async function showThemeEditor() {
         if (!themeEditor && typeof monaco !== 'undefined') {
             const currentTheme = parseObsidianIni(currentIni);
             const initialFont = (currentTheme.fontFamily && !currentTheme.fontFamily.includes(','))
-                ? `"${currentTheme.fontFamily}", Cascadia Mono, Consolas, monospace`
-                : (currentTheme.fontFamily || 'Cascadia Mono, Consolas, monospace');
+                ? `"${currentTheme.fontFamily}", Cascadia Code, Cascadia Mono, Consolas, monospace`
+                : (currentTheme.fontFamily || 'Cascadia Code, Cascadia Mono, Consolas, monospace');
 
             themeEditor = monaco.editor.create(elements.themeMonacoContainer, {
                 value: currentIni,
