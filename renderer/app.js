@@ -865,8 +865,17 @@ function initEventListeners() {
         if (path) elements.rootRepoDirInput.value = path;
     };
 
-    // Global click listener for deselection
+    // Global click listener for deselection & Markdown Link Interception
     document.addEventListener('click', (e) => {
+        // Markdown link interception
+        const link = e.target.closest('#markdown-preview a');
+        if (link) {
+            e.preventDefault();
+            const href = link.getAttribute('href');
+            if (href) window.electronAPI.openExternal(href);
+            return;
+        }
+
         if (!e.target.closest('.tree-node') && !e.target.closest('.nav-item') && !e.target.closest('.modal-content') && !e.target.closest('.console-tab') && !e.target.closest('.sidebar-action-icon')) {
             if (selectedNodes.size > 0) {
                 selectedNodes.clear();
@@ -4886,7 +4895,7 @@ async function toggleMarkdownPreview() {
         const content = monacoEditor.getValue();
         let html = typeof marked !== 'undefined' ? marked.parse(content) : '<p>Parser fail.</p>';
 
-        // INTELLIGENCE: Resolve relative image paths
+        // INTELLIGENCE: Resolve relative image & link paths
         if (currentEditingPath) {
             // Get directory of the current file
             const lastSlash = Math.max(currentEditingPath.lastIndexOf('/'), currentEditingPath.lastIndexOf('\\'));
@@ -4905,6 +4914,17 @@ async function toggleMarkdownPreview() {
                     img.style.maxWidth = '100%'; // Pro styling: ensure large banners don't overflow
                 }
             });
+
+            const links = tempDiv.querySelectorAll('a');
+            links.forEach(link => {
+                const href = link.getAttribute('href');
+                if (href && !href.startsWith('http') && !href.startsWith('mailto:') && !href.startsWith('tel:') && !href.startsWith('#')) {
+                    // It's a relative path, convert to absolute file URL
+                    const absolutePath = dir + '/' + href;
+                    link.href = 'file:///' + absolutePath.replace(/\\/g, '/');
+                }
+            });
+
             html = tempDiv.innerHTML;
         }
 

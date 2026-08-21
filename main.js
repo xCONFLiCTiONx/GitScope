@@ -113,14 +113,20 @@ function createWindow() {
 
   // Intelligence: Open all external links in the default browser
   mainWindow.webContents.on('will-navigate', (event, url) => {
-    if (url.startsWith('http')) {
+    const indexPath = path.join(__dirname, 'renderer', 'index.html').replace(/\\/g, '/');
+    const normalizedUrl = url.replace(/\\/g, '/');
+
+    if (!normalizedUrl.includes(indexPath) && url !== 'about:blank') {
       event.preventDefault();
       shell.openExternal(url);
     }
   });
 
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
-    if (url.startsWith('http')) {
+    const indexPath = path.join(__dirname, 'renderer', 'index.html').replace(/\\/g, '/');
+    const normalizedUrl = url.replace(/\\/g, '/');
+
+    if (!normalizedUrl.includes(indexPath)) {
       shell.openExternal(url);
       return { action: 'deny' };
     }
