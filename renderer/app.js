@@ -1090,6 +1090,8 @@ async function quickGitAction(action) {
     if (action === 'push') {
         logToConsole('Sending push command to terminal for reliability...', 'info');
         if (window.terminal) {
+            // CRITICAL: Ensure terminal is in the correct directory before pushing
+            window.terminal.sendCommand(`cd "${activeRepo.path}"`);
             // Use -u origin HEAD to ensure upstream is set automatically
             window.terminal.sendCommand('git push -u origin HEAD');
             setTimeout(async () => {
@@ -1144,6 +1146,8 @@ async function handleDashboardPush(repo) {
         // 3. Push to remote
         logToConsole('Pushing to origin...', 'info');
         if (window.terminal) {
+            // CRITICAL: Ensure terminal is in the correct directory before pushing
+            window.terminal.sendCommand(`cd "${repo.path}"`);
             // Use -u origin HEAD to ensure upstream is set automatically
             window.terminal.sendCommand('git push -u origin HEAD');
             setTimeout(async () => {
@@ -1227,8 +1231,10 @@ async function handleCommit(pushAfter = false) {
 
             if (pushAfter) {
                 logToConsole('Pushing changes...', 'info');
-                if (window.terminal) window.terminal.sendCommand('git push');
-                else await window.electronAPI.gitPush(activeRepo.path);
+                if (window.terminal) {
+                    window.terminal.sendCommand(`cd "${activeRepo.path}"`);
+                    window.terminal.sendCommand('git push');
+                } else await window.electronAPI.gitPush(activeRepo.path);
             }
 
             await smartRefreshTree(); // Structural refresh (handles deleted files)
