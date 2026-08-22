@@ -1,4 +1,4 @@
-const { app, BrowserWindow, Menu, dialog, ipcMain, shell } = require('electron');
+const { app, BrowserWindow, Menu, dialog, ipcMain, shell, Notification } = require('electron');
 const path = require('path');
 const fs = require('fs-extra');
 const { scanDirectory, listDirectory, getUnbornFolders } = require('./lib/git-scanner');
@@ -191,6 +191,20 @@ ipcMain.handle('get-available-shells', () => {
 });
 
 ipcMain.handle('heartbeat', () => "OK");
+
+ipcMain.handle('send-notification', (event, { title, body }) => {
+  if (mainWindow && !mainWindow.isFocused()) {
+    if (Notification.isSupported()) {
+      new Notification({
+        title,
+        body,
+        icon: path.join(__dirname, 'ICON.png')
+      }).show();
+      return true;
+    }
+  }
+  return false;
+});
 
 function setupPTY() {
   const settings = getSettings();

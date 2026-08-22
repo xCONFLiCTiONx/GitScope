@@ -1245,6 +1245,19 @@
                         </div>
                     </div>
                     <div class="settings-section">
+                        <h3>Notifications</h3>
+                        <p>Stay updated on workspace changes when GitScope is in the background.</p>
+                        <div style="margin-top: 12px; display: flex; flex-direction: column; gap: 10px;">
+                            <label style="display: flex; align-items: center; gap: 8px; font-size: 13px; cursor: pointer;">
+                                <input type="checkbox" id="notif-repo-changes" class="settings-cb" style="width: 16px; height: 16px;">
+                                Notify when repository changes are detected
+                            </label>
+                        </div>
+                        <p style="font-size: 11px; margin-top: 10px; color: var(--text-muted); line-height: 1.4;">
+                            <span style="color: var(--accent-blue); font-weight: 700;">NOTE:</span> Notifications are only sent when the application is minimized or behind other windows (not in focus).
+                        </p>
+                    </div>
+                    <div class="settings-section">
                         <h3>Editor Theme (Obsidian)</h3>
                         <p>Customize the code editor using a simplified Obsidian style format.</p>
                         <div class="settings-control">

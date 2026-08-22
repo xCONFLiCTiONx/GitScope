@@ -285,6 +285,7 @@ const elements = {
     get bulkCommitSelectAll() { return document.getElementById('bulk-commit-select-all'); },
     get bulkCommitMsg() { return document.getElementById('bulk-commit-msg'); },
     get bulkCommitAutoMsg() { return document.getElementById('bulk-commit-auto-msg'); },
+    get notifRepoChanges() { return document.getElementById('notif-repo-changes'); },
     get bulkCommitConfirm() { return document.getElementById('bulk-commit-confirm'); },
     get bulkCommitCancel() { return document.getElementById('bulk-commit-cancel'); },
     get bulkRestoreModal() { return document.getElementById('bulk-restore-modal'); },
@@ -383,6 +384,7 @@ window.onload = async () => {
         settings = await settingsPromise;
         if (elements.rootRepoDirInput) elements.rootRepoDirInput.value = settings.rootRepoDir || '';
         if (elements.githubPatInput) elements.githubPatInput.value = settings.githubToken || '';
+        if (elements.notifRepoChanges) elements.notifRepoChanges.checked = !!settings.notifRepoChanges;
 
         // Intelligence: If Obsidian theme is empty, use the new simplified default
         if (!settings.obsidianIni) {
@@ -924,6 +926,12 @@ function initEventListeners() {
             if (repo) {
                 console.log(`External change detected in ${repo.name}: ${changedPath}`);
                 updateTreeHighlights(repo.path);
+
+                // Intelligence: Notify user if settings enabled and window is backgrounded
+                if (settings.notifRepoChanges) {
+                    triggerRepoChangeNotification(repo);
+                }
+
                 if (activeRepo && activeRepo.path === repo.path) {
                     refreshActiveRepoUI(true); // Silent refresh
                 }
@@ -932,6 +940,30 @@ function initEventListeners() {
             updateTreeHighlights();
         }
     });
+
+    const pendingNotifications = new Map();
+    function triggerRepoChangeNotification(repo) {
+        if (pendingNotifications.has(repo.path)) {
+            clearTimeout(pendingNotifications.get(repo.path));
+        }
+
+        pendingNotifications.set(repo.path, setTimeout(async () => {
+            pendingNotifications.delete(repo.path);
+            if (!settings.notifRepoChanges) return;
+
+            try {
+                const status = await window.electronAPI.gitStatus(repo.path);
+                const total = (status.modified || 0) + (status.not_added || 0) + (status.deleted || 0);
+
+                if (total > 0) {
+                    window.electronAPI.sendNotification({
+                        title: `Changes in ${repo.name}`,
+                        body: `${total} files changed. Open GitScope to review.`
+                    });
+                }
+            } catch (e) {}
+        }, 5000));
+    }
     window.electronAPI.onContextMenuCommand(async (data) => handleContextMenuCommand(data));
 
     // Keyboard Listeners
@@ -1381,6 +1413,7 @@ async function saveGlobalSettings() {
     settings.rootRepoDir = elements.rootRepoDirInput.value;
     settings.githubToken = elements.githubPatInput.value;
     settings.shell = customPath || selectedPath;
+    settings.notifRepoChanges = elements.notifRepoChanges ? elements.notifRepoChanges.checked : false;
     try {
         await window.electronAPI.saveSettings(settings);
         logToConsole('Settings saved.', 'success');

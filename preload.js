@@ -80,6 +80,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   compareSyncStatus: (src, dst) => ipcRenderer.invoke('compare-sync-status', src, dst),
   pathExists: (path) => ipcRenderer.invoke('path-exists', path),
   resetApp: () => ipcRenderer.invoke('reset-app'),
+  sendNotification: (options) => ipcRenderer.invoke('send-notification', options),
   isWindows: process.platform === 'win32',
 
   // Terminal IPCs
