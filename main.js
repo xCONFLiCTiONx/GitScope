@@ -409,6 +409,10 @@ ipcMain.handle('git-status', async (event, path) => {
   return await gitActions.getStatus(path);
 });
 
+ipcMain.handle('git-quick-status', async (event, path) => {
+  return await gitActions.getQuickDashboardStatus(path);
+});
+
 ipcMain.handle('git-raw-status', async (event, path) => {
   return await gitActions.getRawStatus(path);
 });

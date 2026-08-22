@@ -1050,6 +1050,11 @@
         </div>
 
         <div id="main-content">
+            <!-- Loading Progress Bar -->
+            <div id="dashboard-progress-container" style="height: 2px; width: 100%; background: rgba(0,0,0,0.1); position: absolute; top: 0; left: 0; z-index: 1000; display: none;">
+                <div id="dashboard-progress-bar" style="height: 100%; width: 0%; background: var(--accent-blue); transition: width 0.2s ease, opacity 0.5s ease;"></div>
+            </div>
+
             <!-- Dashboard View -->
             <div id="dashboard-view">
                 <div id="status-feed-banner" style="display: none; background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: 8px; padding: 10px 20px; margin-bottom: 24px; align-items: center; justify-content: space-between; font-size: 13px; min-height: 44px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">

@@ -277,6 +277,8 @@ const elements = {
     get consolePanel() { return document.getElementById('console-panel'); },
     get consoleResizer() { return document.getElementById('console-resizer'); },
     get globalProgress() { return document.getElementById('global-progress-container'); },
+    get dashboardProgressContainer() { return document.getElementById('dashboard-progress-container'); },
+    get dashboardProgressBar() { return document.getElementById('dashboard-progress-bar'); },
     get dashboardRefreshBtn() { return document.getElementById('dashboard-refresh-btn'); },
     get dashboardBulkPullBtn() { return document.getElementById('dashboard-bulk-pull-btn'); },
     get dashboardBulkCommitBtn() { return document.getElementById('dashboard-bulk-commit-btn'); },
@@ -2492,6 +2494,30 @@ async function showDashboard() {
     let stats = { total: repositories.length, attention: 0, sync: 0, local: 0, unborn: 0 };
     let unbornList = [];
 
+    // Setup Progress Bar
+    const totalRepos = repositories.length;
+    let loadedCount = 0;
+    if (totalRepos > 0) {
+        elements.dashboardProgressContainer.style.display = 'block';
+        elements.dashboardProgressBar.style.width = '0%';
+        elements.dashboardProgressBar.style.opacity = '1';
+    }
+
+    const updateProgressBar = () => {
+        loadedCount++;
+        const percent = Math.min(100, (loadedCount / totalRepos) * 100);
+        elements.dashboardProgressBar.style.width = `${percent}%`;
+
+        if (loadedCount >= totalRepos) {
+            setTimeout(() => {
+                elements.dashboardProgressBar.style.opacity = '0';
+                setTimeout(() => {
+                    elements.dashboardProgressContainer.style.display = 'none';
+                }, 500);
+            }, 500);
+        }
+    };
+
     // Fetch unborn folder list from root directory (Non-blocking)
     (async () => {
         if (settings.rootRepoDir) {
@@ -2539,10 +2565,9 @@ async function showDashboard() {
                     return;
                 }
 
-                const status = await window.electronAPI.gitStatus(repo.path);
-                const remotes = await window.electronAPI.getRemotes(repo.path);
+                const status = await window.electronAPI.gitQuickStatus(repo.path);
 
-                const isLocal = remotes.length === 0;
+                const isLocal = status.isLocal;
                 const needsSync = (status.ahead || 0) > 0 || (status.behind || 0) > 0;
                 const hasChanges = (status.modified || 0) + (status.not_added || 0) + (status.deleted || 0) > 0;
 
@@ -2610,8 +2635,10 @@ async function showDashboard() {
 
                 updateDashboardSummary(stats);
                 updateStatusFeed(stats);
+                updateProgressBar();
             } catch (e) {
                 console.error(`Error hydrating dashboard card for ${repo.name}:`, e);
+                updateProgressBar();
             }
         })();
     });
