@@ -86,6 +86,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   terminalInput: (data) => ipcRenderer.send('terminal-input', data),
   onTerminalData: (callback) => ipcRenderer.on('terminal-data', (_event, value) => callback(value)),
   onTerminalCommand: (callback) => ipcRenderer.on('terminal-command', (_event, value) => callback(value)),
+  onConsoleCommand: (callback) => ipcRenderer.on('console-command', (_event, value) => callback(value)),
   terminalResize: (cols, rows) => ipcRenderer.send('terminal-resize', { cols, rows }),
 
   openVSCode: (path) => ipcRenderer.invoke('open-in-vscode', path),

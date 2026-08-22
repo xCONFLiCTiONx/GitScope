@@ -1007,7 +1007,19 @@ ipcMain.handle('show-context-menu', (event, options) => {
       { type: 'separator' },
       { label: 'Select All', click: () => event.sender.send('terminal-command', 'select-all') },
       { type: 'separator' },
-      { label: 'Clear Console', click: () => event.sender.send('terminal-command', 'clear') }
+      { label: 'Clear Terminal', click: () => event.sender.send('terminal-command', 'clear') }
+    ];
+    const menu = Menu.buildFromTemplate(template);
+    menu.popup(BrowserWindow.fromWebContents(event.sender));
+    return;
+  }
+
+  if (options.type === 'console') {
+    const template = [
+      { label: 'Copy', click: () => event.sender.send('console-command', 'copy') },
+      { label: 'Select All', click: () => event.sender.send('console-command', 'select-all') },
+      { type: 'separator' },
+      { label: 'Clear Console Output', click: () => event.sender.send('console-command', 'clear') }
     ];
     const menu = Menu.buildFromTemplate(template);
     menu.popup(BrowserWindow.fromWebContents(event.sender));

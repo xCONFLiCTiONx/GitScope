@@ -837,7 +837,30 @@ function initEventListeners() {
             const delta = e.deltaY > 0 ? 30 : -30; // Scroll roughly one line at a time
             elements.consoleOutput.scrollTop += delta;
         }, { passive: false });
+
+        // Enable Context Menu for Copy/Clear
+        elements.consoleOutput.addEventListener('contextmenu', (e) => {
+            e.preventDefault();
+            window.electronAPI.showContextMenu({ type: 'console' });
+        });
     }
+
+    window.electronAPI.onConsoleCommand((command) => {
+        if (!elements.consoleOutput) return;
+        if (command === 'copy') {
+            const selection = window.getSelection().toString();
+            if (selection) navigator.clipboard.writeText(selection);
+        } else if (command === 'select-all') {
+            const range = document.createRange();
+            range.selectNodeContents(elements.consoleOutput);
+            const selection = window.getSelection();
+            selection.removeAllRanges();
+            selection.addRange(range);
+        } else if (command === 'clear') {
+            elements.consoleOutput.innerHTML = '';
+            logToConsole('Console output cleared.', 'info');
+        }
+    });
 
     // Settings Panel
     if (elements.saveSettingsBtn) elements.saveSettingsBtn.onclick = () => saveGlobalSettings();
