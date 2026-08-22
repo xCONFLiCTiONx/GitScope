@@ -2028,7 +2028,8 @@ function createTreeNode(name, fullPath, isDirectory, depth, repo) {
             repoPath: repo.path,
             isTracked,
             hideIgnoredFiles,
-            isRepoRoot
+            isRepoRoot,
+            isDirectory
         });
     };
     item.onclick = (e) => {

@@ -1037,8 +1037,10 @@ ipcMain.handle('show-context-menu', (event, options) => {
   const totalCount = paths.length;
   const isMulti = totalCount > 1;
 
-  const template = [
-    {
+  const template = [];
+
+  if (options.isDirectory || options.isRepoRoot) {
+    template.push({
       label: 'New',
       submenu: [
         {
@@ -1050,8 +1052,11 @@ ipcMain.handle('show-context-menu', (event, options) => {
           click: () => event.sender.send('context-menu-command', { command: 'new-folder', path: paths[0] })
         }
       ]
-    },
-    { type: 'separator' },
+    });
+    template.push({ type: 'separator' });
+  }
+
+  template.push(
     {
       label: 'Open',
       submenu: [
@@ -1087,7 +1092,7 @@ ipcMain.handle('show-context-menu', (event, options) => {
         }
       ]
     }
-  ];
+  );
 
   if (!options.isRepoRoot) {
     template.push({ type: 'separator' });
