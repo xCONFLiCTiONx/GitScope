@@ -278,6 +278,7 @@ const elements = {
     get consoleResizer() { return document.getElementById('console-resizer'); },
     get globalProgress() { return document.getElementById('global-progress-container'); },
     get dashboardRefreshBtn() { return document.getElementById('dashboard-refresh-btn'); },
+    get dashboardBulkPullBtn() { return document.getElementById('dashboard-bulk-pull-btn'); },
     get dashboardBulkCommitBtn() { return document.getElementById('dashboard-bulk-commit-btn'); },
     get dashboardBulkRestoreBtn() { return document.getElementById('dashboard-bulk-restore-btn'); },
     get bulkCommitModal() { return document.getElementById('bulk-commit-modal'); },
@@ -293,6 +294,11 @@ const elements = {
     get bulkRestoreSelectAll() { return document.getElementById('bulk-restore-select-all'); },
     get bulkRestoreConfirm() { return document.getElementById('bulk-restore-confirm'); },
     get bulkRestoreCancel() { return document.getElementById('bulk-restore-cancel'); },
+    get bulkPullModal() { return document.getElementById('bulk-pull-modal'); },
+    get bulkPullRepoList() { return document.getElementById('bulk-pull-repo-list'); },
+    get bulkPullSelectAll() { return document.getElementById('bulk-pull-select-all'); },
+    get bulkPullConfirm() { return document.getElementById('bulk-pull-confirm'); },
+    get bulkPullCancel() { return document.getElementById('bulk-pull-cancel'); },
     get subtreeHubModal() { return document.getElementById('subtree-hub-modal'); },
     get subtreeMappingList() { return document.getElementById('subtree-mapping-list'); },
     get addSubtreeBtn() { return document.getElementById('add-subtree-mapping-btn'); },
@@ -756,6 +762,7 @@ function initEventListeners() {
         };
     }
     if (elements.dashboardRefreshBtn) elements.dashboardRefreshBtn.onclick = () => showDashboard();
+    if (elements.dashboardBulkPullBtn) elements.dashboardBulkPullBtn.onclick = () => handleBulkPull();
     if (elements.dashboardBulkCommitBtn) elements.dashboardBulkCommitBtn.onclick = () => showBulkCommitModal();
     if (elements.dashboardBulkRestoreBtn) elements.dashboardBulkRestoreBtn.onclick = () => handleBulkRestore();
     if (elements.repoRefreshBtn) elements.repoRefreshBtn.onclick = () => { if (activeRepo) selectRepo(activeRepo); };
@@ -3756,6 +3763,85 @@ async function handleBulkRestore() {
     };
 }
 
+async function handleBulkPull() {
+    if (repositories.length === 0) return showAlert('No projects found in workspace.', 'Action Blocked');
+
+    elements.bulkPullModal.style.display = 'flex';
+    elements.bulkPullRepoList.innerHTML = '<div style="color:var(--text-muted); font-size:11px; padding:10px;">Analyzing remote status...</div>';
+    elements.bulkPullConfirm.disabled = true;
+
+    // Fetch status for all repos in parallel to see who is behind
+    const repoStatuses = await Promise.all(repositories.map(async (repo) => {
+        try {
+            const status = await window.electronAPI.gitStatus(repo.path);
+            return { repo, status, isBehind: (status.behind || 0) > 0 };
+        } catch (e) {
+            return { repo, status: null, isBehind: false };
+        }
+    }));
+
+    elements.bulkPullConfirm.disabled = false;
+    elements.bulkPullRepoList.innerHTML = repoStatuses.map(({ repo, status, isBehind }) => {
+        const behindCount = status ? (status.behind || 0) : 0;
+        const subtext = isBehind ? `<span style="color:#e3b341;">↓ ${behindCount} incoming commits</span>` : `<span style="color:var(--text-muted);">Up to date</span>`;
+
+        return `
+            <label style="display:flex; align-items:center; gap:8px; cursor:pointer; padding:8px; background:rgba(255,255,255,0.02); border-radius:4px; margin-bottom:4px; border: 1px solid ${isBehind ? 'rgba(227, 179, 65, 0.2)' : 'transparent'};">
+                <input type="checkbox" class="bulk-pull-item-cb" value="${repo.path}" data-name="${repo.name}" ${isBehind ? 'checked' : ''}>
+                <div style="flex:1; min-width:0;">
+                    <div style="font-size:12px; font-weight:600; color:#fff; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${repo.name}</div>
+                    <div style="font-size:10px;">${subtext}</div>
+                </div>
+            </label>
+        `;
+    }).join('');
+
+    // Update "Select All" based on the new logic
+    // If some are behind, maybe we only want to select all that are behind?
+    // But usually "Select All" means literally ALL.
+    // I'll leave it as literally ALL but pre-check the behind ones.
+    elements.bulkPullSelectAll.checked = repoStatuses.some(s => s.isBehind);
+    elements.bulkPullSelectAll.onchange = (e) => {
+        elements.bulkPullRepoList.querySelectorAll('.bulk-pull-item-cb').forEach(cb => cb.checked = e.target.checked);
+    };
+
+    elements.bulkPullCancel.onclick = () => elements.bulkPullModal.style.display = 'none';
+
+    elements.bulkPullConfirm.onclick = async () => {
+        const selectedCbs = Array.from(elements.bulkPullRepoList.querySelectorAll('.bulk-pull-item-cb:checked'));
+        if (selectedCbs.length === 0) return showAlert('Select at least one project to pull.', 'Selection Required');
+
+        elements.bulkPullModal.style.display = 'none';
+        logToConsole(`🚀 Launching Bulk Pull sequence for ${selectedCbs.length} projects...`, 'info');
+        setTaskState(true);
+
+        let success = 0; let fail = 0;
+        try {
+            for (const cb of selectedCbs) {
+                const path = cb.value;
+                const name = cb.dataset.name;
+                try {
+                    logToConsole(`   📥 Pulling: ${name}...`, 'info');
+                    const res = await window.electronAPI.gitPull(path);
+                    if (res.success) {
+                        logToConsole(`   ✅ Pulled: ${name}`, 'success');
+                        success++;
+                    } else {
+                        logToConsole(`   ❌ Pull Failed [${name}]: ${res.output}`, 'error');
+                        fail++;
+                    }
+                } catch (e) {
+                    logToConsole(`   ⚠️ Error [${name}]: ${e.message}`, 'error');
+                    fail++;
+                }
+            }
+            logToConsole(`Bulk Pull Complete. Success: ${success}, Failed: ${fail}`, 'info');
+            await smartRefreshTree();
+            showDashboard();
+        } finally { setTaskState(false); }
+    };
+}
+
 async function showUnbornFoldersModal(unbornList) {
     elements.unbornFoldersModal.style.display = 'flex';
     elements.unbornFoldersList.innerHTML = '';
@@ -4118,7 +4204,6 @@ async function handleContextMenuCommand({ command, paths, path, repoPath }) {
         showSubtreeHubModal();
     }
     else if (command === 'add-subtree') handleAddSubtreeFromTree(targets[0]);
-    else if (command === 'push-subtree-direct') handlePushSubtreeFromTree(targets[0]);
     else if (command === 'apply-patch') showPatchModal(targets[0]);
     else if (command === 'see-changes') showFileDiff(targets[0]);
     else if (command === 'create-readme') handleCreateReadme(targets[0]);

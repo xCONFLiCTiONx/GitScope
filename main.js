@@ -1150,14 +1150,6 @@ ipcMain.handle('show-context-menu', (event, options) => {
             label: 'Add as Subtree Mapping',
             click: () => event.sender.send('context-menu-command', { command: 'add-subtree', path: paths[0] })
           });
-
-          if (options.isSubtreeMapped) {
-              subtreeSubmenu.push({ type: 'separator' });
-              subtreeSubmenu.push({
-                label: 'Push Subtree Now',
-                click: () => event.sender.send('context-menu-command', { command: 'push-subtree-direct', path: paths[0] })
-              });
-          }
       }
 
       template.push({
