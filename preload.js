@@ -79,7 +79,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getWorkspaceStats: (rootPath) => ipcRenderer.invoke('get-workspace-stats', rootPath),
   getGitConfig: () => ipcRenderer.invoke('get-git-config'),
   saveGitConfig: (content) => ipcRenderer.invoke('save-git-config', content),
-  compareSyncStatus: (src, dst) => ipcRenderer.invoke('compare-sync-status', src, dst),
   pathExists: (path) => ipcRenderer.invoke('path-exists', path),
   resetApp: () => ipcRenderer.invoke('reset-app'),
   sendNotification: (options) => ipcRenderer.invoke('send-notification', options),

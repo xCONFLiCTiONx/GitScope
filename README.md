@@ -20,17 +20,6 @@ A real-time command center showing the state of all your projects. Instantly fil
 - **Local Only:** Projects not yet published to GitHub.
 - **Missing:** Detects projects that were moved or deleted from your disk.
 
-### 🧙‍♂️ Smart Sync Distribution
-Surgically distribute content from a source project to multiple target repositories.
-- **Auto-Matching:** Automatically links folders in your source to matching projects in your workspace.
-- **Fuzzy Precision:** Intelligent name matching that ignores hyphens, spaces, and case.
-- **Safe Overwrite:** High-speed file synchronization with toggleable overwrite protection.
-
-### 📂 Advanced Mass Transfer
-Move or copy items from "Project A" to multiple target folders simultaneously.
-- **Folder Tree Integration:** A full workspace folder selector allows you to target specific sub-directories across many projects at once.
-- **One-to-Many Logic:** Select one source item and blast it to every checked destination folder in one click.
-
 ### 📜 Global Git Config Editor
 A built-in management suite for your global `.gitconfig`.
 - **Best-Practice Engine:** Automatically scans your config and recommends professional optimizations (Histogram diff, zdiff3 merging, auto-upstream tracking, etc.).

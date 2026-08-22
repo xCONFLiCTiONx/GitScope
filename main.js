@@ -702,40 +702,6 @@ ipcMain.handle('path-exists', async (event, path) => {
   return fs.existsSync(path);
 });
 
-ipcMain.handle('compare-sync-status', async (event, sourcePath, targetPath) => {
-    try {
-        if (!fs.existsSync(sourcePath) || !fs.existsSync(targetPath)) return { different: true };
-
-        const compare = async (src, dst) => {
-            const srcFiles = await fs.readdir(src);
-            for (const file of srcFiles) {
-                if (file === '.git' || file === 'node_modules') continue;
-                const srcSub = path.join(src, file);
-                const dstSub = path.join(dst, file);
-
-                if (!fs.existsSync(dstSub)) return true; // Missing in target
-
-                const srcStat = await fs.stat(srcSub);
-                const dstStat = await fs.stat(dstSub);
-
-                if (srcStat.isDirectory()) {
-                    if (await compare(srcSub, dstSub)) return true;
-                } else {
-                    if (srcStat.size !== dstStat.size) return true;
-                    // For performance, we don't do full content hash here, just size + mtime is usually enough for "changes" detection
-                    if (srcStat.mtime.getTime() !== dstStat.mtime.getTime()) return true;
-                }
-            }
-            return false;
-        };
-
-        const isDifferent = await compare(sourcePath, targetPath);
-        return { different: isDifferent };
-    } catch (e) {
-        return { different: true, error: e.message };
-    }
-});
-
 ipcMain.handle('get-settings', async () => {
   return getSettings();
 });
@@ -1103,19 +1069,6 @@ ipcMain.handle('show-context-menu', (event, options) => {
         {
           label: isMulti ? `Show in Folder (${totalCount})` : 'Show in Folder',
           click: () => event.sender.send('context-menu-command', { command: 'reveal-in-explorer', paths })
-        }
-      ]
-    },
-    {
-      label: 'Transfer',
-      submenu: [
-        {
-          label: isMulti ? `Mass Transfer (${totalCount} items)...` : 'Mass Transfer...',
-          click: () => event.sender.send('context-menu-command', { command: 'copy-move-bulk', paths })
-        },
-        {
-          label: 'Smart Sync Wizard...',
-          click: () => event.sender.send('context-menu-command', { command: 'smart-sync-wizard', path: paths[0] })
         }
       ]
     }
