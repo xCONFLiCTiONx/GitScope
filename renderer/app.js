@@ -1043,6 +1043,54 @@ async function quickGitAction(action) {
     finally { setTaskState(false); }
 }
 
+/**
+ * Enhanced Dashboard Push: Stages all, commits as "update", and pushes.
+ */
+async function handleDashboardPush(repo) {
+    if (!repo) return;
+    activeRepo = repo;
+    setTaskState(true);
+    logToConsole(`🚀 Quick Sync & Push: ${repo.name}`, 'info');
+
+    try {
+        // 1. Stage everything
+        logToConsole('Staging all changes...', 'info');
+        await window.electronAPI.gitStageAll(repo.path);
+
+        // 2. Commit with auto-message
+        logToConsole('Committing...', 'info');
+        const commitRes = await window.electronAPI.gitCommit(repo.path, 'update');
+        if (commitRes.success) {
+            logToConsole('Commit successful.', 'success');
+        } else if (commitRes.output.toLowerCase().includes('nothing to commit')) {
+            logToConsole('Nothing new to commit, checking remote...', 'info');
+        } else {
+            logToConsole(`Commit Warning: ${commitRes.output}`, 'warn');
+        }
+
+        // 3. Push to remote
+        logToConsole('Pushing to origin...', 'info');
+        if (window.terminal) {
+            // Use -u origin HEAD to ensure upstream is set automatically
+            window.terminal.sendCommand('git push -u origin HEAD');
+            setTimeout(async () => {
+                await showDashboard();
+                setTaskState(false);
+            }, 3000);
+        } else {
+            const pushRes = await window.electronAPI.gitPush(repo.path);
+            logToConsole(pushRes.output, pushRes.success ? 'success' : 'error');
+            if (!pushRes.success) showError(pushRes.output, `Git Push Failed`);
+            await showDashboard();
+            setTaskState(false);
+        }
+    } catch (e) {
+        logToConsole(`Sync Error: ${e.message}`, 'error');
+        showError(e.message, 'Quick Sync Failed');
+        setTaskState(false);
+    }
+}
+
 async function handleStageAll() {
     if (!activeRepo) return;
     setTaskState(true);
@@ -2211,8 +2259,7 @@ async function showDashboard() {
 
                     card.querySelector('.push-btn').onclick = (e) => {
                         e.stopPropagation();
-                        activeRepo = repo;
-                        quickGitAction('push');
+                        handleDashboardPush(repo);
                     };
                 }
 
