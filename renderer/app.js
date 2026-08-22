@@ -206,6 +206,8 @@ const elements = {
     get dashboardSummary() { return document.getElementById('dashboard-summary'); },
     get dashboardGrid() { return document.getElementById('dashboard-grid'); },
     get repoView() { return document.getElementById('repo-view'); },
+    get repoLeftPanel() { return document.getElementById('repo-left-panel'); },
+    get repoRightPanel() { return document.getElementById('repo-right-panel'); },
     get repoRefreshBtn() { return document.getElementById('repo-refresh-btn'); },
     get stagedList() { return document.getElementById('staged-list'); },
     get unstagedList() { return document.getElementById('unstaged-list'); },
@@ -750,7 +752,10 @@ function initEventListeners() {
     if (elements.stashCloseBtn) elements.stashCloseBtn.onclick = () => elements.stashModal.style.display = 'none';
     if (elements.statusBackBtn) elements.statusBackBtn.onclick = () => {
         elements.statusView.style.display = 'none';
-        elements.messageView.style.display = 'flex';
+        elements.repoRightPanel.style.display = 'none';
+        elements.repoRightPanel.style.flex = '0';
+        elements.repoLeftPanel.style.flex = '1';
+        elements.repoLeftPanel.style.height = 'auto';
     };
     if (elements.sidebarCollapse) elements.sidebarCollapse.onclick = () => {
         const containers = elements.repoTree.querySelectorAll('.children-container');
@@ -813,7 +818,10 @@ function initEventListeners() {
     };
     if (elements.diffBackBtn) elements.diffBackBtn.onclick = () => {
         elements.diffView.style.display = 'none';
-        elements.messageView.style.display = 'flex';
+        elements.repoRightPanel.style.display = 'none';
+        elements.repoRightPanel.style.flex = '0';
+        elements.repoLeftPanel.style.flex = '1';
+        elements.repoLeftPanel.style.height = 'auto';
         document.querySelectorAll('.change-item').forEach(el => el.classList.remove('active'));
     };
 
@@ -1669,15 +1677,43 @@ async function handleAddRemoteModal() {
 
 async function handleRemoveRemote() {
     if (!activeRepo) return;
-    const currentRemote = elements.remoteSelect.value;
+    const select = elements.remoteSelect;
+    const currentRemote = select.value;
     if (!currentRemote || currentRemote === 'none') return;
 
-    if (await showConfirm(`Remove remote "${currentRemote}"?`, "Confirm Remove")) {
+    const selectedOption = select.options[select.selectedIndex];
+    const remoteUrl = selectedOption ? selectedOption.getAttribute('data-url') : '';
+    const isGithub = remoteUrl && remoteUrl.toLowerCase().includes('github.com');
+
+    if (await showConfirm(`Remove remote reference "${currentRemote}"?`, "Confirm Remove")) {
         logToConsole(`Removing remote "${currentRemote}"...`, 'info');
         try {
             const res = await window.electronAPI.removeRemote(activeRepo.path, currentRemote);
             if (res.success) {
                 logToConsole(res.output, 'success');
+
+                // INTELLIGENCE: If it was a GitHub remote, ask if they want to delete it from GitHub too
+                if (isGithub && settings.githubToken) {
+                    const regex = /github\.com[\/|:]([^\/]+)\/([^\/.]+)(\.git)?$/i;
+                    const match = remoteUrl.match(regex);
+                    if (match) {
+                        const owner = match[1];
+                        const repoName = match[2];
+                        if (await showConfirm(`This was a GitHub repository. Would you like to PERMANENTLY DELETE "${owner}/${repoName}" from GitHub as well?`, "Nuclear Option")) {
+                            setTaskState(true);
+                            logToConsole(`Deleting ${owner}/${repoName} from GitHub...`, 'info');
+                            const delRes = await window.electronAPI.deleteGitHubRepo(settings.githubToken, owner, repoName);
+                            if (delRes.success) {
+                                logToConsole(`Successfully deleted repository from GitHub.`, 'success');
+                            } else {
+                                logToConsole(`GitHub deletion failed: ${delRes.output}`, 'error');
+                                showAlert(`GitHub deletion failed: ${delRes.output}`, 'Error');
+                            }
+                            setTaskState(false);
+                        }
+                    }
+                }
+
                 await refreshActiveRepoUI();
             } else {
                 logToConsole(`Failed to remove remote: ${res.output}`, 'error');
@@ -1793,75 +1829,7 @@ async function handlePublishGitHub() {
     };
 }
 
-async function handleDeleteGitHubRepo() {
-    if (!activeRepo) return;
-    if (!settings.githubToken) {
-        showAlert('Please set your Personal Access Token (PAT) in Settings.', 'Auth Required');
-        return;
-    }
 
-    try {
-        const remotes = await window.electronAPI.getRemotes(activeRepo.path);
-        const githubRemote = remotes.find(r => r.url.toLowerCase().includes('github.com'));
-
-        if (!githubRemote) {
-            showAlert('This project does not have a GitHub remote linked.', 'No GitHub Remote');
-            return;
-        }
-
-        // Parse owner and repo from URL
-        // Regex to handle both https and ssh formats
-        const regex = /github\.com[\/|:]([^\/]+)\/([^\/.]+)(\.git)?$/i;
-        const match = githubRemote.url.match(regex);
-
-        if (!match) {
-            showAlert('Could not determine GitHub owner/repository from the remote URL.', 'Parse Error');
-            return;
-        }
-
-        const owner = match[1];
-        const repoName = match[2];
-
-        const warning = `☢ DANGER: DELETE FROM GITHUB? ☢\n\nThis will PERMANENTLY DELETE the repository "${owner}/${repoName}" from GitHub.\n\nTHIS CANNOT BE UNDONE.`;
-
-        if (await showConfirm(warning, "Nuclear GitHub Deletion")) {
-            if (await showConfirm(`FINAL CONFIRMATION: Are you absolutely sure you want to delete "${repoName}" from the internet?`, "Are you REALLY sure?")) {
-                setTaskState(true);
-                logToConsole(`Deleting ${owner}/${repoName} from GitHub...`, 'info');
-
-                try {
-                    const res = await window.electronAPI.deleteGitHubRepo(settings.githubToken, owner, repoName);
-                    if (res.expiration) updateTokenExpirationUI(res.expiration);
-                    if (res.success) {
-                        logToConsole(`Successfully deleted repository from GitHub.`, 'success');
-
-                        // Optionally remove the local remote too
-                        if (await showConfirm("Would you like to remove the local remote reference as well?", "Clean Local Links")) {
-                            await window.electronAPI.removeRemote(activeRepo.path, githubRemote.name);
-                        }
-
-                        await refreshActiveRepoUI();
-                        showAlert(`"${repoName}" has been removed from GitHub.`, 'Deletion Successful');
-                    }
-                } catch (e) {
-                    logToConsole(`GitHub Deletion failed: ${e.message}`, 'error');
-                    let friendlyMsg = e.message;
-                    if (e.message.includes('403')) {
-                        friendlyMsg = "GitHub API Error 403: Permission Denied.\n\nTo delete repositories, your token MUST have the 'delete_repo' scope (Classic) or 'Administration: Read & Write' (Fine-grained).";
-                    } else if (e.message.includes('404')) {
-                        friendlyMsg = "GitHub API Error 404: Repository not found.\n\nThe repository might have already been deleted or your token doesn't have permission to see it.";
-                    }
-                    showError(friendlyMsg, 'Error Deleting Repository');
-                } finally {
-                    setTaskState(false);
-                }
-            }
-        }
-    } catch (e) {
-        logToConsole(`System Error: ${e.message}`, 'error');
-        showError(e.message, 'System Error');
-    }
-}
 
 async function handleNukeReinit() {
     if (!activeRepo) return;
@@ -3480,9 +3448,13 @@ async function selectRepo(repo, fromDashboard = false) {
     activeRepo = repo;
     setActiveNavItem(null);
     elements.repoView.style.display = 'flex';
+
+    // Default Layout: Staging area full height, Diff panel hidden
     elements.messageView.style.display = 'flex';
-    elements.diffView.style.display = 'none';
-    elements.statusView.style.display = 'none';
+    elements.repoLeftPanel.style.flex = '1';
+    elements.repoRightPanel.style.display = 'none';
+    elements.repoRightPanel.style.flex = '0';
+
     document.getElementById('active-repo-name').textContent = repo.name;
 
     if (window.terminal) window.terminal.sendCommand(`cd "${repo.path}"`);
@@ -3516,7 +3488,6 @@ async function refreshActiveRepoUI(silent = false) {
         const hasGitHub = remotes.some(r => r.url.toLowerCase().includes('github.com'));
 
         if (elements.publishGitHubBtn) elements.publishGitHubBtn.style.display = hasAnyRemote ? 'none' : 'inline-flex';
-        if (elements.deleteGitHubBtn) elements.deleteGitHubBtn.style.display = hasGitHub ? 'inline-flex' : 'none';
 
         renderChangesList(activeRepo, changes);
         await updateTreeHighlights(activeRepo.path);
@@ -4064,26 +4035,16 @@ async function updateBranchSelector(path) { try { const res = await window.elect
 async function updateRemoteSelector(path) {
     try {
         const remotes = await window.electronAPI.getRemotes(path);
-        const dangerZone = document.getElementById('github-danger-zone');
-        const deleteBtn = document.getElementById('delete-github-btn');
 
         if (remotes.length === 0) {
             elements.remoteSelect.innerHTML = '<option value="">none</option>';
-            if (dangerZone) dangerZone.style.display = 'none';
             if (elements.openRemoteBtn) elements.openRemoteBtn.style.display = 'none';
         } else {
             elements.remoteSelect.innerHTML = remotes.map(r => `<option value="${r.name}" data-url="${r.url}">${r.name}</option>`).join('');
 
-            // INTELLIGENCE: Show GitHub Danger Zone if a GitHub remote is selected
             const updateZone = () => {
                 const selected = elements.remoteSelect.options[elements.remoteSelect.selectedIndex];
                 const url = selected ? selected.getAttribute('data-url') : '';
-                const isGithub = url && url.toLowerCase().includes('github.com');
-
-                if (dangerZone) {
-                    dangerZone.style.display = isGithub ? 'flex' : 'none';
-                }
-
                 if (elements.openRemoteBtn) {
                     elements.openRemoteBtn.style.display = url ? 'block' : 'none';
                 }
@@ -4091,27 +4052,6 @@ async function updateRemoteSelector(path) {
 
             elements.remoteSelect.onchange = updateZone;
             updateZone(); // Initial check
-        }
-
-        // Add "Cool" hover effect to the Nuclear icon
-        if (deleteBtn) {
-            deleteBtn.onmouseenter = () => {
-                deleteBtn.style.opacity = '1';
-                deleteBtn.style.color = '#ff4444';
-                deleteBtn.style.transform = 'scale(1.3) rotate(180deg)';
-                deleteBtn.style.textShadow = '0 0 8px rgba(255, 68, 68, 0.4)';
-            };
-            deleteBtn.onmouseleave = () => {
-                deleteBtn.style.opacity = '0.4';
-                deleteBtn.style.color = 'var(--accent-red)';
-                deleteBtn.style.transform = 'scale(1) rotate(0deg)';
-                deleteBtn.style.textShadow = 'none';
-            };
-            deleteBtn.onclick = (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                handleDeleteGitHubRepo();
-            };
         }
     } catch(e) {}
 }
@@ -4203,7 +4143,12 @@ function renderChangesList(repo, detailedChanges) {
 async function showGitStatus() {
     if (!activeRepo) return;
 
-    elements.messageView.style.display = 'none';
+    // Show Panel and shrink Staging Area
+    elements.repoLeftPanel.style.flex = 'none';
+    elements.repoLeftPanel.style.height = '220px';
+    elements.repoRightPanel.style.display = 'block';
+    elements.repoRightPanel.style.flex = '1';
+
     elements.diffView.style.display = 'none';
     elements.statusView.style.display = 'flex';
     elements.statusContainer.textContent = 'Fetching status...';
@@ -4329,7 +4274,12 @@ async function showFileDiff(filePath) {
     elements.editorView.style.display = 'none';
     elements.repoView.style.display = 'flex';
 
-    elements.messageView.style.display = 'none';
+    // Show Diff Panel and shrink Staging Area
+    elements.repoLeftPanel.style.flex = 'none';
+    elements.repoLeftPanel.style.height = '220px';
+    elements.repoRightPanel.style.display = 'block';
+    elements.repoRightPanel.style.flex = '1';
+
     elements.diffView.style.display = 'flex';
     elements.statusView.style.display = 'none';
     elements.diffFileName.textContent = filePath.split(/[\\\/]/).pop();

@@ -613,6 +613,7 @@
             overflow-y: auto;
             flex: 1;
             padding: 4px 0;
+            min-height: 50px;
         }
 
         .change-item {
@@ -1080,111 +1081,104 @@
 
             <!-- Repo Detail View -->
             <div id="repo-view">
-                <div id="repo-header" style="flex-direction: column; align-items: stretch; gap: 16px;">
-                    <div style="display: flex; justify-content: space-between; align-items: center;">
-                        <div class="repo-title-box">
-                            <h2 id="active-repo-name" style="font-size: 22px;">Project Name</h2>
-                        </div>
-                        <div style="display: flex; gap: 8px;">
-                            <button id="repo-refresh-btn" class="button" title="Refresh Project">↻</button>
+                <!-- Compact Header -->
+                <div id="repo-header" style="padding: 10px 16px; margin-bottom: 12px; gap: 12px;">
+                    <div style="display: flex; align-items: center; gap: 16px; flex: 1;">
+                        <h2 id="active-repo-name" style="font-size: 16px; margin: 0; white-space: nowrap;">Project Name</h2>
+
+                        <div style="display: flex; gap: 12px; align-items: center; border-left: 1px solid var(--border-color); padding-left: 16px;">
+                            <div style="display: flex; align-items: center; gap: 6px;">
+                                <span style="font-weight: 700; color: var(--text-muted); text-transform: uppercase; font-size: 9px;">Branch</span>
+                                <select id="branch-select" class="settings-input" style="padding: 0 8px; font-size: 11px; width: 130px; height: 24px; background: var(--bg-sidebar);"></select>
+                                <button id="create-branch-btn" class="button" style="padding: 0 6px; height: 24px; color: var(--accent-green);" title="Create New Branch">+</button>
+                                <button id="rename-branch-btn" class="button" style="padding: 0 6px; height: 24px; color: var(--accent-blue);" title="Rename Current Branch">✎</button>
+                                <button id="delete-branch-btn" class="button" style="padding: 0 6px; height: 24px; color: var(--accent-red);" title="Delete Branch">×</button>
+                            </div>
+
+                            <div style="display: flex; align-items: center; gap: 6px;">
+                                <span style="font-weight: 700; color: var(--text-muted); text-transform: uppercase; font-size: 9px;">Remote</span>
+                                <select id="remote-select" class="settings-input" style="padding: 0 8px; font-size: 11px; width: 110px; height: 24px; background: var(--bg-sidebar);"></select>
+                                <button id="add-remote-btn" class="button" style="padding: 0 6px; height: 24px; color: var(--accent-green);" title="Add Remote">+</button>
+                                <button id="remove-remote-btn" class="button" style="padding: 0 6px; height: 24px; color: var(--accent-red);" title="Remove Remote">×</button>
+                                <button id="open-remote-btn" class="button" title="Open Remote in Browser" style="background: transparent; border: none; padding: 0; color: var(--accent-blue); font-size: 14px; min-width: auto; height: auto; display: none;">↗</button>
+                            </div>
                         </div>
                     </div>
 
-                    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; padding: 12px; background: rgba(255,255,255,0.02); border-radius: 8px; border: 1px solid var(--border-color);">
-                        <div class="repo-meta-row" style="margin: 0; gap: 24px;">
-                            <div class="meta-item">
-                                <span style="font-weight: 700; color: var(--text-muted); text-transform: uppercase; font-size: 10px;">Branch</span>
-                                <div style="display: flex; gap: 4px; align-items: center;">
-                                    <select id="branch-select" class="settings-input" style="padding: 2px 8px; font-size: 11px; width: 140px; height: 26px; background: var(--bg-sidebar);"></select>
-                                    <button id="create-branch-btn" class="button" style="padding: 0 8px; height: 26px; color: var(--accent-green);" title="Create New Branch">+</button>
-                                    <button id="rename-branch-btn" class="button" style="padding: 0 8px; height: 26px; color: var(--accent-blue);" title="Rename Current Branch">✎</button>
-                                    <button id="delete-branch-btn" class="button" style="padding: 0 8px; height: 26px; color: var(--accent-red);" title="Delete Branch">×</button>
-                                </div>
-                            </div>
-                            <div class="meta-item">
-                                <span style="font-weight: 700; color: var(--text-muted); text-transform: uppercase; font-size: 10px;">Remote</span>
-                                <div style="display: flex; gap: 4px; align-items: center;">
-                                    <select id="remote-select" class="settings-input" style="padding: 2px 8px; font-size: 11px; width: 120px; height: 26px; background: var(--bg-sidebar);"></select>
-                                    <button id="add-remote-btn" class="button" style="padding: 0 8px; height: 26px; color: var(--accent-green);" title="Add Remote">+</button>
-                                    <button id="remove-remote-btn" class="button" style="padding: 0 8px; height: 26px; color: var(--accent-red);" title="Remove Remote">×</button>
-                                    <button id="open-remote-btn" class="button" title="Open Remote in Browser" style="background: transparent; border: none; padding: 0; color: var(--accent-blue); font-size: 14px; min-width: auto; height: auto; margin-left: 8px; display: none;">↗</button>
-                                    <div id="github-danger-zone" style="display: none; align-items: center; margin-left: 8px; border-left: 1px solid var(--border-color); padding-left: 12px;">
-                                        <button id="delete-github-btn" class="button" title="Nuclear Option: Delete this Repository from GitHub" style="background: transparent; border: none; padding: 0; color: var(--accent-red); opacity: 0.4; font-size: 16px; min-width: auto; height: auto;">☢</button>
-                                    </div>
-                                </div>
-                            </div>
+                    <div style="display: flex; gap: 8px; align-items: center;">
+                        <button id="repo-refresh-btn" class="button" style="height: 24px; width: 24px; padding: 0;" title="Refresh Project">↻</button>
+                        <div style="width: 1px; height: 16px; background: var(--border-color); margin: 0 4px;"></div>
+                        <div style="display: flex; gap: 4px;">
+                            <button class="button git-btn" data-action="pull" style="height: 24px; font-size: 10px;" title="Pull changes">Pull</button>
+                            <button class="button git-btn" data-action="fetch" style="height: 24px; font-size: 10px;" title="Fetch updates">Fetch</button>
+                            <button class="button git-btn button-primary" data-action="push" style="height: 24px; font-size: 10px;" title="Push changes">Push</button>
                         </div>
-
-                        <div style="display: flex; gap: 12px; align-items: center;">
-                            <!-- Sync Group -->
-                            <div style="display: flex; gap: 4px; padding-right: 12px; border-right: 1px solid var(--border-color);">
-                                <button class="button git-btn" data-action="pull" title="Pull changes">Pull</button>
-                                <button class="button git-btn" data-action="fetch" title="Fetch updates">Fetch</button>
-                                <button class="button git-btn button-primary" data-action="push" title="Push changes">Push</button>
-                            </div>
-
-                            <!-- State Group -->
-                            <div style="display: flex; gap: 6px;">
-                                <button id="repo-stash-btn" class="button" title="Manage Git Stashes">Stash</button>
-                                <button id="revert-changes-btn-top" class="button" title="Restore to past commit">Revert</button>
-                                <button id="repo-status-btn" class="button" title="View Full Git Status">Status</button>
-                            </div>
-
-                            <button id="publish-github-btn" class="button button-blue" style="margin-left: 8px;" title="Publish to GitHub">Publish to GitHub</button>
+                        <div style="display: flex; gap: 4px; margin-left: 4px;">
+                            <button id="repo-stash-btn" class="button" style="height: 24px; font-size: 10px;" title="Manage Git Stashes">Stash</button>
+                            <button id="revert-changes-btn-top" class="button" style="height: 24px; font-size: 10px;" title="Restore to past commit">Revert</button>
+                            <button id="repo-status-btn" class="button" style="height: 24px; font-size: 10px;" title="View Full Git Status">Status</button>
                         </div>
+                        <button id="publish-github-btn" class="button button-blue" style="height: 24px; font-size: 10px; margin-left: 4px;" title="Publish to GitHub">Publish</button>
                     </div>
                 </div>
 
-                <div id="repo-main-layout">
-                    <div id="repo-left-panel">
-                        <div class="changes-section" id="staged-section">
-                            <div class="changes-header">
-                                <span>STAGED CHANGES</span>
-                                <button id="unstage-all-btn" class="button" style="font-size: 9px; height: 18px; padding: 0 6px;">Unstage All</button>
+                <div id="repo-main-layout" style="flex-direction: column; flex: 1; min-height: 0;">
+                    <!-- Top Row: Staging (Left) + Commit (Right) -->
+                    <div id="repo-left-panel" style="width: 100%; flex: 1; display: flex; flex-direction: row; gap: 12px; transition: flex 0.2s ease;">
+                        <div style="display: flex; flex-direction: column; flex: 1; gap: 12px; min-width: 0;">
+                            <div class="changes-section" id="staged-section" style="flex: 1;">
+                                <div class="changes-header">
+                                    <span>STAGED</span>
+                                    <button id="unstage-all-btn" class="button" style="font-size: 9px; height: 18px; padding: 0 6px;">Unstage All</button>
+                                </div>
+                                <div class="changes-list" id="staged-list"></div>
                             </div>
-                            <div class="changes-list" id="staged-list"></div>
+
+                            <div class="changes-section" id="unstaged-section" style="flex: 1;">
+                                <div class="changes-header">
+                                    <span>UNSTAGED</span>
+                                    <button id="stage-all-btn" class="button" style="font-size: 9px; height: 18px; padding: 0 6px;">Stage All</button>
+                                </div>
+                                <div class="changes-list" id="unstaged-list"></div>
+                            </div>
                         </div>
 
-                        <div class="changes-section" id="unstaged-section">
-                            <div class="changes-header">
-                                <span>UNSTAGED CHANGES</span>
-                                <button id="stage-all-btn" class="button" style="font-size: 9px; height: 18px; padding: 0 6px;">Stage All</button>
-                            </div>
-                            <div class="changes-list" id="unstaged-list"></div>
-                        </div>
-                    </div>
-
-                    <div id="repo-right-panel">
-                        <div id="message-view">
-                            <div class="message-section-header">
+                        <!-- Commit Box (Right side) -->
+                        <div id="message-view" style="width: 400px; height: 100%; padding: 12px; display: flex; background: var(--bg-sidebar); border: 1px solid var(--border-color); border-radius: 8px; flex-shrink: 0;">
+                            <div class="message-section-header" style="margin-bottom: 8px;">
                                 <span>COMMIT MESSAGE</span>
                                 <button id="magic-commit-btn" class="button" style="height: 20px; border: none; font-size: 14px; color: #FFFFFF; background: transparent;" title="Suggestion">&#10022;</button>
                             </div>
-                            <textarea id="commit-msg" placeholder="Summarize your changes..."></textarea>
-                            <div class="message-actions-row">
-                                <button id="commit-btn" class="button button-primary commit-main-btn" style="flex: 1;">Commit</button>
-                                <button id="commit-push-btn" class="button button-blue commit-main-btn" style="flex: 1.2;">Commit & Push</button>
+                            <textarea id="commit-msg" style="flex: 1; min-height: 0; padding: 10px; font-size: 12px;" placeholder="Summarize your changes..."></textarea>
+                            <div class="message-actions-row" style="margin-top: 10px; gap: 6px;">
+                                <button id="commit-btn" class="button button-primary commit-main-btn" style="flex: 1; height: 32px;">Commit</button>
+                                <button id="commit-push-btn" class="button button-blue commit-main-btn" style="flex: 1.2; height: 32px;">Commit & Push</button>
                             </div>
                         </div>
+                    </div>
 
-                        <div id="diff-view">
-                            <div class="right-panel-header" style="margin-bottom: 12px; border-bottom: none; padding: 0;">
-                                <span id="diff-file-name" class="right-panel-title">file.kt</span>
+                    <!-- Bottom Content (Diff/Status) - No background when empty -->
+                    <div id="repo-right-panel" style="width: 100%; flex: 0; display: none; margin-top: 12px; background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: 8px; overflow: hidden;">
+                        <div id="diff-view" style="display: none; height: 100%; flex-direction: column;">
+                            <div class="right-panel-header" style="padding: 8px 16px;">
+                                <span id="diff-file-name" class="right-panel-title" style="font-size: 12px;">file.kt</span>
                                 <div style="display: flex; gap: 8px;">
-                                    <button id="diff-edit-btn" class="button" style="height: 24px; font-size: 10px;">Edit Full File</button>
-                                    <button id="restore-file-btn" class="button button-danger" style="height: 24px; font-size: 10px;">Restore File</button>
-                                    <button id="diff-back-btn" class="button" style="height: 24px; font-size: 10px;">Close</button>
+                                    <button id="diff-edit-btn" class="button" style="height: 22px; font-size: 9px;">Edit Full File</button>
+                                    <button id="restore-file-btn" class="button button-danger" style="height: 22px; font-size: 9px;">Restore File</button>
+                                    <button id="diff-back-btn" class="button" style="height: 22px; font-size: 9px;">Close</button>
                                 </div>
                             </div>
-                            <div id="diff-container"></div>
+                            <div id="diff-container" style="flex: 1; overflow-y: auto;"></div>
                         </div>
 
-                        <div id="status-view">
-                            <div class="right-panel-header" style="margin-bottom: 12px; border-bottom: none; padding: 0;">
-                                <span class="right-panel-title">Full Git Status</span>
-                                <button id="status-back-btn" class="button" style="height: 24px; font-size: 10px;">Close</button>
+                        <div id="status-view" style="display: none; height: 100%; flex-direction: column;">
+                            <div class="right-panel-header" style="padding: 8px 16px;">
+                                <span class="right-panel-title" style="font-size: 12px;">Repository Status</span>
+                                <button id="status-back-btn" class="button" style="height: 22px; font-size: 9px;">Close</button>
                             </div>
-                            <pre id="status-container" style="color: #fff; padding: 12px; font-family: 'SFMono-Regular', Consolas, monospace; font-size: 12px; margin: 0; line-height: 1.4;"></pre>
+                            <div style="flex: 1; overflow-y: auto;">
+                                <pre id="status-container" style="color: #fff; padding: 12px; font-family: 'SFMono-Regular', Consolas, monospace; font-size: 12px; margin: 0; line-height: 1.4;"></pre>
+                            </div>
                         </div>
                     </div>
                 </div>
