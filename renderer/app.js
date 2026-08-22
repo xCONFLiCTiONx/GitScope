@@ -297,6 +297,10 @@ const elements = {
     get subtreeMappingList() { return document.getElementById('subtree-mapping-list'); },
     get addSubtreeBtn() { return document.getElementById('add-subtree-mapping-btn'); },
     get subtreePushAllBtn() { return document.getElementById('subtree-push-all-btn'); },
+    get subtreeGitHubFetchBtn() { return document.getElementById('subtree-github-fetch-btn'); },
+    get subtreeGitHubModal() { return document.getElementById('subtree-github-modal'); },
+    get subtreeGitHubList() { return document.getElementById('subtree-github-list'); },
+    get subtreeGitHubCancel() { return document.getElementById('subtree-github-cancel'); },
     get subtreeModalClose() { return document.getElementById('subtree-modal-close'); },
     get repoSubtreeBtn() { return document.getElementById('repo-subtree-btn'); },
     get unbornFoldersModal() { return document.getElementById('unborn-folders-modal'); },
@@ -403,7 +407,8 @@ window.onload = async () => {
         repositories = (savedRepos || []).map(r => ({
             name: r.name || 'Unnamed Project',
             path: String(r.path || '').replace(/\\/g, '/'),
-            expanded: false
+            expanded: false,
+            subtrees: r.subtrees || []
         }));
 
         sortRepositories();
@@ -1099,6 +1104,10 @@ async function quickGitAction(action) {
         const res = await window.electronAPI[`git${action.charAt(0).toUpperCase() + action.slice(1)}`](activeRepo.path);
         logToConsole(res.output, res.success ? 'success' : 'error');
         if (!res.success) showError(res.output, `Git ${action.toUpperCase()} Failed`);
+
+        if (action === 'pull' || action === 'fetch') {
+            await smartRefreshTree();
+        }
         await refreshActiveRepoUI();
     } catch (e) {
         logToConsole(e.message, 'error');
@@ -1794,6 +1803,69 @@ async function handleOpenRemote() {
     }
 }
 
+async function getRepoSubtreeMappings(repoPath) {
+    const repo = repositories.find(r => r.path === repoPath);
+    // Prioritize internal memory if it has data
+    if (repo && repo.subtrees && repo.subtrees.length > 0) return [...repo.subtrees];
+
+    try {
+        const mappingPath = `${repoPath}/.gitsubtree.json`;
+        const exists = await window.electronAPI.pathExists(mappingPath);
+        if (exists) {
+            const content = await window.electronAPI.readFile(mappingPath);
+            const parsed = JSON.parse(content);
+            if (repo) repo.subtrees = parsed;
+            return parsed;
+        }
+    } catch (e) {}
+    return repo ? (repo.subtrees || []) : [];
+}
+
+async function handleAddSubtreeFromTree(folderPath) {
+    // 1. Normalize and identify parent repo
+    const targetPath = folderPath.replace(/\\/g, '/');
+    const repo = repositories
+        .filter(r => targetPath.toLowerCase().startsWith(r.path.toLowerCase()))
+        .sort((a, b) => b.path.length - a.path.length)[0];
+
+    if (!repo) {
+        logToConsole(`Error: Could not identify parent repository for selection.`, 'error');
+        return;
+    }
+
+    activeRepo = repo;
+
+    // 2. Calculate relative path (prefix)
+    let relPath = targetPath.substring(repo.path.length).replace(/^[\\\/]/, '');
+    if (!relPath) {
+        showAlert('You cannot map the repository root as a subtree prefix. Please select a subfolder.', 'Invalid Selection');
+        return;
+    }
+
+    // 3. Load existing and add new mapping
+    currentSubtreeMappings = await getRepoSubtreeMappings(repo.path);
+    if (!currentSubtreeMappings.some(m => m.prefix === relPath)) {
+        currentSubtreeMappings.push({ prefix: relPath, url: '', branch: 'main', force: false });
+        await saveSubtreeMappings();
+        logToConsole(`Added subtree mapping for folder: ${relPath}`, 'success');
+    } else {
+        logToConsole(`Folder "${relPath}" is already mapped. Opening manager...`, 'info');
+    }
+
+    // 4. Trigger UI display
+    await showSubtreeHubModal();
+}
+
+async function handlePushSubtreeFromTree(folderPath) {
+    const repo = repositories.find(r => folderPath.toLowerCase().startsWith(r.path.toLowerCase()));
+    if (!repo) return;
+    activeRepo = repo;
+    const relPath = folderPath.substring(repo.path.length).replace(/^[\\\/]/, '').replace(/\\/g, '/');
+    const mappings = await getRepoSubtreeMappings(repo.path);
+    const mapping = mappings.find(m => m.prefix === relPath);
+    if (mapping) handleSubtreePush(mapping);
+}
+
 // --- SUBTREE HUB HUB LOGIC ---
 
 let currentSubtreeMappings = [];
@@ -1804,14 +1876,7 @@ async function showSubtreeHubModal() {
     elements.subtreePushAllBtn.disabled = true;
 
     try {
-        const mappingPath = `${activeRepo.path}/.gitsubtree.json`;
-        const exists = await window.electronAPI.pathExists(mappingPath);
-        if (exists) {
-            const content = await window.electronAPI.readFile(mappingPath);
-            currentSubtreeMappings = JSON.parse(content);
-        } else {
-            currentSubtreeMappings = [];
-        }
+        currentSubtreeMappings = await getRepoSubtreeMappings(activeRepo.path);
     } catch (e) {
         currentSubtreeMappings = [];
         console.error('Error loading subtree mappings:', e);
@@ -1819,7 +1884,51 @@ async function showSubtreeHubModal() {
 
     renderSubtreeMappings();
     elements.subtreePushAllBtn.disabled = currentSubtreeMappings.length === 0;
+
+    elements.subtreeGitHubFetchBtn.onclick = () => showSubtreeGitHubModal();
 }
+
+async function showSubtreeGitHubModal(targetIndex = -1) {
+    if (!settings.githubToken) return showAlert('GitHub token is required to fetch repositories.', 'Auth Error');
+    elements.subtreeGitHubModal.style.display = 'flex';
+    const list = elements.subtreeGitHubList;
+    list.innerHTML = '<div style="padding:20px; color:var(--text-muted); text-align:center;">Loading GitHub repositories...</div>';
+
+    try {
+        const res = await window.electronAPI.fetchGitHubRepos(settings.githubToken);
+        if (res.expiration) updateTokenExpirationUI(res.expiration);
+
+        const repos = res.repos || [];
+        if (repos.length === 0) {
+            list.innerHTML = '<div style="padding:20px; color:var(--text-muted); text-align:center;">No repositories found on your account.</div>';
+        } else {
+            list.innerHTML = repos.map(r => `
+                <div class="gh-repo-item" style="padding:10px 14px; border-bottom:1px solid var(--border-color); cursor:pointer; transition:background 0.2s;" data-url="${r.clone_url}">
+                    <div style="font-weight:600; font-size:13px; color:#fff;">${r.full_name}</div>
+                    <div style="font-size:11px; color:var(--text-muted); margin-top:2px;">${r.clone_url}</div>
+                </div>
+            `).join('');
+
+            list.querySelectorAll('.gh-repo-item').forEach(item => {
+                item.onclick = () => {
+                    const url = item.dataset.url;
+                    if (targetIndex >= 0) {
+                        currentSubtreeMappings[targetIndex].url = url;
+                    } else {
+                        currentSubtreeMappings.push({ prefix: '', url: url, branch: 'main' });
+                    }
+                    elements.subtreeGitHubModal.style.display = 'none';
+                    saveSubtreeMappings();
+                    renderSubtreeMappings();
+                };
+            });
+        }
+    } catch (e) {
+        list.innerHTML = `<div style="padding:20px; color:var(--accent-red); text-align:center;">API Error: ${e.message}</div>`;
+    }
+}
+
+elements.subtreeGitHubCancel.onclick = () => elements.subtreeGitHubModal.style.display = 'none';
 
 function renderSubtreeMappings() {
     const list = elements.subtreeMappingList;
@@ -1836,7 +1945,10 @@ function renderSubtreeMappings() {
             </div>
             <div style="flex:2; min-width: 0;">
                 <label style="font-size:9px; font-weight:800; color:var(--text-muted); text-transform:uppercase; display:block; margin-bottom:4px;">Remote Repository URL</label>
-                <input type="text" class="settings-input mapping-url" data-index="${index}" value="${m.url}" style="padding:4px 8px; height:28px; width: 100%;">
+                <div style="display:flex; gap:6px;">
+                    <input type="text" class="settings-input mapping-url" data-index="${index}" value="${m.url}" style="padding:4px 8px; height:28px; flex:1;">
+                    <button class="button gh-select-btn" data-index="${index}" title="Select from GitHub" style="height:28px; width:28px; padding:0; border-color:var(--accent-blue);">G</button>
+                </div>
             </div>
             <div style="width: 80px; flex-shrink: 0;">
                 <label style="font-size:9px; font-weight:800; color:var(--text-muted); text-transform:uppercase; display:block; margin-bottom:4px;">Branch</label>
@@ -1864,6 +1976,11 @@ function renderSubtreeMappings() {
         input.onchange = (e) => {
             currentSubtreeMappings[parseInt(e.target.dataset.index)].url = e.target.value.trim();
             saveSubtreeMappings();
+        };
+    });
+    list.querySelectorAll('.gh-select-btn').forEach(btn => {
+        btn.onclick = (e) => {
+            showSubtreeGitHubModal(parseInt(btn.dataset.index));
         };
     });
     list.querySelectorAll('.mapping-branch').forEach(input => {
@@ -1900,11 +2017,16 @@ function renderSubtreeMappings() {
 
 async function saveSubtreeMappings() {
     if (!activeRepo) return;
+    activeRepo.subtrees = currentSubtreeMappings;
+
+    // Persist to main app config
+    window.electronAPI.saveRepositories(repositories);
+
     try {
         const mappingPath = `${activeRepo.path}/.gitsubtree.json`;
         await window.electronAPI.writeFile(mappingPath, JSON.stringify(currentSubtreeMappings, null, 2));
     } catch (e) {
-        console.error('Failed to save subtree mappings:', e);
+        console.error('Failed to save subtree mappings to file:', e);
     }
 }
 
@@ -2227,11 +2349,16 @@ function createTreeNode(name, fullPath, isDirectory, depth, repo) {
 
         let isTracked = true;
         const isRepoRoot = repositories.some(r => r.path.replace(/\\/g, '/').toLowerCase() === fullPath.replace(/\\/g, '/').toLowerCase());
+        let isSubtreeMapped = false;
 
         if (!isRepoRoot && repo) {
             const relPath = fullPath.substring(repo.path.length).replace(/^[\\\/]/, '').replace(/\\/g, '/');
             try {
                 isTracked = await window.electronAPI.gitIsTracked(repo.path, relPath);
+
+                // Check if this folder is a mapped subtree
+                const mappings = await getRepoSubtreeMappings(repo.path);
+                isSubtreeMapped = mappings.some(m => m.prefix === relPath);
             } catch (err) { isTracked = false; }
         }
 
@@ -2243,7 +2370,8 @@ function createTreeNode(name, fullPath, isDirectory, depth, repo) {
             isTracked,
             hideIgnoredFiles,
             isRepoRoot,
-            isDirectory
+            isDirectory,
+            isSubtreeMapped
         });
     };
     item.onclick = (e) => {
@@ -3976,6 +4104,13 @@ async function handleContextMenuCommand({ command, paths, path, repoPath }) {
     else if (command === 'rename') handleRename(targets[0]);
     else if (command === 'copy-move-bulk') showBulkOpModal(targets[0]);
     else if (command === 'smart-sync-wizard') showSmartSyncModal(targets[0]);
+    else if (command === 'manage-subtrees') {
+        const repo = repositories.find(r => targets[0].toLowerCase().startsWith(r.path.toLowerCase()));
+        if (repo) activeRepo = repo;
+        showSubtreeHubModal();
+    }
+    else if (command === 'add-subtree') handleAddSubtreeFromTree(targets[0]);
+    else if (command === 'push-subtree-direct') handlePushSubtreeFromTree(targets[0]);
     else if (command === 'apply-patch') showPatchModal(targets[0]);
     else if (command === 'see-changes') showFileDiff(targets[0]);
     else if (command === 'create-readme') handleCreateReadme(targets[0]);

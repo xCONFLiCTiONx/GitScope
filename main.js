@@ -1137,6 +1137,34 @@ ipcMain.handle('show-context-menu', (event, options) => {
         label: 'See Changes',
         click: () => event.sender.send('context-menu-command', { command: 'see-changes', path: paths[0] })
       });
+
+      const subtreeSubmenu = [
+        {
+          label: 'Manage Subtrees...',
+          click: () => event.sender.send('context-menu-command', { command: 'manage-subtrees', path: paths[0] })
+        }
+      ];
+
+      if (options.isDirectory) {
+          subtreeSubmenu.push({
+            label: 'Add as Subtree Mapping',
+            click: () => event.sender.send('context-menu-command', { command: 'add-subtree', path: paths[0] })
+          });
+
+          if (options.isSubtreeMapped) {
+              subtreeSubmenu.push({ type: 'separator' });
+              subtreeSubmenu.push({
+                label: 'Push Subtree Now',
+                click: () => event.sender.send('context-menu-command', { command: 'push-subtree-direct', path: paths[0] })
+              });
+          }
+      }
+
+      template.push({
+        label: 'Subtrees',
+        submenu: subtreeSubmenu
+      });
+
       template.push({
         label: 'Rename',
         click: () => event.sender.send('context-menu-command', { command: 'rename', path: paths[0] })
@@ -1151,6 +1179,11 @@ ipcMain.handle('show-context-menu', (event, options) => {
     template.push({
       label: 'Git & Maintenance',
       submenu: [
+        {
+          label: 'Manage Subtrees...',
+          click: () => event.sender.send('context-menu-command', { command: 'manage-subtrees', path: paths[0] })
+        },
+        { type: 'separator' },
         {
           label: 'Create README.md',
           click: () => event.sender.send('context-menu-command', { command: 'create-readme', path: paths[0] })

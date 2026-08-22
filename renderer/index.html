@@ -1677,16 +1677,6 @@
         </div>
     </div>
 
-    <div id="confirm-modal" class="modal">
-        <div class="modal-content">
-            <h3 id="confirm-title">Confirm Action</h3>
-            <p id="confirm-message" style="white-space: pre-wrap;"></p>
-            <div style="text-align: right; margin-top: 20px; display: flex; justify-content: flex-end; gap: 8px;">
-                <button id="confirm-cancel" class="button">Cancel</button>
-                <button id="confirm-ok" class="button button-primary">OK</button>
-            </div>
-        </div>
-    </div>
 
     <!-- Stash Modal -->
     <div id="stash-modal" class="modal">
@@ -1790,10 +1780,13 @@
 
     <!-- Subtree Hub Modal -->
     <div id="subtree-hub-modal" class="modal">
-        <div class="modal-content" style="width: 600px; max-width: 90vw;">
+        <div class="modal-content" style="width: 700px; max-width: 95vw;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
                 <h3>Subtree Hub Manager</h3>
-                <button id="subtree-push-all-btn" class="button button-primary">Push All Subtrees</button>
+                <div style="display: flex; gap: 8px;">
+                    <button id="subtree-github-fetch-btn" class="button" title="Import repository URLs from your GitHub account">Fetch from GitHub</button>
+                    <button id="subtree-push-all-btn" class="button button-primary">Push All Subtrees</button>
+                </div>
             </div>
             <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 16px;">Map subfolders in this Hub project to their own individual remote repositories.</p>
 
@@ -1806,6 +1799,33 @@
 
             <div style="text-align: right; margin-top: 20px; display: flex; justify-content: flex-end; gap: 8px;">
                 <button id="subtree-modal-close" class="button">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Subtree GitHub Selection Modal (Nested or separate) -->
+    <div id="subtree-github-modal" class="modal" style="z-index: 1100;">
+        <div class="modal-content" style="width: 500px;">
+            <h3>Select GitHub Repository</h3>
+            <p style="font-size: 13px; color: var(--text-muted);">Choose a repository to map to the current subtree.</p>
+
+            <div id="subtree-github-list" style="margin: 16px 0; max-height: 300px; overflow-y: auto; border: 1px solid var(--border-color); border-radius: 6px; background: var(--bg-sidebar);">
+                <div style="padding: 20px; color: var(--text-muted); text-align: center;">Loading repositories...</div>
+            </div>
+
+            <div style="text-align: right; display: flex; justify-content: flex-end; gap: 8px;">
+                <button id="subtree-github-cancel" class="button">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="confirm-modal" class="modal" style="z-index: 9999;">
+        <div class="modal-content" style="box-shadow: 0 0 30px rgba(0,0,0,0.5); border-color: var(--accent-blue);">
+            <h3 id="confirm-title">Confirm Action</h3>
+            <p id="confirm-message" style="white-space: pre-wrap;"></p>
+            <div style="text-align: right; margin-top: 20px; display: flex; justify-content: flex-end; gap: 8px;">
+                <button id="confirm-cancel" class="button">Cancel</button>
+                <button id="confirm-ok" class="button button-primary">OK</button>
             </div>
         </div>
     </div>
