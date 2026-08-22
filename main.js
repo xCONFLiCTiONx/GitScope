@@ -344,6 +344,15 @@ ipcMain.handle('read-file', async (event, filePath) => {
   }
 });
 
+ipcMain.handle('create-directory', async (event, path) => {
+  try {
+    await fs.ensureDir(path);
+    return { success: true };
+  } catch (e) {
+    return { success: false, error: e.message };
+  }
+});
+
 ipcMain.handle('read-file-base64', async (event, filePath) => {
   try {
     const buffer = await fs.readFile(filePath);
@@ -511,6 +520,10 @@ ipcMain.handle('git-start-tracking', async (event, path, filePath) => {
 
 ipcMain.handle('git-is-tracked', async (event, path, filePath) => {
   return await gitActions.isTracked(path, filePath);
+});
+
+ipcMain.handle('git-subtree-push', async (event, path, prefix, remoteUrl, branch, force) => {
+  return await gitActions.subtreePush(path, prefix, remoteUrl, branch, force);
 });
 
 ipcMain.handle('git-get-branches', async (event, path) => {

@@ -293,6 +293,12 @@ const elements = {
     get bulkRestoreSelectAll() { return document.getElementById('bulk-restore-select-all'); },
     get bulkRestoreConfirm() { return document.getElementById('bulk-restore-confirm'); },
     get bulkRestoreCancel() { return document.getElementById('bulk-restore-cancel'); },
+    get subtreeHubModal() { return document.getElementById('subtree-hub-modal'); },
+    get subtreeMappingList() { return document.getElementById('subtree-mapping-list'); },
+    get addSubtreeBtn() { return document.getElementById('add-subtree-mapping-btn'); },
+    get subtreePushAllBtn() { return document.getElementById('subtree-push-all-btn'); },
+    get subtreeModalClose() { return document.getElementById('subtree-modal-close'); },
+    get repoSubtreeBtn() { return document.getElementById('repo-subtree-btn'); },
     get unbornFoldersModal() { return document.getElementById('unborn-folders-modal'); },
     get unbornFoldersList() { return document.getElementById('unborn-folders-list'); },
     get unbornFoldersClose() { return document.getElementById('unborn-folders-close'); },
@@ -754,10 +760,7 @@ function initEventListeners() {
     if (elements.stashCloseBtn) elements.stashCloseBtn.onclick = () => elements.stashModal.style.display = 'none';
     if (elements.statusBackBtn) elements.statusBackBtn.onclick = () => {
         elements.statusView.style.display = 'none';
-        elements.repoRightPanel.style.display = 'none';
-        elements.repoRightPanel.style.flex = '0';
-        elements.repoLeftPanel.style.flex = '1';
-        elements.repoLeftPanel.style.height = 'auto';
+        elements.messageView.style.display = 'flex';
     };
     if (elements.sidebarCollapse) elements.sidebarCollapse.onclick = () => {
         const containers = elements.repoTree.querySelectorAll('.children-container');
@@ -794,6 +797,7 @@ function initEventListeners() {
     if (elements.removeRemoteBtn) elements.removeRemoteBtn.onclick = () => handleRemoveRemote();
     if (elements.openRemoteBtn) elements.openRemoteBtn.onclick = () => handleOpenRemote();
     if (elements.publishGitHubBtn) elements.publishGitHubBtn.onclick = () => handlePublishGitHub();
+    if (elements.repoSubtreeBtn) elements.repoSubtreeBtn.onclick = () => showSubtreeHubModal();
     if (elements.repoRefreshBtn) elements.repoRefreshBtn.onclick = () => { if (activeRepo) selectRepo(activeRepo); };
 
     // Editor Actions
@@ -820,10 +824,7 @@ function initEventListeners() {
     };
     if (elements.diffBackBtn) elements.diffBackBtn.onclick = () => {
         elements.diffView.style.display = 'none';
-        elements.repoRightPanel.style.display = 'none';
-        elements.repoRightPanel.style.flex = '0';
-        elements.repoLeftPanel.style.flex = '1';
-        elements.repoLeftPanel.style.height = 'auto';
+        elements.messageView.style.display = 'flex';
         document.querySelectorAll('.change-item').forEach(el => el.classList.remove('active'));
     };
 
@@ -1793,6 +1794,186 @@ async function handleOpenRemote() {
     }
 }
 
+// --- SUBTREE HUB HUB LOGIC ---
+
+let currentSubtreeMappings = [];
+
+async function showSubtreeHubModal() {
+    if (!activeRepo) return;
+    elements.subtreeHubModal.style.display = 'flex';
+    elements.subtreePushAllBtn.disabled = true;
+
+    try {
+        const mappingPath = `${activeRepo.path}/.gitsubtree.json`;
+        const exists = await window.electronAPI.pathExists(mappingPath);
+        if (exists) {
+            const content = await window.electronAPI.readFile(mappingPath);
+            currentSubtreeMappings = JSON.parse(content);
+        } else {
+            currentSubtreeMappings = [];
+        }
+    } catch (e) {
+        currentSubtreeMappings = [];
+        console.error('Error loading subtree mappings:', e);
+    }
+
+    renderSubtreeMappings();
+    elements.subtreePushAllBtn.disabled = currentSubtreeMappings.length === 0;
+}
+
+function renderSubtreeMappings() {
+    const list = elements.subtreeMappingList;
+    if (currentSubtreeMappings.length === 0) {
+        list.innerHTML = '<div style="color:var(--text-muted); font-size:12px; text-align:center; padding:20px;">No subtree mappings defined yet.</div>';
+        return;
+    }
+
+    list.innerHTML = currentSubtreeMappings.map((m, index) => `
+        <div class="subtree-mapping-row" style="display:flex; gap:12px; align-items:flex-end; background:rgba(255,255,255,0.02); padding:12px; border-radius:6px; border:1px solid var(--border-color); min-width: 0;">
+            <div style="flex:1; min-width: 0;">
+                <label style="font-size:9px; font-weight:800; color:var(--text-muted); text-transform:uppercase; display:block; margin-bottom:4px;">Prefix (Folder)</label>
+                <input type="text" class="settings-input mapping-prefix" data-index="${index}" value="${m.prefix}" style="padding:4px 8px; height:28px; width: 100%;">
+            </div>
+            <div style="flex:2; min-width: 0;">
+                <label style="font-size:9px; font-weight:800; color:var(--text-muted); text-transform:uppercase; display:block; margin-bottom:4px;">Remote Repository URL</label>
+                <input type="text" class="settings-input mapping-url" data-index="${index}" value="${m.url}" style="padding:4px 8px; height:28px; width: 100%;">
+            </div>
+            <div style="width: 80px; flex-shrink: 0;">
+                <label style="font-size:9px; font-weight:800; color:var(--text-muted); text-transform:uppercase; display:block; margin-bottom:4px;">Branch</label>
+                <input type="text" class="settings-input mapping-branch" data-index="${index}" value="${m.branch || 'main'}" style="padding:4px 8px; height:28px; width: 100%;">
+            </div>
+            <div style="flex-shrink: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; height: 32px;">
+                <label style="font-size: 8px; font-weight: 800; color: var(--accent-red); text-transform: uppercase;">Force</label>
+                <input type="checkbox" class="mapping-force" data-index="${index}" ${m.force ? 'checked' : ''} style="width: 14px; height: 14px; cursor: pointer;">
+            </div>
+            <div style="display: flex; gap: 6px; flex-shrink: 0;">
+                <button class="button button-danger remove-mapping-btn" data-index="${index}" style="height:28px; width:28px; padding:0;" title="Remove Mapping">×</button>
+                <button class="button button-primary push-subtree-btn" data-index="${index}" style="height:28px; width:28px; padding:0;" title="Push this subtree only">↑</button>
+            </div>
+        </div>
+    `).join('');
+
+    // Attach listeners
+    list.querySelectorAll('.mapping-prefix').forEach(input => {
+        input.onchange = (e) => {
+            currentSubtreeMappings[parseInt(e.target.dataset.index)].prefix = e.target.value.trim();
+            saveSubtreeMappings();
+        };
+    });
+    list.querySelectorAll('.mapping-url').forEach(input => {
+        input.onchange = (e) => {
+            currentSubtreeMappings[parseInt(e.target.dataset.index)].url = e.target.value.trim();
+            saveSubtreeMappings();
+        };
+    });
+    list.querySelectorAll('.mapping-branch').forEach(input => {
+        input.onchange = (e) => {
+            currentSubtreeMappings[parseInt(e.target.dataset.index)].branch = e.target.value.trim();
+            saveSubtreeMappings();
+        };
+    });
+    list.querySelectorAll('.mapping-force').forEach(input => {
+        input.onchange = (e) => {
+            currentSubtreeMappings[parseInt(e.target.dataset.index)].force = e.target.checked;
+            saveSubtreeMappings();
+        };
+    });
+    list.querySelectorAll('.remove-mapping-btn').forEach(btn => {
+        btn.onclick = async (e) => {
+            const index = parseInt(e.target.dataset.index);
+            if (await showConfirm(`Remove mapping for "${currentSubtreeMappings[index].prefix}"?`, "Confirm Delete")) {
+                currentSubtreeMappings.splice(index, 1);
+                saveSubtreeMappings();
+                renderSubtreeMappings();
+                elements.subtreePushAllBtn.disabled = currentSubtreeMappings.length === 0;
+            }
+        };
+    });
+    list.querySelectorAll('.push-subtree-btn').forEach(btn => {
+        btn.onclick = (e) => {
+            const index = parseInt(e.target.dataset.index);
+            elements.subtreeHubModal.style.display = 'none';
+            handleSubtreePush(currentSubtreeMappings[index]);
+        };
+    });
+}
+
+async function saveSubtreeMappings() {
+    if (!activeRepo) return;
+    try {
+        const mappingPath = `${activeRepo.path}/.gitsubtree.json`;
+        await window.electronAPI.writeFile(mappingPath, JSON.stringify(currentSubtreeMappings, null, 2));
+    } catch (e) {
+        console.error('Failed to save subtree mappings:', e);
+    }
+}
+
+elements.addSubtreeBtn.onclick = () => {
+    currentSubtreeMappings.push({ prefix: '', url: '', branch: 'main' });
+    renderSubtreeMappings();
+    elements.subtreePushAllBtn.disabled = false;
+};
+
+elements.subtreePushAllBtn.onclick = async () => {
+    if (currentSubtreeMappings.length === 0) return;
+    if (await showConfirm(`Push all ${currentSubtreeMappings.length} subtrees to their remotes?`, "Confirm Bulk Push")) {
+        elements.subtreeHubModal.style.display = 'none';
+        setTaskState(true);
+        logToConsole(`🚀 Starting Bulk Subtree Push sequence...`, 'info');
+
+        let successCount = 0;
+        for (const m of currentSubtreeMappings) {
+            if (!m.prefix || !m.url) continue;
+            const res = await handleSubtreePush(m, true);
+            if (res) successCount++;
+        }
+
+        logToConsole(`Bulk sequence complete. ${successCount}/${currentSubtreeMappings.length} successful.`, successCount === currentSubtreeMappings.length ? 'success' : 'warn');
+        setTaskState(false);
+    }
+};
+
+elements.subtreeModalClose.onclick = () => {
+    elements.subtreeHubModal.style.display = 'none';
+};
+
+async function handleSubtreePush(mapping, isBulk = false) {
+    if (!activeRepo) return false;
+    if (!mapping.prefix || !mapping.url) {
+        if (!isBulk) showAlert('Please specify both folder prefix and remote URL.', 'Missing Info');
+        return false;
+    }
+
+    if (!isBulk) setTaskState(true);
+    logToConsole(`Subtree PUSH: [${mapping.prefix}] -> ${mapping.url}...`, 'info');
+
+    try {
+        // Command: git subtree push --prefix=<prefix> <url> <branch>
+        const res = await window.electronAPI.gitSubtreePush(
+            activeRepo.path,
+            mapping.prefix,
+            mapping.url,
+            mapping.branch || 'main',
+            !!mapping.force
+        );
+
+        if (res.success) {
+            logToConsole(`✅ Subtree [${mapping.prefix}] push successful!`, 'success');
+            if (!isBulk) showAlert(`Subtree [${mapping.prefix}] successfully pushed to remote.`, 'Success');
+            return true;
+        } else {
+            logToConsole(`❌ Subtree [${mapping.prefix}] push failed: ${res.output}`, 'error');
+            if (!isBulk) showError(res.output, `Push Failed: ${mapping.prefix}`);
+            return false;
+        }
+    } catch (e) {
+        logToConsole(`System Error during subtree push: ${e.message}`, 'error');
+        return false;
+    } finally {
+        if (!isBulk) setTaskState(false);
+    }
+}
+
 function normalizeGitUrl(url) {
     if (!url) return '';
     let normalized = url.trim();
@@ -2100,7 +2281,14 @@ function createTreeNode(name, fullPath, isDirectory, depth, repo) {
             handleFileDrop(e.dataTransfer.getData('text/plain'), fullPath, container, depth, e.dataTransfer.getData('source-container-id'));
         };
     } else {
-        item.draggable = true; item.ondragstart = (e) => { e.dataTransfer.setData('text/plain', fullPath); e.dataTransfer.setData('source-container-id', container.id); };
+        item.draggable = true;
+        item.ondragstart = (e) => {
+            // If the dragged item is part of the selection, drag all selected items
+            // Otherwise, just drag the single item
+            const paths = selectedNodes.has(fullPath) ? Array.from(selectedNodes) : [fullPath];
+            e.dataTransfer.setData('text/plain', JSON.stringify(paths));
+            e.dataTransfer.setData('source-container-id', container.id);
+        };
     }
     container.appendChild(item); return container;
 }
@@ -3506,11 +3694,10 @@ async function selectRepo(repo, fromDashboard = false) {
     setActiveNavItem(null);
     elements.repoView.style.display = 'flex';
 
-    // Default Layout: Staging area full height, Diff panel hidden
+    // Default Layout: Commit message visible, Diffs hidden
     elements.messageView.style.display = 'flex';
-    elements.repoLeftPanel.style.flex = '1';
-    elements.repoRightPanel.style.display = 'none';
-    elements.repoRightPanel.style.flex = '0';
+    elements.diffView.style.display = 'none';
+    elements.statusView.style.display = 'none';
 
     document.getElementById('active-repo-name').textContent = repo.name;
 
@@ -4200,12 +4387,8 @@ function renderChangesList(repo, detailedChanges) {
 async function showGitStatus() {
     if (!activeRepo) return;
 
-    // Show Panel and shrink Staging Area
-    elements.repoLeftPanel.style.flex = 'none';
-    elements.repoLeftPanel.style.height = '220px';
-    elements.repoRightPanel.style.display = 'block';
-    elements.repoRightPanel.style.flex = '1';
-
+    // Switch right panel to Status View
+    elements.messageView.style.display = 'none';
     elements.diffView.style.display = 'none';
     elements.statusView.style.display = 'flex';
     elements.statusContainer.textContent = 'Fetching status...';
@@ -4331,14 +4514,10 @@ async function showFileDiff(filePath) {
     elements.editorView.style.display = 'none';
     elements.repoView.style.display = 'flex';
 
-    // Show Diff Panel and shrink Staging Area
-    elements.repoLeftPanel.style.flex = 'none';
-    elements.repoLeftPanel.style.height = '220px';
-    elements.repoRightPanel.style.display = 'block';
-    elements.repoRightPanel.style.flex = '1';
-
-    elements.diffView.style.display = 'flex';
+    // Switch right panel to Diff View
+    elements.messageView.style.display = 'none';
     elements.statusView.style.display = 'none';
+    elements.diffView.style.display = 'flex';
     elements.diffFileName.textContent = filePath.split(/[\\\/]/).pop();
 
     try {
@@ -4391,20 +4570,33 @@ async function handleNewItem(type, parentPath) {
         const name = elements.newItemName.value.trim();
         if (!name) return;
         const full = `${targetDir}/${name}`.replace(/\\/g, '/');
+
+        // Ensure parent is in expandedNodes so it stays open after refresh
+        expandedNodes.add(targetDir.replace(/\\/g, '/').toLowerCase());
+
         try {
-            if (type === 'file') { await window.electronAPI.writeFile(full, ''); openFileInEditor(full); }
-            else await window.electronAPI.terminalInput(`mkdir "${full}"\r`);
-            elements.newItemModal.style.display = 'none';
-            await renderTree(elements.repoFilter.value);
-            // Reveal and scroll logic
-            const repo = repositories.find(r => full.toLowerCase().startsWith(r.path.toLowerCase()));
-            if (repo) {
-                const rootNode = Array.from(document.querySelectorAll('.repo-root')).find(n => n.dataset.path.toLowerCase() === repo.path.toLowerCase());
-                // We'd need a more complex recursive reveal here, but the refresh will show it
+            setTaskState(true);
+            if (type === 'file') {
+                await window.electronAPI.writeFile(full, '');
+                elements.newItemModal.style.display = 'none';
+                await renderTree(elements.repoFilter.value);
+                openFileInEditor(full);
+            } else {
+                const res = await window.electronAPI.createDirectory(full);
+                if (res.success) {
+                    elements.newItemModal.style.display = 'none';
+                    // Force the new folder itself to be expanded too so user sees it empty
+                    expandedNodes.add(full.toLowerCase());
+                    await renderTree(elements.repoFilter.value);
+                } else {
+                    showError(res.error, 'Folder Creation Failed');
+                }
             }
         } catch (e) {
             logToConsole(e.message, 'error');
             showError(e.message, 'System Error');
+        } finally {
+            setTaskState(false);
         }
     };
 
@@ -4935,13 +5127,60 @@ async function showPatchModal(sourcePath) {
     modal.style.display = 'flex';
 }
 
-async function handleFileDrop(srcPath, destDir, destContainer, depth, sourceId) {
-    const modal = document.getElementById('drop-action-modal'); modal.style.display = 'flex';
+async function handleFileDrop(data, destDir, destContainer, depth, sourceId) {
+    let srcPaths = [];
+    try {
+        srcPaths = JSON.parse(data);
+    } catch (e) {
+        srcPaths = [data]; // Fallback for single path
+    }
+
+    if (!Array.isArray(srcPaths)) srcPaths = [srcPaths];
+
+    const modal = document.getElementById('drop-action-modal');
+    modal.style.display = 'flex';
+
     const perform = async (type) => {
-        modal.style.display = 'none'; const fileName = srcPath.split(/[\\\/]/).pop(); const destPath = `${destDir}/${fileName}`; if (srcPath === destPath) return;
-        try { const res = type === 'move' ? await window.electronAPI.moveFile(srcPath, destPath) : await window.electronAPI.copyFile(srcPath, destPath); if (res.success) renderTree(); else showError(res.error, `${type.charAt(0).toUpperCase() + type.slice(1)} Failed`); } catch (e) { showError(e.message, 'System Error'); }
+        modal.style.display = 'none';
+        setTaskState(true);
+
+        for (const srcPath of srcPaths) {
+            const fileName = srcPath.split(/[\\\/]/).pop();
+            const destPath = `${destDir}/${fileName}`;
+            if (srcPath === destPath) continue;
+
+            try {
+                let res = type === 'move' ?
+                    await window.electronAPI.moveFile(srcPath, destPath) :
+                    await window.electronAPI.copyFile(srcPath, destPath);
+
+                if (!res.success && res.error === 'exists') {
+                    if (await showConfirm(`"${fileName}" already exists. Overwrite?`, "File Conflict")) {
+                        res = type === 'move' ?
+                            await window.electronAPI.moveFileForce(srcPath, destPath) :
+                            await window.electronAPI.copyFileForce(srcPath, destPath);
+                    } else {
+                        continue; // Skip this file
+                    }
+                }
+
+                if (!res.success) {
+                    showError(res.error || 'Unknown Error', `${type.charAt(0).toUpperCase() + type.slice(1)} Failed`);
+                    break; // Stop on error
+                }
+            } catch (e) {
+                showError(e.message, 'System Error');
+                break;
+            }
+        }
+
+        setTaskState(false);
+        renderTree();
     };
-    document.getElementById('drop-move').onclick = () => perform('move'); document.getElementById('drop-copy').onclick = () => perform('copy'); document.getElementById('drop-cancel').onclick = () => modal.style.display = 'none';
+
+    document.getElementById('drop-move').onclick = () => perform('move');
+    document.getElementById('drop-copy').onclick = () => perform('copy');
+    document.getElementById('drop-cancel').onclick = () => modal.style.display = 'none';
 }
 
 async function toggleMarkdownPreview() {

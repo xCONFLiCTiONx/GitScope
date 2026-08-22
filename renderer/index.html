@@ -1118,62 +1118,63 @@
                             <button id="repo-stash-btn" class="button" style="height: 24px; font-size: 10px;" title="Manage Git Stashes">Stash</button>
                             <button id="revert-changes-btn-top" class="button" style="height: 24px; font-size: 10px;" title="Restore to past commit">Revert</button>
                             <button id="repo-status-btn" class="button" style="height: 24px; font-size: 10px;" title="View Full Git Status">Status</button>
+                            <button id="repo-subtree-btn" class="button" style="height: 24px; font-size: 10px;" title="Manage Subtree Hub Mappings">Subtrees</button>
                         </div>
                         <button id="publish-github-btn" class="button button-blue" style="height: 24px; font-size: 10px; margin-left: 4px;" title="Publish to GitHub">Publish</button>
                     </div>
                 </div>
 
-                <div id="repo-main-layout" style="flex-direction: column; flex: 1; min-height: 0;">
-                    <!-- Top Row: Staging (Left) + Commit (Right) -->
-                    <div id="repo-left-panel" style="width: 100%; flex: 1; display: flex; flex-direction: row; gap: 12px; transition: flex 0.2s ease;">
-                        <div style="display: flex; flex-direction: column; flex: 1; gap: 12px; min-width: 0;">
-                            <div class="changes-section" id="staged-section" style="flex: 1;">
-                                <div class="changes-header">
-                                    <span>STAGED</span>
-                                    <button id="unstage-all-btn" class="button" style="font-size: 9px; height: 18px; padding: 0 6px;">Unstage All</button>
-                                </div>
-                                <div class="changes-list" id="staged-list"></div>
+                <div id="repo-main-layout" style="flex-direction: row; flex: 1; min-height: 0; gap: 12px;">
+                    <!-- Left Column: Staging Area -->
+                    <div id="repo-left-panel" style="flex: 1.5; display: flex; flex-direction: column; gap: 12px; min-width: 0;">
+                        <div class="changes-section" id="staged-section" style="flex: 1;">
+                            <div class="changes-header">
+                                <span>STAGED</span>
+                                <button id="unstage-all-btn" class="button" style="font-size: 9px; height: 18px; padding: 0 6px;">Unstage All</button>
                             </div>
-
-                            <div class="changes-section" id="unstaged-section" style="flex: 1;">
-                                <div class="changes-header">
-                                    <span>UNSTAGED</span>
-                                    <button id="stage-all-btn" class="button" style="font-size: 9px; height: 18px; padding: 0 6px;">Stage All</button>
-                                </div>
-                                <div class="changes-list" id="unstaged-list"></div>
-                            </div>
+                            <div class="changes-list" id="staged-list"></div>
                         </div>
 
-                        <!-- Commit Box (Right side) -->
-                        <div id="message-view" style="width: 400px; height: 100%; padding: 12px; display: flex; background: var(--bg-sidebar); border: 1px solid var(--border-color); border-radius: 8px; flex-shrink: 0;">
+                        <div class="changes-section" id="unstaged-section" style="flex: 1;">
+                            <div class="changes-header">
+                                <span>UNSTAGED</span>
+                                <button id="stage-all-btn" class="button" style="font-size: 9px; height: 18px; padding: 0 6px;">Stage All</button>
+                            </div>
+                            <div class="changes-list" id="unstaged-list"></div>
+                        </div>
+                    </div>
+
+                    <!-- Right Column: Context Panel (Commit Message / Diff / Status) -->
+                    <div id="repo-right-panel" style="flex: 1; min-width: 400px; display: flex; flex-direction: column;">
+                        <!-- Commit Box (Default view) -->
+                        <div id="message-view" style="height: 100%; padding: 12px; display: flex; flex-direction: column; background: var(--bg-sidebar); border: 1px solid var(--border-color); border-radius: 8px;">
                             <div class="message-section-header" style="margin-bottom: 8px;">
                                 <span>COMMIT MESSAGE</span>
                                 <button id="magic-commit-btn" class="button" style="height: 20px; border: none; font-size: 14px; color: #FFFFFF; background: transparent;" title="Suggestion">&#10022;</button>
                             </div>
-                            <textarea id="commit-msg" style="flex: 1; min-height: 0; padding: 10px; font-size: 12px;" placeholder="Summarize your changes..."></textarea>
-                            <div class="message-actions-row" style="margin-top: 10px; gap: 6px;">
-                                <button id="commit-btn" class="button button-primary commit-main-btn" style="flex: 1; height: 32px;">Commit</button>
-                                <button id="commit-push-btn" class="button button-blue commit-main-btn" style="flex: 1.2; height: 32px;">Commit & Push</button>
+                            <textarea id="commit-msg" style="flex: 1; min-height: 0; padding: 14px; font-size: 13px; line-height: 1.5;" placeholder="Summarize your changes..."></textarea>
+                            <div class="message-actions-row" style="margin-top: 12px; gap: 8px;">
+                                <button id="commit-btn" class="button button-primary commit-main-btn" style="flex: 1; height: 38px;">Commit</button>
+                                <button id="commit-push-btn" class="button button-blue commit-main-btn" style="flex: 1.2; height: 38px;">Commit & Push</button>
                             </div>
                         </div>
-                    </div>
 
-                    <!-- Bottom Content (Diff/Status) - No background when empty -->
-                    <div id="repo-right-panel" style="width: 100%; flex: 0; display: none; margin-top: 12px; background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: 8px; overflow: hidden;">
-                        <div id="diff-view" style="display: none; height: 100%; flex-direction: column;">
-                            <div class="right-panel-header" style="padding: 8px 16px;">
+                        <!-- Diff Viewer -->
+                        <div id="diff-view" style="display: none; height: 100%; flex-direction: column; background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: 8px; overflow: hidden;">
+                            <div class="right-panel-header" style="padding: 10px 16px; border-bottom: 1px solid var(--border-color);">
                                 <span id="diff-file-name" class="right-panel-title" style="font-size: 12px;">file.kt</span>
-                                <div style="display: flex; gap: 8px;">
-                                    <button id="diff-edit-btn" class="button" style="height: 22px; font-size: 9px;">Edit Full File</button>
-                                    <button id="restore-file-btn" class="button button-danger" style="height: 22px; font-size: 9px;">Restore File</button>
+                                <div style="display: flex; gap: 6px;">
+                                    <button id="diff-edit-btn" class="button" style="height: 22px; font-size: 9px;">Edit</button>
+                                    <button id="restore-file-btn" class="button button-danger" style="height: 22px; font-size: 9px;">Restore</button>
                                     <button id="diff-back-btn" class="button" style="height: 22px; font-size: 9px;">Close</button>
                                 </div>
                             </div>
                             <div id="diff-container" style="flex: 1; overflow-y: auto;"></div>
                         </div>
 
-                        <div id="status-view" style="display: none; height: 100%; flex-direction: column;">
-                            <div class="right-panel-header" style="padding: 8px 16px;">
+                        <!-- Full Status View -->
+                        <div id="status-view" style="display: none; height: 100%; flex-direction: column; background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: 8px; overflow: hidden;">
+                            <div class="right-panel-header" style="padding: 10px 16px; border-bottom: 1px solid var(--border-color);">
                                 <span class="right-panel-title" style="font-size: 12px;">Repository Status</span>
                                 <button id="status-back-btn" class="button" style="height: 22px; font-size: 9px;">Close</button>
                             </div>
@@ -1783,6 +1784,28 @@
             <div style="text-align: right; margin-top: 20px; display: flex; justify-content: flex-end; gap: 8px;">
                 <button id="bulk-restore-cancel" class="button">Cancel</button>
                 <button id="bulk-restore-confirm" class="button button-danger">Restore Selected to HEAD</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Subtree Hub Modal -->
+    <div id="subtree-hub-modal" class="modal">
+        <div class="modal-content" style="width: 600px; max-width: 90vw;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                <h3>Subtree Hub Manager</h3>
+                <button id="subtree-push-all-btn" class="button button-primary">Push All Subtrees</button>
+            </div>
+            <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 16px;">Map subfolders in this Hub project to their own individual remote repositories.</p>
+
+            <div style="margin: 16px 0; max-height: 350px; overflow-y: auto; border: 1px solid var(--border-color); border-radius: 6px; padding: 12px; background: var(--bg-sidebar);">
+                <div id="subtree-mapping-list" style="display: flex; flex-direction: column; gap: 12px;">
+                    <!-- Subtree mapping rows injected via JS -->
+                </div>
+                <button id="add-subtree-mapping-btn" class="button" style="margin-top: 12px; width: 100%;">+ Add New Subtree Mapping</button>
+            </div>
+
+            <div style="text-align: right; margin-top: 20px; display: flex; justify-content: flex-end; gap: 8px;">
+                <button id="subtree-modal-close" class="button">Close</button>
             </div>
         </div>
     </div>
