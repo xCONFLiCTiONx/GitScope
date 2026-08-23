@@ -8,6 +8,9 @@ const chokidar = require('chokidar');
 const pty = require('node-pty');
 const os = require('os');
 
+// Ensure Git credential manager popups are allowed
+process.env.GIT_TERMINAL_PROMPT = '1';
+
 let mainWindow;
 let watcher;
 let ptyProcess;
@@ -232,7 +235,7 @@ function setupPTY() {
       cols: 80,
       rows: 24,
       cwd: workingDir,
-      env: process.env,
+      env: { ...process.env, GIT_TERMINAL_PROMPT: '1' },
       useConpty: true // Force official Windows ConPTY engine
     });
 
