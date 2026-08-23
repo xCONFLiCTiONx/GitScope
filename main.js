@@ -440,16 +440,16 @@ ipcMain.handle('git-stash-drop', async (event, path, index) => {
   return await gitActions.stashDrop(path, index);
 });
 
-ipcMain.handle('git-pull', async (event, path) => {
-  return await gitActions.pull(path);
+ipcMain.handle('git-pull', async (event, path, force) => {
+  return await gitActions.pull(path, force);
 });
 
 ipcMain.handle('git-fetch', async (event, path) => {
   return await gitActions.fetch(path);
 });
 
-ipcMain.handle('git-push', async (event, path) => {
-  return await gitActions.push(path);
+ipcMain.handle('git-push', async (event, path, force) => {
+  return await gitActions.push(path, force);
 });
 
 ipcMain.handle('git-publish-sequence', async (event, path, cloneUrl) => {
@@ -547,6 +547,48 @@ ipcMain.handle('git-add-remote', async (event, path, name, url) => {
 
 ipcMain.handle('git-remove-remote', async (event, path, name) => {
   return await gitActions.removeRemote(path, name);
+});
+
+ipcMain.handle('git-set-remote-url', async (event, path, name, url) => {
+    return await gitActions.setRemoteUrl(path, name, url);
+});
+
+ipcMain.handle('ensure-github-ssh-trust', async () => {
+    try {
+        const { execSync } = require('child_process');
+        const sshDir = path.join(os.homedir(), '.ssh');
+        const knownHostsPath = path.join(sshDir, 'known_hosts');
+
+        // 1. Ensure .ssh directory exists
+        await fs.ensureDir(sshDir);
+
+        // 2. Check if github.com is already in known_hosts
+        let exists = false;
+        if (await fs.pathExists(knownHostsPath)) {
+            const content = await fs.readFile(knownHostsPath, 'utf8');
+            if (content.includes('github.com')) {
+                exists = true;
+            }
+        }
+
+        if (exists) {
+            return { success: true, alreadyTrusted: true };
+        }
+
+        // 3. Scan and append GitHub keys
+        // We use -t to limit to common types and avoid grabbing everything
+        const keys = execSync('ssh-keyscan -t ed25519,rsa github.com', { encoding: 'utf8', timeout: 5000 });
+
+        if (keys && keys.trim()) {
+            await fs.appendFile(knownHostsPath, `\n${keys.trim()}\n`);
+            return { success: true, updated: true };
+        }
+
+        return { success: false, error: 'Could not retrieve keys from github.com' };
+    } catch (e) {
+        console.error('SSH Trust Error:', e);
+        return { success: false, error: e.message };
+    }
 });
 
 ipcMain.handle('git-switch-branch', async (event, path, branchName) => {

@@ -3,7 +3,7 @@ let repositories = [];
 let activeRepo = null;
 let isRendering = false;
 let hideIgnoredFiles = false;
-let settings = { shell: 'powershell.exe', rootRepoDir: '', githubToken: '', obsidianIni: '' };
+let settings = { shell: 'powershell.exe', rootRepoDir: '', githubToken: '', obsidianIni: '', gitForce: false };
 let selectedNodes = new Set();
 let expandedNodes = new Set();
 let tokenExpiration = null;
@@ -301,6 +301,21 @@ const elements = {
     get bulkPullSelectAll() { return document.getElementById('bulk-pull-select-all'); },
     get bulkPullConfirm() { return document.getElementById('bulk-pull-confirm'); },
     get bulkPullCancel() { return document.getElementById('bulk-pull-cancel'); },
+    get dashboardBulkFetchBtn() { return document.getElementById('dashboard-bulk-fetch-btn'); },
+    get bulkFetchModal() { return document.getElementById('bulk-fetch-modal'); },
+    get bulkFetchRepoList() { return document.getElementById('bulk-fetch-repo-list'); },
+    get bulkFetchSelectAll() { return document.getElementById('bulk-fetch-select-all'); },
+    get bulkFetchConfirm() { return document.getElementById('bulk-fetch-confirm'); },
+    get bulkFetchCancel() { return document.getElementById('bulk-fetch-cancel'); },
+    get openProtocolConverterBtn() { return document.getElementById('open-protocol-converter-btn'); },
+    get protocolModal() { return document.getElementById('protocol-modal'); },
+    get protocolRepoList() { return document.getElementById('protocol-repo-list'); },
+    get protocolSelectAll() { return document.getElementById('protocol-select-all'); },
+    get protocolSelectSSH() { return document.getElementById('protocol-select-ssh'); },
+    get protocolSelectHTTPS() { return document.getElementById('protocol-select-https'); },
+    get protocolConfirm() { return document.getElementById('protocol-confirm'); },
+    get protocolCancel() { return document.getElementById('protocol-cancel'); },
+    get protocolTrustGithub() { return document.getElementById('protocol-trust-github'); },
     get subtreeHubModal() { return document.getElementById('subtree-hub-modal'); },
     get subtreeMappingList() { return document.getElementById('subtree-mapping-list'); },
     get addSubtreeBtn() { return document.getElementById('add-subtree-mapping-btn'); },
@@ -311,6 +326,7 @@ const elements = {
     get subtreeGitHubCancel() { return document.getElementById('subtree-github-cancel'); },
     get subtreeModalClose() { return document.getElementById('subtree-modal-close'); },
     get repoSubtreeBtn() { return document.getElementById('repo-subtree-btn'); },
+    get gitForceToggle() { return document.getElementById('git-force-toggle'); },
     get unbornFoldersModal() { return document.getElementById('unborn-folders-modal'); },
     get unbornFoldersList() { return document.getElementById('unborn-folders-list'); },
     get unbornFoldersClose() { return document.getElementById('unborn-folders-close'); },
@@ -328,7 +344,11 @@ const elements = {
     get newRemoteName() { return document.getElementById('new-remote-name'); },
     get newRemoteUrl() { return document.getElementById('new-remote-url'); },
     get addRemoteBtn() { return document.getElementById('add-remote-btn'); },
+    get editRemoteBtn() { return document.getElementById('edit-remote-btn'); },
     get removeRemoteBtn() { return document.getElementById('remove-remote-btn'); },
+    get editRemoteModal() { return document.getElementById('edit-remote-modal'); },
+    get editRemoteName() { return document.getElementById('edit-remote-name'); },
+    get editRemoteUrl() { return document.getElementById('edit-remote-url'); },
     get gitignoreModal() { return document.getElementById('gitignore-modal'); },
     get gitignoreList() { return document.getElementById('gitignore-list'); },
     get gitignoreSearch() { return document.getElementById('gitignore-search'); },
@@ -394,6 +414,14 @@ window.onload = async () => {
         if (elements.rootRepoDirInput) elements.rootRepoDirInput.value = settings.rootRepoDir || '';
         if (elements.githubPatInput) elements.githubPatInput.value = settings.githubToken || '';
         if (elements.notifRepoChanges) elements.notifRepoChanges.checked = !!settings.notifRepoChanges;
+
+        if (elements.gitForceToggle) {
+            elements.gitForceToggle.checked = !!settings.gitForce;
+            elements.gitForceToggle.onchange = (e) => {
+                settings.gitForce = e.target.checked;
+                window.electronAPI.saveSettings(settings);
+            };
+        }
 
         // Intelligence: If Obsidian theme is empty, use the new simplified default
         if (!settings.obsidianIni) {
@@ -755,7 +783,9 @@ function initEventListeners() {
         };
     }
     if (elements.dashboardRefreshBtn) elements.dashboardRefreshBtn.onclick = () => showDashboard();
+    if (elements.dashboardBulkFetchBtn) elements.dashboardBulkFetchBtn.onclick = () => handleBulkFetch();
     if (elements.dashboardBulkPullBtn) elements.dashboardBulkPullBtn.onclick = () => handleBulkPull();
+    if (elements.openProtocolConverterBtn) elements.openProtocolConverterBtn.onclick = () => handleProtocolConverter();
     if (elements.dashboardBulkCommitBtn) elements.dashboardBulkCommitBtn.onclick = () => showBulkCommitModal();
     if (elements.dashboardBulkRestoreBtn) elements.dashboardBulkRestoreBtn.onclick = () => handleBulkRestore();
     if (elements.repoRefreshBtn) elements.repoRefreshBtn.onclick = () => { if (activeRepo) selectRepo(activeRepo); };
@@ -799,6 +829,7 @@ function initEventListeners() {
     if (elements.deleteBranchBtn) elements.deleteBranchBtn.onclick = () => handleDeleteBranch();
     if (elements.renameBranchBtn) elements.renameBranchBtn.onclick = () => handleRenameBranch();
     if (elements.addRemoteBtn) elements.addRemoteBtn.onclick = () => handleAddRemoteModal();
+    if (elements.editRemoteBtn) elements.editRemoteBtn.onclick = () => handleEditRemoteModal();
     if (elements.removeRemoteBtn) elements.removeRemoteBtn.onclick = () => handleRemoveRemote();
     if (elements.openRemoteBtn) elements.openRemoteBtn.onclick = () => handleOpenRemote();
     if (elements.publishGitHubBtn) elements.publishGitHubBtn.onclick = () => handlePublishGitHub();
@@ -1093,7 +1124,8 @@ async function quickGitAction(action) {
             // CRITICAL: Ensure terminal is in the correct directory before pushing
             window.terminal.sendCommand(`cd "${activeRepo.path}"`);
             // Use -u origin HEAD to ensure upstream is set automatically
-            window.terminal.sendCommand('git push -u origin HEAD');
+            const forceFlag = settings.gitForce ? ' --force' : '';
+            window.terminal.sendCommand(`git push -u origin HEAD${forceFlag}`);
             setTimeout(async () => {
                 await refreshActiveRepoUI();
                 setTaskState(false);
@@ -1103,7 +1135,9 @@ async function quickGitAction(action) {
     }
     logToConsole(`Git ${action.toUpperCase()} in progress...`, 'info');
     try {
-        const res = await window.electronAPI[`git${action.charAt(0).toUpperCase() + action.slice(1)}`](activeRepo.path);
+        const method = `git${action.charAt(0).toUpperCase() + action.slice(1)}`;
+        const needsForce = (action === 'pull' || action === 'push');
+        const res = await window.electronAPI[method](activeRepo.path, needsForce ? settings.gitForce : undefined);
         logToConsole(res.output, res.success ? 'success' : 'error');
         if (!res.success) showError(res.output, `Git ${action.toUpperCase()} Failed`);
 
@@ -1149,13 +1183,14 @@ async function handleDashboardPush(repo) {
             // CRITICAL: Ensure terminal is in the correct directory before pushing
             window.terminal.sendCommand(`cd "${repo.path}"`);
             // Use -u origin HEAD to ensure upstream is set automatically
-            window.terminal.sendCommand('git push -u origin HEAD');
+            const forceFlag = settings.gitForce ? ' --force' : '';
+            window.terminal.sendCommand(`git push -u origin HEAD${forceFlag}`);
             setTimeout(async () => {
                 await showDashboard();
                 setTaskState(false);
             }, 3000);
         } else {
-            const pushRes = await window.electronAPI.gitPush(repo.path);
+            const pushRes = await window.electronAPI.gitPush(repo.path, settings.gitForce);
             logToConsole(pushRes.output, pushRes.success ? 'success' : 'error');
             if (!pushRes.success) showError(pushRes.output, `Git Push Failed`);
             await showDashboard();
@@ -1233,8 +1268,9 @@ async function handleCommit(pushAfter = false) {
                 logToConsole('Pushing changes...', 'info');
                 if (window.terminal) {
                     window.terminal.sendCommand(`cd "${activeRepo.path}"`);
-                    window.terminal.sendCommand('git push');
-                } else await window.electronAPI.gitPush(activeRepo.path);
+                    const forceFlag = settings.gitForce ? ' --force' : '';
+                    window.terminal.sendCommand(`git push${forceFlag}`);
+                } else await window.electronAPI.gitPush(activeRepo.path, settings.gitForce);
             }
 
             await smartRefreshTree(); // Structural refresh (handles deleted files)
@@ -1745,6 +1781,49 @@ async function handleAddRemoteModal() {
 
     confirmBtn.onclick = execute;
     cancelBtn.onclick = () => elements.newRemoteModal.style.display = 'none';
+}
+
+async function handleEditRemoteModal() {
+    if (!activeRepo) return;
+    const select = elements.remoteSelect;
+    const remoteName = select.value;
+    if (!remoteName || remoteName === 'none') return showAlert('Please select a remote to edit.', 'Selection Required');
+
+    // Get current URL for this remote
+    const remotes = await window.electronAPI.getRemotes(activeRepo.path);
+    const remote = remotes.find(r => r.name === remoteName);
+    if (!remote) return showAlert('Could not find information for the selected remote.', 'Error');
+
+    elements.editRemoteModal.style.display = 'flex';
+    elements.editRemoteName.value = remoteName;
+    elements.editRemoteUrl.value = remote.url;
+    elements.editRemoteUrl.focus();
+
+    const confirmBtn = document.getElementById('edit-remote-confirm');
+    const cancelBtn = document.getElementById('edit-remote-cancel');
+
+    const execute = async () => {
+        const url = elements.editRemoteUrl.value.trim();
+        if (!url) return showAlert('URL is required.', 'Missing Field');
+
+        logToConsole(`Updating remote "${remoteName}" URL...`, 'info');
+        try {
+            const res = await window.electronAPI.setRemoteUrl(activeRepo.path, remoteName, url);
+            if (res.success) {
+                logToConsole(res.output, 'success');
+                elements.editRemoteModal.style.display = 'none';
+                await refreshActiveRepoUI();
+            } else {
+                logToConsole(`Failed to update remote: ${res.output}`, 'error');
+                showAlert(`Error: ${res.output}`, 'Error');
+            }
+        } catch (e) {
+            logToConsole(`Remote update error: ${e.message}`, 'error');
+        }
+    };
+
+    confirmBtn.onclick = execute;
+    cancelBtn.onclick = () => elements.editRemoteModal.style.display = 'none';
 }
 
 async function handleRemoveRemote() {
@@ -3672,7 +3751,7 @@ async function showBulkCommitModal() {
 
                         // 3. Push
                         logToConsole(`   ⬆️ Pushing: ${name}...`, 'info');
-                        const pushRes = await window.electronAPI.gitPush(path);
+                        const pushRes = await window.electronAPI.gitPush(path, settings.gitForce);
 
                         if (pushRes.success) {
                             logToConsole(`   🚀 Pushed: ${name}`, 'success');
@@ -3781,6 +3860,66 @@ async function handleBulkRestore() {
     };
 }
 
+async function handleBulkFetch() {
+    if (repositories.length === 0) return showAlert('No projects found in workspace.', 'Action Blocked');
+
+    elements.bulkFetchModal.style.display = 'flex';
+    elements.bulkFetchRepoList.innerHTML = '<div style="color:var(--text-muted); font-size:11px; padding:10px;">Listing repositories...</div>';
+    elements.bulkFetchConfirm.disabled = false;
+
+    elements.bulkFetchRepoList.innerHTML = repositories.map((repo) => {
+        return `
+            <label style="display:flex; align-items:center; gap:8px; cursor:pointer; padding:8px; background:rgba(255,255,255,0.02); border-radius:4px; margin-bottom:4px; border: 1px solid transparent;">
+                <input type="checkbox" class="bulk-fetch-item-cb" value="${repo.path}" data-name="${repo.name}" checked>
+                <div style="flex:1; min-width:0;">
+                    <div style="font-size:12px; font-weight:600; color:#fff; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${repo.name}</div>
+                    <div style="font-size:10px; color:var(--text-muted);">${repo.path}</div>
+                </div>
+            </label>
+        `;
+    }).join('');
+
+    elements.bulkFetchSelectAll.checked = true;
+    elements.bulkFetchSelectAll.onchange = (e) => {
+        elements.bulkFetchRepoList.querySelectorAll('.bulk-fetch-item-cb').forEach(cb => cb.checked = e.target.checked);
+    };
+
+    elements.bulkFetchCancel.onclick = () => elements.bulkFetchModal.style.display = 'none';
+
+    elements.bulkFetchConfirm.onclick = async () => {
+        const selectedCbs = Array.from(elements.bulkFetchRepoList.querySelectorAll('.bulk-fetch-item-cb:checked'));
+        if (selectedCbs.length === 0) return showAlert('Select at least one project to fetch.', 'Selection Required');
+
+        elements.bulkFetchModal.style.display = 'none';
+        logToConsole(`🚀 Launching Bulk Fetch sequence for ${selectedCbs.length} projects...`, 'info');
+        setTaskState(true);
+
+        let success = 0; let fail = 0;
+        try {
+            for (const cb of selectedCbs) {
+                const path = cb.value;
+                const name = cb.dataset.name;
+                try {
+                    logToConsole(`   📡 Fetching: ${name}...`, 'info');
+                    const res = await window.electronAPI.gitFetch(path);
+                    if (res.success) {
+                        logToConsole(`   ✅ Fetched: ${name}`, 'success');
+                        success++;
+                    } else {
+                        logToConsole(`   ❌ Fetch Failed [${name}]: ${res.output}`, 'error');
+                        fail++;
+                    }
+                } catch (e) {
+                    logToConsole(`   ⚠️ Error [${name}]: ${e.message}`, 'error');
+                    fail++;
+                }
+            }
+            logToConsole(`Bulk Fetch Complete. Success: ${success}, Failed: ${fail}`, 'info');
+            showDashboard();
+        } finally { setTaskState(false); }
+    };
+}
+
 async function handleBulkPull() {
     if (repositories.length === 0) return showAlert('No projects found in workspace.', 'Action Blocked');
 
@@ -3805,7 +3944,7 @@ async function handleBulkPull() {
 
         return `
             <label style="display:flex; align-items:center; gap:8px; cursor:pointer; padding:8px; background:rgba(255,255,255,0.02); border-radius:4px; margin-bottom:4px; border: 1px solid ${isBehind ? 'rgba(227, 179, 65, 0.2)' : 'transparent'};">
-                <input type="checkbox" class="bulk-pull-item-cb" value="${repo.path}" data-name="${repo.name}" ${isBehind ? 'checked' : ''}>
+                <input type="checkbox" class="bulk-pull-item-cb" value="${repo.path}" data-name="${repo.name}" checked>
                 <div style="flex:1; min-width:0;">
                     <div style="font-size:12px; font-weight:600; color:#fff; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${repo.name}</div>
                     <div style="font-size:10px;">${subtext}</div>
@@ -3814,11 +3953,7 @@ async function handleBulkPull() {
         `;
     }).join('');
 
-    // Update "Select All" based on the new logic
-    // If some are behind, maybe we only want to select all that are behind?
-    // But usually "Select All" means literally ALL.
-    // I'll leave it as literally ALL but pre-check the behind ones.
-    elements.bulkPullSelectAll.checked = repoStatuses.some(s => s.isBehind);
+    elements.bulkPullSelectAll.checked = true;
     elements.bulkPullSelectAll.onchange = (e) => {
         elements.bulkPullRepoList.querySelectorAll('.bulk-pull-item-cb').forEach(cb => cb.checked = e.target.checked);
     };
@@ -3840,7 +3975,7 @@ async function handleBulkPull() {
                 const name = cb.dataset.name;
                 try {
                     logToConsole(`   📥 Pulling: ${name}...`, 'info');
-                    const res = await window.electronAPI.gitPull(path);
+                    const res = await window.electronAPI.gitPull(path, settings.gitForce);
                     if (res.success) {
                         logToConsole(`   ✅ Pulled: ${name}`, 'success');
                         success++;
@@ -3858,6 +3993,151 @@ async function handleBulkPull() {
             showDashboard();
         } finally { setTaskState(false); }
     };
+}
+
+async function handleProtocolConverter() {
+    if (repositories.length === 0) return showAlert('No projects found in workspace.', 'Action Blocked');
+
+    elements.protocolModal.style.display = 'flex';
+    elements.protocolRepoList.innerHTML = '<div style="color:var(--text-muted); font-size:11px; padding:10px;">Analyzing remotes...</div>';
+    elements.protocolConfirm.disabled = true;
+
+    // Fetch remotes for all repos
+    const repoRemotes = await Promise.all(repositories.map(async (repo) => {
+        try {
+            const remotes = await window.electronAPI.getRemotes(repo.path);
+            const origin = remotes.find(r => r.name === 'origin') || remotes[0];
+            return { repo, remote: origin };
+        } catch (e) {
+            return { repo, remote: null };
+        }
+    }));
+
+    elements.protocolConfirm.disabled = false;
+    elements.protocolRepoList.innerHTML = repoRemotes.map(({ repo, remote }) => {
+        if (!remote) return '';
+
+        const isSSH = remote.url.startsWith('git@') || remote.url.startsWith('ssh://');
+        const isHTTPS = remote.url.startsWith('https://');
+        const type = isSSH ? 'SSH' : isHTTPS ? 'HTTPS' : 'Other';
+
+        return `
+            <div class="protocol-item" style="display:flex; flex-direction:column; gap:6px; padding:10px; background:rgba(255,255,255,0.02); border-radius:6px; border: 1px solid var(--border-color);">
+                <div style="display:flex; align-items:center; gap:8px;">
+                    <input type="checkbox" class="protocol-item-cb" value="${repo.path}" data-name="${repo.name}" data-url="${remote.url}" checked>
+                    <div style="flex:1; font-weight:600; font-size:13px;">${repo.name}</div>
+                    <div style="font-size:10px; padding:2px 6px; border-radius:4px; background:rgba(255,255,255,0.05); color:var(--text-muted);">${type}</div>
+                </div>
+                <div style="font-size:11px; color:var(--text-muted); margin-left:24px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${remote.url}</div>
+                <div style="margin-left:24px; margin-top:4px; display:flex; gap:15px; align-items:center;">
+                    <span style="font-size:10px; font-weight:700; color:var(--accent-blue);">TARGET:</span>
+                    <label style="display:flex; align-items:center; gap:4px; font-size:11px; cursor:pointer;">
+                        <input type="radio" name="protocol-${repo.name}" value="ssh" ${!isSSH ? 'checked' : ''} style="margin:0;"> SSH
+                    </label>
+                    <label style="display:flex; align-items:center; gap:4px; font-size:11px; cursor:pointer;">
+                        <input type="radio" name="protocol-${repo.name}" value="https" ${isSSH ? 'checked' : ''} style="margin:0;"> HTTPS
+                    </label>
+                </div>
+            </div>
+        `;
+    }).join('');
+
+    elements.protocolSelectAll.checked = true;
+    elements.protocolSelectAll.onchange = (e) => {
+        elements.protocolRepoList.querySelectorAll('.protocol-item-cb').forEach(cb => cb.checked = e.target.checked);
+    };
+
+    elements.protocolSelectSSH.onclick = () => {
+        elements.protocolRepoList.querySelectorAll('input[type="radio"][value="ssh"]').forEach(r => r.checked = true);
+    };
+
+    elements.protocolSelectHTTPS.onclick = () => {
+        elements.protocolRepoList.querySelectorAll('input[type="radio"][value="https"]').forEach(r => r.checked = true);
+    };
+
+    elements.protocolCancel.onclick = () => elements.protocolModal.style.display = 'none';
+
+    elements.protocolConfirm.onclick = async () => {
+        const checkedBoxes = Array.from(elements.protocolRepoList.querySelectorAll('.protocol-item-cb:checked'));
+
+        if (checkedBoxes.length === 0) return showAlert('Select at least one project to convert.', 'Selection Required');
+
+        elements.protocolModal.style.display = 'none';
+        logToConsole(`🚀 Starting Protocol Conversion for ${checkedBoxes.length} projects...`, 'info');
+        setTaskState(true);
+
+        // SSH Fingerprint Trust Check
+        if (elements.protocolTrustGithub.checked) {
+            logToConsole('🔍 Checking GitHub SSH fingerprint trust...', 'info');
+            try {
+                const trustRes = await window.electronAPI.ensureGithubSSHTrust();
+                if (trustRes.success) {
+                    if (trustRes.alreadyTrusted) {
+                        logToConsole('   ✅ GitHub fingerprint is already trusted.', 'info');
+                    } else {
+                        logToConsole('   ✅ Successfully added GitHub fingerprint to known_hosts.', 'success');
+                    }
+                } else {
+                    logToConsole(`   ⚠️ SSH Trust Warning: ${trustRes.error}`, 'error');
+                }
+            } catch (err) {
+                logToConsole(`   ⚠️ SSH Trust System Error: ${err.message}`, 'error');
+            }
+        }
+
+        let success = 0; let fail = 0;
+
+        for (const cb of checkedBoxes) {
+            const path = cb.value;
+            const name = cb.dataset.name;
+            const oldUrl = cb.dataset.url;
+
+            const targetRadio = elements.protocolRepoList.querySelector(`input[name="protocol-${name}"]:checked`);
+            if (!targetRadio) continue;
+
+            const targetType = targetRadio.value;
+            const newUrl = convertGitUrl(oldUrl, targetType);
+
+            if (newUrl === oldUrl) {
+                logToConsole(`   ⏩ Skipping: ${name} (already using ${targetType.toUpperCase()})`, 'info');
+                continue;
+            }
+
+            try {
+                logToConsole(`   🔄 Converting ${name} to ${targetType.toUpperCase()}...`, 'info');
+                const res = await window.electronAPI.setRemoteUrl(path, 'origin', newUrl);
+                if (res.success) {
+                    logToConsole(`   ✅ Success: ${name}`, 'success');
+                    success++;
+                } else {
+                    logToConsole(`   ❌ Failed [${name}]: ${res.output}`, 'error');
+                    fail++;
+                }
+            } catch (e) {
+                logToConsole(`   ⚠️ Error [${name}]: ${e.message}`, 'error');
+                fail++;
+            }
+        }
+
+        logToConsole(`Protocol Conversion Complete. Success: ${success}, Failed: ${fail}`, 'info');
+        setTaskState(false);
+        showDashboard();
+    };
+}
+
+function convertGitUrl(url, targetType) {
+    if (targetType === 'ssh') {
+        if (url.startsWith('https://')) {
+            return url.replace(/^https:\/\/([^\/]+)\/(.+)$/, 'git@$1:$2');
+        }
+    } else if (targetType === 'https') {
+        if (url.startsWith('git@')) {
+            return url.replace(/^git@([^:]+):(.+)$/, 'https://$1/$2');
+        } else if (url.startsWith('ssh://git@')) {
+             return url.replace(/^ssh:\/\/git@([^\/]+)\/(.+)$/, 'https://$1/$2');
+        }
+    }
+    return url;
 }
 
 async function showUnbornFoldersModal(unbornList) {

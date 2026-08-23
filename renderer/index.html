@@ -1072,6 +1072,7 @@
                         <p style="margin: 4px 0 0 0; color: var(--text-muted); font-size: 13px;">Overview and health of your projects.</p>
                     </div>
                     <div style="display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end;">
+                        <button id="dashboard-bulk-fetch-btn" class="button" title="Fetch updates for all projects">Bulk Fetch</button>
                         <button id="dashboard-bulk-pull-btn" class="button button-primary" title="Pull latest changes for all projects">Bulk Pull (All)</button>
                         <button id="dashboard-bulk-commit-btn" class="button button-blue" title="Commit & Push all projects with changes">Bulk Commit & Push</button>
                         <button id="dashboard-bulk-restore-btn" class="button button-danger" title="Wipe all uncommitted changes in ALL projects">Bulk Restore to HEAD</button>
@@ -1106,6 +1107,7 @@
                                 <span style="font-weight: 700; color: var(--text-muted); text-transform: uppercase; font-size: 9px;">Remote</span>
                                 <select id="remote-select" class="settings-input" style="padding: 0 8px; font-size: 11px; width: 110px; height: 24px; background: var(--bg-sidebar);"></select>
                                 <button id="add-remote-btn" class="button" style="padding: 0 6px; height: 24px; color: var(--accent-green);" title="Add Remote">+</button>
+                                <button id="edit-remote-btn" class="button" style="padding: 0 6px; height: 24px; color: var(--accent-blue);" title="Edit Remote URL">✎</button>
                                 <button id="remove-remote-btn" class="button" style="padding: 0 6px; height: 24px; color: var(--accent-red);" title="Remove Remote">×</button>
                                 <button id="open-remote-btn" class="button" title="Open Remote in Browser" style="background: transparent; border: none; padding: 0; color: var(--accent-blue); font-size: 14px; min-width: auto; height: auto; display: none;">↗</button>
                             </div>
@@ -1115,6 +1117,11 @@
                     <div style="display: flex; gap: 8px; align-items: center;">
                         <button id="repo-refresh-btn" class="button" style="height: 24px; width: 24px; padding: 0;" title="Refresh Project">↻</button>
                         <div style="width: 1px; height: 16px; background: var(--border-color); margin: 0 4px;"></div>
+
+                        <label style="display: flex; align-items: center; gap: 4px; font-size: 10px; cursor: pointer; color: var(--accent-red); font-weight: 800; margin-right: 4px;" title="Force Push/Pull operations (adds --force flag)">
+                            <input type="checkbox" id="git-force-toggle" style="width: 12px; height: 12px;"> FORCE
+                        </label>
+
                         <div style="display: flex; gap: 4px;">
                             <button class="button git-btn" data-action="pull" style="height: 24px; font-size: 10px;" title="Pull changes">Pull</button>
                             <button class="button git-btn" data-action="fetch" style="height: 24px; font-size: 10px;" title="Fetch updates">Fetch</button>
@@ -1278,6 +1285,14 @@
                             <button id="export-settings-btn" class="button button-blue" style="width: 100%; height: 38px; font-weight: 600;">EXPORT SETTINGS PACKAGE (.JSON)</button>
                             <button id="import-settings-btn" class="button" style="width: 100%; height: 38px; font-weight: 600;">IMPORT SETTINGS PACKAGE (.JSON)</button>
                         </div>
+                    </div>
+                    <div class="settings-section">
+                        <h3>Git Protocol Conversion</h3>
+                        <p>Convert repository origins between HTTPS and SSH.</p>
+                        <div class="settings-control">
+                            <button id="open-protocol-converter-btn" class="button button-blue" style="width: 100%; padding: 10px; font-weight: 600;">OPEN PROTOCOL CONVERTER</button>
+                        </div>
+                        <p style="font-size: 11px; margin-top: 8px;">HTTPS: https://github.com/user/repo.git<br>SSH: git@github.com:user/repo.git</p>
                     </div>
                     <div class="settings-section" style="border-bottom: none;">
                         <h3 style="color: var(--accent-red);">Danger Zone</h3>
@@ -1555,6 +1570,22 @@
         </div>
     </div>
 
+    <!-- Edit Remote Modal -->
+    <div id="edit-remote-modal" class="modal">
+        <div class="modal-content">
+            <h3>Edit Remote URL</h3>
+            <div style="display: flex; flex-direction: column; gap: 12px; margin-top: 16px;">
+                <p style="font-size: 11px; color: var(--text-muted);">Update the URL for the selected remote.</p>
+                <input type="text" id="edit-remote-name" class="settings-input" readonly style="opacity: 0.7;">
+                <input type="text" id="edit-remote-url" class="settings-input" placeholder="Remote URL (e.g. https://github.com/user/repo.git)">
+            </div>
+            <div style="text-align: right; margin-top: 20px; display: flex; justify-content: flex-end; gap: 8px;">
+                <button id="edit-remote-cancel" class="button">Cancel</button>
+                <button id="edit-remote-confirm" class="button button-primary">Update URL</button>
+            </div>
+        </div>
+    </div>
+
     <div id="gitignore-modal" class="modal">
         <div class="modal-content" style="width: 500px;">
             <h3>Generate .gitignore</h3>
@@ -1725,6 +1756,69 @@
             <div style="text-align: right; margin-top: 20px; display: flex; justify-content: flex-end; gap: 8px;">
                 <button id="bulk-pull-cancel" class="button">Cancel</button>
                 <button id="bulk-pull-confirm" class="button button-primary">Pull Selected Projects</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bulk Fetch Modal -->
+    <div id="bulk-fetch-modal" class="modal">
+        <div class="modal-content" style="width: 500px;">
+            <h3 style="color: var(--accent-blue);">Bulk Fetch Updates</h3>
+            <p>Select the repositories you want to fetch latest metadata from remote.</p>
+
+            <div style="margin: 16px 0; max-height: 300px; overflow-y: auto; border: 1px solid var(--border-color); border-radius: 6px; padding: 12px; background: var(--bg-sidebar);">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 1px solid var(--border-color); padding-bottom: 8px;">
+                    <span style="font-size: 11px; font-weight: 800; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px;">Target Repositories</span>
+                    <label style="font-size: 10px; cursor: pointer; color: var(--accent-blue);">
+                        <input type="checkbox" id="bulk-fetch-select-all" checked> Select All
+                    </label>
+                </div>
+                <div id="bulk-fetch-repo-list" style="display: flex; flex-direction: column; gap: 8px;">
+                    <!-- Project list with checkboxes injected via JS -->
+                </div>
+            </div>
+
+            <div style="text-align: right; margin-top: 20px; display: flex; justify-content: flex-end; gap: 8px;">
+                <button id="bulk-fetch-cancel" class="button">Cancel</button>
+                <button id="bulk-fetch-confirm" class="button button-primary">Fetch Selected Projects</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Protocol Converter Modal -->
+    <div id="protocol-modal" class="modal">
+        <div class="modal-content" style="width: 700px; max-width: 90%;">
+            <h3 style="color: var(--accent-blue);">Bulk Protocol Converter</h3>
+            <p>Switch repository origins between HTTPS and SSH. This will update the 'origin' remote URL.</p>
+
+            <div style="display: flex; gap: 10px; margin-bottom: 16px;">
+                <button id="protocol-select-ssh" class="button button-sm" style="flex: 1;">Set Target: SSH</button>
+                <button id="protocol-select-https" class="button button-sm" style="flex: 1;">Set Target: HTTPS</button>
+            </div>
+
+            <div style="margin: 16px 0; max-height: 400px; overflow-y: auto; border: 1px solid var(--border-color); border-radius: 6px; padding: 12px; background: var(--bg-sidebar);">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 1px solid var(--border-color); padding-bottom: 8px;">
+                    <span style="font-size: 11px; font-weight: 800; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px;">Projects</span>
+                    <label style="font-size: 10px; cursor: pointer; color: var(--accent-blue);">
+                        <input type="checkbox" id="protocol-select-all" checked> Select All
+                    </label>
+                </div>
+                <div id="protocol-repo-list" style="display: flex; flex-direction: column; gap: 12px;">
+                    <!-- Repos with URL and target selection injected via JS -->
+                </div>
+            </div>
+
+            <div style="margin-top: 12px; padding: 0 4px;">
+                <label style="display: flex; align-items: center; gap: 8px; font-size: 12px; cursor: pointer; color: var(--text-main);">
+                    <input type="checkbox" id="protocol-trust-github" checked style="width: 16px; height: 16px;">
+                    Ensure GitHub SSH Fingerprint is Trusted (prevents hang on first SSH connection)
+                </label>
+                <p style="font-size: 10px; color: var(--text-muted); margin-left: 24px; margin-top: 4px;">If missing, this will quietly add github.com to your ~/.ssh/known_hosts file.</p>
+            </div>
+
+            <div style="text-align: right; margin-top: 20px; display: flex; justify-content: flex-end; gap: 8px;">
+                <button id="protocol-cancel" class="button">Cancel</button>
+                <button id="protocol-confirm" class="button button-primary">Convert Selected Projects</button>
             </div>
         </div>
     </div>
