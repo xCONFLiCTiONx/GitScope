@@ -2569,7 +2569,7 @@ async function showDashboard() {
 
                 const isLocal = status.isLocal;
                 const needsSync = (status.ahead || 0) > 0 || (status.behind || 0) > 0;
-                const hasChanges = (status.modified || 0) + (status.not_added || 0) + (status.deleted || 0) > 0;
+                const hasChanges = (status.modified || 0) + (status.not_added || 0) + (status.deleted || 0) + (status.staged || 0) > 0;
 
                 if (isLocal) stats.local++;
                 if (hasChanges) stats.attention++;
