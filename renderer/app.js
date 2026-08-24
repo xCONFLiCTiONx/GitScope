@@ -4955,15 +4955,6 @@ function logToConsole(msg, type = 'info') {
     entry.textContent = `[${timestamp}] ${msg}`;
     elements.consoleOutput.appendChild(entry);
     elements.consoleOutput.scrollTop = elements.consoleOutput.scrollHeight;
-
-    // Also mirror Git commands and results to the Terminal view for total transparency
-    if (window.terminal && (type === 'success' || type === 'error' || (typeof msg === 'string' && msg.startsWith('Git')))) {
-        const color = type === 'error' ? '\x1b[31m' : type === 'success' ? '\x1b[32m' : '\x1b[36m';
-        const reset = '\x1b[0m';
-        // CRITICAL: Normalize newlines to \r\n to prevent "staircase" effect in XTerm.js
-        const normalizedMsg = msg.toString().replace(/\r?\n/g, '\r\n');
-        window.terminal.write(`\r\n${color}[${timestamp}] GITSCOPE: ${normalizedMsg}${reset}\r\n`);
-    }
 }
 
 function updateTreeSelectionUI() { document.querySelectorAll('.tree-node').forEach(n => { if (selectedNodes.has(n.dataset.path)) n.classList.add('active'); else n.classList.remove('active'); }); }
