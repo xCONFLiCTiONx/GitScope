@@ -8,8 +8,25 @@ const chokidar = require('chokidar');
 const pty = require('node-pty');
 const os = require('os');
 
+// Global error handling for the main process
+process.on('uncaughtException', (error) => {
+  console.error('Uncaught Exception:', error);
+  dialog.showErrorBox('An unexpected error occurred', error.stack || error.message);
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+  dialog.showErrorBox('An unhandled promise rejection occurred', (reason && reason.stack) || (reason && reason.message) || String(reason));
+});
+
 // Ensure Git credential manager popups are allowed
 process.env.GIT_TERMINAL_PROMPT = '1';
+
+function reportError(title, error) {
+  const message = (error && error.stack) || (error && error.message) || String(error);
+  console.error(`${title}:`, error);
+  dialog.showErrorBox(title, message);
+}
 
 let mainWindow;
 let tray = null;
@@ -26,7 +43,7 @@ function getThemes() {
       return fs.readJsonSync(themesPath);
     }
   } catch (e) {
-    console.error('Failed to get themes:', e);
+    reportError('Failed to get themes', e);
   }
   return {};
 }
@@ -41,7 +58,7 @@ function getSettings() {
       return fs.readJsonSync(settingsPath);
     }
   } catch (e) {
-    console.error('Failed to get settings:', e);
+    reportError('Failed to get settings', e);
   }
   return {
     shell: process.platform === 'win32' ? 'C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe' : '/bin/bash',
@@ -60,7 +77,7 @@ function getWindowState() {
       return fs.readJsonSync(windowStatePath);
     }
   } catch (e) {
-    console.error('Failed to get window state:', e);
+    reportError('Failed to get window state', e);
   }
   return { width: 1200, height: 800 };
 }
@@ -75,9 +92,10 @@ function saveWindowState() {
 }
 
 function createWindow() {
-  const state = getWindowState();
+  try {
+    const state = getWindowState();
 
-  mainWindow = new BrowserWindow({
+    mainWindow = new BrowserWindow({
     x: state.x,
     y: state.y,
     width: state.width,
@@ -182,6 +200,9 @@ function createWindow() {
   const menu = Menu.buildFromTemplate(menuTemplate);
   // Menu.setApplicationMenu(menu); // Disable native menu to use custom nav
   mainWindow.setMenuBarVisibility(false);
+  } catch (e) {
+    reportError('Critical Initialization Error', e);
+  }
 }
 
 function getAvailableShells() {
@@ -202,6 +223,10 @@ ipcMain.handle('get-available-shells', () => {
 });
 
 ipcMain.handle('heartbeat', () => "OK");
+
+ipcMain.handle('report-error', (event, { title, message }) => {
+  dialog.showErrorBox(title, message);
+});
 
 ipcMain.handle('send-notification', (event, { title, body }) => {
   if (mainWindow && !mainWindow.isFocused()) {

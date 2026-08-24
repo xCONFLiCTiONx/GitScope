@@ -88,6 +88,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   pathExists: (path) => ipcRenderer.invoke('path-exists', path),
   resetApp: () => ipcRenderer.invoke('reset-app'),
   sendNotification: (options) => ipcRenderer.invoke('send-notification', options),
+  reportError: (title, message) => ipcRenderer.invoke('report-error', { title, message }),
   isWindows: process.platform === 'win32',
 
   // Terminal IPCs
