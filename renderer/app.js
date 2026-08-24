@@ -2917,14 +2917,23 @@ function createTreeNode(name, fullPath, isDirectory, depth, repo) {
     container.id = 'node-' + Math.random().toString(36).substr(2, 9);
     const item = document.createElement('div');
     const normPath = fullPath.replace(/\\/g, '/').toLowerCase();
-    let isChanged = false; if (!isDirectory && repo && repo.changedFiles) isChanged = repo.changedFiles.includes(normPath);
-    item.className = `tree-node ${depth === 0 ? 'repo-root' : ''} ${isChanged ? 'changed-file' : ''}`;
+    let isChanged = false;
+    if (repo && repo.changedFiles) {
+        if (!isDirectory) {
+            isChanged = repo.changedFiles.includes(normPath);
+        } else {
+            const normPathWithSlash = normPath.endsWith('/') ? normPath : normPath + '/';
+            isChanged = repo.changedFiles.some(f => f.startsWith(normPathWithSlash));
+        }
+    }
+    item.className = `tree-node ${depth === 0 ? 'repo-root' : ''} ${isDirectory ? 'is-directory' : 'is-file'} ${isChanged ? 'changed-file' : ''}`;
     item.style.paddingLeft = `${depth * 12 + 16}px`;
     if (selectedNodes.has(fullPath)) item.classList.add('active');
     const ext = name.split('.').pop().toLowerCase();
     const fileClass = !isDirectory ? `file-type-${ext.replace(/[^a-z0-9]/g, '-')}` : '';
     item.innerHTML = `<span class="chevron">${isDirectory ? '▸' : ''}</span><span class="node-name ${fileClass}">${name}</span>${(isDirectory && isChanged) ? '<span class="status-dot-mini active"></span>' : ''}`;
     item.dataset.path = fullPath;
+    item.dataset.isDirectory = isDirectory;
     item.oncontextmenu = async (e) => {
         e.preventDefault(); e.stopPropagation();
         if (!selectedNodes.has(fullPath)) { selectedNodes.clear(); selectedNodes.add(fullPath); updateTreeSelectionUI(); }
@@ -5064,12 +5073,31 @@ async function updateTreeHighlights(specificRepoPath = null) {
                     }
                 } else if (nodePath.startsWith(normBaseSlash)) {
                     // Update children (files/folders inside)
-                    if (repo.changedFiles.includes(nodePath)) {
+                    const isDir = node.classList.contains('is-directory') || node.classList.contains('repo-root');
+                    const isDirectlyChanged = repo.changedFiles.includes(nodePath);
+                    const containsChangedFile = isDir && repo.changedFiles.some(f => f.startsWith(nodePath + '/'));
+
+                    if (isDirectlyChanged || containsChangedFile) {
                         node.classList.add('changed-file');
                         if (nameEl) nameEl.style.color = '#f85149';
+
+                        // If it's a directory, ensure it has a status dot
+                        if (isDir) {
+                             let dot = node.querySelector('.status-dot-mini');
+                             if (!dot) {
+                                 dot = document.createElement('span');
+                                 dot.className = 'status-dot-mini active';
+                                 node.appendChild(dot);
+                             } else {
+                                 dot.classList.add('active');
+                                 dot.style.opacity = '1';
+                             }
+                        }
                     } else {
                         node.classList.remove('changed-file');
                         if (nameEl) nameEl.style.color = '';
+                        const dot = node.querySelector('.status-dot-mini');
+                        if (dot) dot.classList.remove('active');
                     }
                 }
             });
