@@ -3137,14 +3137,9 @@ async function showDashboard(forceRefresh = true) {
         card.className = 'dashboard-card';
         card.dataset.repoPath = repo.path;
 
-        const shouldRefresh = repo.refreshEnabled !== false;
-
         card.innerHTML = `
             <div class="card-header" style="display:flex; justify-content:space-between; align-items:flex-start;">
                 <div class="card-title" style="font-weight:600; color:var(--accent-blue); font-size:15px;">${repo.name}</div>
-                <input type="checkbox" class="repo-refresh-cb" ${shouldRefresh ? 'checked' : ''}
-                       title="Enable automatic refresh for this project"
-                       style="width:14px; height:14px; cursor:pointer; margin-top:2px;">
             </div>
             <div class="card-branch" style="font-size:11px; color:var(--text-muted); margin-bottom:12px;">Loading status...</div>
             <div style="padding: 20px; text-align: center; opacity: 0.5;">
@@ -3154,63 +3149,9 @@ async function showDashboard(forceRefresh = true) {
 
         elements.dashboardGrid.appendChild(card);
 
-        const refreshCb = card.querySelector('.repo-refresh-cb');
-        refreshCb.onclick = (e) => {
-            e.stopPropagation();
-            repo.refreshEnabled = refreshCb.checked;
-            window.electronAPI.saveRepositories(repositories);
-        };
-
         // 2. Background Hydration (Staggered to prevent rate limiting/login flood)
         const index = dashboardRepos.indexOf(repo);
         setTimeout(async () => {
-            if (repo.refreshEnabled === false) {
-                // If refresh disabled, just show a "Paused" state or cached if available
-                card.className = 'dashboard-card is-clean';
-                card.onclick = () => selectRepo(repo, true);
-                card.innerHTML = `
-                    <div class="card-header" style="display:flex; justify-content:space-between; align-items:flex-start;">
-                        <div class="card-title" style="font-weight:600; color:var(--accent-blue); font-size:15px;">${repo.name}</div>
-                        <input type="checkbox" class="repo-refresh-cb" title="Enable automatic refresh for this project" style="width:14px; height:14px; cursor:pointer; margin-top:2px;">
-                    </div>
-                    <div style="padding: 20px; text-align: center; color: var(--text-muted); font-size: 12px; font-style: italic;">
-                        Refresh disabled
-                    </div>
-                    <div class="quick-actions" style="display:flex; gap:6px; margin-top:auto; padding-top:12px; border-top:1px solid var(--border-color);">
-                        <button class="button quick-btn pull-btn" title="Pull" style="flex:1; padding:4px; font-size:11px;">PULL</button>
-                        <button class="button quick-btn commit-btn" title="Quick Commit (Stages all)" style="flex:1; padding:4px; font-size:11px;">COMMIT</button>
-                        <button class="button quick-btn button-primary push-btn" title="Push" style="flex:1; padding:4px; font-size:11px;">PUSH</button>
-                    </div>`;
-
-                const cb = card.querySelector('.repo-refresh-cb');
-                cb.checked = false;
-                cb.onclick = (e) => {
-                    e.stopPropagation();
-                    repo.refreshEnabled = cb.checked;
-                    window.electronAPI.saveRepositories(repositories);
-                    if (cb.checked) showDashboard(); // Refresh if re-enabled
-                };
-
-                card.querySelector('.pull-btn').onclick = (e) => {
-                    e.stopPropagation();
-                    activeRepo = repo;
-                    quickGitAction('pull');
-                };
-
-                card.querySelector('.commit-btn').onclick = (e) => {
-                    e.stopPropagation();
-                    handleDashboardCommit(repo);
-                };
-
-                card.querySelector('.push-btn').onclick = (e) => {
-                    e.stopPropagation();
-                    handleDashboardPush(repo);
-                };
-
-                updateProgressBar();
-                return;
-            }
-
             try {
                 const exists = await window.electronAPI.pathExists(repo.path);
                 if (!exists) {
@@ -3245,7 +3186,6 @@ async function showDashboard(forceRefresh = true) {
                             </div>
                         </div>
                         <div style="display:flex; flex-direction:column; align-items:flex-end; gap:4px;">
-                            <input type="checkbox" class="repo-refresh-cb" checked title="Enable automatic refresh for this project" style="width:14px; height:14px; cursor:pointer;">
                             <div style="font-size: 8px; color: var(--text-muted); text-transform: uppercase; font-weight: 700; opacity: 0.6;">
                                 ${isLocal ? 'LOCAL' : 'REMOTE'}
                             </div>
@@ -3289,13 +3229,6 @@ async function showDashboard(forceRefresh = true) {
                 card.querySelector('.push-btn').onclick = (e) => {
                     e.stopPropagation();
                     handleDashboardPush(repo);
-                };
-
-                const refreshCb = card.querySelector('.repo-refresh-cb');
-                refreshCb.onclick = (e) => {
-                    e.stopPropagation();
-                    repo.refreshEnabled = refreshCb.checked;
-                    window.electronAPI.saveRepositories(repositories);
                 };
 
                 updateDashboardSummary(stats);
