@@ -2109,9 +2109,6 @@ let currentSubtreeMappings = [];
 async function showSubtreeHubModal() {
     if (!activeRepo) return;
     elements.subtreeHubModal.style.display = 'flex';
-    try {
-        elements.subtreePushAllBtn.disabled = true;
-    } catch {}
 
     try {
         currentSubtreeMappings = await getRepoSubtreeMappings(activeRepo.path);
@@ -2122,11 +2119,7 @@ async function showSubtreeHubModal() {
 
     renderSubtreeMappings();
     const hasMappings = currentSubtreeMappings.length > 0;
-    try {
-        elements.subtreePushAllBtn.disabled = !hasMappings;
-    } catch { }
-    if (elements.subtreePullAllBtn) elements.subtreePullAllBtn.disabled = !hasMappings;
-    if (elements.subtreeDeleteSelectedBtn) elements.subtreeDeleteSelectedBtn.disabled = true;
+    updateSubtreeActionButtonsState();
     if (elements.subtreeClearAllBtn) elements.subtreeClearAllBtn.disabled = !hasMappings;
 
     elements.subtreeGitHubFetchBtn.onclick = () => showSubtreeGitHubModal();
@@ -2182,7 +2175,7 @@ async function showSubtreeHubModal() {
         elements.subtreeMappingSelectAll.onchange = (e) => {
             const cbs = elements.subtreeMappingList.querySelectorAll('.mapping-item-cb');
             cbs.forEach(cb => cb.checked = e.target.checked);
-            updateSubtreeDeleteBtnState();
+            updateSubtreeActionButtonsState();
         };
     }
 
@@ -2199,9 +2192,7 @@ async function showSubtreeHubModal() {
                 renderSubtreeMappings();
 
                 const hasMappings = currentSubtreeMappings.length > 0;
-                elements.subtreePushAllBtn.disabled = !hasMappings;
-                if (elements.subtreePullAllBtn) elements.subtreePullAllBtn.disabled = !hasMappings;
-                elements.subtreeDeleteSelectedBtn.disabled = true;
+                updateSubtreeActionButtonsState();
                 if (elements.subtreeMappingSelectAll) elements.subtreeMappingSelectAll.checked = false;
             }
         };
@@ -2214,9 +2205,7 @@ async function showSubtreeHubModal() {
                 currentSubtreeMappings = [];
                 await saveSubtreeMappings();
                 renderSubtreeMappings();
-                elements.subtreePushAllBtn.disabled = true;
-                if (elements.subtreePullAllBtn) elements.subtreePullAllBtn.disabled = true;
-                elements.subtreeDeleteSelectedBtn.disabled = true;
+                updateSubtreeActionButtonsState();
                 if (elements.subtreeMappingSelectAll) elements.subtreeMappingSelectAll.checked = false;
                 logToConsole('All subtree mappings cleared.', 'info');
             }
@@ -2224,11 +2213,13 @@ async function showSubtreeHubModal() {
     }
 }
 
-function updateSubtreeDeleteBtnState() {
-    if (elements.subtreeDeleteSelectedBtn) {
-        const checkedCount = elements.subtreeMappingList.querySelectorAll('.mapping-item-cb:checked').length;
-        elements.subtreeDeleteSelectedBtn.disabled = checkedCount === 0;
-    }
+function updateSubtreeActionButtonsState() {
+    const checkedCount = elements.subtreeMappingList ? elements.subtreeMappingList.querySelectorAll('.mapping-item-cb:checked').length : 0;
+    const disabled = checkedCount === 0;
+
+    if (elements.subtreeDeleteSelectedBtn) elements.subtreeDeleteSelectedBtn.disabled = disabled;
+    if (elements.subtreePullSelectedBtn) elements.subtreePullSelectedBtn.disabled = disabled;
+    if (elements.subtreePushSelectedBtn) elements.subtreePushSelectedBtn.disabled = disabled;
 }
 
 async function showSubtreeGitHubModal(targetIndex = -1) {
@@ -2435,7 +2426,7 @@ function renderSubtreeMappings() {
         };
     });
     list.querySelectorAll('.mapping-item-cb').forEach(cb => {
-        cb.onchange = () => updateSubtreeDeleteBtnState();
+        cb.onchange = () => updateSubtreeActionButtonsState();
     });
     list.querySelectorAll('.remove-mapping-btn').forEach(btn => {
         btn.onclick = async (e) => {
@@ -2444,7 +2435,7 @@ function renderSubtreeMappings() {
                 currentSubtreeMappings.splice(index, 1);
                 saveSubtreeMappings();
                 renderSubtreeMappings();
-                elements.subtreePushAllBtn.disabled = currentSubtreeMappings.length === 0;
+                updateSubtreeActionButtonsState();
             }
         };
     });
@@ -2475,7 +2466,7 @@ async function saveSubtreeMappings() {
 elements.addSubtreeBtn.onclick = () => {
     currentSubtreeMappings.push({ prefix: '', url: '', branch: 'main' });
     renderSubtreeMappings();
-    elements.subtreePushAllBtn.disabled = false;
+    updateSubtreeActionButtonsState();
 };
 
 if (elements.subtreePushSelectedBtn) {
