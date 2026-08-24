@@ -1005,6 +1005,8 @@
             border-radius: 50%;
             animation: spin 0.8s linear infinite;
         }
+        .menu-item:hover { background-color: var(--hover-bg); color: #fff; }
+
         @keyframes spin {
             to { transform: rotate(360deg); }
         }
@@ -1220,17 +1222,45 @@
 
             <!-- Editor View -->
             <div id="editor-view" style="display: none;">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; gap: 8px; flex-wrap: wrap;">
                     <div style="display: flex; align-items: center; gap: 12px;">
-                        <h2 id="editor-file-name" style="margin: 0;">filename.js</h2>
+                        <h2 id="editor-file-name" style="margin: 0; font-size: 14px;">filename.js</h2>
                         <button id="editor-preview-toggle" class="button" style="display: none; font-size: 10px; padding: 2px 8px;">Preview</button>
                         <button id="gitignore-scan-btn" class="button" style="display: none; font-size: 10px; padding: 2px 8px; border-color: var(--accent-blue); color: var(--accent-blue);">Scan & Ignore</button>
                     </div>
-                    <div style="display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end;">
-                        <button id="editor-undo-btn" class="button" style="font-size: 10px;" title="Undo (Ctrl+Z)">Undo</button>
+
+                    <div style="display: flex; gap: 4px; align-items: center; flex-wrap: wrap;">
+                        <!-- Utility Group -->
+                        <div style="display: flex; gap: 4px; padding-right: 8px; border-right: 1px solid var(--border-color); margin-right: 4px;">
+                            <button id="editor-wrap-btn" class="button" style="font-size: 10px;" title="Toggle Word Wrap">Wrap</button>
+                            <button id="editor-folder-btn" class="button" style="font-size: 10px;" title="Open Containing Folder">Folder</button>
+                        </div>
+
+                        <!-- Edit Group -->
+                        <div style="display: flex; gap: 4px; padding-right: 8px; border-right: 1px solid var(--border-color); margin-right: 4px;">
+                            <button id="editor-undo-btn" class="button" style="font-size: 10px;" title="Undo (Ctrl+Z)">⟲</button>
+                            <button id="editor-redo-btn" class="button" style="font-size: 10px;" title="Redo (Ctrl+Y)">⟳</button>
+                            <button id="editor-format-btn" class="button" style="font-size: 10px;" title="Format Code (Alt+Shift+F)">Prettify</button>
+                            <button id="editor-comment-btn" class="button" style="font-size: 10px;" title="Toggle Comment (Ctrl+/)">Comment</button>
+                            <button id="editor-find-btn" class="button" style="font-size: 10px;" title="Find & Replace (Ctrl+F)">Find</button>
+                        </div>
+
+                        <!-- Transform Dropdown -->
+                        <div style="position: relative; display: inline-block;">
+                            <button id="editor-transform-btn" class="button" style="font-size: 10px;" title="Text Transformations">Transform ▾</button>
+                            <div id="transform-menu" style="display: none; position: absolute; top: 100%; right: 0; background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: 4px; z-index: 1000; min-width: 120px; box-shadow: 0 4px 12px rgba(0,0,0,0.5); margin-top: 4px;">
+                                <div class="menu-item" data-transform="uppercase" style="padding: 6px 12px; font-size: 11px; cursor: pointer; color: var(--text-main);">UPPERCASE</div>
+                                <div class="menu-item" data-transform="lowercase" style="padding: 6px 12px; font-size: 11px; cursor: pointer; color: var(--text-main);">lowercase</div>
+                                <div class="menu-item" data-transform="snake" style="padding: 6px 12px; font-size: 11px; cursor: pointer; color: var(--text-main);">snake_case</div>
+                                <div class="menu-item" data-transform="camel" style="padding: 6px 12px; font-size: 11px; cursor: pointer; color: var(--text-main);">camelCase</div>
+                                <div class="menu-item" data-transform="sort" style="padding: 6px 12px; font-size: 11px; cursor: pointer; color: var(--text-main); border-top: 1px solid var(--border-color);">Sort Lines</div>
+                            </div>
+                        </div>
+
+                        <div style="width: 8px;"></div>
                         <button id="editor-restore-btn" class="button button-danger" style="font-size: 10px;">Restore</button>
-                        <button id="editor-save-btn" class="button button-primary">Save Changes</button>
-                        <button id="editor-close-btn" class="button">Close</button>
+                        <button id="editor-save-btn" class="button button-primary" style="font-size: 10px;">Save</button>
+                        <button id="editor-close-btn" class="button" style="font-size: 10px;">Close</button>
                     </div>
                 </div>
                 <div id="editor-container-wrapper" style="flex-grow: 1; position: relative;">

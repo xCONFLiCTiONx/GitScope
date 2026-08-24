@@ -227,6 +227,14 @@ const elements = {
     get editorSaveBtn() { return document.getElementById('editor-save-btn'); },
     get editorRestoreBtn() { return document.getElementById('editor-restore-btn'); },
     get editorUndoBtn() { return document.getElementById('editor-undo-btn'); },
+    get editorRedoBtn() { return document.getElementById('editor-redo-btn'); },
+    get editorWrapBtn() { return document.getElementById('editor-wrap-btn'); },
+    get editorFolderBtn() { return document.getElementById('editor-folder-btn'); },
+    get editorFormatBtn() { return document.getElementById('editor-format-btn'); },
+    get editorCommentBtn() { return document.getElementById('editor-comment-btn'); },
+    get editorFindBtn() { return document.getElementById('editor-find-btn'); },
+    get editorTransformBtn() { return document.getElementById('editor-transform-btn'); },
+    get transformMenu() { return document.getElementById('transform-menu'); },
     get editorCloseBtn() { return document.getElementById('editor-close-btn'); },
     get editorPreviewToggle() { return document.getElementById('editor-preview-toggle'); },
     get gitignoreScanBtn() { return document.getElementById('gitignore-scan-btn'); },
@@ -879,9 +887,56 @@ function initEventListeners() {
     if (elements.editorSaveBtn) elements.editorSaveBtn.onclick = () => saveCurrentFile();
     if (elements.editorRestoreBtn) elements.editorRestoreBtn.onclick = () => handleRestoreFile();
     if (elements.editorUndoBtn) elements.editorUndoBtn.onclick = () => {
-        if (monacoEditor) monacoEditor.focus();
-        monacoEditor.trigger('source', 'undo');
+        if (monacoEditor) { monacoEditor.focus(); monacoEditor.trigger('source', 'undo'); }
     };
+    if (elements.editorRedoBtn) elements.editorRedoBtn.onclick = () => {
+        if (monacoEditor) { monacoEditor.focus(); monacoEditor.trigger('source', 'redo'); }
+    };
+    if (elements.editorWrapBtn) elements.editorWrapBtn.onclick = () => {
+        if (!monacoEditor) return;
+        const current = monacoEditor.getRawOptions().wordWrap;
+        const next = current === 'on' ? 'off' : 'on';
+        monacoEditor.updateOptions({ wordWrap: next });
+        elements.editorWrapBtn.classList.toggle('button-blue', next === 'on');
+        logToConsole(`Word wrap: ${next.toUpperCase()}`, 'info');
+    };
+    if (elements.editorFolderBtn) elements.editorFolderBtn.onclick = () => {
+        if (currentEditingPath) window.electronAPI.revealInExplorer(currentEditingPath);
+    };
+    if (elements.editorFormatBtn) elements.editorFormatBtn.onclick = () => {
+        if (monacoEditor) {
+            monacoEditor.focus();
+            monacoEditor.trigger('editor', 'editor.action.formatDocument');
+            logToConsole('Ran code formatter.', 'info');
+        }
+    };
+    if (elements.editorCommentBtn) elements.editorCommentBtn.onclick = () => {
+        if (monacoEditor) {
+            monacoEditor.focus();
+            monacoEditor.trigger('editor', 'editor.action.commentLine');
+        }
+    };
+    if (elements.editorFindBtn) elements.editorFindBtn.onclick = () => {
+        if (monacoEditor) {
+            monacoEditor.focus();
+            monacoEditor.trigger('editor', 'actions.find');
+        }
+    };
+    if (elements.editorTransformBtn) elements.editorTransformBtn.onclick = (e) => {
+        e.stopPropagation();
+        const menu = elements.transformMenu;
+        menu.style.display = menu.style.display === 'block' ? 'none' : 'block';
+    };
+    document.querySelectorAll('.menu-item[data-transform]').forEach(item => {
+        item.onclick = (e) => {
+            e.stopPropagation();
+            applyTextTransformation(item.dataset.transform);
+            elements.transformMenu.style.display = 'none';
+        };
+    });
+    document.addEventListener('click', () => {
+        if (elements.transformMenu) elements.transformMenu.style.display = 'none';
+    });
     if (elements.editorCloseBtn) elements.editorCloseBtn.onclick = () => closeEditor();
     if (elements.editorPreviewToggle) elements.editorPreviewToggle.onclick = () => toggleMarkdownPreview();
     if (elements.gitignoreScanBtn) elements.gitignoreScanBtn.onclick = () => runGitignoreScan();
@@ -4935,17 +4990,55 @@ async function openFileInEditor(filePath) {
 }
 
 function updateEditorButtonStates(hasChanges) {
-    if (elements.editorSaveBtn) {
-        elements.editorSaveBtn.disabled = !hasChanges;
-        elements.editorSaveBtn.style.opacity = hasChanges ? '1' : '0.5';
+    const buttons = [
+        elements.editorSaveBtn,
+        elements.editorRestoreBtn,
+        elements.editorUndoBtn,
+        elements.editorRedoBtn
+    ];
+    buttons.forEach(btn => {
+        if (btn) {
+            btn.disabled = !hasChanges;
+            btn.style.opacity = hasChanges ? '1' : '0.5';
+        }
+    });
+}
+
+function applyTextTransformation(type) {
+    if (!monacoEditor) return;
+    const selection = monacoEditor.getSelection();
+    if (selection.isEmpty()) {
+        logToConsole('No text selected for transformation.', 'warn');
+        return;
     }
-    if (elements.editorRestoreBtn) {
-        elements.editorRestoreBtn.disabled = !hasChanges;
-        elements.editorRestoreBtn.style.opacity = hasChanges ? '1' : '0.5';
+
+    const model = monacoEditor.getModel();
+    const text = model.getValueInRange(selection);
+    let newText = '';
+
+    switch (type) {
+        case 'uppercase':
+            newText = text.toUpperCase();
+            break;
+        case 'lowercase':
+            newText = text.toLowerCase();
+            break;
+        case 'snake':
+            newText = text.replace(/([A-Z])/g, "_$1").toLowerCase().replace(/^_/, "").replace(/\s+/g, "_");
+            break;
+        case 'camel':
+            newText = text.toLowerCase().replace(/[^a-zA-Z0-9]+(.)/g, (m, chr) => chr.toUpperCase());
+            break;
+        case 'sort':
+            newText = text.split(/\r?\n/).sort((a, b) => a.localeCompare(b)).join('\n');
+            break;
     }
-    if (elements.editorUndoBtn) {
-        elements.editorUndoBtn.disabled = !hasChanges;
-        elements.editorUndoBtn.style.opacity = hasChanges ? '1' : '0.5';
+
+    if (newText !== text) {
+        monacoEditor.executeEdits('transform', [
+            { range: selection, text: newText, forceMoveMarkers: true }
+        ]);
+        logToConsole(`Applied transformation: ${type}`, 'info');
     }
 }
 
