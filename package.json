@@ -1,5 +1,5 @@
 {
-  "name": "gitscope-desktop",
+  "name": "gitscope",
   "version": "1.0.0",
   "description": "A local-first desktop wrapper for Git repository management.",
   "main": "main.js",

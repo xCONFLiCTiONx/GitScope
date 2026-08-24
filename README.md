@@ -49,7 +49,7 @@ A dedicated interface to manage your work-in-progress. Save, List, Pop, Apply, a
 
 1. **Clone the repo:**
    ```bash
-   git clone https://github.com/xCONFLiCTiONx/GitScope-Desktop.git
+   git clone https://github.com/xCONFLiCTiONx/GitScope.git
    ```
 2. **Install dependencies:**
    ```bash
