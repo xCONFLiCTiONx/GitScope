@@ -256,7 +256,6 @@ const elements = {
     get themeUndoBtn() { return document.getElementById('theme-undo-btn'); },
     get themeResetBtn() { return document.getElementById('theme-reset-btn'); },
     get themeCloseBtn() { return document.getElementById('theme-close-btn'); },
-    get openThemeEditorBtn() { return document.getElementById('open-theme-editor-btn'); },
     get themePresetsSelect() { return document.getElementById('theme-presets-select'); },
     get newThemeNameInput() { return document.getElementById('new-theme-name'); },
     get themeSavePresetBtn() { return document.getElementById('theme-save-preset-btn'); },
@@ -317,7 +316,6 @@ const elements = {
     get bulkFetchSelectAll() { return document.getElementById('bulk-fetch-select-all'); },
     get bulkFetchConfirm() { return document.getElementById('bulk-fetch-confirm'); },
     get bulkFetchCancel() { return document.getElementById('bulk-fetch-cancel'); },
-    get openProtocolConverterBtn() { return document.getElementById('open-protocol-converter-btn'); },
     get protocolModal() { return document.getElementById('protocol-modal'); },
     get protocolRepoList() { return document.getElementById('protocol-repo-list'); },
     get protocolSelectAll() { return document.getElementById('protocol-select-all'); },
@@ -786,7 +784,6 @@ function initEventListeners() {
         setActiveNavItem(elements.navTheme);
         showThemeEditor();
     };
-    if (elements.openThemeEditorBtn) elements.openThemeEditorBtn.onclick = () => showThemeEditor();
     if (elements.themeSaveBtn) elements.themeSaveBtn.onclick = () => saveThemeFromEditor();
     if (elements.themeExportIniBtn) elements.themeExportIniBtn.onclick = () => exportThemeToIni();
     if (elements.themeImportIniBtn) elements.themeImportIniBtn.onclick = () => importThemeFromIni();
@@ -818,7 +815,6 @@ function initEventListeners() {
     if (elements.dashboardRefreshBtn) elements.dashboardRefreshBtn.onclick = () => showDashboard();
     if (elements.dashboardBulkFetchBtn) elements.dashboardBulkFetchBtn.onclick = () => handleBulkFetch();
     if (elements.dashboardBulkPullBtn) elements.dashboardBulkPullBtn.onclick = () => handleBulkPull();
-    if (elements.openProtocolConverterBtn) elements.openProtocolConverterBtn.onclick = () => handleProtocolConverter();
     if (elements.dashboardBulkCommitBtn) elements.dashboardBulkCommitBtn.onclick = () => showBulkCommitModal();
     if (elements.dashboardBulkRestoreBtn) elements.dashboardBulkRestoreBtn.onclick = () => handleBulkRestore();
     if (elements.repoRefreshBtn) elements.repoRefreshBtn.onclick = () => { if (activeRepo) selectRepo(activeRepo); };

@@ -28,6 +28,27 @@ function reportError(title, error) {
   dialog.showErrorBox(title, message);
 }
 
+// Single Instance Lock
+const gotTheLock = app.requestSingleInstanceLock();
+
+if (!gotTheLock) {
+  app.quit();
+} else {
+  app.on('second-instance', (event, commandLine, workingDirectory) => {
+    // Someone tried to run a second instance, we should focus our window.
+    if (mainWindow) {
+      if (mainWindow.isMinimized()) mainWindow.restore();
+      mainWindow.focus();
+      mainWindow.show();
+    }
+  });
+
+  app.whenReady().then(() => {
+    createWindow();
+    createTray();
+  });
+}
+
 let mainWindow;
 let tray = null;
 let watcher;
@@ -324,9 +345,15 @@ function createTray() {
   });
 }
 
-app.whenReady().then(() => {
-  createWindow();
-  createTray();
+app.on('will-quit', () => {
+  if (tray) {
+    tray.destroy();
+    tray = null;
+  }
+});
+
+app.on('before-quit', () => {
+  app.isQuitting = true;
 });
 
 app.on('window-all-closed', () => {
