@@ -10,6 +10,7 @@
   },
   "build": {
     "appId": "com.gitscope.desktop",
+    "npmRebuild": false,
     "win": {
       "target": "portable",
       "icon": "ICON.png"
