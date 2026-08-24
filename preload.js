@@ -108,5 +108,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
   showContextMenu: (options) => ipcRenderer.invoke('show-context-menu', options),
   onContextMenuCommand: (callback) => ipcRenderer.on('context-menu-command', (_event, value) => callback(value)),
   onExternalChange: (callback) => ipcRenderer.on('external-change', (_event, value) => callback(value)),
-  onTriggerAddRepo: (callback) => ipcRenderer.on('trigger-add-repo', (_event, value) => callback(value))
+  onTriggerAddRepo: (callback) => ipcRenderer.on('trigger-add-repo', (_event, value) => callback(value)),
+  onShowError: (callback) => ipcRenderer.on('show-error', (_event, value) => callback(value))
 });

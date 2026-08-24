@@ -23,9 +23,6 @@ let lastKnownStats = null;
 window.onerror = function(message, source, lineno, colno, error) {
     const errorMsg = `[Global Error] ${message}\nAt: ${source}:${lineno}:${colno}`;
     console.error(errorMsg, error);
-    if (window.electronAPI && window.electronAPI.reportError) {
-        window.electronAPI.reportError('Unhandled Application Error', errorMsg + (error && error.stack ? '\n\n' + error.stack : ''));
-    }
     if (typeof showError === 'function') {
         showError(errorMsg, 'Unhandled Application Error');
     } else {
@@ -37,9 +34,6 @@ window.onerror = function(message, source, lineno, colno, error) {
 window.onunhandledrejection = function(event) {
     const errorMsg = `[Unhandled Promise Rejection] ${event.reason}`;
     console.error(errorMsg);
-    if (window.electronAPI && window.electronAPI.reportError) {
-        window.electronAPI.reportError('Async Logic Error', errorMsg + (event.reason && event.reason.stack ? '\n\n' + event.reason.stack : ''));
-    }
     if (typeof showError === 'function') {
         showError(errorMsg, 'Async Logic Error');
     } else {
@@ -168,10 +162,6 @@ function showConfirm(message, title = 'Confirm Action') {
 }
 
 function showError(message, title = 'Error') {
-    // Also report to native system dialog for total visibility as requested by user
-    if (window.electronAPI && window.electronAPI.reportError) {
-        window.electronAPI.reportError(title, message);
-    }
     return new Promise((resolve) => {
         const modal = document.getElementById('confirm-modal');
         const titleEl = document.getElementById('confirm-title');
@@ -1089,6 +1079,9 @@ function initEventListeners() {
         }, 5000));
     }
     window.electronAPI.onContextMenuCommand(async (data) => handleContextMenuCommand(data));
+    window.electronAPI.onShowError((data) => {
+        if (data && data.message) showError(data.message, data.title || 'Error');
+    });
 
     // Keyboard Listeners
     window.onkeydown = (e) => {

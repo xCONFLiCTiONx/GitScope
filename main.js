@@ -1,4 +1,4 @@
-const { app, BrowserWindow, Menu, Tray, dialog, ipcMain, shell, Notification } = require('electron');
+const { app, BrowserWindow, Menu, Tray, dialog, ipcMain, shell, Notification, nativeTheme } = require('electron');
 const path = require('path');
 const fs = require('fs-extra');
 const { scanDirectory, listDirectory, getUnbornFolders } = require('./lib/git-scanner');
@@ -22,10 +22,17 @@ process.on('unhandledRejection', (reason, promise) => {
 // Ensure Git credential manager popups are allowed
 process.env.GIT_TERMINAL_PROMPT = '1';
 
+// Force Dark Theme for native dialogs
+nativeTheme.themeSource = 'dark';
+
 function reportError(title, error) {
   const message = (error && error.stack) || (error && error.message) || String(error);
   console.error(`${title}:`, error);
-  dialog.showErrorBox(title, message);
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('show-error', { title, message });
+  } else {
+    dialog.showErrorBox(title, message);
+  }
 }
 
 // Global state
@@ -270,7 +277,11 @@ ipcMain.handle('get-available-shells', () => {
 ipcMain.handle('heartbeat', () => "OK");
 
 ipcMain.handle('report-error', (event, { title, message }) => {
-  dialog.showErrorBox(title, message);
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('show-error', { title, message });
+  } else {
+    dialog.showErrorBox(title, message);
+  }
 });
 
 ipcMain.handle('send-notification', (event, { title, body }) => {
