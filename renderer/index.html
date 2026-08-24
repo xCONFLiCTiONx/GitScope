@@ -1863,6 +1863,7 @@
                 <h3>Subtree Hub Manager</h3>
                 <div style="display: flex; gap: 8px;">
                     <button id="subtree-github-fetch-btn" class="button" title="Import repository URLs from your GitHub account">Fetch from GitHub</button>
+                    <button id="subtree-pull-all-btn" class="button" title="Pull updates for all defined subtrees">Pull All Subtrees</button>
                     <button id="subtree-push-all-btn" class="button button-primary">Push All Subtrees</button>
                 </div>
             </div>
@@ -1884,15 +1885,24 @@
     <!-- Subtree GitHub Selection Modal (Nested or separate) -->
     <div id="subtree-github-modal" class="modal" style="z-index: 1100;">
         <div class="modal-content" style="width: 500px;">
-            <h3>Select GitHub Repository</h3>
-            <p style="font-size: 13px; color: var(--text-muted);">Choose a repository to map to the current subtree.</p>
+            <h3 style="color: var(--accent-blue);">Select GitHub Repositories</h3>
+            <p style="font-size: 13px; color: var(--text-muted);">Choose one or more repositories to map as subtrees.</p>
 
-            <div id="subtree-github-list" style="margin: 16px 0; max-height: 300px; overflow-y: auto; border: 1px solid var(--border-color); border-radius: 6px; background: var(--bg-sidebar);">
-                <div style="padding: 20px; color: var(--text-muted); text-align: center;">Loading repositories...</div>
+            <div style="margin: 16px 0; max-height: 400px; overflow-y: auto; border: 1px solid var(--border-color); border-radius: 6px; padding: 12px; background: var(--bg-sidebar);">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 1px solid var(--border-color); padding-bottom: 8px;">
+                    <span style="font-size: 11px; font-weight: 800; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px;">Repositories</span>
+                    <label style="font-size: 10px; cursor: pointer; color: var(--accent-blue);">
+                        <input type="checkbox" id="subtree-github-select-all"> Select All
+                    </label>
+                </div>
+                <div id="subtree-github-list" style="display: flex; flex-direction: column; gap: 4px;">
+                    <div style="padding: 20px; color: var(--text-muted); text-align: center;">Loading repositories...</div>
+                </div>
             </div>
 
-            <div style="text-align: right; display: flex; justify-content: flex-end; gap: 8px;">
+            <div style="text-align: right; display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px;">
                 <button id="subtree-github-cancel" class="button">Cancel</button>
+                <button id="subtree-github-confirm" class="button button-primary">Add Selected</button>
             </div>
         </div>
     </div>

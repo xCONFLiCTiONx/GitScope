@@ -61,6 +61,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getFilePatch: (repoPath, filePath) => ipcRenderer.invoke('git-get-patch', repoPath, filePath),
   applyPatch: (repoPath, patchString) => ipcRenderer.invoke('git-apply-patch', repoPath, patchString),
   gitSubtreePush: (path, prefix, remoteUrl, branch, force) => ipcRenderer.invoke('git-subtree-push', path, prefix, remoteUrl, branch, force),
+  gitSubtreePull: (path, prefix, remoteUrl, branch) => ipcRenderer.invoke('git-subtree-pull', path, prefix, remoteUrl, branch),
   gitInit: (path) => ipcRenderer.invoke('git-init', path),
   gitClone: (url, dest) => ipcRenderer.invoke('git-clone', url, dest),
   getRepositories: () => ipcRenderer.invoke('get-repositories'),

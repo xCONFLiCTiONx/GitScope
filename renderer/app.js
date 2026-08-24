@@ -319,10 +319,13 @@ const elements = {
     get subtreeHubModal() { return document.getElementById('subtree-hub-modal'); },
     get subtreeMappingList() { return document.getElementById('subtree-mapping-list'); },
     get addSubtreeBtn() { return document.getElementById('add-subtree-mapping-btn'); },
+    get subtreePullAllBtn() { return document.getElementById('subtree-pull-all-btn'); },
     get subtreePushAllBtn() { return document.getElementById('subtree-push-all-btn'); },
     get subtreeGitHubFetchBtn() { return document.getElementById('subtree-github-fetch-btn'); },
     get subtreeGitHubModal() { return document.getElementById('subtree-github-modal'); },
     get subtreeGitHubList() { return document.getElementById('subtree-github-list'); },
+    get subtreeGitHubSelectAll() { return document.getElementById('subtree-github-select-all'); },
+    get subtreeGitHubConfirm() { return document.getElementById('subtree-github-confirm'); },
     get subtreeGitHubCancel() { return document.getElementById('subtree-github-cancel'); },
     get subtreeModalClose() { return document.getElementById('subtree-modal-close'); },
     get repoSubtreeBtn() { return document.getElementById('repo-subtree-btn'); },
@@ -2031,7 +2034,9 @@ async function showSubtreeHubModal() {
     }
 
     renderSubtreeMappings();
-    elements.subtreePushAllBtn.disabled = currentSubtreeMappings.length === 0;
+    const hasMappings = currentSubtreeMappings.length > 0;
+    elements.subtreePushAllBtn.disabled = !hasMappings;
+    if (elements.subtreePullAllBtn) elements.subtreePullAllBtn.disabled = !hasMappings;
 
     elements.subtreeGitHubFetchBtn.onclick = () => showSubtreeGitHubModal();
 }
@@ -2042,6 +2047,8 @@ async function showSubtreeGitHubModal(targetIndex = -1) {
     const list = elements.subtreeGitHubList;
     list.innerHTML = '<div style="padding:20px; color:var(--text-muted); text-align:center;">Loading GitHub repositories...</div>';
 
+    if (elements.subtreeGitHubConfirm) elements.subtreeGitHubConfirm.disabled = true;
+
     try {
         const res = await window.electronAPI.fetchGitHubRepos(settings.githubToken);
         if (res.expiration) updateTokenExpirationUI(res.expiration);
@@ -2050,26 +2057,55 @@ async function showSubtreeGitHubModal(targetIndex = -1) {
         if (repos.length === 0) {
             list.innerHTML = '<div style="padding:20px; color:var(--text-muted); text-align:center;">No repositories found on your account.</div>';
         } else {
+            if (elements.subtreeGitHubConfirm) {
+                elements.subtreeGitHubConfirm.disabled = false;
+                elements.subtreeGitHubConfirm.textContent = targetIndex >= 0 ? 'Update Remote URL' : 'Add Selected Repos';
+            }
+
             list.innerHTML = repos.map(r => `
-                <div class="gh-repo-item" style="padding:10px 14px; border-bottom:1px solid var(--border-color); cursor:pointer; transition:background 0.2s;" data-url="${r.clone_url}">
-                    <div style="font-weight:600; font-size:13px; color:#fff;">${r.full_name}</div>
-                    <div style="font-size:11px; color:var(--text-muted); margin-top:2px;">${r.clone_url}</div>
-                </div>
+                <label style="display:flex; align-items:center; gap:10px; padding:8px 12px; background:rgba(255,255,255,0.02); border-radius:4px; border:1px solid transparent; cursor:pointer; transition:all 0.2s;">
+                    <input type="${targetIndex >= 0 ? 'radio' : 'checkbox'}" class="gh-repo-item-cb" name="gh-repo-selection" value="${r.clone_url}" data-name="${r.name}">
+                    <div style="flex:1; min-width:0;">
+                        <div style="font-weight:600; font-size:13px; color:#fff; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${r.full_name}</div>
+                        <div style="font-size:11px; color:var(--text-muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${r.clone_url}</div>
+                    </div>
+                </label>
             `).join('');
 
-            list.querySelectorAll('.gh-repo-item').forEach(item => {
-                item.onclick = () => {
-                    const url = item.dataset.url;
+            // Select All logic (only for bulk add)
+            if (elements.subtreeGitHubSelectAll) {
+                elements.subtreeGitHubSelectAll.parentElement.style.display = targetIndex >= 0 ? 'none' : 'block';
+                elements.subtreeGitHubSelectAll.checked = false;
+                elements.subtreeGitHubSelectAll.onchange = (e) => {
+                    list.querySelectorAll('.gh-repo-item-cb').forEach(cb => cb.checked = e.target.checked);
+                };
+            }
+
+            if (elements.subtreeGitHubConfirm) {
+                elements.subtreeGitHubConfirm.onclick = () => {
+                    const selected = Array.from(list.querySelectorAll('.gh-repo-item-cb:checked'));
+                    if (selected.length === 0) return showAlert('Select at least one repository.', 'Selection Required');
+
                     if (targetIndex >= 0) {
-                        currentSubtreeMappings[targetIndex].url = url;
+                        // Editing single row
+                        currentSubtreeMappings[targetIndex].url = selected[0].value;
                     } else {
-                        currentSubtreeMappings.push({ prefix: '', url: url, branch: 'main' });
+                        // Bulk adding
+                        selected.forEach(item => {
+                            currentSubtreeMappings.push({
+                                prefix: item.dataset.name,
+                                url: item.value,
+                                branch: 'main'
+                            });
+                        });
                     }
+
                     elements.subtreeGitHubModal.style.display = 'none';
                     saveSubtreeMappings();
                     renderSubtreeMappings();
+                    logToConsole(`Added ${selected.length} GitHub repositories to subtree mappings.`, 'success');
                 };
-            });
+            }
         }
     } catch (e) {
         list.innerHTML = `<div style="padding:20px; color:var(--accent-red); text-align:center;">API Error: ${e.message}</div>`;
@@ -2108,6 +2144,7 @@ function renderSubtreeMappings() {
             </div>
             <div style="display: flex; gap: 6px; flex-shrink: 0;">
                 <button class="button button-danger remove-mapping-btn" data-index="${index}" style="height:28px; width:28px; padding:0;" title="Remove Mapping">×</button>
+                <button class="button pull-subtree-btn" data-index="${index}" style="height:28px; width:28px; padding:0; color:var(--accent-blue);" title="Pull this subtree only (updates parent project)">↓</button>
                 <button class="button button-primary push-subtree-btn" data-index="${index}" style="height:28px; width:28px; padding:0;" title="Push this subtree only">↑</button>
             </div>
         </div>
@@ -2203,6 +2240,27 @@ elements.subtreePushAllBtn.onclick = async () => {
     }
 };
 
+if (elements.subtreePullAllBtn) {
+    elements.subtreePullAllBtn.onclick = async () => {
+        if (currentSubtreeMappings.length === 0) return;
+        if (await showConfirm(`Pull updates for all ${currentSubtreeMappings.length} subtrees? This will merge remote changes into your local folders.`, "Confirm Bulk Pull")) {
+            elements.subtreeHubModal.style.display = 'none';
+            setTaskState(true);
+            logToConsole(`🚀 Starting Bulk Subtree Pull sequence...`, 'info');
+
+            let successCount = 0;
+            for (const m of currentSubtreeMappings) {
+                if (!m.prefix || !m.url) continue;
+                const res = await handleSubtreePull(m, true);
+                if (res) successCount++;
+            }
+
+            logToConsole(`Bulk sequence complete. ${successCount}/${currentSubtreeMappings.length} successful.`, successCount === currentSubtreeMappings.length ? 'success' : 'warn');
+            setTaskState(false);
+        }
+    };
+}
+
 elements.subtreeModalClose.onclick = () => {
     elements.subtreeHubModal.style.display = 'none';
 };
@@ -2238,6 +2296,42 @@ async function handleSubtreePush(mapping, isBulk = false) {
         }
     } catch (e) {
         logToConsole(`System Error during subtree push: ${e.message}`, 'error');
+        return false;
+    } finally {
+        if (!isBulk) setTaskState(false);
+    }
+}
+
+async function handleSubtreePull(mapping, isBulk = false) {
+    if (!activeRepo) return false;
+    if (!mapping.prefix || !mapping.url) {
+        if (!isBulk) showAlert('Please specify both folder prefix and remote URL.', 'Missing Info');
+        return false;
+    }
+
+    if (!isBulk) setTaskState(true);
+    logToConsole(`Subtree PULL: [${mapping.prefix}] <- ${mapping.url}...`, 'info');
+
+    try {
+        const res = await window.electronAPI.gitSubtreePull(
+            activeRepo.path,
+            mapping.prefix,
+            mapping.url,
+            mapping.branch || 'main'
+        );
+
+        if (res.success) {
+            logToConsole(`✅ Subtree [${mapping.prefix}] pull successful!`, 'success');
+            if (!isBulk) showAlert(`Subtree [${mapping.prefix}] successfully updated from remote.`, 'Success');
+            await refreshActiveRepoUI();
+            return true;
+        } else {
+            logToConsole(`❌ Subtree [${mapping.prefix}] pull failed: ${res.output}`, 'error');
+            if (!isBulk) showError(res.output, `Pull Failed: ${mapping.prefix}`);
+            return false;
+        }
+    } catch (e) {
+        logToConsole(`System Error during subtree pull: ${e.message}`, 'error');
         return false;
     } finally {
         if (!isBulk) setTaskState(false);

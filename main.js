@@ -533,6 +533,10 @@ ipcMain.handle('git-subtree-push', async (event, path, prefix, remoteUrl, branch
   return await gitActions.subtreePush(path, prefix, remoteUrl, branch, force);
 });
 
+ipcMain.handle('git-subtree-pull', async (event, path, prefix, remoteUrl, branch) => {
+    return await gitActions.subtreePull(path, prefix, remoteUrl, branch);
+});
+
 ipcMain.handle('git-get-branches', async (event, path) => {
   return await gitActions.getBranches(path);
 });
