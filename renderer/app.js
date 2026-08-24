@@ -1270,13 +1270,13 @@ async function quickGitAction(action) {
 }
 
 /**
- * Enhanced Dashboard Push: Stages all, commits as "update", and pushes.
+ * Quick Commit from Dashboard: Stages all and commits as "update".
  */
-async function handleDashboardPush(repo) {
+async function handleDashboardCommit(repo) {
     if (!repo) return;
     activeRepo = repo;
     setTaskState(true);
-    logToConsole(`🚀 Quick Sync & Push: ${repo.name}`, 'info');
+    logToConsole(`🚀 Quick Commit: ${repo.name}`, 'info');
 
     try {
         // 1. Stage everything
@@ -1289,12 +1289,29 @@ async function handleDashboardPush(repo) {
         if (commitRes.success) {
             logToConsole('Commit successful.', 'success');
         } else if (commitRes.output.toLowerCase().includes('nothing to commit')) {
-            logToConsole('Nothing new to commit, checking remote...', 'info');
+            logToConsole('Nothing new to commit.', 'info');
         } else {
             logToConsole(`Commit Warning: ${commitRes.output}`, 'warn');
         }
+        await showDashboard();
+    } catch (e) {
+        logToConsole(`Commit Error: ${e.message}`, 'error');
+        showError(e.message, 'Quick Commit Failed');
+    } finally {
+        setTaskState(false);
+    }
+}
 
-        // 3. Push to remote
+/**
+ * Dashboard Push: Only pushes to remote.
+ */
+async function handleDashboardPush(repo) {
+    if (!repo) return;
+    activeRepo = repo;
+    setTaskState(true);
+    logToConsole(`🚀 Quick Push: ${repo.name}`, 'info');
+
+    try {
         logToConsole('Pushing to origin...', 'info');
         if (window.terminal) {
             // CRITICAL: Ensure terminal is in the correct directory before pushing
@@ -1314,8 +1331,9 @@ async function handleDashboardPush(repo) {
             setTaskState(false);
         }
     } catch (e) {
-        logToConsole(`Sync Error: ${e.message}`, 'error');
-        showError(e.message, 'Quick Sync Failed');
+        logToConsole(`Push Error: ${e.message}`, 'error');
+        showError(e.message, 'Quick Push Failed');
+    } finally {
         setTaskState(false);
     }
 }
@@ -3113,7 +3131,9 @@ async function showDashboard(forceRefresh = true) {
                         Refresh disabled
                     </div>
                     <div class="quick-actions" style="display:flex; gap:6px; margin-top:auto; padding-top:12px; border-top:1px solid var(--border-color);">
-                        <button class="button quick-btn explorer-btn" title="Open in Explorer" style="flex:1; padding:4px; font-size:11px;">EXPLORE</button>
+                        <button class="button quick-btn pull-btn" title="Pull" style="flex:1; padding:4px; font-size:11px;">PULL</button>
+                        <button class="button quick-btn commit-btn" title="Quick Commit (Stages all)" style="flex:1; padding:4px; font-size:11px;">COMMIT</button>
+                        <button class="button quick-btn button-primary push-btn" title="Push" style="flex:1; padding:4px; font-size:11px;">PUSH</button>
                     </div>`;
 
                 const cb = card.querySelector('.repo-refresh-cb');
@@ -3125,9 +3145,20 @@ async function showDashboard(forceRefresh = true) {
                     if (cb.checked) showDashboard(); // Refresh if re-enabled
                 };
 
-                card.querySelector('.explorer-btn').onclick = (e) => {
+                card.querySelector('.pull-btn').onclick = (e) => {
                     e.stopPropagation();
-                    window.electronAPI.openPath(repo.path);
+                    activeRepo = repo;
+                    quickGitAction('pull');
+                };
+
+                card.querySelector('.commit-btn').onclick = (e) => {
+                    e.stopPropagation();
+                    handleDashboardCommit(repo);
+                };
+
+                card.querySelector('.push-btn').onclick = (e) => {
+                    e.stopPropagation();
+                    handleDashboardPush(repo);
                 };
 
                 updateProgressBar();
@@ -3187,22 +3218,10 @@ async function showDashboard(forceRefresh = true) {
                     </div>
 
                     <div class="quick-actions" style="display:flex; gap:6px; margin-top:16px; padding-top:12px; border-top:1px solid var(--border-color);">
-                        <button class="button quick-btn explorer-btn" title="Open in Explorer" style="flex:1; padding:4px; font-size:11px;">EXPLORE</button>
                         <button class="button quick-btn pull-btn" title="Pull" style="flex:1; padding:4px; font-size:11px;">PULL</button>
+                        <button class="button quick-btn commit-btn" title="Quick Commit (Stages all)" style="flex:1; padding:4px; font-size:11px;">COMMIT</button>
                         <button class="button quick-btn button-primary push-btn" title="Push" style="flex:1; padding:4px; font-size:11px;">PUSH</button>
                     </div>`;
-
-                card.querySelector('.explorer-btn').onclick = (e) => {
-                    e.stopPropagation();
-                    window.electronAPI.openPath(repo.path);
-                };
-
-                const refreshCb = card.querySelector('.repo-refresh-cb');
-                refreshCb.onclick = (e) => {
-                    e.stopPropagation();
-                    repo.refreshEnabled = refreshCb.checked;
-                    window.electronAPI.saveRepositories(repositories);
-                };
 
                 const cardPullBtn = card.querySelector('.pull-btn');
                 if ((status.behind || 0) > 0) {
@@ -3216,9 +3235,21 @@ async function showDashboard(forceRefresh = true) {
                     quickGitAction('pull');
                 };
 
+                card.querySelector('.commit-btn').onclick = (e) => {
+                    e.stopPropagation();
+                    handleDashboardCommit(repo);
+                };
+
                 card.querySelector('.push-btn').onclick = (e) => {
                     e.stopPropagation();
                     handleDashboardPush(repo);
+                };
+
+                const refreshCb = card.querySelector('.repo-refresh-cb');
+                refreshCb.onclick = (e) => {
+                    e.stopPropagation();
+                    repo.refreshEnabled = refreshCb.checked;
+                    window.electronAPI.saveRepositories(repositories);
                 };
 
                 updateDashboardSummary(stats);
