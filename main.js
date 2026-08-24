@@ -1,4 +1,4 @@
-const { app, BrowserWindow, Menu, dialog, ipcMain, shell, Notification } = require('electron');
+const { app, BrowserWindow, Menu, Tray, dialog, ipcMain, shell, Notification } = require('electron');
 const path = require('path');
 const fs = require('fs-extra');
 const { scanDirectory, listDirectory, getUnbornFolders } = require('./lib/git-scanner');
@@ -12,6 +12,7 @@ const os = require('os');
 process.env.GIT_TERMINAL_PROMPT = '1';
 
 let mainWindow;
+let tray = null;
 let watcher;
 let ptyProcess;
 const configPath = path.join(app.getPath('userData'), 'config.json');
@@ -136,7 +137,14 @@ function createWindow() {
     return { action: 'allow' };
   });
 
-  mainWindow.on('close', saveWindowState);
+  mainWindow.on('close', (event) => {
+    if (!app.isQuitting) {
+      event.preventDefault();
+      mainWindow.hide();
+      return false;
+    }
+    saveWindowState();
+  });
   mainWindow.on('resize', saveWindowState);
   mainWindow.on('move', saveWindowState);
 
@@ -271,12 +279,33 @@ function setupPTY() {
   }
 }
 
-app.whenReady().then(createWindow);
+function createTray() {
+  tray = new Tray(path.join(__dirname, 'ICON.png'));
+  const contextMenu = Menu.buildFromTemplate([
+    { label: 'Show GitScope', click: () => {
+      mainWindow.show();
+    } },
+    { type: 'separator' },
+    { label: 'Quit', click: () => {
+      app.isQuitting = true;
+      app.quit();
+    } }
+  ]);
+  tray.setToolTip('GitScope');
+  tray.setContextMenu(contextMenu);
+
+  tray.on('double-click', () => {
+    mainWindow.show();
+  });
+}
+
+app.whenReady().then(() => {
+  createWindow();
+  createTray();
+});
 
 app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') {
-    app.quit();
-  }
+  // Application stays alive in tray
 });
 
 app.on('activate', () => {
