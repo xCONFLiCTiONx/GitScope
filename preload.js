@@ -83,6 +83,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getGitConfig: () => ipcRenderer.invoke('get-git-config'),
   saveGitConfig: (content) => ipcRenderer.invoke('save-git-config', content),
   ensureGithubSSHTrust: () => ipcRenderer.invoke('ensure-github-ssh-trust'),
+  syncTokenToGit: (token) => ipcRenderer.invoke('git-sync-token', token),
+  clearGitCreds: () => ipcRenderer.invoke('git-clear-creds'),
   pathExists: (path) => ipcRenderer.invoke('path-exists', path),
   resetApp: () => ipcRenderer.invoke('reset-app'),
   sendNotification: (options) => ipcRenderer.invoke('send-notification', options),

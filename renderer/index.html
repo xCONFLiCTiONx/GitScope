@@ -1262,6 +1262,10 @@
                             <input type="password" id="github-pat" class="settings-input" placeholder="Personal Access Token (PAT)...">
                             <button id="save-github-token" class="button button-primary">Save Token</button>
                         </div>
+                        <div style="margin-top: 10px; display: flex; gap: 8px;">
+                            <button id="sync-token-to-git-btn" class="button button-blue" style="font-size: 11px; flex: 1;" title="Inject this token into your system Git credentials to fix authentication errors">Sync Token to System Git</button>
+                            <button id="clear-git-creds-btn" class="button button-danger" style="font-size: 11px; flex: 1; background: transparent; border-color: var(--accent-red); color: var(--accent-red);" title="Remove all GitHub credentials from Windows Credential Manager">Reset Git Credentials</button>
+                        </div>
                         <div id="token-expiry-container-settings" style="display: none; font-size: 11px; margin-top: 8px; color: var(--text-muted);">
                             Token Expiration: <a href="https://github.com/settings/tokens" id="token-expiry-link-settings" style="color: var(--accent-blue); text-decoration: none; font-weight: 600;"></a>
                         </div>

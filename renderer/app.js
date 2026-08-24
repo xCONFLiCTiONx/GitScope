@@ -342,6 +342,8 @@ const elements = {
     get unbornFoldersClose() { return document.getElementById('unborn-folders-close'); },
     get rootRepoDirInput() { return document.getElementById('root-repo-dir'); },
     get githubPatInput() { return document.getElementById('github-pat'); },
+    get syncTokenToGitBtn() { return document.getElementById('sync-token-to-git-btn'); },
+    get clearGitCredsBtn() { return document.getElementById('clear-git-creds-btn'); },
     get shellSelect() { return document.getElementById('shell-select'); },
     get saveSettingsBtn() { return document.getElementById('save-settings-btn'); },
     get resetAppBtn() { return document.getElementById('reset-app-btn'); },
@@ -939,6 +941,44 @@ function initEventListeners() {
 
     // Settings Panel
     if (elements.saveSettingsBtn) elements.saveSettingsBtn.onclick = () => saveGlobalSettings();
+    if (elements.syncTokenToGitBtn) {
+        elements.syncTokenToGitBtn.onclick = async () => {
+            const token = elements.githubPatInput.value.trim();
+            if (!token) return showAlert('Please enter a Personal Access Token first.', 'Token Required');
+
+            logToConsole('Attempting to sync token to system Git...', 'info');
+            try {
+                const res = await window.electronAPI.syncTokenToGit(token);
+                if (res.success) {
+                    logToConsole(res.message, 'success');
+                    showAlert(res.message, 'Success');
+                } else {
+                    logToConsole(`Failed to sync token: ${res.error}`, 'error');
+                    showError(res.error, 'Sync Failed');
+                }
+            } catch (err) {
+                logToConsole(`System Error: ${err.message}`, 'error');
+            }
+        };
+    }
+    if (elements.clearGitCredsBtn) {
+        elements.clearGitCredsBtn.onclick = async () => {
+            if (await showConfirm('This will remove all cached GitHub credentials from your system. You will need to log in again. Proceed?', 'Confirm Reset')) {
+                logToConsole('Clearing system GitHub credentials...', 'info');
+                try {
+                    const res = await window.electronAPI.clearGitCreds();
+                    if (res.success) {
+                        logToConsole(res.message, 'success');
+                        showAlert(res.message, 'Reset Complete');
+                    } else {
+                        logToConsole(`Failed to clear credentials: ${res.error}`, 'error');
+                    }
+                } catch (err) {
+                    logToConsole(`System Error: ${err.message}`, 'error');
+                }
+            }
+        };
+    }
     if (elements.resetAppBtn) elements.resetAppBtn.onclick = () => handleResetApp();
     if (elements.exportSettingsBtn) elements.exportSettingsBtn.onclick = () => handleExportSettings();
     if (elements.importSettingsBtn) elements.importSettingsBtn.onclick = () => handleImportSettings();

@@ -595,6 +595,56 @@ ipcMain.handle('ensure-github-ssh-trust', async () => {
     }
 });
 
+ipcMain.handle('git-sync-token', async (event, token) => {
+    try {
+        const { execSync } = require('child_process');
+
+        // 1. Get the current Git username if possible, otherwise use a generic one
+        let username = 'gitscope-user';
+        try {
+            username = execSync('git config user.name', { encoding: 'utf8' }).trim();
+        } catch(e) {}
+
+        // 2. Use the 'git credential' command to approve this token
+        // This is the official way to feed credentials into whatever helper is active (GCM, wincred, etc)
+        const input = `protocol=https\nhost=github.com\nusername=${username}\npassword=${token}\n\n`;
+        const cmd = 'git credential approve';
+
+        const { spawnSync } = require('child_process');
+        const res = spawnSync('git', ['credential', 'approve'], {
+            input: input,
+            encoding: 'utf8'
+        });
+
+        if (res.status === 0) {
+            return { success: true, message: `Successfully injected token for ${username}@github.com into your system credential helper.` };
+        } else {
+            return { success: false, error: res.stderr || 'Git credential command failed' };
+        }
+    } catch (e) {
+        return { success: false, error: e.message };
+    }
+});
+
+ipcMain.handle('git-clear-creds', async () => {
+    try {
+        const { spawnSync } = require('child_process');
+        const input = `protocol=https\nhost=github.com\n\n`;
+        const res = spawnSync('git', ['credential', 'reject'], {
+            input: input,
+            encoding: 'utf8'
+        });
+
+        if (res.status === 0) {
+            return { success: true, message: 'Successfully cleared GitHub credentials from your system helper.' };
+        } else {
+            return { success: false, error: res.stderr || 'Git credential command failed' };
+        }
+    } catch (e) {
+        return { success: false, error: e.message };
+    }
+});
+
 ipcMain.handle('git-switch-branch', async (event, path, branchName) => {
   return await gitActions.switchBranch(path, branchName);
 });
