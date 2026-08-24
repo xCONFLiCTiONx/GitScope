@@ -3,7 +3,7 @@ let repositories = [];
 let activeRepo = null;
 let isRendering = false;
 let hideIgnoredFiles = false;
-let settings = { shell: 'powershell.exe', rootRepoDir: '', githubToken: '', obsidianIni: '', gitForce: false, gitAutoFetch: false };
+let settings = { shell: 'powershell.exe', rootRepoDir: '', githubToken: '', obsidianIni: '' };
 let selectedNodes = new Set();
 let expandedNodes = new Set();
 let tokenExpiration = null;
@@ -340,8 +340,6 @@ const elements = {
     get rootRepoDirInput() { return document.getElementById('root-repo-dir'); },
     get githubPatInput() { return document.getElementById('github-pat'); },
     get shellSelect() { return document.getElementById('shell-select'); },
-    get settingsGitAutoFetch() { return document.getElementById('settings-git-auto-fetch'); },
-    get settingsGitForce() { return document.getElementById('settings-git-force'); },
     get saveSettingsBtn() { return document.getElementById('save-settings-btn'); },
     get resetAppBtn() { return document.getElementById('reset-app-btn'); },
     get newItemModal() { return document.getElementById('new-item-modal'); },
@@ -424,23 +422,7 @@ window.onload = async () => {
         if (elements.githubPatInput) elements.githubPatInput.value = settings.githubToken || '';
         if (elements.notifRepoChanges) elements.notifRepoChanges.checked = !!settings.notifRepoChanges;
 
-        if (elements.gitForceToggle) {
-            elements.gitForceToggle.checked = !!settings.gitForce;
-            elements.gitForceToggle.onchange = (e) => {
-                settings.gitForce = e.target.checked;
-                if (elements.settingsGitForce) elements.settingsGitForce.checked = settings.gitForce;
-                window.electronAPI.saveSettings(settings);
-            };
-        }
-
-        if (elements.gitAutoFetchToggle) {
-            elements.gitAutoFetchToggle.checked = !!settings.gitAutoFetch;
-            elements.gitAutoFetchToggle.onchange = (e) => {
-                settings.gitAutoFetch = e.target.checked;
-                if (elements.settingsGitAutoFetch) elements.settingsGitAutoFetch.checked = settings.gitAutoFetch;
-                window.electronAPI.saveSettings(settings);
-            };
-        }
+        // Note: Project-specific toggles (Force/AutoFetch) are hydrated in selectRepo()
 
         // Intelligence: If Obsidian theme is empty, use the new simplified default
         if (!settings.obsidianIni) {
@@ -852,6 +834,26 @@ function initEventListeners() {
     if (elements.repoSubtreeBtn) elements.repoSubtreeBtn.onclick = () => showSubtreeHubModal();
     if (elements.repoRefreshBtn) elements.repoRefreshBtn.onclick = () => { if (activeRepo) selectRepo(activeRepo); };
 
+    // Project-specific Git Operation Toggles
+    if (elements.gitForceToggle) {
+        elements.gitForceToggle.onchange = (e) => {
+            if (activeRepo) {
+                activeRepo.gitForce = e.target.checked;
+                window.electronAPI.saveRepositories(repositories);
+                logToConsole(`FORCE mode ${activeRepo.gitForce ? 'ENABLED' : 'DISABLED'} for ${activeRepo.name}`, 'info');
+            }
+        };
+    }
+    if (elements.gitAutoFetchToggle) {
+        elements.gitAutoFetchToggle.onchange = (e) => {
+            if (activeRepo) {
+                activeRepo.gitAutoFetch = e.target.checked;
+                window.electronAPI.saveRepositories(repositories);
+                logToConsole(`AUTO-FETCH ${activeRepo.gitAutoFetch ? 'ENABLED' : 'DISABLED'} for ${activeRepo.name}`, 'info');
+            }
+        };
+    }
+
     // Editor Actions
     if (elements.editorSaveBtn) elements.editorSaveBtn.onclick = () => saveCurrentFile();
     if (elements.editorRestoreBtn) elements.editorRestoreBtn.onclick = () => handleRestoreFile();
@@ -1073,11 +1075,6 @@ function setActiveNavItem(item) {
 
 function showSettings() {
     setActiveNavItem(elements.navSettings);
-
-    // Sync settings UI
-    if (elements.settingsGitAutoFetch) elements.settingsGitAutoFetch.checked = !!settings.gitAutoFetch;
-    if (elements.settingsGitForce) elements.settingsGitForce.checked = !!settings.gitForce;
-
     elements.settingsView.style.display = 'flex';
 }
 
@@ -1167,7 +1164,7 @@ async function quickGitAction(action) {
             // CRITICAL: Ensure terminal is in the correct directory before pushing
             window.terminal.sendCommand(`cd "${activeRepo.path}"`);
             // Use -u origin HEAD to ensure upstream is set automatically
-            const forceFlag = settings.gitForce ? ' --force' : '';
+            const forceFlag = activeRepo.gitForce ? ' --force' : '';
             window.terminal.sendCommand(`git push -u origin HEAD${forceFlag}`);
             setTimeout(async () => {
                 await refreshActiveRepoUI();
@@ -1180,7 +1177,7 @@ async function quickGitAction(action) {
     try {
         const method = `git${action.charAt(0).toUpperCase() + action.slice(1)}`;
         const needsForce = (action === 'pull' || action === 'push');
-        const res = await window.electronAPI[method](activeRepo.path, needsForce ? settings.gitForce : undefined);
+        const res = await window.electronAPI[method](activeRepo.path, needsForce ? activeRepo.gitForce : undefined);
         logToConsole(res.output, res.success ? 'success' : 'error');
         if (!res.success) showError(res.output, `Git ${action.toUpperCase()} Failed`);
 
@@ -1226,14 +1223,14 @@ async function handleDashboardPush(repo) {
             // CRITICAL: Ensure terminal is in the correct directory before pushing
             window.terminal.sendCommand(`cd "${repo.path}"`);
             // Use -u origin HEAD to ensure upstream is set automatically
-            const forceFlag = settings.gitForce ? ' --force' : '';
+            const forceFlag = repo.gitForce ? ' --force' : '';
             window.terminal.sendCommand(`git push -u origin HEAD${forceFlag}`);
             setTimeout(async () => {
                 await showDashboard();
                 setTaskState(false);
             }, 3000);
         } else {
-            const pushRes = await window.electronAPI.gitPush(repo.path, settings.gitForce);
+            const pushRes = await window.electronAPI.gitPush(repo.path, repo.gitForce);
             logToConsole(pushRes.output, pushRes.success ? 'success' : 'error');
             if (!pushRes.success) showError(pushRes.output, `Git Push Failed`);
             await showDashboard();
@@ -1328,9 +1325,9 @@ async function handleCommit(pushAfter = false) {
                 logToConsole('Pushing changes...', 'info');
                 if (window.terminal) {
                     window.terminal.sendCommand(`cd "${activeRepo.path}"`);
-                    const forceFlag = settings.gitForce ? ' --force' : '';
+                    const forceFlag = activeRepo.gitForce ? ' --force' : '';
                     window.terminal.sendCommand(`git push${forceFlag}`);
-                } else await window.electronAPI.gitPush(activeRepo.path, settings.gitForce);
+                } else await window.electronAPI.gitPush(activeRepo.path, activeRepo.gitForce);
             }
 
             await smartRefreshTree(); // Structural refresh (handles deleted files)
@@ -1526,14 +1523,6 @@ async function saveGlobalSettings() {
     settings.githubToken = elements.githubPatInput.value;
     settings.shell = customPath || selectedPath;
     settings.notifRepoChanges = elements.notifRepoChanges ? elements.notifRepoChanges.checked : false;
-
-    // Git Operations
-    if (elements.settingsGitAutoFetch) settings.gitAutoFetch = elements.settingsGitAutoFetch.checked;
-    if (elements.settingsGitForce) settings.gitForce = elements.settingsGitForce.checked;
-
-    // Sync Repo View Toggles
-    if (elements.gitAutoFetchToggle) elements.gitAutoFetchToggle.checked = settings.gitAutoFetch;
-    if (elements.gitForceToggle) elements.gitForceToggle.checked = settings.gitForce;
 
     try {
         await window.electronAPI.saveSettings(settings);
@@ -4056,7 +4045,8 @@ async function showBulkCommitModal() {
 
                         // 3. Push
                         logToConsole(`   ⬆️ Pushing: ${name}...`, 'info');
-                        const pushRes = await window.electronAPI.gitPush(path, settings.gitForce);
+                        const repo = repositories.find(r => r.path === path);
+                        const pushRes = await window.electronAPI.gitPush(path, repo ? repo.gitForce : false);
 
                         if (pushRes.success) {
                             logToConsole(`   🚀 Pushed: ${name}`, 'success');
@@ -4280,7 +4270,8 @@ async function handleBulkPull() {
                 const name = cb.dataset.name;
                 try {
                     logToConsole(`   📥 Pulling: ${name}...`, 'info');
-                    const res = await window.electronAPI.gitPull(path, settings.gitForce);
+                    const repo = repositories.find(r => r.path === path);
+                    const res = await window.electronAPI.gitPull(path, repo ? repo.gitForce : false);
                     if (res.success) {
                         logToConsole(`   ✅ Pulled: ${name}`, 'success');
                         success++;
@@ -4526,8 +4517,12 @@ async function selectRepo(repo, fromDashboard = false) {
 
     if (window.terminal) window.terminal.sendCommand(`cd "${repo.path}"`);
 
+    // Hydrate project-specific toggles
+    if (elements.gitForceToggle) elements.gitForceToggle.checked = !!repo.gitForce;
+    if (elements.gitAutoFetchToggle) elements.gitAutoFetchToggle.checked = !!repo.gitAutoFetch;
+
     // Auto-Fetch Feature
-    if (settings.gitAutoFetch) {
+    if (repo.gitAutoFetch) {
         logToConsole(`Auto-fetching for ${repo.name}...`, 'info');
         window.electronAPI.gitFetch(repo.path).then(() => {
             logToConsole(`Auto-fetch complete for ${repo.name}`, 'success');
