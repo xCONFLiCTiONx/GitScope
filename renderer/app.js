@@ -320,8 +320,8 @@ const elements = {
     get subtreeMappingList() { return document.getElementById('subtree-mapping-list'); },
     get subtreeMappingSelectAll() { return document.getElementById('subtree-mapping-select-all'); },
     get addSubtreeBtn() { return document.getElementById('add-subtree-mapping-btn'); },
-    get subtreePullAllBtn() { return document.getElementById('subtree-pull-all-btn'); },
-    get subtreePushAllBtn() { return document.getElementById('subtree-push-all-btn'); },
+    get subtreePullSelectedBtn() { return document.getElementById('subtree-pull-selected-btn'); },
+    get subtreePushSelectedBtn() { return document.getElementById('subtree-push-selected-btn'); },
     get subtreeDeleteSelectedBtn() { return document.getElementById('subtree-delete-selected-btn'); },
     get subtreeClearAllBtn() { return document.getElementById('subtree-clear-all-btn'); },
     get subtreeGitHubFetchBtn() { return document.getElementById('subtree-github-fetch-btn'); },
@@ -330,6 +330,9 @@ const elements = {
     get subtreeGitHubSelectAll() { return document.getElementById('subtree-github-select-all'); },
     get subtreeGitHubConfirm() { return document.getElementById('subtree-github-confirm'); },
     get subtreeGitHubCancel() { return document.getElementById('subtree-github-cancel'); },
+    get prefixPickerModal() { return document.getElementById('prefix-picker-modal'); },
+    get prefixFolderList() { return document.getElementById('prefix-folder-list'); },
+    get prefixPickerCancel() { return document.getElementById('prefix-picker-cancel'); },
     get subtreeModalClose() { return document.getElementById('subtree-modal-close'); },
     get repoSubtreeBtn() { return document.getElementById('repo-subtree-btn'); },
     get gitForceToggle() { return document.getElementById('git-force-toggle'); },
@@ -609,6 +612,20 @@ Attribute=#9cdcfe
 Bracket1=#ffd700
 Bracket2=#71DA94
 Bracket3=#179fff`;
+
+const BUILTIN_THEMES = {
+    "Red Lantern": "[Theme]\n; Global Workspace Colors\nFont=Cascadia Code\nFontWeight=normal\nLigatures=true\nBackground=#0e0a0b\nForeground=#e0e0e0\nLineNumbers=#7a5c5c\nSelection=#541212\nCursor=#ff3333\n\n[Syntax]\n; Code Element Colors\nComment=#803b3b\nString=#ff5555\nInteger=#ff8866\nKeyword=#ff2222\nOperator=#e0e0e0\nIdentifier=#ff9999\nPreprocessor=#cc4444\nTag=#ff4444\nAttribute=#ff9999\nBracket1=#ffcc00\nBracket2=#ff6600\nBracket3=#ff1a1a",
+    "Green lantern": "[Theme]\n; Global Workspace Colors\nFont=Cascadia Code\nFontWeight=normal\nLigatures=true\nBackground=#141513\nForeground=#d4d4d4\nLineNumbers=#858585\nSelection=#264f78\nCursor=#569cd6\n\n[Syntax]\n; Code Element Colors\nComment=#008000\nString=#3ADB00\nInteger=#AFE1A2\nKeyword=#46AFAD\nOperator=#d4d4d4\nIdentifier=#9cdcfe\nPreprocessor=#8EC587\nTag=#569cd6\nAttribute=#9cdcfe\nBracket1=#ffd700\nBracket2=#71DA94\nBracket3=#179fff",
+    "Blue Lantern": "[Theme]\n; Global Workspace Colors\nFont=Cascadia Code\nFontWeight=normal\nLigatures=true\nBackground=#0b0e14\nForeground=#d4d8e2\nLineNumbers=#5a6b82\nSelection=#1d3b59\nCursor=#3388ff\n\n[Syntax]\n; Code Element Colors\nComment=#4a7090\nString=#3ad8ff\nInteger=#8ae2ff\nKeyword=#2299ff\nOperator=#d4d8e2\nIdentifier=#75c9ff\nPreprocessor=#52b0ef\nTag=#2288ff\nAttribute=#75c9ff\nBracket1=#ffd700\nBracket2=#3affcc\nBracket3=#66a3ff",
+    "Yellow Lantern": "[Theme]\n; Global Workspace Colors\nFont=Cascadia Code\nFontWeight=normal\nLigatures=true\nBackground=#0f0e0b\nForeground=#e0e0dc\nLineNumbers=#7a725c\nSelection=#544412\nCursor=#ffcc00\n\n[Syntax]\n; Code Element Colors\nComment=#80733b\nString=#ffea55\nInteger=#fffaa2\nKeyword=#ffb700\nOperator=#e0e0dc\nIdentifier=#ffe175\nPreprocessor=#d4a337\nTag=#ffc400\nAttribute=#ffe175\nBracket1=#ff5555\nBracket2=#71DA94\nBracket3=#ff9900",
+    "Cyberpunk Void": "[Theme]\n; Global Workspace Colors\nFont=Cascadia Code\nFontWeight=normal\nLigatures=true\nBackground=#0a0812\nForeground=#e0def4\nLineNumbers=#6e6a86\nSelection=#403d52\nCursor=#ebbcba\n\n[Syntax]\n; Code Element Colors\nComment=#6b5b95\nString=#eb6f92\nInteger=#f6c177\nKeyword=#31748f\nOperator=#e0def4\nIdentifier=#9ccfd8\nPreprocessor=#c4a7e7\nTag=#ea9a97\nAttribute=#9ccfd8\nBracket1=#f6c177\nBracket2=#31748f\nBracket3=#ebbcba",
+    "Deep Trench": "[Theme]\n; Global Workspace Colors\nFont=Cascadia Code\nFontWeight=normal\nLigatures=true\nBackground=#070b12\nForeground=#c5d1de\nLineNumbers=#3f536e\nSelection=#132b47\nCursor=#00f0ff\n\n[Syntax]\n; Code Element Colors\nComment=#335c67\nString=#00f5d4\nInteger=#70c1b3\nKeyword=#00bbf9\nOperator=#c5d1de\nIdentifier=#48cae4\nPreprocessor=#90e0ef\nTag=#0096c7\nAttribute=#48cae4\nBracket1=#f77f00\nBracket2=#00f5d4\nBracket3=#90e0ef",
+    "Supernova": "[Theme]\n; Global Workspace Colors\nFont=Cascadia Code\nFontWeight=normal\nLigatures=true\nBackground=#080608\nForeground=#f2eeef\nLineNumbers=#6b5c63\nSelection=#421d31\nCursor=#ff2a85\n\n[Syntax]\n; Code Element Colors\nComment=#7a4f65\nString=#ff5588\nInteger=#ffaa55\nKeyword=#ff2a55\nOperator=#f2eeef\nIdentifier=#ff88bb\nPreprocessor=#ffa500\nTag=#ff3366\nAttribute=#ff88bb\nBracket1=#ffe600\nBracket2=#ff5588\nBracket3=#00ffff",
+    "Cryptic Moss": "[Theme]\n; Global Workspace Colors\nFont=Cascadia Code\nFontWeight=normal\nLigatures=true\nBackground=#0d1110\nForeground=#d0dcd7\nLineNumbers=#4a5c55\nSelection=#1d362e\nCursor=#53b692\n\n[Syntax]\n; Code Element Colors\nComment=#3e6b5a\nString=#73d085\nInteger=#a2f689\nKeyword=#2fb988\nOperator=#d0dcd7\nIdentifier=#80cdc1\nPreprocessor=#4db6ac\nTag=#38a169\nAttribute=#80cdc1\nBracket1=#f6c177\nBracket2=#73d085\nBracket3=#53b692",
+    "Obsidian Amethyst": "[Theme]\n; Global Workspace Colors\nFont=Cascadia Code\nFontWeight=normal\nLigatures=true\nBackground=#0d0b12\nForeground=#dcd6f7\nLineNumbers=#5b5270\nSelection=#31224d\nCursor=#b892ff\n\n[Syntax]\n; Code Element Colors\nComment=#6a5a8a\nString=#c4b5fd\nInteger=#f3e8ff\nKeyword=#9333ea\nOperator=#dcd6f7\nIdentifier=#d8b4fe\nPreprocessor=#a855f7\nTag=#7c3aed\nAttribute=#d8b4fe\nBracket1=#f43f5e\nBracket2=#c4b5fd\nBracket3=#38bdf8",
+    "Solar Flare": "[Theme]\n; Global Workspace Colors\nFont=Cascadia Code\nFontWeight=normal\nLigatures=true\nBackground=#120f0a\nForeground=#f5edd6\nLineNumbers=#6b5c43\nSelection=#4a3512\nCursor=#ffb700\n\n[Syntax]\n; Code Element Colors\nComment=#7a602c\nString=#ffcc00\nInteger=#ffe680\nKeyword=#ff9900\nOperator=#f5edd6\nIdentifier=#ffdb4d\nPreprocessor=#ffaa33\nTag=#ff8800\nAttribute=#ffdb4d\nBracket1=#ff4444\nBracket2=#ffcc00\nBracket3=#33ccff",
+    "Vaporwave Sunset": "[Theme]\n; Global Workspace Colors\nFont=Cascadia Code\nFontWeight=normal\nLigatures=true\nBackground=#100c1c\nForeground=#f1eff8\nLineNumbers=#61527c\nSelection=#432b63\nCursor=#ff71ce\n\n[Syntax]\n; Code Element Colors\nComment=#8b78af\nString=#01cdfe\nInteger=#05ffa1\nKeyword=#ff71ce\nOperator=#f1eff8\nIdentifier=#b967ff\nPreprocessor=#01cdfe\nTag=#ff71ce\nAttribute=#b967ff\nBracket1=#fffb96\nBracket2=#05ffa1\nBracket3=#01cdfe"
+};
 
 function parseObsidianIni(ini) {
     const lines = ini.split('\n');
@@ -1537,12 +1554,8 @@ async function saveGlobalSettings() {
 
 async function loadThemePresets() {
     try {
-        const themes = await window.electronAPI.getThemes();
-
-        // Ensure "Green lantern" is always present as the default
-        if (!themes['Green lantern']) {
-            themes['Green lantern'] = DEFAULT_THEME_INI;
-        }
+        const userThemes = await window.electronAPI.getThemes();
+        const themes = { ...BUILTIN_THEMES, ...userThemes };
 
         if (elements.themePresetsSelect) {
             elements.themePresetsSelect.innerHTML = '<option value="">-- Select Preset --</option>' +
@@ -1601,11 +1614,13 @@ async function loadSelectedThemePreset() {
         return;
     }
 
-    elements.themeDeletePresetBtn.style.display = name === 'Green lantern' ? 'none' : 'block';
+    elements.themeDeletePresetBtn.style.display = BUILTIN_THEMES[name] ? 'none' : 'block';
 
     try {
-        const themes = await window.electronAPI.getThemes();
-        const ini = (name === 'Green lantern' && !themes[name]) ? DEFAULT_THEME_INI : themes[name];
+        const userThemes = await window.electronAPI.getThemes();
+        const themes = { ...BUILTIN_THEMES, ...userThemes };
+        const ini = themes[name];
+
         if (ini && themeEditor) {
             themeEditor.setValue(ini);
             elements.newThemeNameInput.value = name;
@@ -2162,6 +2177,59 @@ async function showSubtreeGitHubModal(targetIndex = -1) {
 
 elements.subtreeGitHubCancel.onclick = () => elements.subtreeGitHubModal.style.display = 'none';
 
+async function showPrefixPickerModal(targetIndex) {
+    if (!activeRepo) return;
+    elements.prefixPickerModal.style.display = 'flex';
+    const list = elements.prefixFolderList;
+    list.innerHTML = '<div style="padding:20px; color:var(--text-muted); text-align:center;">Scanning project folders...</div>';
+
+    try {
+        // We use a simplified recursive scanner to find all subdirectories
+        const folders = await scanFoldersRecursive(activeRepo.path);
+
+        if (folders.length === 0) {
+            list.innerHTML = '<div style="padding:20px; color:var(--text-muted); text-align:center;">No subfolders found in project.</div>';
+        } else {
+            list.innerHTML = folders.map(f => {
+                const relPath = f.substring(activeRepo.path.length + 1).replace(/\\/g, '/');
+                return `
+                    <div class="folder-picker-item" style="padding:8px 12px; border-bottom:1px solid var(--border-color); cursor:pointer; transition:background 0.2s;" data-path="${relPath}">
+                        <div style="font-size:13px; color:#fff;">📁 ${relPath}</div>
+                    </div>
+                `;
+            }).join('');
+
+            list.querySelectorAll('.folder-picker-item').forEach(item => {
+                item.onclick = () => {
+                    currentSubtreeMappings[targetIndex].prefix = item.dataset.path;
+                    elements.prefixPickerModal.style.display = 'none';
+                    saveSubtreeMappings();
+                    renderSubtreeMappings();
+                };
+            });
+        }
+    } catch (e) {
+        list.innerHTML = `<div style="padding:20px; color:var(--accent-red); text-align:center;">Scan Error: ${e.message}</div>`;
+    }
+}
+
+async function scanFoldersRecursive(dir, results = []) {
+    const items = await window.electronAPI.listDirectory(dir, false);
+    for (const item of items) {
+        if (item.isDirectory) {
+            results.push(item.path);
+            // Limit depth to 3 for performance in bulk manager
+            const parts = item.path.substring(activeRepo.path.length).split(/[\\\/]/).filter(p => p);
+            if (parts.length < 3) {
+                await scanFoldersRecursive(item.path, results);
+            }
+        }
+    }
+    return results;
+}
+
+elements.prefixPickerCancel.onclick = () => elements.prefixPickerModal.style.display = 'none';
+
 function renderSubtreeMappings() {
     const list = elements.subtreeMappingList;
     if (currentSubtreeMappings.length === 0) {
@@ -2176,7 +2244,10 @@ function renderSubtreeMappings() {
             </div>
             <div style="flex:1; min-width: 0;">
                 <label style="font-size:9px; font-weight:800; color:var(--text-muted); text-transform:uppercase; display:block; margin-bottom:4px;">Prefix (Folder)</label>
-                <input type="text" class="settings-input mapping-prefix" data-index="${index}" value="${m.prefix}" style="padding:4px 8px; height:28px; width: 100%;">
+                <div style="display:flex; gap:4px;">
+                    <input type="text" class="settings-input mapping-prefix" data-index="${index}" value="${m.prefix}" style="padding:4px 8px; height:28px; flex:1;">
+                    <button class="button browse-prefix-btn" data-index="${index}" title="Select folder from project" style="height:28px; width:28px; padding:0;">📁</button>
+                </div>
             </div>
             <div style="flex:2; min-width: 0;">
                 <label style="font-size:9px; font-weight:800; color:var(--text-muted); text-transform:uppercase; display:block; margin-bottom:4px;">Remote Repository URL</label>
@@ -2217,6 +2288,11 @@ function renderSubtreeMappings() {
     list.querySelectorAll('.gh-select-btn').forEach(btn => {
         btn.onclick = (e) => {
             showSubtreeGitHubModal(parseInt(btn.dataset.index));
+        };
+    });
+    list.querySelectorAll('.browse-prefix-btn').forEach(btn => {
+        btn.onclick = (e) => {
+            showPrefixPickerModal(parseInt(btn.dataset.index));
         };
     });
     list.querySelectorAll('.mapping-branch').forEach(input => {
@@ -2275,41 +2351,51 @@ elements.addSubtreeBtn.onclick = () => {
     elements.subtreePushAllBtn.disabled = false;
 };
 
-elements.subtreePushAllBtn.onclick = async () => {
-    if (currentSubtreeMappings.length === 0) return;
-    if (await showConfirm(`Push all ${currentSubtreeMappings.length} subtrees to their remotes?`, "Confirm Bulk Push")) {
-        elements.subtreeHubModal.style.display = 'none';
-        setTaskState(true);
-        logToConsole(`🚀 Starting Bulk Subtree Push sequence...`, 'info');
+if (elements.subtreePushSelectedBtn) {
+    elements.subtreePushSelectedBtn.onclick = async () => {
+        const checked = Array.from(elements.subtreeMappingList.querySelectorAll('.mapping-item-cb:checked'));
+        if (checked.length === 0) return;
 
-        let successCount = 0;
-        for (const m of currentSubtreeMappings) {
-            if (!m.prefix || !m.url) continue;
-            const res = await handleSubtreePush(m, true);
-            if (res) successCount++;
-        }
-
-        logToConsole(`Bulk sequence complete. ${successCount}/${currentSubtreeMappings.length} successful.`, successCount === currentSubtreeMappings.length ? 'success' : 'warn');
-        setTaskState(false);
-    }
-};
-
-if (elements.subtreePullAllBtn) {
-    elements.subtreePullAllBtn.onclick = async () => {
-        if (currentSubtreeMappings.length === 0) return;
-        if (await showConfirm(`Pull updates for all ${currentSubtreeMappings.length} subtrees? This will merge remote changes into your local folders.`, "Confirm Bulk Pull")) {
+        if (await showConfirm(`Push ${checked.length} selected subtrees to their remotes?`, "Confirm Push")) {
             elements.subtreeHubModal.style.display = 'none';
             setTaskState(true);
-            logToConsole(`🚀 Starting Bulk Subtree Pull sequence...`, 'info');
+            logToConsole(`🚀 Starting Selective Subtree Push sequence...`, 'info');
 
             let successCount = 0;
-            for (const m of currentSubtreeMappings) {
-                if (!m.prefix || !m.url) continue;
+            for (const cb of checked) {
+                const index = parseInt(cb.dataset.index);
+                const m = currentSubtreeMappings[index];
+                if (!m || !m.prefix || !m.url) continue;
+                const res = await handleSubtreePush(m, true);
+                if (res) successCount++;
+            }
+
+            logToConsole(`Selective sequence complete. ${successCount}/${checked.length} successful.`, successCount === checked.length ? 'success' : 'warn');
+            setTaskState(false);
+        }
+    };
+}
+
+if (elements.subtreePullSelectedBtn) {
+    elements.subtreePullSelectedBtn.onclick = async () => {
+        const checked = Array.from(elements.subtreeMappingList.querySelectorAll('.mapping-item-cb:checked'));
+        if (checked.length === 0) return;
+
+        if (await showConfirm(`Pull updates for ${checked.length} selected subtrees? This will merge remote changes into your local folders.`, "Confirm Pull")) {
+            elements.subtreeHubModal.style.display = 'none';
+            setTaskState(true);
+            logToConsole(`🚀 Starting Selective Subtree Pull sequence...`, 'info');
+
+            let successCount = 0;
+            for (const cb of checked) {
+                const index = parseInt(cb.dataset.index);
+                const m = currentSubtreeMappings[index];
+                if (!m || !m.prefix || !m.url) continue;
                 const res = await handleSubtreePull(m, true);
                 if (res) successCount++;
             }
 
-            logToConsole(`Bulk sequence complete. ${successCount}/${currentSubtreeMappings.length} successful.`, successCount === currentSubtreeMappings.length ? 'success' : 'warn');
+            logToConsole(`Selective sequence complete. ${successCount}/${checked.length} successful.`, successCount === checked.length ? 'success' : 'warn');
             setTaskState(false);
         }
     };
@@ -2874,11 +2960,17 @@ async function showDashboard(forceRefresh = true) {
         const card = document.createElement('div');
         card.className = 'dashboard-card';
         card.dataset.repoPath = repo.path;
+
+        const shouldRefresh = repo.refreshEnabled !== false;
+
         card.innerHTML = `
-            <div class="card-header">
+            <div class="card-header" style="display:flex; justify-content:space-between; align-items:flex-start;">
                 <div class="card-title" style="font-weight:600; color:var(--accent-blue); font-size:15px;">${repo.name}</div>
-                <div class="card-branch" style="font-size:11px; color:var(--text-muted);">Loading status...</div>
+                <input type="checkbox" class="repo-refresh-cb" ${shouldRefresh ? 'checked' : ''}
+                       title="Enable automatic refresh for this project"
+                       style="width:14px; height:14px; cursor:pointer; margin-top:2px;">
             </div>
+            <div class="card-branch" style="font-size:11px; color:var(--text-muted); margin-bottom:12px;">Loading status...</div>
             <div style="padding: 20px; text-align: center; opacity: 0.5;">
                 <div class="spinner-mini"></div>
             </div>
@@ -2886,9 +2978,50 @@ async function showDashboard(forceRefresh = true) {
 
         elements.dashboardGrid.appendChild(card);
 
+        const refreshCb = card.querySelector('.repo-refresh-cb');
+        refreshCb.onclick = (e) => {
+            e.stopPropagation();
+            repo.refreshEnabled = refreshCb.checked;
+            window.electronAPI.saveRepositories(repositories);
+        };
+
         // 2. Background Hydration (Staggered to prevent rate limiting/login flood)
         const index = dashboardRepos.indexOf(repo);
         setTimeout(async () => {
+            if (repo.refreshEnabled === false) {
+                // If refresh disabled, just show a "Paused" state or cached if available
+                card.className = 'dashboard-card is-clean';
+                card.onclick = () => selectRepo(repo, true);
+                card.innerHTML = `
+                    <div class="card-header" style="display:flex; justify-content:space-between; align-items:flex-start;">
+                        <div class="card-title" style="font-weight:600; color:var(--accent-blue); font-size:15px;">${repo.name}</div>
+                        <input type="checkbox" class="repo-refresh-cb" title="Enable automatic refresh for this project" style="width:14px; height:14px; cursor:pointer; margin-top:2px;">
+                    </div>
+                    <div style="padding: 20px; text-align: center; color: var(--text-muted); font-size: 12px; font-style: italic;">
+                        Refresh disabled
+                    </div>
+                    <div class="quick-actions" style="display:flex; gap:6px; margin-top:auto; padding-top:12px; border-top:1px solid var(--border-color);">
+                        <button class="button quick-btn explorer-btn" title="Open in Explorer" style="flex:1; padding:4px; font-size:11px;">EXPLORE</button>
+                    </div>`;
+
+                const cb = card.querySelector('.repo-refresh-cb');
+                cb.checked = false;
+                cb.onclick = (e) => {
+                    e.stopPropagation();
+                    repo.refreshEnabled = cb.checked;
+                    window.electronAPI.saveRepositories(repositories);
+                    if (cb.checked) showDashboard(); // Refresh if re-enabled
+                };
+
+                card.querySelector('.explorer-btn').onclick = (e) => {
+                    e.stopPropagation();
+                    window.electronAPI.openPath(repo.path);
+                };
+
+                updateProgressBar();
+                return;
+            }
+
             try {
                 const exists = await window.electronAPI.pathExists(repo.path);
                 if (!exists) {
@@ -2922,8 +3055,11 @@ async function showDashboard(forceRefresh = true) {
                                 branch: ${status.current || 'unknown'}
                             </div>
                         </div>
-                        <div style="font-size: 10px; color: var(--text-muted); text-transform: uppercase; font-weight: 700; opacity: 0.6;">
-                            ${isLocal ? 'LOCAL' : 'REMOTE'}
+                        <div style="display:flex; flex-direction:column; align-items:flex-end; gap:4px;">
+                            <input type="checkbox" class="repo-refresh-cb" checked title="Enable automatic refresh for this project" style="width:14px; height:14px; cursor:pointer;">
+                            <div style="font-size: 8px; color: var(--text-muted); text-transform: uppercase; font-weight: 700; opacity: 0.6;">
+                                ${isLocal ? 'LOCAL' : 'REMOTE'}
+                            </div>
                         </div>
                     </div>
 
@@ -2947,6 +3083,13 @@ async function showDashboard(forceRefresh = true) {
                 card.querySelector('.explorer-btn').onclick = (e) => {
                     e.stopPropagation();
                     window.electronAPI.openPath(repo.path);
+                };
+
+                const refreshCb = card.querySelector('.repo-refresh-cb');
+                refreshCb.onclick = (e) => {
+                    e.stopPropagation();
+                    repo.refreshEnabled = refreshCb.checked;
+                    window.electronAPI.saveRepositories(repositories);
                 };
 
                 const cardPullBtn = card.querySelector('.pull-btn');

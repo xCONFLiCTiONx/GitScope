@@ -1331,7 +1331,9 @@
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; border-bottom: 1px solid var(--border-color); padding-bottom: 16px;">
                     <div>
                         <h1 style="margin: 0;">Theme Editor</h1>
-                        <p style="margin: 4px 0 0 0; color: var(--text-muted); font-size: 13px;">Customize the visual workspace experience using Obsidian syntax.</p>
+                        <p style="margin: 4px 0 0 0; color: var(--text-muted); font-size: 11px;">
+                            Obsidian syntax. Fonts: "Cascadia Code", "Source Code Pro", "Consolas", "Monospace".
+                        </p>
                     </div>
                     <div style="display: flex; gap: 8px;">
                         <button id="theme-import-ini-btn" class="button" title="Import Theme from .ini file">Import .ini</button>
@@ -1849,8 +1851,8 @@
                 <h3>Subtree Hub Manager</h3>
                 <div style="display: flex; gap: 8px;">
                     <button id="subtree-github-fetch-btn" class="button" title="Import repository URLs from your GitHub account">Fetch from GitHub</button>
-                    <button id="subtree-pull-all-btn" class="button" title="Pull updates for all defined subtrees">Pull All Subtrees</button>
-                    <button id="subtree-push-all-btn" class="button button-primary">Push All Subtrees</button>
+                    <button id="subtree-pull-selected-btn" class="button" title="Pull updates for selected subtrees">Pull Selected</button>
+                    <button id="subtree-push-selected-btn" class="button button-primary" title="Push selected subtrees to their remotes">Push Selected</button>
                     <button id="subtree-delete-selected-btn" class="button button-danger" title="Remove selected mappings from this project">Delete Selected</button>
                     <button id="subtree-clear-all-btn" class="button button-danger" style="background: transparent; border-color: var(--accent-red); color: var(--accent-red);" title="Remove ALL mappings from this project">Clear All</button>
                 </div>
@@ -1897,6 +1899,22 @@
             <div style="text-align: right; display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px;">
                 <button id="subtree-github-cancel" class="button">Cancel</button>
                 <button id="subtree-github-confirm" class="button button-primary">Add Selected</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Prefix Picker Modal -->
+    <div id="prefix-picker-modal" class="modal" style="z-index: 1200;">
+        <div class="modal-content" style="width: 450px;">
+            <h3>Select Subtree Folder</h3>
+            <p style="font-size: 11px; color: var(--text-muted); margin-bottom: 12px;">Choose a folder from your project to map.</p>
+
+            <div id="prefix-folder-list" style="max-height: 350px; overflow-y: auto; border: 1px solid var(--border-color); border-radius: 6px; background: var(--bg-sidebar); padding: 4px;">
+                <!-- Folders injected via JS -->
+            </div>
+
+            <div style="text-align: right; margin-top: 16px;">
+                <button id="prefix-picker-cancel" class="button">Cancel</button>
             </div>
         </div>
     </div>
