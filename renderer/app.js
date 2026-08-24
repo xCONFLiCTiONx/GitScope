@@ -763,12 +763,12 @@ function initEventListeners() {
     if (elements.navHome) elements.navHome.onclick = () => {
         currentDashboardFilter = 'all'; // Reset filter when coming from nav
         setActiveNavItem(elements.navHome);
-        showDashboard(false);
+        showDashboard(true);
     };
     if (elements.appLogoBox) elements.appLogoBox.onclick = () => {
         currentDashboardFilter = 'all'; // Reset filter when coming from logo
         setActiveNavItem(elements.navHome);
-        showDashboard(false);
+        showDashboard(true);
     };
     if (elements.navGithub) elements.navGithub.onclick = () => showGitHubImportModal();
     if (elements.navNew) elements.navNew.onclick = () => showCreateRepoModal();
@@ -3309,7 +3309,7 @@ async function showDashboard(forceRefresh = true) {
                 console.error(`Error hydrating dashboard card for ${repo.name}:`, e);
                 updateProgressBar();
             }
-        }, index * 200); // 200ms stagger between each repo check
+        }, index * 20); // 20ms stagger between each repo check
     });
 
     if (dashboardRepos.length === 0 && unbornList.length === 0) {
@@ -4285,7 +4285,7 @@ function updateDashboardSummary(stats) {
     summary.querySelectorAll('.summary-card').forEach(card => {
         card.onclick = () => {
             currentDashboardFilter = card.dataset.filter;
-            showDashboard(false);
+            showDashboard(true);
         };
     });
 }
