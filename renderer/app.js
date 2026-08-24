@@ -318,9 +318,12 @@ const elements = {
     get protocolTrustGithub() { return document.getElementById('protocol-trust-github'); },
     get subtreeHubModal() { return document.getElementById('subtree-hub-modal'); },
     get subtreeMappingList() { return document.getElementById('subtree-mapping-list'); },
+    get subtreeMappingSelectAll() { return document.getElementById('subtree-mapping-select-all'); },
     get addSubtreeBtn() { return document.getElementById('add-subtree-mapping-btn'); },
     get subtreePullAllBtn() { return document.getElementById('subtree-pull-all-btn'); },
     get subtreePushAllBtn() { return document.getElementById('subtree-push-all-btn'); },
+    get subtreeDeleteSelectedBtn() { return document.getElementById('subtree-delete-selected-btn'); },
+    get subtreeClearAllBtn() { return document.getElementById('subtree-clear-all-btn'); },
     get subtreeGitHubFetchBtn() { return document.getElementById('subtree-github-fetch-btn'); },
     get subtreeGitHubModal() { return document.getElementById('subtree-github-modal'); },
     get subtreeGitHubList() { return document.getElementById('subtree-github-list'); },
@@ -2037,8 +2040,63 @@ async function showSubtreeHubModal() {
     const hasMappings = currentSubtreeMappings.length > 0;
     elements.subtreePushAllBtn.disabled = !hasMappings;
     if (elements.subtreePullAllBtn) elements.subtreePullAllBtn.disabled = !hasMappings;
+    if (elements.subtreeDeleteSelectedBtn) elements.subtreeDeleteSelectedBtn.disabled = true;
+    if (elements.subtreeClearAllBtn) elements.subtreeClearAllBtn.disabled = !hasMappings;
 
     elements.subtreeGitHubFetchBtn.onclick = () => showSubtreeGitHubModal();
+
+    if (elements.subtreeMappingSelectAll) {
+        elements.subtreeMappingSelectAll.checked = false;
+        elements.subtreeMappingSelectAll.onchange = (e) => {
+            const cbs = elements.subtreeMappingList.querySelectorAll('.mapping-item-cb');
+            cbs.forEach(cb => cb.checked = e.target.checked);
+            updateSubtreeDeleteBtnState();
+        };
+    }
+
+    if (elements.subtreeDeleteSelectedBtn) {
+        elements.subtreeDeleteSelectedBtn.onclick = async () => {
+            const checked = Array.from(elements.subtreeMappingList.querySelectorAll('.mapping-item-cb:checked'));
+            if (checked.length === 0) return;
+
+            if (await showConfirm(`Remove ${checked.length} selected subtree mappings?`, "Confirm Delete")) {
+                const indicesToDelete = checked.map(cb => parseInt(cb.dataset.index)).sort((a, b) => b - a);
+                indicesToDelete.forEach(idx => currentSubtreeMappings.splice(idx, 1));
+
+                await saveSubtreeMappings();
+                renderSubtreeMappings();
+
+                const hasMappings = currentSubtreeMappings.length > 0;
+                elements.subtreePushAllBtn.disabled = !hasMappings;
+                if (elements.subtreePullAllBtn) elements.subtreePullAllBtn.disabled = !hasMappings;
+                elements.subtreeDeleteSelectedBtn.disabled = true;
+                if (elements.subtreeMappingSelectAll) elements.subtreeMappingSelectAll.checked = false;
+            }
+        };
+    }
+
+    if (elements.subtreeClearAllBtn) {
+        elements.subtreeClearAllBtn.onclick = async () => {
+            if (currentSubtreeMappings.length === 0) return;
+            if (await showConfirm("Permanently remove ALL subtree mappings for this project?", "Confirm Clear All")) {
+                currentSubtreeMappings = [];
+                await saveSubtreeMappings();
+                renderSubtreeMappings();
+                elements.subtreePushAllBtn.disabled = true;
+                if (elements.subtreePullAllBtn) elements.subtreePullAllBtn.disabled = true;
+                elements.subtreeDeleteSelectedBtn.disabled = true;
+                if (elements.subtreeMappingSelectAll) elements.subtreeMappingSelectAll.checked = false;
+                logToConsole('All subtree mappings cleared.', 'info');
+            }
+        };
+    }
+}
+
+function updateSubtreeDeleteBtnState() {
+    if (elements.subtreeDeleteSelectedBtn) {
+        const checkedCount = elements.subtreeMappingList.querySelectorAll('.mapping-item-cb:checked').length;
+        elements.subtreeDeleteSelectedBtn.disabled = checkedCount === 0;
+    }
 }
 
 async function showSubtreeGitHubModal(targetIndex = -1) {
@@ -2123,6 +2181,9 @@ function renderSubtreeMappings() {
 
     list.innerHTML = currentSubtreeMappings.map((m, index) => `
         <div class="subtree-mapping-row" style="display:flex; gap:12px; align-items:flex-end; background:rgba(255,255,255,0.02); padding:12px; border-radius:6px; border:1px solid var(--border-color); min-width: 0;">
+            <div style="flex-shrink:0; align-self:center;">
+                <input type="checkbox" class="mapping-item-cb" data-index="${index}" style="width: 16px; height: 16px; cursor: pointer;">
+            </div>
             <div style="flex:1; min-width: 0;">
                 <label style="font-size:9px; font-weight:800; color:var(--text-muted); text-transform:uppercase; display:block; margin-bottom:4px;">Prefix (Folder)</label>
                 <input type="text" class="settings-input mapping-prefix" data-index="${index}" value="${m.prefix}" style="padding:4px 8px; height:28px; width: 100%;">
@@ -2179,6 +2240,9 @@ function renderSubtreeMappings() {
             currentSubtreeMappings[parseInt(e.target.dataset.index)].force = e.target.checked;
             saveSubtreeMappings();
         };
+    });
+    list.querySelectorAll('.mapping-item-cb').forEach(cb => {
+        cb.onchange = () => updateSubtreeDeleteBtnState();
     });
     list.querySelectorAll('.remove-mapping-btn').forEach(btn => {
         btn.onclick = async (e) => {
@@ -2273,10 +2337,34 @@ async function handleSubtreePush(mapping, isBulk = false) {
     }
 
     if (!isBulk) setTaskState(true);
-    logToConsole(`Subtree PUSH: [${mapping.prefix}] -> ${mapping.url}...`, 'info');
 
     try {
-        // Command: git subtree push --prefix=<prefix> <url> <branch>
+        // 1. AUTOMATIC SYNC BEFORE PUSH
+        // We must pull first to prevent non-fast-forward rejections
+        logToConsole(`🔄 [${mapping.prefix}]: Pulling remote changes before push...`, 'info');
+        const pullRes = await window.electronAPI.gitSubtreePull(
+            activeRepo.path,
+            mapping.prefix,
+            mapping.url,
+            mapping.branch || 'main'
+        );
+
+        if (!pullRes.success) {
+            // Check if it's just "already up to date" or a real failure
+            if (pullRes.output.includes('up to date') || pullRes.output.includes('no new commits')) {
+                logToConsole(`   ✅ [${mapping.prefix}]: Already up to date.`, 'info');
+            } else {
+                logToConsole(`   ❌ [${mapping.prefix}]: Pull failed. Push aborted to prevent non-fast-forward error.`, 'error');
+                logToConsole(`      Reason: ${pullRes.output}`, 'error');
+                if (!isBulk) showError(pullRes.output, `Pull Failed: ${mapping.prefix}`);
+                return false;
+            }
+        } else {
+            logToConsole(`   ✅ [${mapping.prefix}]: Remote changes merged.`, 'success');
+        }
+
+        // 2. THE PUSH
+        logToConsole(`🚀 [${mapping.prefix}]: Pushing to remote...`, 'info');
         const res = await window.electronAPI.gitSubtreePush(
             activeRepo.path,
             mapping.prefix,
@@ -2286,16 +2374,16 @@ async function handleSubtreePush(mapping, isBulk = false) {
         );
 
         if (res.success) {
-            logToConsole(`✅ Subtree [${mapping.prefix}] push successful!`, 'success');
+            logToConsole(`   ✅ [${mapping.prefix}]: Push successful!`, 'success');
             if (!isBulk) showAlert(`Subtree [${mapping.prefix}] successfully pushed to remote.`, 'Success');
             return true;
         } else {
-            logToConsole(`❌ Subtree [${mapping.prefix}] push failed: ${res.output}`, 'error');
+            logToConsole(`   ❌ [${mapping.prefix}]: Push failed: ${res.output}`, 'error');
             if (!isBulk) showError(res.output, `Push Failed: ${mapping.prefix}`);
             return false;
         }
     } catch (e) {
-        logToConsole(`System Error during subtree push: ${e.message}`, 'error');
+        logToConsole(`⚠️ [${mapping.prefix}]: System Error: ${e.message}`, 'error');
         return false;
     } finally {
         if (!isBulk) setTaskState(false);
@@ -2720,10 +2808,18 @@ async function restoreExpansionRecursive(container, depth, repo) {
     }
 }
 
-async function showDashboard() {
+async function showDashboard(forceRefresh = true) {
     setActiveNavItem(elements.navHome);
     elements.dashboardView.style.display = 'flex';
     elements.dashboardView.scrollTop = 0;
+
+    // If not a force refresh and we already have content, just filter the UI
+    if (!forceRefresh && elements.dashboardGrid.children.length > 0) {
+        filterDashboardUI();
+        updateDashboardSummary(null); // Just update active state in summary
+        return;
+    }
+
     elements.dashboardGrid.innerHTML = ''; // Clear and start fresh
 
     if (elements.dashboardBulkPullBtn) elements.dashboardBulkPullBtn.classList.remove('highlight-pull');
@@ -2764,13 +2860,14 @@ async function showDashboard() {
                 stats.unborn = unbornList.length;
 
                 // Render Unborn Folders as virtual cards
-                if (currentDashboardFilter === 'all' || currentDashboardFilter === 'unborn') {
-                    unbornList.forEach(folder => {
-                        const card = createUnbornCard(folder);
-                        elements.dashboardGrid.appendChild(card);
-                    });
-                }
+                unbornList.forEach(folder => {
+                    const card = createUnbornCard(folder);
+                    card.dataset.isUnborn = 'true';
+                    elements.dashboardGrid.appendChild(card);
+                });
+
                 updateDashboardSummary(stats);
+                filterDashboardUI(); // Apply filter after unborns added
             } catch (e) {}
         }
     })();
@@ -2781,6 +2878,7 @@ async function showDashboard() {
     dashboardRepos.forEach(repo => {
         const card = document.createElement('div');
         card.className = 'dashboard-card';
+        card.dataset.repoPath = repo.path;
         card.innerHTML = `
             <div class="card-header">
                 <div class="card-title" style="font-weight:600; color:var(--accent-blue); font-size:15px;">${repo.name}</div>
@@ -2793,8 +2891,9 @@ async function showDashboard() {
 
         elements.dashboardGrid.appendChild(card);
 
-        // 2. Background Hydration
-        (async () => {
+        // 2. Background Hydration (Staggered to prevent rate limiting/login flood)
+        const index = dashboardRepos.indexOf(repo);
+        setTimeout(async () => {
             try {
                 const exists = await window.electronAPI.pathExists(repo.path);
                 if (!exists) {
@@ -2812,78 +2911,75 @@ async function showDashboard() {
                 if (hasChanges) stats.attention++;
                 if (needsSync) stats.sync++;
 
-                const matchesFilter =
-                    currentDashboardFilter === 'all' ||
-                    (currentDashboardFilter === 'attention' && hasChanges) ||
-                    (currentDashboardFilter === 'sync' && needsSync) ||
-                    (currentDashboardFilter === 'local' && isLocal);
+                // Tag the card for filtering
+                card.dataset.hasChanges = hasChanges;
+                card.dataset.needsSync = needsSync;
+                card.dataset.isLocal = isLocal;
+                card.dataset.isUnborn = 'false';
 
-                if (!matchesFilter) {
-                    card.remove();
-                } else {
-                    card.className = `dashboard-card ${hasChanges || needsSync ? 'has-changes' : 'is-clean'}`;
-                    card.onclick = () => selectRepo(repo, true);
-                    card.innerHTML = `
-                        <div class="card-header" style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:12px;">
-                            <div style="flex:1; min-width:0;">
-                                <div class="card-title" style="font-weight:600; color:var(--accent-blue); font-size:15px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; margin-bottom: 2px;">${repo.name}</div>
-                                <div class="card-branch" style="font-size:11px; color:var(--text-muted); display: flex; align-items: center; gap: 4px;">
-                                    branch: ${status.current || 'unknown'}
-                                </div>
-                            </div>
-                            <div style="font-size: 10px; color: var(--text-muted); text-transform: uppercase; font-weight: 700; opacity: 0.6;">
-                                ${isLocal ? 'LOCAL' : 'REMOTE'}
+                card.className = `dashboard-card ${hasChanges || needsSync ? 'has-changes' : 'is-clean'}`;
+                card.onclick = () => selectRepo(repo, true);
+                card.innerHTML = `
+                    <div class="card-header" style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:12px;">
+                        <div style="flex:1; min-width:0;">
+                            <div class="card-title" style="font-weight:600; color:var(--accent-blue); font-size:15px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; margin-bottom: 2px;">${repo.name}</div>
+                            <div class="card-branch" style="font-size:11px; color:var(--text-muted); display: flex; align-items: center; gap: 4px;">
+                                branch: ${status.current || 'unknown'}
                             </div>
                         </div>
-
-                        <div style="display:flex; flex-direction:column; gap:8px; flex:1;">
-                            <div class="stat-row" style="display:flex; justify-content:space-between; align-items: center; font-size:12px;">
-                                <span style="color:var(--text-muted);">Uncommitted Changes</span>
-                                <span style="font-weight:600; color:${hasChanges ? 'var(--accent-red)' : 'var(--text-muted)'}">${(status.modified || 0) + (status.not_added || 0)}</span>
-                            </div>
-                            <div class="stat-row" style="display:flex; justify-content:space-between; align-items: center; font-size:12px;">
-                                <span style="color:var(--text-muted);">Sync Status</span>
-                                <span style="font-weight:600; color:${needsSync ? '#e3b341' : 'var(--text-muted)'}">↑ ${status.ahead || 0}  ↓ ${status.behind || 0}</span>
-                            </div>
+                        <div style="font-size: 10px; color: var(--text-muted); text-transform: uppercase; font-weight: 700; opacity: 0.6;">
+                            ${isLocal ? 'LOCAL' : 'REMOTE'}
                         </div>
+                    </div>
 
-                        <div class="quick-actions" style="display:flex; gap:6px; margin-top:16px; padding-top:12px; border-top:1px solid var(--border-color);">
-                            <button class="button quick-btn explorer-btn" title="Open in Explorer" style="flex:1; padding:4px; font-size:11px;">EXPLORE</button>
-                            <button class="button quick-btn pull-btn" title="Pull" style="flex:1; padding:4px; font-size:11px;">PULL</button>
-                            <button class="button quick-btn button-primary push-btn" title="Push" style="flex:1; padding:4px; font-size:11px;">PUSH</button>
-                        </div>`;
+                    <div style="display:flex; flex-direction:column; gap:8px; flex:1;">
+                        <div class="stat-row" style="display:flex; justify-content:space-between; align-items: center; font-size:12px;">
+                            <span style="color:var(--text-muted);">Uncommitted Changes</span>
+                            <span style="font-weight:600; color:${hasChanges ? 'var(--accent-red)' : 'var(--text-muted)'}">${(status.modified || 0) + (status.not_added || 0)}</span>
+                        </div>
+                        <div class="stat-row" style="display:flex; justify-content:space-between; align-items: center; font-size:12px;">
+                            <span style="color:var(--text-muted);">Sync Status</span>
+                            <span style="font-weight:600; color:${needsSync ? '#e3b341' : 'var(--text-muted)'}">↑ ${status.ahead || 0}  ↓ ${status.behind || 0}</span>
+                        </div>
+                    </div>
 
-                    card.querySelector('.explorer-btn').onclick = (e) => {
-                        e.stopPropagation();
-                        window.electronAPI.openPath(repo.path);
-                    };
+                    <div class="quick-actions" style="display:flex; gap:6px; margin-top:16px; padding-top:12px; border-top:1px solid var(--border-color);">
+                        <button class="button quick-btn explorer-btn" title="Open in Explorer" style="flex:1; padding:4px; font-size:11px;">EXPLORE</button>
+                        <button class="button quick-btn pull-btn" title="Pull" style="flex:1; padding:4px; font-size:11px;">PULL</button>
+                        <button class="button quick-btn button-primary push-btn" title="Push" style="flex:1; padding:4px; font-size:11px;">PUSH</button>
+                    </div>`;
 
-                    const cardPullBtn = card.querySelector('.pull-btn');
-                    if ((status.behind || 0) > 0) {
-                        cardPullBtn.classList.add('highlight-pull');
-                        if (elements.dashboardBulkPullBtn) elements.dashboardBulkPullBtn.classList.add('highlight-pull');
-                    }
+                card.querySelector('.explorer-btn').onclick = (e) => {
+                    e.stopPropagation();
+                    window.electronAPI.openPath(repo.path);
+                };
 
-                    cardPullBtn.onclick = (e) => {
-                        e.stopPropagation();
-                        activeRepo = repo;
-                        quickGitAction('pull');
-                    };
-
-                    card.querySelector('.push-btn').onclick = (e) => {
-                        e.stopPropagation();
-                        handleDashboardPush(repo);
-                    };
+                const cardPullBtn = card.querySelector('.pull-btn');
+                if ((status.behind || 0) > 0) {
+                    cardPullBtn.classList.add('highlight-pull');
+                    if (elements.dashboardBulkPullBtn) elements.dashboardBulkPullBtn.classList.add('highlight-pull');
                 }
+
+                cardPullBtn.onclick = (e) => {
+                    e.stopPropagation();
+                    activeRepo = repo;
+                    quickGitAction('pull');
+                };
+
+                card.querySelector('.push-btn').onclick = (e) => {
+                    e.stopPropagation();
+                    handleDashboardPush(repo);
+                };
 
                 updateDashboardSummary(stats);
                 updateStatusFeed(stats);
                 updateProgressBar();
+                filterDashboardUI(); // Re-apply filter as results come in
             } catch (e) {
                 console.error(`Error hydrating dashboard card for ${repo.name}:`, e);
                 updateProgressBar();
             }
-        })();
+        }, index * 200); // 200ms stagger between each repo check
     });
 
     if (dashboardRepos.length === 0 && unbornList.length === 0) {
@@ -2891,6 +2987,25 @@ async function showDashboard() {
     }
 
     updateDashboardSummary(stats);
+}
+
+function filterDashboardUI() {
+    const cards = Array.from(elements.dashboardGrid.children);
+    cards.forEach(card => {
+        const hasChanges = card.dataset.hasChanges === 'true';
+        const needsSync = card.dataset.needsSync === 'true';
+        const isLocal = card.dataset.isLocal === 'true';
+        const isUnborn = card.dataset.isUnborn === 'true';
+
+        let show = false;
+        if (currentDashboardFilter === 'all') show = true;
+        else if (currentDashboardFilter === 'attention' && hasChanges) show = true;
+        else if (currentDashboardFilter === 'sync' && needsSync) show = true;
+        else if (currentDashboardFilter === 'local' && isLocal) show = true;
+        else if (currentDashboardFilter === 'unborn' && isUnborn) show = true;
+
+        card.style.display = show ? 'flex' : 'none';
+    });
 }
 
 function createUnbornCard(folder) {
@@ -3799,6 +3914,18 @@ function updateDashboardSummary(stats) {
     summary.style.border = 'none';
     summary.style.gap = '12px';
 
+    // Use cached UI update if stats not provided (just updating active state)
+    if (!stats) {
+        summary.querySelectorAll('.summary-card').forEach(card => {
+            const isActive = currentDashboardFilter === card.dataset.filter;
+            card.classList.toggle('active', isActive);
+            card.style.borderColor = isActive ? card.dataset.color : 'var(--border-color)';
+            const indicator = card.querySelector('.active-indicator');
+            if (indicator) indicator.style.display = isActive ? 'block' : 'none';
+        });
+        return;
+    }
+
     const items = [
         { id: 'all', label: 'Total Projects', value: stats.total, color: 'var(--accent-blue)' },
         { id: 'attention', label: 'Needs Attention', value: stats.attention, color: 'var(--accent-red)' },
@@ -3813,22 +3940,26 @@ function updateDashboardSummary(stats) {
         const valColor = hasValue ? item.color : 'var(--text-muted)';
 
         return `
-            <div class="summary-card ${isActive ? 'active' : ''}" data-filter="${item.id}"
+            <div class="summary-card ${isActive ? 'active' : ''}" data-filter="${item.id}" data-color="${item.color}"
                  style="flex:1; background:var(--bg-surface); border:1px solid ${isActive ? item.color : 'var(--border-color)'}; border-radius:12px; padding:16px; cursor:pointer; transition:all 0.2s; position:relative; overflow:hidden; min-width: 120px;">
 
                 <div style="font-size:9px; font-weight:800; color:var(--text-muted); text-transform:uppercase; letter-spacing:1px; white-space: nowrap; margin-bottom: 12px;">${item.label}</div>
 
                 <div style="font-size:24px; font-weight:700; color:${valColor}; line-height:1; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;">${item.value}</div>
 
-                ${isActive ? `<div style="position:absolute; bottom:0; left:0; right:0; height:3px; background:${item.color};"></div>` : ''}
+                <div class="active-indicator" style="position:absolute; bottom:0; left:0; right:0; height:3px; background:${item.color}; display: ${isActive ? 'block' : 'none'};"></div>
             </div>
         `;
     }).join('');
 
     summary.querySelectorAll('.summary-card').forEach(card => {
         card.onclick = () => {
-            currentDashboardFilter = card.dataset.filter;
-            showDashboard();
+            const filter = card.dataset.filter;
+            currentDashboardFilter = filter;
+
+            // Only refresh from Git if "Total Projects" is clicked
+            const forceRefresh = (filter === 'all');
+            showDashboard(forceRefresh);
         };
     });
 }
