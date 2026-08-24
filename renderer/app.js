@@ -2745,18 +2745,21 @@ async function renderTree(filter = '') {
         const search = (filter || '').trim().toLowerCase();
         if (!elements.repoTree) return;
 
-        const fragment = document.createDocumentFragment();
-
-        for (const repo of repositories) {
-            if (!repo || !repo.name) continue;
-
-            const nameMatch = repo.name.toLowerCase().includes(search);
+        // Performance: Parallel search across all repositories
+        const searchPromises = repositories.map(async repo => {
+            if (!repo || !repo.name) return { repo, fileMatches: [] };
             let fileMatches = [];
-
-            // Deep file search if query is at least 3 characters
-            if (search.length >= 3) {
+            if (search.length >= 1) {
                 fileMatches = await window.electronAPI.searchFiles(repo.path, search);
             }
+            return { repo, fileMatches };
+        });
+
+        const results = await Promise.all(searchPromises);
+        const fragment = document.createDocumentFragment();
+
+        for (const { repo, fileMatches } of results) {
+            const nameMatch = repo.name.toLowerCase().includes(search);
 
             if (!search || nameMatch || fileMatches.length > 0) {
                 const nodeContainer = createTreeNode(repo.name, repo.path, true, 0, repo);
