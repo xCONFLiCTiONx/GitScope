@@ -348,6 +348,21 @@
         .tree-node.active { background-color: #1f6feb22; color: #fff; border-left: 2px solid var(--accent-blue); border-radius: 0; }
         .tree-node.changed-file, .tree-node.changed-file .node-name { color: var(--accent-red) !important; font-weight: 500; }
 
+        .git-btn.highlight-pull, .pull-btn.highlight-pull, #dashboard-bulk-pull-btn.highlight-pull {
+            background: var(--accent-blue) !important;
+            color: #fff !important;
+            box-shadow: 0 0 12px var(--accent-blue);
+            animation: pulse-blue 2s infinite;
+            border-color: #fff !important;
+            font-weight: 800 !important;
+        }
+
+        @keyframes pulse-blue {
+            0% { box-shadow: 0 0 0 0 rgba(31, 111, 235, 0.7); }
+            70% { box-shadow: 0 0 0 10px rgba(31, 111, 235, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(31, 111, 235, 0); }
+        }
+
         .children-container {
             border-left: 1px solid rgba(255, 255, 255, 0.05);
             margin-left: 20px;
@@ -1122,6 +1137,10 @@
                             <input type="checkbox" id="git-force-toggle" style="width: 12px; height: 12px;"> FORCE
                         </label>
 
+                        <label style="display: flex; align-items: center; gap: 4px; font-size: 10px; cursor: pointer; color: var(--accent-blue); font-weight: 800; margin-right: 8px;" title="Automatically fetch when opening a project">
+                            <input type="checkbox" id="git-auto-fetch-toggle" style="width: 12px; height: 12px;"> ALWAYS FETCH
+                        </label>
+
                         <div style="display: flex; gap: 4px;">
                             <button class="button git-btn" data-action="pull" style="height: 24px; font-size: 10px;" title="Pull changes">Pull</button>
                             <button class="button git-btn" data-action="fetch" style="height: 24px; font-size: 10px;" title="Fetch updates">Fetch</button>
@@ -1256,6 +1275,20 @@
                             <span style="font-size: 12px; color: var(--text-muted);">or</span>
                             <input type="text" id="custom-shell-path" class="settings-input" placeholder="Custom .exe path..." readonly>
                             <button id="browse-custom-shell" class="button">Browse</button>
+                        </div>
+                    </div>
+                    <div class="settings-section">
+                        <h3>Git Operations</h3>
+                        <p>Configure default behavior for Git commands.</p>
+                        <div style="margin-top: 12px; display: flex; flex-direction: column; gap: 10px;">
+                            <label style="display: flex; align-items: center; gap: 8px; font-size: 13px; cursor: pointer;">
+                                <input type="checkbox" id="settings-git-auto-fetch" class="settings-cb" style="width: 16px; height: 16px;">
+                                Automatically fetch when opening a project
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 8px; font-size: 13px; cursor: pointer;">
+                                <input type="checkbox" id="settings-git-force" class="settings-cb" style="width: 16px; height: 16px;">
+                                Default to FORCE mode for Push/Pull
+                            </label>
                         </div>
                     </div>
                     <div class="settings-section">

@@ -3,7 +3,7 @@ let repositories = [];
 let activeRepo = null;
 let isRendering = false;
 let hideIgnoredFiles = false;
-let settings = { shell: 'powershell.exe', rootRepoDir: '', githubToken: '', obsidianIni: '', gitForce: false };
+let settings = { shell: 'powershell.exe', rootRepoDir: '', githubToken: '', obsidianIni: '', gitForce: false, gitAutoFetch: false };
 let selectedNodes = new Set();
 let expandedNodes = new Set();
 let tokenExpiration = null;
@@ -327,12 +327,15 @@ const elements = {
     get subtreeModalClose() { return document.getElementById('subtree-modal-close'); },
     get repoSubtreeBtn() { return document.getElementById('repo-subtree-btn'); },
     get gitForceToggle() { return document.getElementById('git-force-toggle'); },
+    get gitAutoFetchToggle() { return document.getElementById('git-auto-fetch-toggle'); },
     get unbornFoldersModal() { return document.getElementById('unborn-folders-modal'); },
     get unbornFoldersList() { return document.getElementById('unborn-folders-list'); },
     get unbornFoldersClose() { return document.getElementById('unborn-folders-close'); },
     get rootRepoDirInput() { return document.getElementById('root-repo-dir'); },
     get githubPatInput() { return document.getElementById('github-pat'); },
     get shellSelect() { return document.getElementById('shell-select'); },
+    get settingsGitAutoFetch() { return document.getElementById('settings-git-auto-fetch'); },
+    get settingsGitForce() { return document.getElementById('settings-git-force'); },
     get saveSettingsBtn() { return document.getElementById('save-settings-btn'); },
     get resetAppBtn() { return document.getElementById('reset-app-btn'); },
     get newItemModal() { return document.getElementById('new-item-modal'); },
@@ -419,6 +422,16 @@ window.onload = async () => {
             elements.gitForceToggle.checked = !!settings.gitForce;
             elements.gitForceToggle.onchange = (e) => {
                 settings.gitForce = e.target.checked;
+                if (elements.settingsGitForce) elements.settingsGitForce.checked = settings.gitForce;
+                window.electronAPI.saveSettings(settings);
+            };
+        }
+
+        if (elements.gitAutoFetchToggle) {
+            elements.gitAutoFetchToggle.checked = !!settings.gitAutoFetch;
+            elements.gitAutoFetchToggle.onchange = (e) => {
+                settings.gitAutoFetch = e.target.checked;
+                if (elements.settingsGitAutoFetch) elements.settingsGitAutoFetch.checked = settings.gitAutoFetch;
                 window.electronAPI.saveSettings(settings);
             };
         }
@@ -741,10 +754,7 @@ function initEventListeners() {
     if (elements.navGithub) elements.navGithub.onclick = () => showGitHubImportModal();
     if (elements.navNew) elements.navNew.onclick = () => showCreateRepoModal();
     if (elements.navAdd) elements.navAdd.onclick = () => handleAddRepo();
-    if (elements.navSettings) elements.navSettings.onclick = () => {
-        setActiveNavItem(elements.navSettings);
-        elements.settingsView.style.display = 'flex';
-    };
+    if (elements.navSettings) elements.navSettings.onclick = () => showSettings();
     if (elements.navGitConfig) elements.navGitConfig.onclick = () => {
         setActiveNavItem(elements.navGitConfig);
         showGitConfigView();
@@ -1055,6 +1065,16 @@ function setActiveNavItem(item) {
     document.querySelectorAll('.modal').forEach(m => m.style.display = 'none');
 }
 
+function showSettings() {
+    setActiveNavItem(elements.navSettings);
+
+    // Sync settings UI
+    if (elements.settingsGitAutoFetch) elements.settingsGitAutoFetch.checked = !!settings.gitAutoFetch;
+    if (elements.settingsGitForce) elements.settingsGitForce.checked = !!settings.gitForce;
+
+    elements.settingsView.style.display = 'flex';
+}
+
 function switchConsoleTab(tab) {
     const targetId = tab.dataset.target;
     document.querySelectorAll('.console-tab').forEach(t => t.classList.remove('active'));
@@ -1117,6 +1137,23 @@ async function autoImportFromRoot(rootPath) {
 
 async function quickGitAction(action) {
     if (!activeRepo) return;
+
+    // Safety Check: If pushing, check if we are behind
+    if (action === 'push') {
+        try {
+            const status = await window.electronAPI.gitStatus(activeRepo.path);
+            if (status.behind > 0) {
+                const proceed = await showConfirm(
+                    `You have ${status.behind} incoming commits from remote. It is highly recommended to PULL first.\n\nAre you sure you want to PUSH anyway?`,
+                    'Incoming Changes Detected'
+                );
+                if (!proceed) return;
+            }
+        } catch (e) {
+            console.warn('Push safety check failed:', e);
+        }
+    }
+
     setTaskState(true);
     if (action === 'push') {
         logToConsole('Sending push command to terminal for reliability...', 'info');
@@ -1254,6 +1291,23 @@ async function handleCommit(pushAfter = false) {
         elements.commitMsgArea.focus();
         return;
     }
+
+    // Safety Check: If pushing after commit, check if we are behind
+    if (pushAfter) {
+        try {
+            const status = await window.electronAPI.gitStatus(activeRepo.path);
+            if (status.behind > 0) {
+                const proceed = await showConfirm(
+                    `You have ${status.behind} incoming commits from remote. It is highly recommended to PULL first.\n\nAre you sure you want to COMMIT and PUSH anyway?`,
+                    'Incoming Changes Detected'
+                );
+                if (!proceed) return;
+            }
+        } catch (e) {
+            console.warn('Push safety check failed:', e);
+        }
+    }
+
     setTaskState(true);
     elements.commitBtn.disabled = true;
     if (elements.commitPushBtn) elements.commitPushBtn.disabled = true;
@@ -1466,6 +1520,15 @@ async function saveGlobalSettings() {
     settings.githubToken = elements.githubPatInput.value;
     settings.shell = customPath || selectedPath;
     settings.notifRepoChanges = elements.notifRepoChanges ? elements.notifRepoChanges.checked : false;
+
+    // Git Operations
+    if (elements.settingsGitAutoFetch) settings.gitAutoFetch = elements.settingsGitAutoFetch.checked;
+    if (elements.settingsGitForce) settings.gitForce = elements.settingsGitForce.checked;
+
+    // Sync Repo View Toggles
+    if (elements.gitAutoFetchToggle) elements.gitAutoFetchToggle.checked = settings.gitAutoFetch;
+    if (elements.gitForceToggle) elements.gitForceToggle.checked = settings.gitForce;
+
     try {
         await window.electronAPI.saveSettings(settings);
         logToConsole('Settings saved.', 'success');
@@ -2202,8 +2265,7 @@ async function handlePublishGitHub() {
     if (!activeRepo) return;
     if (!settings.githubToken) {
         showAlert('Please set your Personal Access Token (PAT) in Settings.', 'Auth Required');
-        setActiveNavItem(elements.navSettings);
-        elements.settingsView.style.display = 'flex';
+        showSettings();
         return;
     }
 
@@ -2570,6 +2632,8 @@ async function showDashboard() {
     elements.dashboardView.scrollTop = 0;
     elements.dashboardGrid.innerHTML = ''; // Clear and start fresh
 
+    if (elements.dashboardBulkPullBtn) elements.dashboardBulkPullBtn.classList.remove('highlight-pull');
+
     let stats = { total: repositories.length, attention: 0, sync: 0, local: 0, unborn: 0 };
     let unbornList = [];
 
@@ -2700,7 +2764,13 @@ async function showDashboard() {
                         window.electronAPI.openPath(repo.path);
                     };
 
-                    card.querySelector('.pull-btn').onclick = (e) => {
+                    const cardPullBtn = card.querySelector('.pull-btn');
+                    if ((status.behind || 0) > 0) {
+                        cardPullBtn.classList.add('highlight-pull');
+                        if (elements.dashboardBulkPullBtn) elements.dashboardBulkPullBtn.classList.add('highlight-pull');
+                    }
+
+                    cardPullBtn.onclick = (e) => {
                         e.stopPropagation();
                         activeRepo = repo;
                         quickGitAction('pull');
@@ -3691,12 +3761,18 @@ async function showBulkCommitModal() {
         elements.bulkCommitConfirm.disabled = false;
         elements.bulkCommitRepoList.innerHTML = projectsWithChanges.map(({ repo, status }) => {
             const total = (status.modified || 0) + (status.not_added || 0) + (status.deleted || 0);
+            const isBehind = (status.behind || 0) > 0;
+            const behindWarning = isBehind ? `<div style="font-size:10px; color:var(--accent-red); font-weight:700;">⚠️ Needs Pull (${status.behind} commits behind)</div>` : '';
+
             return `
-                <label style="display:flex; align-items:center; gap:8px; cursor:pointer; padding:8px; background:rgba(255,255,255,0.02); border-radius:4px; margin-bottom:4px;">
+                <label style="display:flex; align-items:center; gap:8px; cursor:pointer; padding:8px; background:rgba(255,255,255,0.02); border-radius:4px; margin-bottom:4px; border: 1px solid ${isBehind ? 'rgba(255, 82, 82, 0.2)' : 'transparent'};">
                     <input type="checkbox" class="bulk-commit-item-cb" value="${repo.path}" data-name="${repo.name}" checked>
                     <div style="flex:1; min-width:0;">
-                        <div style="font-size:12px; font-weight:600; color:#fff; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${repo.name}</div>
-                        <div style="font-size:10px; color:var(--text-muted);">${total} changes pending</div>
+                        <div style="display:flex; justify-content:space-between;">
+                            <div style="font-size:12px; font-weight:600; color:#fff; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${repo.name}</div>
+                            <div style="font-size:10px; color:var(--text-muted);">${total} changes</div>
+                        </div>
+                        ${behindWarning}
                     </div>
                 </label>
             `;
@@ -4220,6 +4296,18 @@ async function selectRepo(repo, fromDashboard = false) {
     document.getElementById('active-repo-name').textContent = repo.name;
 
     if (window.terminal) window.terminal.sendCommand(`cd "${repo.path}"`);
+
+    // Auto-Fetch Feature
+    if (settings.gitAutoFetch) {
+        logToConsole(`Auto-fetching for ${repo.name}...`, 'info');
+        window.electronAPI.gitFetch(repo.path).then(() => {
+            logToConsole(`Auto-fetch complete for ${repo.name}`, 'success');
+            refreshActiveRepoUI(true); // Silent refresh to update ahead/behind
+        }).catch(err => {
+            logToConsole(`Auto-fetch failed: ${err.message}`, 'error');
+        });
+    }
+
     await refreshActiveRepoUI();
     if (fromDashboard) { selectedNodes.clear(); selectedNodes.add(repo.path); updateTreeSelectionUI(); scrollToRepoInTree(repo.path); }
 }
@@ -4826,8 +4914,19 @@ async function updateRemoteSelector(path) {
 
 async function updateRepoStatus(providedStatus) {
     if (!activeRepo) return;
-    // Status panel removed in redesign - logic kept for future status indicators if needed
     const status = providedStatus || await window.electronAPI.gitStatus(activeRepo.path);
+
+    // Highlight Pull button if behind
+    const pullBtn = document.querySelector('.git-btn[data-action="pull"]');
+    if (pullBtn) {
+        if (status.behind > 0) {
+            pullBtn.classList.add('highlight-pull');
+            pullBtn.title = `Pull ${status.behind} incoming commits`;
+        } else {
+            pullBtn.classList.remove('highlight-pull');
+            pullBtn.title = 'Pull changes';
+        }
+    }
 }
 
 function renderChangesList(repo, detailedChanges) {
@@ -5178,8 +5277,7 @@ function showMultiRepoModal(repos) {
 async function showGitHubImportModal() {
     if (!settings.githubToken) {
         showAlert('Please set your Personal Access Token (PAT) in Settings.', 'Auth Required');
-        setActiveNavItem(elements.navSettings);
-        elements.settingsView.style.display = 'flex';
+        showSettings();
         return;
     }
     const modal = document.getElementById('github-import-modal'); const list = document.getElementById('github-repo-list');
