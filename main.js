@@ -28,27 +28,7 @@ function reportError(title, error) {
   dialog.showErrorBox(title, message);
 }
 
-// Single Instance Lock
-const gotTheLock = app.requestSingleInstanceLock();
-
-if (!gotTheLock) {
-  app.quit();
-} else {
-  app.on('second-instance', (event, commandLine, workingDirectory) => {
-    // Someone tried to run a second instance, we should focus our window.
-    if (mainWindow) {
-      if (mainWindow.isMinimized()) mainWindow.restore();
-      mainWindow.focus();
-      mainWindow.show();
-    }
-  });
-
-  app.whenReady().then(() => {
-    createWindow();
-    createTray();
-  });
-}
-
+// Global state
 let mainWindow;
 let tray = null;
 let watcher;
@@ -57,6 +37,51 @@ const configPath = path.join(app.getPath('userData'), 'config.json');
 const settingsPath = path.join(app.getPath('userData'), 'settings.json');
 const windowStatePath = path.join(app.getPath('userData'), 'window-state.json');
 const themesPath = path.join(app.getPath('userData'), 'themes.json');
+
+// Single Instance Lock
+const gotTheLock = app.requestSingleInstanceLock();
+
+if (!gotTheLock) {
+  app.quit();
+} else {
+  // Listen for second instance launch
+  app.on('second-instance', (event, commandLine, workingDirectory) => {
+    if (mainWindow) {
+      if (mainWindow.isMinimized()) mainWindow.restore();
+      mainWindow.focus();
+      mainWindow.show();
+    }
+  });
+
+  // App initialization
+  app.whenReady().then(() => {
+    createWindow();
+    createTray();
+  });
+
+  app.on('activate', () => {
+    if (BrowserWindow.getAllWindows().length === 0) {
+      createWindow();
+    }
+  });
+
+  app.on('window-all-closed', () => {
+    // Application stays alive in tray
+  });
+
+  app.on('before-quit', () => {
+    app.isQuitting = true;
+  });
+
+  app.on('will-quit', () => {
+    if (tray) {
+      tray.destroy();
+      tray = null;
+    }
+  });
+
+}
+
 
 function getThemes() {
   try {
@@ -176,13 +201,15 @@ function createWindow() {
     return { action: 'allow' };
   });
 
-  mainWindow.on('close', (event) => {
-    if (!app.isQuitting) {
-      event.preventDefault();
-      mainWindow.hide();
-      return false;
-    }
+  mainWindow.on('close', () => {
     saveWindowState();
+    app.isQuitting = true;
+    app.quit();
+  });
+
+  mainWindow.on('minimize', (event) => {
+    event.preventDefault();
+    mainWindow.hide();
   });
   mainWindow.on('resize', saveWindowState);
   mainWindow.on('move', saveWindowState);
@@ -344,27 +371,6 @@ function createTray() {
     mainWindow.show();
   });
 }
-
-app.on('will-quit', () => {
-  if (tray) {
-    tray.destroy();
-    tray = null;
-  }
-});
-
-app.on('before-quit', () => {
-  app.isQuitting = true;
-});
-
-app.on('window-all-closed', () => {
-  // Application stays alive in tray
-});
-
-app.on('activate', () => {
-  if (BrowserWindow.getAllWindows().length === 0) {
-    createWindow();
-  }
-});
 
 // IPC Handlers
 ipcMain.handle('open-directory', async () => {
