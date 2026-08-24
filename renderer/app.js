@@ -2552,7 +2552,6 @@ async function renderTree(filter = '') {
     try {
         const search = (filter || '').trim().toLowerCase();
         if (!elements.repoTree) return;
-        elements.repoTree.innerHTML = '';
 
         const fragment = document.createDocumentFragment();
 
@@ -2630,19 +2629,25 @@ async function renderTree(filter = '') {
         if (fragment.children.length === 0) {
             elements.repoTree.innerHTML = `<div style="padding:20px; color:var(--text-muted); text-align:center;">No matches for "${filter}"</div>`;
         } else {
+            // Save scroll position
+            const scrollPos = elements.repoTree.scrollTop;
+
+            elements.repoTree.innerHTML = '';
             elements.repoTree.appendChild(fragment);
 
             // Only restore normal tree expansions if NOT searching
             if (!search) {
-                restoreAllExpansions();
+                await restoreAllExpansions();
 
-                // Keep active project visible
+                // Keep active project visible if requested, otherwise restore scroll
                 if (activeRepo) {
                     const repoPath = activeRepo.path.replace(/\\/g, '/').toLowerCase();
                     const repoRoot = Array.from(elements.repoTree.querySelectorAll('.repo-root')).find(el =>
                         el.dataset.path.replace(/\\/g, '/').toLowerCase() === repoPath
                     );
                     if (repoRoot) repoRoot.scrollIntoView({ behavior: 'auto', block: 'nearest' });
+                } else {
+                    elements.repoTree.scrollTop = scrollPos;
                 }
             }
 
@@ -2975,6 +2980,9 @@ async function showDashboard(forceRefresh = true) {
                 updateStatusFeed(stats);
                 updateProgressBar();
                 filterDashboardUI(); // Re-apply filter as results come in
+
+                // Keep Tree View in sync with Dashboard findings (Status dots/colors)
+                updateTreeHighlights(repo.path);
             } catch (e) {
                 console.error(`Error hydrating dashboard card for ${repo.name}:`, e);
                 updateProgressBar();
@@ -3952,16 +3960,10 @@ function updateDashboardSummary(stats) {
         `;
     }).join('');
 
-    summary.querySelectorAll('.summary-card').forEach(card => {
         card.onclick = () => {
-            const filter = card.dataset.filter;
-            currentDashboardFilter = filter;
-
-            // Only refresh from Git if "Total Projects" is clicked
-            const forceRefresh = (filter === 'all');
-            showDashboard(forceRefresh);
+            currentDashboardFilter = card.dataset.filter;
+            showDashboard(false);
         };
-    });
 }
 
 async function showBulkCommitModal() {
