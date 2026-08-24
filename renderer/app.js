@@ -750,12 +750,12 @@ function initEventListeners() {
     if (elements.navHome) elements.navHome.onclick = () => {
         currentDashboardFilter = 'all'; // Reset filter when coming from nav
         setActiveNavItem(elements.navHome);
-        showDashboard();
+        showDashboard(false);
     };
     if (elements.appLogoBox) elements.appLogoBox.onclick = () => {
         currentDashboardFilter = 'all'; // Reset filter when coming from logo
         setActiveNavItem(elements.navHome);
-        showDashboard();
+        showDashboard(false);
     };
     if (elements.navGithub) elements.navGithub.onclick = () => showGitHubImportModal();
     if (elements.navNew) elements.navNew.onclick = () => showCreateRepoModal();
