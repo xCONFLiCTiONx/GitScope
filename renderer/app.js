@@ -3960,10 +3960,12 @@ function updateDashboardSummary(stats) {
         `;
     }).join('');
 
+    summary.querySelectorAll('.summary-card').forEach(card => {
         card.onclick = () => {
             currentDashboardFilter = card.dataset.filter;
             showDashboard(false);
         };
+    });
 }
 
 async function showBulkCommitModal() {
