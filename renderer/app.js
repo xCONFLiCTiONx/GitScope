@@ -322,6 +322,7 @@ const elements = {
     get addSubtreeBtn() { return document.getElementById('add-subtree-mapping-btn'); },
     get subtreePullSelectedBtn() { return document.getElementById('subtree-pull-selected-btn'); },
     get subtreePushSelectedBtn() { return document.getElementById('subtree-push-selected-btn'); },
+    get subtreeMagicMatchBtn() { return document.getElementById('subtree-magic-match-btn'); },
     get subtreeDeleteSelectedBtn() { return document.getElementById('subtree-delete-selected-btn'); },
     get subtreeClearAllBtn() { return document.getElementById('subtree-clear-all-btn'); },
     get subtreeGitHubFetchBtn() { return document.getElementById('subtree-github-fetch-btn'); },
@@ -1220,22 +1221,37 @@ async function quickGitAction(action) {
     }
 
     setTaskState(true);
-    if (action === 'push') {
-        logToConsole('Sending push command to terminal for reliability...', 'info');
-        if (window.terminal) {
-            // CRITICAL: Ensure terminal is in the correct directory before pushing
-            window.terminal.sendCommand(`cd "${activeRepo.path}"`);
-            // Use -u origin HEAD to ensure upstream is set automatically
-            const forceFlag = activeRepo.gitForce ? ' --force' : '';
-            window.terminal.sendCommand(`git push -u origin HEAD${forceFlag}`);
-            setTimeout(async () => {
-                await refreshActiveRepoUI();
-                setTaskState(false);
-            }, 3000);
-            return;
-        }
+
+    // VISIBILITY: Use the terminal as the execution engine for core git commands
+    if (window.terminal) {
+        logToConsole(`Launching Git ${action.toUpperCase()} in terminal...`, 'info');
+
+        // Ensure terminal is in correct directory
+        window.terminal.sendCommand(`cd "${activeRepo.path}"`);
+
+        const forceFlag = (action === 'push' || action === 'pull') && activeRepo.gitForce ? ' --force' : '';
+        const upstream = (action === 'push') ? ' -u origin HEAD' : '';
+
+        // Construct the command
+        const cmd = `git ${action}${forceFlag}${upstream}`;
+        window.terminal.sendCommand(cmd);
+
+        // Switch to terminal tab for visibility
+        const termTab = document.querySelector('.console-tab[data-target="terminal-container"]');
+        if (termTab) switchConsoleTab(termTab);
+
+        // UI Refresh loop: Since we can't easily "wait" for terminal finish,
+        // we'll refresh after a few seconds and then again later.
+        setTimeout(async () => {
+            if (action === 'pull' || action === 'fetch') await smartRefreshTree();
+            await refreshActiveRepoUI(true);
+            setTaskState(false);
+        }, 4000);
+        return;
     }
-    logToConsole(`Git ${action.toUpperCase()} in progress...`, 'info');
+
+    // Fallback: Background execution (Non-visible)
+    logToConsole(`Git ${action.toUpperCase()} in progress (background)...`, 'info');
     try {
         const method = `git${action.charAt(0).toUpperCase() + action.slice(1)}`;
         const needsForce = (action === 'pull' || action === 'push');
@@ -2093,6 +2109,52 @@ async function showSubtreeHubModal() {
     if (elements.subtreeClearAllBtn) elements.subtreeClearAllBtn.disabled = !hasMappings;
 
     elements.subtreeGitHubFetchBtn.onclick = () => showSubtreeGitHubModal();
+
+    if (elements.subtreeMagicMatchBtn) {
+        elements.subtreeMagicMatchBtn.onclick = async () => {
+            if (!activeRepo || currentSubtreeMappings.length === 0) return;
+
+            logToConsole('Running Magic Match for subtrees...', 'info');
+            const projectFolders = await scanFoldersRecursive(activeRepo.path);
+            const folderNames = projectFolders.map(f => ({
+                path: f,
+                name: f.substring(activeRepo.path.length + 1).replace(/\\/g, '/').toLowerCase()
+            }));
+
+            let matches = 0;
+            currentSubtreeMappings.forEach(m => {
+                if (m.prefix || !m.url) return;
+
+                // Extract repo name from URL (e.g. Cookie-Manager from .../Cookie-Manager.git)
+                const urlParts = m.url.split('/');
+                const repoName = urlParts[urlParts.length - 1].replace('.git', '').toLowerCase();
+                const repoNameClean = repoName.replace(/[-_]/g, ' ');
+
+                // Fuzzy Match: Exact, then clean match, then containment
+                const match = folderNames.find(f =>
+                    f.name === repoName ||
+                    f.name === repoNameClean ||
+                    f.name.replace(/ /g, '') === repoName.replace(/[-_]/g, '') ||
+                    repoName.includes(f.name) ||
+                    f.name.includes(repoName)
+                );
+
+                if (match) {
+                    m.prefix = match.path.substring(activeRepo.path.length + 1).replace(/\\/g, '/');
+                    matches++;
+                }
+            });
+
+            if (matches > 0) {
+                logToConsole(`✅ Magic Match: Automatically mapped ${matches} folders.`, 'success');
+                saveSubtreeMappings();
+                renderSubtreeMappings();
+            } else {
+                logToConsole('ℹ️ Magic Match: No automatic folder matches found.', 'info');
+                showAlert('Could not automatically match any folders to these URLs. You may need to select them manually.', 'No Matches');
+            }
+        };
+    }
 
     if (elements.subtreeMappingSelectAll) {
         elements.subtreeMappingSelectAll.checked = false;
