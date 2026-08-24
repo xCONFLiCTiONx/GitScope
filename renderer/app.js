@@ -657,9 +657,12 @@ function parseObsidianIni(ini) {
 
     const rules = [
         { token: 'comment', foreground: syntax['comment'] || '#6a9955' },
-        { token: 'string', foreground: syntax['integer'] || syntax['number'] || syntax['string'] || '#ce9178' },
+        { token: 'string', foreground: syntax['string'] || '#ce9178' },
+        { token: 'string.key.json', foreground: syntax['string'] || '#ce9178' },
+        { token: 'string.value.json', foreground: syntax['string'] || '#ce9178' },
         { token: 'number', foreground: syntax['integer'] || syntax['number'] || '#b5cea8' },
         { token: 'keyword', foreground: syntax['keyword'] || '#569cd6' },
+        { token: 'constant', foreground: syntax['keyword'] || '#569cd6' },
         { token: 'operator', foreground: syntax['operator'] || '#d4d4d4' },
         { token: 'identifier', foreground: theme['foreground'] || '#d4d4d4' },
         { token: 'type', foreground: theme['foreground'] || '#d4d4d4' },
@@ -668,11 +671,12 @@ function parseObsidianIni(ini) {
         { token: 'metatag', foreground: syntax['preprocessor'] || '#c586c0' },
         { token: 'tag', foreground: syntax['tag'] || '#569cd6' },
         { token: 'attribute.name', foreground: theme['foreground'] || '#d4d4d4' },
-        { token: 'attribute.value', foreground: syntax['integer'] || syntax['number'] || '#b5cea8' },
+        { token: 'attribute.value', foreground: syntax['string'] || '#ce9178' },
+        { token: 'delimiter', foreground: syntax['operator'] || '#d4d4d4' },
         // INI specific tokens
         { token: 'header', foreground: syntax['keyword'] || '#569cd6' },
         { token: 'key', foreground: theme['foreground'] || '#d4d4d4' },
-        { token: 'value', foreground: syntax['integer'] || syntax['number'] || '#b5cea8' }
+        { token: 'value', foreground: syntax['string'] || '#ce9178' }
     ];
 
     const colors = {
