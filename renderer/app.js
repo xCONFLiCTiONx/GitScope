@@ -2098,7 +2098,9 @@ let currentSubtreeMappings = [];
 async function showSubtreeHubModal() {
     if (!activeRepo) return;
     elements.subtreeHubModal.style.display = 'flex';
-    elements.subtreePushAllBtn.disabled = true;
+    try {
+        elements.subtreePushAllBtn.disabled = true;
+    } catch {}
 
     try {
         currentSubtreeMappings = await getRepoSubtreeMappings(activeRepo.path);
@@ -2109,7 +2111,9 @@ async function showSubtreeHubModal() {
 
     renderSubtreeMappings();
     const hasMappings = currentSubtreeMappings.length > 0;
-    elements.subtreePushAllBtn.disabled = !hasMappings;
+    try {
+        elements.subtreePushAllBtn.disabled = !hasMappings;
+    } catch { }
     if (elements.subtreePullAllBtn) elements.subtreePullAllBtn.disabled = !hasMappings;
     if (elements.subtreeDeleteSelectedBtn) elements.subtreeDeleteSelectedBtn.disabled = true;
     if (elements.subtreeClearAllBtn) elements.subtreeClearAllBtn.disabled = !hasMappings;

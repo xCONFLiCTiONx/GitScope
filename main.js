@@ -66,7 +66,7 @@ if (!gotTheLock) {
   });
 
   app.on('window-all-closed', () => {
-    // Application stays alive in tray
+    app.quit();
   });
 
   app.on('before-quit', () => {
@@ -80,7 +80,6 @@ if (!gotTheLock) {
     }
   });
 
-}
 
 
 function getThemes() {
@@ -203,8 +202,6 @@ function createWindow() {
 
   mainWindow.on('close', () => {
     saveWindowState();
-    app.isQuitting = true;
-    app.quit();
   });
 
   mainWindow.on('minimize', (event) => {
@@ -1339,3 +1336,4 @@ ipcMain.handle('show-context-menu', (event, options) => {
   const menu = Menu.buildFromTemplate(template);
   menu.popup(BrowserWindow.fromWebContents(event.sender));
 });
+}
