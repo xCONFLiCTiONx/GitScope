@@ -1324,7 +1324,8 @@ async function quickGitAction(action) {
         // we'll refresh after a few seconds and then again later.
         setTimeout(async () => {
             if (action === 'pull' || action === 'fetch') await smartRefreshTree();
-            await refreshActiveRepoUI(true);
+            // Force visibility check after push/pull/fetch as requested
+            await refreshActiveRepoUI(true, true);
             setTaskState(false);
         }, 4000);
         return;
@@ -1342,7 +1343,8 @@ async function quickGitAction(action) {
         if (action === 'pull' || action === 'fetch') {
             await smartRefreshTree();
         }
-        await refreshActiveRepoUI();
+        // Force visibility check after push/pull/fetch
+        await refreshActiveRepoUI(false, true);
     } catch (e) {
         logToConsole(e.message, 'error');
         showError(e.message, 'System Error');
@@ -4940,7 +4942,7 @@ async function selectRepo(repo, fromDashboard = false) {
     if (fromDashboard) { selectedNodes.clear(); selectedNodes.add(repo.path); updateTreeSelectionUI(); scrollToRepoInTree(repo.path); }
 }
 
-async function refreshActiveRepoUI(silent = false) {
+async function refreshActiveRepoUI(silent = false, forceVisibilityCheck = false) {
     if (!activeRepo) return;
     const title = document.getElementById('active-repo-name');
     const originalText = activeRepo.name;
@@ -4983,34 +4985,45 @@ async function refreshActiveRepoUI(silent = false) {
                     elements.githubVisibilityBtn.onclick = () => showSettings();
                 } else {
                     elements.githubVisibilityBtn.onclick = () => handleToggleGitHubVisibility();
-                    elements.githubVisibilityBtn.classList.add('btn-loading');
-                    elements.githubVisibilityBtn.textContent = 'Checking...';
-                    try {
-                        const url = githubRemote.url.replace(/\.git\/?$/, '');
-                        let match = url.match(/github\.com[\/|:]([^\/]+)\/([^\/]+)$/);
-                        if (match) {
-                            const owner = match[1];
-                            const repo = match[2];
-                            const res = await window.electronAPI.getGitHubRepo(settings.githubToken, owner, repo);
-                            const isPrivate = res.repo.private;
-                            elements.githubVisibilityBtn.textContent = isPrivate ? 'Private' : 'Public';
-                            elements.githubVisibilityBtn.title = isPrivate ? 'Click to make Public' : 'Click to make Private';
-                            if (isPrivate) elements.githubVisibilityBtn.classList.add('button');
-                            else elements.githubVisibilityBtn.classList.add('button-blue');
 
-                            elements.githubVisibilityBtn.dataset.owner = owner;
-                            elements.githubVisibilityBtn.dataset.repo = repo;
-                            elements.githubVisibilityBtn.dataset.isPrivate = isPrivate;
-                        } else {
-                            elements.githubVisibilityBtn.textContent = 'Invalid URL';
-                            elements.githubVisibilityBtn.disabled = true;
+                    // INTELLIGENCE: Only perform the heavy network check if forced (e.g. after push/pull)
+                    // otherwise use cached/placeholder state to keep UI snappy
+                    if (forceVisibilityCheck || !elements.githubVisibilityBtn.dataset.repo) {
+                        elements.githubVisibilityBtn.classList.add('btn-loading');
+                        elements.githubVisibilityBtn.textContent = 'Checking...';
+                        try {
+                            const url = githubRemote.url.replace(/\.git\/?$/, '');
+                            let match = url.match(/github\.com[\/|:]([^\/]+)\/([^\/]+)$/);
+                            if (match) {
+                                const owner = match[1];
+                                const repo = match[2];
+                                const res = await window.electronAPI.getGitHubRepo(settings.githubToken, owner, repo);
+                                const isPrivate = res.repo.private;
+                                elements.githubVisibilityBtn.textContent = isPrivate ? 'Private' : 'Public';
+                                elements.githubVisibilityBtn.title = isPrivate ? 'Click to make Public' : 'Click to make Private';
+                                if (isPrivate) elements.githubVisibilityBtn.classList.add('button');
+                                else elements.githubVisibilityBtn.classList.add('button-blue');
+
+                                elements.githubVisibilityBtn.dataset.owner = owner;
+                                elements.githubVisibilityBtn.dataset.repo = repo;
+                                elements.githubVisibilityBtn.dataset.isPrivate = isPrivate;
+                            } else {
+                                elements.githubVisibilityBtn.textContent = 'Invalid URL';
+                                elements.githubVisibilityBtn.disabled = true;
+                            }
+                        } catch (err) {
+                            console.warn('Failed to fetch GitHub repo status:', err);
+                            elements.githubVisibilityBtn.textContent = 'Offline';
+                            elements.githubVisibilityBtn.title = err.message;
+                        } finally {
+                            elements.githubVisibilityBtn.classList.remove('btn-loading');
                         }
-                    } catch (err) {
-                        console.warn('Failed to fetch GitHub repo status:', err);
-                        elements.githubVisibilityBtn.textContent = 'Offline';
-                        elements.githubVisibilityBtn.title = err.message;
-                    } finally {
-                        elements.githubVisibilityBtn.classList.remove('btn-loading');
+                    } else {
+                        // Use existing state but keep button wired up
+                        const isPrivate = elements.githubVisibilityBtn.dataset.isPrivate === 'true';
+                        elements.githubVisibilityBtn.textContent = isPrivate ? 'Private' : 'Public';
+                        if (isPrivate) elements.githubVisibilityBtn.classList.add('button');
+                        else elements.githubVisibilityBtn.classList.add('button-blue');
                     }
                 }
             } else {
@@ -6304,6 +6317,90 @@ function setMarkdownViewMode(mode) {
         // We handle this manually now to avoid ResizeObserver loops
         setTimeout(() => monacoEditor.layout(), 10);
     }
+}
+
+const PREVIEW_STYLES = `
+    :host {
+        display: block;
+        height: 100%;
+        overflow: auto;
+        background: transparent;
+        color: var(--text-main, #c9d1d9);
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+        font-size: 14px;
+        line-height: 1.6;
+    }
+    #content {
+        padding: 20px;
+        min-height: 100%;
+        outline: none;
+        overflow-wrap: break-word;
+        word-wrap: break-word;
+        word-break: break-word;
+    }
+    #content p, #content li { white-space: normal !important; }
+    #content pre {
+        white-space: pre-wrap !important;
+        word-wrap: break-word !important;
+        background: rgba(255,255,255,0.05);
+        padding: 12px;
+        border-radius: 4px;
+        border: 1px solid var(--border-color, #30363d);
+        overflow-x: auto;
+    }
+    #content code {
+        white-space: pre-wrap !important;
+        word-wrap: break-word !important;
+        background: rgba(255,255,255,0.08);
+        padding: 2px 4px;
+        border-radius: 3px;
+        font-family: 'JetBrains Mono', 'Cascadia Code', monospace;
+    }
+    #content blockquote {
+        border-left: 4px solid #1f6feb;
+        margin-left: 0;
+        padding-left: 16px;
+        color: #8b949e;
+    }
+    #content img { max-width: 100%; height: auto; }
+    #content h1, #content h2, #content h3 { color: #fff; margin-top: 24px; margin-bottom: 16px; font-weight: 600; }
+    #content a { color: #58a6ff; text-decoration: none; }
+    #content a:hover { text-decoration: underline; }
+`;
+
+function getPreviewContentArea() {
+    if (!elements.markdownPreview) return null;
+
+    if (!elements.markdownPreview.shadowRoot) {
+        const shadow = elements.markdownPreview.attachShadow({ mode: 'open' });
+        const style = document.createElement('style');
+        style.textContent = PREVIEW_STYLES;
+        const content = document.createElement('div');
+        content.id = 'content';
+        content.contentEditable = 'true';
+
+        // Sync back on input
+        content.oninput = () => {
+            if (isSyncingFromPreview) return;
+            syncPreviewToEditor();
+        };
+
+        // Tab handling
+        content.onkeydown = (e) => {
+            if (e.key === 'Tab') {
+                handleIndentationAction(e, 'preview');
+            }
+        };
+
+        shadow.appendChild(style);
+        shadow.appendChild(content);
+
+        // Disable contenteditable on the host itself
+        elements.markdownPreview.contentEditable = 'false';
+        elements.markdownPreview.style.padding = '0'; // Shadow content handles padding
+    }
+
+    return elements.markdownPreview.shadowRoot.getElementById('content');
 }
 
 function updateMarkdownPreviewContent() {
