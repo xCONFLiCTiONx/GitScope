@@ -2972,7 +2972,7 @@ function createTreeNode(name, fullPath, isDirectory, depth, repo) {
         }
     }
     item.className = `tree-node ${depth === 0 ? 'repo-root' : ''} ${isDirectory ? 'is-directory' : 'is-file'} ${isChanged ? 'changed-file' : ''}`;
-    item.style.paddingLeft = `${depth * 12 + 16}px`;
+    item.style.paddingLeft = '8px';
     if (selectedNodes.has(fullPath)) item.classList.add('active');
     const ext = name.split('.').pop().toLowerCase();
     const fileClass = !isDirectory ? `file-type-${ext.replace(/[^a-z0-9]/g, '-')}` : '';
