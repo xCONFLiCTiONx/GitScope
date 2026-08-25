@@ -54,9 +54,7 @@ if (!gotTheLock) {
   // Listen for second instance launch
   app.on('second-instance', (event, commandLine, workingDirectory) => {
     if (mainWindow) {
-      if (mainWindow.isMinimized()) mainWindow.restore();
-      mainWindow.focus();
-      mainWindow.show();
+      restoreWindow();
     }
   });
 
@@ -123,24 +121,66 @@ function saveSettings(settings) {
   fs.writeJsonSync(settingsPath, settings);
 }
 
+function restoreWindow() {
+  if (!mainWindow) return;
+  if (mainWindow.isMinimized()) mainWindow.restore();
+  mainWindow.show();
+  mainWindow.focus();
+  // Ensure maximized state is visually consistent
+  if (mainWindow.isMaximized()) {
+    mainWindow.maximize();
+  }
+}
+
 function getWindowState() {
   try {
     if (fs.existsSync(windowStatePath)) {
-      return fs.readJsonSync(windowStatePath);
+      const state = fs.readJsonSync(windowStatePath);
+      // Basic validation
+      if (state && typeof state.width === 'number' && typeof state.height === 'number') {
+        return state;
+      }
     }
   } catch (e) {
     reportError('Failed to get window state', e);
   }
-  return { width: 1200, height: 800 };
+  return { width: 1200, height: 800, isMaximized: false };
 }
 
 function saveWindowState() {
-  const bounds = mainWindow.getBounds();
-  const state = {
-    ...bounds,
-    isMaximized: mainWindow.isMaximized()
-  };
-  fs.writeJsonSync(windowStatePath, state);
+  if (!mainWindow || mainWindow.isDestroyed()) return;
+
+  try {
+    const isMaximized = mainWindow.isMaximized();
+    const state = { isMaximized };
+
+    if (isMaximized) {
+      // Save normal bounds so we can restore to them if unmaximized
+      try {
+        const normal = mainWindow.getNormalBounds();
+        state.x = normal.x;
+        state.y = normal.y;
+        state.width = normal.width;
+        state.height = normal.height;
+      } catch (e) {
+        const bounds = mainWindow.getBounds();
+        state.x = bounds.x;
+        state.y = bounds.y;
+        state.width = bounds.width;
+        state.height = bounds.height;
+      }
+    } else {
+      const bounds = mainWindow.getBounds();
+      state.x = bounds.x;
+      state.y = bounds.y;
+      state.width = bounds.width;
+      state.height = bounds.height;
+    }
+
+    fs.writeJsonSync(windowStatePath, state);
+  } catch (e) {
+    // Ignore errors during save (e.g. window being closed)
+  }
 }
 
 function createWindow() {
@@ -165,6 +205,9 @@ function createWindow() {
 
   // Performance: Show window as soon as content is ready
   mainWindow.once('ready-to-show', () => {
+    if (state.isMaximized) {
+      mainWindow.maximize();
+    }
     mainWindow.show();
 
     // Defer heavy background work until window is visible
@@ -178,10 +221,6 @@ function createWindow() {
         } catch(e) {}
     }, 100);
   });
-
-  if (state.isMaximized) {
-    mainWindow.maximize();
-  }
 
   mainWindow.loadFile(path.join(__dirname, 'renderer', 'index.html'));
 
@@ -212,6 +251,7 @@ function createWindow() {
   });
 
   mainWindow.on('minimize', (event) => {
+    saveWindowState(); // Ensure state is saved before hiding
     event.preventDefault();
     mainWindow.hide();
   });
@@ -364,7 +404,7 @@ function createTray() {
   tray = new Tray(path.join(__dirname, 'ICON.png'));
   const contextMenu = Menu.buildFromTemplate([
     { label: 'Show GitScope', click: () => {
-      mainWindow.show();
+      restoreWindow();
     } },
     { type: 'separator' },
     { label: 'Quit', click: () => {
@@ -376,7 +416,7 @@ function createTray() {
   tray.setContextMenu(contextMenu);
 
   tray.on('double-click', () => {
-    mainWindow.show();
+    restoreWindow();
   });
 }
 
