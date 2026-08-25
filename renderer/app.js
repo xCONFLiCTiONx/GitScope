@@ -5080,8 +5080,9 @@ async function openFileInEditor(filePath) {
                 'psd1': 'powershell'
             };
 
-            elements.editorPreviewToggle.style.display = (ext === 'md') ? 'block' : 'none';
-            elements.markdownTools.style.display = (ext === 'md') ? 'flex' : 'none';
+            const isMarkdown = ext === 'md' || ext === 'markdown' || langMap[ext] === 'markdown';
+            elements.editorPreviewToggle.style.display = isMarkdown ? 'block' : 'none';
+            elements.markdownTools.style.display = isMarkdown ? 'flex' : 'none';
             elements.gitignoreScanBtn.style.display = (filePath.endsWith('.gitignore')) ? 'block' : 'none';
 
             elements.monacoContainer.style.display = 'block';
