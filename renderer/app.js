@@ -6408,6 +6408,9 @@ function setMarkdownViewMode(mode) {
     const isPreview = mode === 'preview';
     const toolbarButtons = {
         'editorWrapBtn': !isPreview,
+        'mdListBtn': !isPreview,
+        'mdTaskBtn': !isPreview,
+        'mdImageBtn': !isPreview,
         'editorFormatBtn': !isPreview,
         'editorCommentBtn': !isPreview,
         'editorFindBtn': !isPreview,
