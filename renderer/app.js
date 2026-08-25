@@ -2878,28 +2878,44 @@ async function renderTree(filter = '') {
                     if (chevron) chevron.textContent = '▾';
                 }
 
-                // Metadata hydration (Status dots, missing indicators)
+                // Metadata hydration (Status dots, missing indicators, online/offline status)
                 (async () => {
                     try {
                         const exists = await window.electronAPI.pathExists(repo.path);
                         if (!exists) {
                             const nameEl = nodeContainer.querySelector('.node-name');
                             if (nameEl) {
-                                nameEl.style.color = '#da3633';
+                                nameEl.style.color = 'var(--accent-red)';
                                 nameEl.textContent += ' (MISSING)';
                             }
                         } else {
-                            const changes = await window.electronAPI.getDetailedChanges(repo.path);
+                            const [changes, remotes] = await Promise.all([
+                                window.electronAPI.getDetailedChanges(repo.path),
+                                window.electronAPI.getRemotes(repo.path)
+                            ]);
+
+                            const hasRemotes = remotes.length > 0;
                             repo.changedFiles = [...changes.staged, ...changes.unstaged, ...changes.untracked].map(f => `${repo.path.replace(/\\/g, '/')}/${f.replace(/\\/g, '/')}`.toLowerCase());
 
-                            if (changes.staged.length || changes.unstaged.length || changes.untracked.length) {
+                            const hasChanges = changes.staged.length || changes.unstaged.length || changes.untracked.length;
+                            const nameEl = nodeContainer.querySelector('.node-name');
+
+                            if (nameEl) {
+                                if (hasChanges) {
+                                    nameEl.style.color = 'var(--accent-red)';
+                                } else if (!hasRemotes) {
+                                    nameEl.style.color = '#e3b341'; // Light yellow for offline/local-only
+                                } else {
+                                    nameEl.style.color = ''; // Reset to default (white) for online/clean
+                                }
+                            }
+
+                            if (hasChanges) {
                                 const statusDot = nodeContainer.querySelector('.status-dot-mini');
                                 if (statusDot) {
                                     statusDot.classList.add('active');
                                     statusDot.style.opacity = '1';
                                 }
-                                const nameEl = nodeContainer.querySelector('.node-name');
-                                if (nameEl) nameEl.style.color = '#f85149';
                             }
                         }
                     } catch (e) {}
@@ -5139,7 +5155,12 @@ async function updateTreeHighlights(specificRepoPath = null) {
 
     for (const repo of targetRepos) {
         try {
-            const changes = await window.electronAPI.getDetailedChanges(repo.path);
+            const [changes, remotes] = await Promise.all([
+                window.electronAPI.getDetailedChanges(repo.path),
+                window.electronAPI.getRemotes(repo.path)
+            ]);
+
+            const hasRemotes = remotes.length > 0;
             const normBase = repo.path.replace(/\\/g, '/').toLowerCase();
             const normBaseSlash = normBase.endsWith('/') ? normBase : normBase + '/';
             repo.changedFiles = [...changes.staged, ...changes.unstaged, ...changes.untracked].map(f => `${normBase}/${f.replace(/\\/g, '/')}`.toLowerCase());
@@ -5158,19 +5179,23 @@ async function updateTreeHighlights(specificRepoPath = null) {
                         // Project is missing, keep it red/danger
                         node.classList.add('changed-file');
                         if (nameEl) {
-                            nameEl.style.color = '#da3633';
+                            nameEl.style.color = 'var(--accent-red)';
                             if (!nameEl.textContent.includes('(MISSING)')) {
                                 nameEl.textContent += ' (MISSING)';
                             }
                         }
                     } else if (isRepoChanged) {
                         node.classList.add('changed-file');
-                        if (nameEl) nameEl.style.color = '#f85149';
+                        if (nameEl) nameEl.style.color = 'var(--accent-red)';
                     } else {
                         node.classList.remove('changed-file');
                         if (nameEl) {
-                            nameEl.style.color = '';
                             nameEl.textContent = repo.name; // Restore name if it was missing
+                            if (!hasRemotes) {
+                                nameEl.style.color = '#e3b341'; // Light yellow for offline
+                            } else {
+                                nameEl.style.color = ''; // Reset to default
+                            }
                         }
                     }
 
