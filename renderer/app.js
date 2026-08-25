@@ -543,7 +543,9 @@ function initEditor() {
                 fontFamily: initialFont,
                 fontWeight: initialTheme.fontWeight || 'normal',
                 fontLigatures: true,
-                fontSize: 13
+                fontSize: 13,
+                detectIndentation: true,
+                tabFocusMode: false // INTELLIGENCE: Explicitly disable tab focus cycling to keep Tab in editor
             });
 
             // PRO FEATURE: Save with Ctrl+S
@@ -552,14 +554,6 @@ function initEditor() {
             });
 
             logToConsole('Code Editor ready.', 'info');
-
-            // INTELLIGENCE: Fix Tab key behavior in Electron
-            // Prevent Tab from moving focus out of the editor
-            monacoEditor.onKeyDown((e) => {
-                if (e.keyCode === monaco.KeyCode.Tab) {
-                    e.stopPropagation();
-                }
-            });
         });
     }
 }
@@ -978,11 +972,67 @@ function initEventListeners() {
             if (isSyncingFromPreview) return;
             syncPreviewToEditor();
         };
-        // INTELLIGENCE: Enable Tab indentation in editable preview
+        // INTELLIGENCE: Enable Tab indentation/outdent in editable preview
         elements.markdownPreview.onkeydown = (e) => {
             if (e.key === 'Tab') {
                 e.preventDefault();
-                document.execCommand('insertText', false, '    ');
+
+                // INTELLIGENCE: Match the indentation of the actual file/editor
+                const model = monacoEditor ? monacoEditor.getModel() : null;
+                const tabSize = model ? model.getOptions().tabSize : 4;
+                const spaces = ' '.repeat(tabSize);
+
+                if (e.shiftKey) {
+                    // 1. Try native outdent (for lists)
+                    document.execCommand('outdent', false, null);
+
+                    // 2. Manual space-based outdent for plain text blocks
+                    const selection = window.getSelection();
+                    if (selection.rangeCount > 0) {
+                        const range = selection.getRangeAt(0);
+                        let container = range.startContainer;
+                        let offset = range.startOffset;
+
+                        // If we are at the start of an element but there's a preceding text node
+                        if (container.nodeType === 1 && offset === 0 && container.previousSibling && container.previousSibling.nodeType === 3) {
+                            container = container.previousSibling;
+                            offset = container.textContent.length;
+                        }
+
+                        if (container.nodeType === 3) { // Text node
+                            const content = container.textContent;
+
+                            // Look back up to tabSize spaces to remove, strictly on current line
+                            let toRemove = 0;
+                            while (toRemove < tabSize && (offset - toRemove - 1) >= 0) {
+                                const char = content[offset - toRemove - 1];
+                                if (char === ' ') {
+                                    toRemove++;
+                                } else if (char === '\n' || char === '\r') {
+                                    break; // Stop at newline
+                                } else {
+                                    // Found a non-space character, but we only want to outdent if it's all spaces
+                                    // Actually, standard outdent removes spaces even if there's text after them
+                                    // but we only remove leading spaces usually.
+                                    // However, the user said "reverse of tab", so if they tabbed in the middle of a line,
+                                    // shift-tab should remove those spaces.
+                                    break;
+                                }
+                            }
+
+                            if (toRemove > 0) {
+                                const newRange = document.createRange();
+                                newRange.setStart(container, offset - toRemove);
+                                newRange.setEnd(container, offset);
+                                selection.removeAllRanges();
+                                selection.addRange(newRange);
+                                document.execCommand('delete', false, null);
+                            }
+                        }
+                    }
+                } else {
+                    document.execCommand('insertText', false, spaces);
+                }
             }
         };
     }
@@ -3497,7 +3547,8 @@ async function showThemeEditor() {
                 fontFamily: initialFont,
                 fontWeight: currentTheme.fontWeight || 'normal',
                 fontLigatures: true,
-                fontSize: 13
+                fontSize: 13,
+                tabFocusMode: false
             });
 
             themeEditor.onDidChangeModelContent(() => {
@@ -6505,6 +6556,29 @@ function showDeleteModal(paths) {
     };
     document.getElementById('delete-cancel').onclick = () => modal.style.display = 'none';
 }
+
+// INTELLIGENCE: Force Tab key indentation/outdent for ALL editors
+// We use the Capture Phase (true) to intercept the event before the browser steals it for focus cycling
+window.addEventListener('keydown', (e) => {
+    if (e.key === 'Tab') {
+        const isMainEditor = document.activeElement.closest('#monaco-container');
+        const isThemeEditor = document.activeElement.closest('#theme-monaco-container');
+
+        if (isMainEditor || isThemeEditor) {
+            e.preventDefault();
+            e.stopImmediatePropagation();
+
+            const editor = isMainEditor ? monacoEditor : themeEditor;
+            if (editor) {
+                if (e.shiftKey) {
+                    editor.trigger('keyboard', 'outdent', null);
+                } else {
+                    editor.trigger('keyboard', 'tab', null);
+                }
+            }
+        }
+    }
+}, true);
 
 console.log('GitScope Professional logic loaded.');
 
