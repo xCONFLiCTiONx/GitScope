@@ -5116,6 +5116,15 @@ async function openFileInEditor(filePath) {
                 const currentContent = monacoEditor.getValue();
                 const hasChanges = currentContent !== originalFileContent;
                 updateEditorButtonStates(hasChanges);
+
+                // Real-time Markdown Preview
+                if (isMarkdown && elements.editorContainerWrapper) {
+                    const isShowingPreview = elements.editorContainerWrapper.classList.contains('editor-mode-split') ||
+                                           elements.editorContainerWrapper.classList.contains('editor-mode-preview');
+                    if (isShowingPreview) {
+                        updateMarkdownPreviewContent();
+                    }
+                }
             });
 
             // Initial state

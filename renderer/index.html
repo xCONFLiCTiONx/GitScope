@@ -411,11 +411,12 @@
 
         /* Views common padding */
         #dashboard-view, #repo-view, #settings-view, #editor-view, #git-config-view, #theme-editor-view {
-            padding: 20px 24px;
+            padding: 20px 24px 0 24px; /* Removed bottom padding to attach to console */
             flex: 1;
             min-height: 0;
             display: none;
             flex-direction: column;
+            overflow: hidden; /* Prevent the view itself from scrolling under terminal */
         }
 
         #theme-monaco-container {
@@ -1008,9 +1009,9 @@
         .editor-mode-preview #monaco-container { display: none !important; }
         .editor-mode-preview #markdown-preview { display: block !important; position: absolute; inset: 0; }
 
-        .editor-mode-split { display: flex !important; flex-direction: row !important; gap: 0; }
-        .editor-mode-split #monaco-container { display: block !important; position: relative !important; flex: 1; height: 100%; border-right: 1px solid var(--border-color); }
-        .editor-mode-split #markdown-preview { display: block !important; position: relative !important; flex: 1; height: 100%; }
+        .editor-mode-split { display: flex !important; flex-direction: row !important; gap: 0; height: 100%; width: 100%; overflow: hidden; }
+        .editor-mode-split #monaco-container { display: block !important; position: relative !important; flex: 1; height: 100%; width: 50%; border-right: 1px solid var(--border-color); }
+        .editor-mode-split #markdown-preview { display: block !important; position: relative !important; flex: 1; height: 100%; width: 50%; overflow-y: auto !important; }
 
     </style>
 </head>
