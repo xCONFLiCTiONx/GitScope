@@ -238,7 +238,6 @@ const elements = {
     get editorWrapBtn() { return document.getElementById('editor-wrap-btn'); },
     get editorFolderBtn() { return document.getElementById('editor-folder-btn'); },
     get editorFormatBtn() { return document.getElementById('editor-format-btn'); },
-    get editorCommentBtn() { return document.getElementById('editor-comment-btn'); },
     get editorFindBtn() { return document.getElementById('editor-find-btn'); },
     get editorTransformBtn() { return document.getElementById('editor-transform-btn'); },
     get transformMenu() { return document.getElementById('transform-menu'); },
@@ -951,12 +950,6 @@ function initEventListeners() {
             monacoEditor.focus();
             monacoEditor.trigger('editor', 'editor.action.formatDocument');
             logToConsole('Ran code formatter.', 'info');
-        }
-    };
-    if (elements.editorCommentBtn) elements.editorCommentBtn.onclick = () => {
-        if (monacoEditor) {
-            monacoEditor.focus();
-            monacoEditor.trigger('editor', 'editor.action.commentLine');
         }
     };
     if (elements.editorFindBtn) elements.editorFindBtn.onclick = () => {
@@ -6462,7 +6455,6 @@ function setMarkdownViewMode(mode) {
         'mdTaskBtn': !isPreview,
         'mdImageBtn': !isPreview,
         'editorFormatBtn': !isPreview,
-        'editorCommentBtn': !isPreview,
         'editorFindBtn': !isPreview,
         'editorTransformBtn': !isPreview
     };
