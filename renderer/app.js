@@ -6307,12 +6307,19 @@ function setMarkdownViewMode(mode) {
     if (mode === 'preview' || mode === 'split') {
         if (isHTML) {
             if (elements.markdownPreview) elements.markdownPreview.style.display = 'none';
-            if (elements.htmlPreview) elements.htmlPreview.style.display = 'block';
+            if (elements.htmlPreview) {
+                elements.htmlPreview.style.display = 'block';
+                elements.htmlPreview.style.flex = '1';
+            }
         } else {
-            if (elements.markdownPreview) elements.markdownPreview.style.display = ''; // Let CSS take over
+            if (elements.markdownPreview) {
+                elements.markdownPreview.style.display = 'block';
+                elements.markdownPreview.style.flex = '1';
+            }
             if (elements.htmlPreview) elements.htmlPreview.style.display = 'none';
         }
     } else {
+        if (elements.markdownPreview) elements.markdownPreview.style.display = 'none';
         if (elements.htmlPreview) elements.htmlPreview.style.display = 'none';
     }
 
