@@ -19,6 +19,7 @@ let feedMessages = [];
 let currentFeedIndex = 0;
 let feedTimer = null;
 let lastKnownStats = null;
+let repoVisibilityCache = new Map(); // Session-level cache for Public/Private status
 
 // Global Error Handling for Total Visibility
 window.onerror = function(message, source, lineno, colno, error) {
@@ -1341,7 +1342,7 @@ async function quickGitAction(action) {
         setTimeout(async () => {
             if (action === 'pull' || action === 'fetch') await smartRefreshTree();
             // Force visibility check after push/pull/fetch as requested
-            await refreshActiveRepoUI(true, true);
+            await refreshActiveRepoUI(true);
             setTaskState(false);
         }, 4000);
         return;
@@ -1360,7 +1361,7 @@ async function quickGitAction(action) {
             await smartRefreshTree();
         }
         // Force visibility check after push/pull/fetch
-        await refreshActiveRepoUI(false, true);
+        await refreshActiveRepoUI(false);
     } catch (e) {
         logToConsole(e.message, 'error');
         showError(e.message, 'System Error');
@@ -2866,7 +2867,13 @@ async function handleToggleGitHubVisibility() {
             const res = await window.electronAPI.updateGitHubRepoVisibility(settings.githubToken, owner, repo, nextPrivate);
             if (res.expiration) updateTokenExpirationUI(res.expiration);
             logToConsole(`Successfully changed visibility to ${nextPrivate ? 'PRIVATE' : 'PUBLIC'} for ${owner}/${repo}`, 'success');
-            await refreshActiveRepoUI();
+
+            // Update Cache immediately
+            if (activeRepo) {
+                repoVisibilityCache.set(activeRepo.path, { owner, repo, isPrivate: nextPrivate });
+            }
+
+            await refreshActiveRepoUI(true); // Silent refresh
         } catch (e) {
             logToConsole(`Failed to change visibility: ${e.message}`, 'error');
             showError(e.message, 'GitHub API Error');
@@ -4967,7 +4974,7 @@ async function selectRepo(repo, fromDashboard = false) {
     if (fromDashboard) { selectedNodes.clear(); selectedNodes.add(repo.path); updateTreeSelectionUI(); scrollToRepoInTree(repo.path); }
 }
 
-async function refreshActiveRepoUI(silent = false, forceVisibilityCheck = false) {
+async function refreshActiveRepoUI(silent = false) {
     if (!activeRepo) return;
     const title = document.getElementById('active-repo-name');
     const originalText = activeRepo.name;
@@ -5011,9 +5018,9 @@ async function refreshActiveRepoUI(silent = false, forceVisibilityCheck = false)
                 } else {
                     elements.githubVisibilityBtn.onclick = () => handleToggleGitHubVisibility();
 
-                    // INTELLIGENCE: Only perform the heavy network check if forced (e.g. after push/pull)
-                    // otherwise use cached/placeholder state to keep UI snappy
-                    if (forceVisibilityCheck || !elements.githubVisibilityBtn.dataset.repo) {
+                    const cached = repoVisibilityCache.get(activeRepo.path);
+
+                    if (!cached) {
                         elements.githubVisibilityBtn.classList.add('btn-loading');
                         elements.githubVisibilityBtn.textContent = 'Checking...';
                         try {
@@ -5024,6 +5031,10 @@ async function refreshActiveRepoUI(silent = false, forceVisibilityCheck = false)
                                 const repo = match[2];
                                 const res = await window.electronAPI.getGitHubRepo(settings.githubToken, owner, repo);
                                 const isPrivate = res.repo.private;
+
+                                // Update Cache
+                                repoVisibilityCache.set(activeRepo.path, { owner, repo, isPrivate });
+
                                 elements.githubVisibilityBtn.textContent = isPrivate ? 'Private' : 'Public';
                                 elements.githubVisibilityBtn.title = isPrivate ? 'Click to make Public' : 'Click to make Private';
                                 if (isPrivate) elements.githubVisibilityBtn.classList.add('button');
@@ -5044,11 +5055,16 @@ async function refreshActiveRepoUI(silent = false, forceVisibilityCheck = false)
                             elements.githubVisibilityBtn.classList.remove('btn-loading');
                         }
                     } else {
-                        // Use existing state but keep button wired up
-                        const isPrivate = elements.githubVisibilityBtn.dataset.isPrivate === 'true';
+                        // Use session-cached state
+                        const { owner, repo, isPrivate } = cached;
                         elements.githubVisibilityBtn.textContent = isPrivate ? 'Private' : 'Public';
+                        elements.githubVisibilityBtn.title = isPrivate ? 'Click to make Public' : 'Click to make Private';
                         if (isPrivate) elements.githubVisibilityBtn.classList.add('button');
                         else elements.githubVisibilityBtn.classList.add('button-blue');
+
+                        elements.githubVisibilityBtn.dataset.owner = owner;
+                        elements.githubVisibilityBtn.dataset.repo = repo;
+                        elements.githubVisibilityBtn.dataset.isPrivate = isPrivate;
                     }
                 }
             } else {
