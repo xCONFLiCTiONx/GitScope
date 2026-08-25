@@ -336,7 +336,6 @@ const elements = {
     get addSubtreeBtn() { return document.getElementById('add-subtree-mapping-btn'); },
     get subtreePullSelectedBtn() { return document.getElementById('subtree-pull-selected-btn'); },
     get subtreePushSelectedBtn() { return document.getElementById('subtree-push-selected-btn'); },
-    get subtreeMagicMatchBtn() { return document.getElementById('subtree-magic-match-btn'); },
     get subtreeDeleteSelectedBtn() { return document.getElementById('subtree-delete-selected-btn'); },
     get subtreeClearAllBtn() { return document.getElementById('subtree-clear-all-btn'); },
     get subtreeGitHubFetchBtn() { return document.getElementById('subtree-github-fetch-btn'); },
@@ -2219,6 +2218,39 @@ async function handlePushSubtreeFromTree(folderPath) {
 
 let currentSubtreeMappings = [];
 
+async function attemptAutoMatchMapping(m, folderNames = null) {
+    if (!activeRepo || !m.url) return;
+
+    if (!folderNames) {
+        const projectFolders = await scanFoldersRecursive(activeRepo.path);
+        folderNames = projectFolders.map(f => ({
+            path: f,
+            name: f.substring(activeRepo.path.length + 1).replace(/\\/g, '/').toLowerCase()
+        }));
+    }
+
+    const urlParts = m.url.split('/');
+    const rawRepoName = urlParts[urlParts.length - 1].replace('.git', '');
+    const repoName = rawRepoName.toLowerCase();
+    const repoNameClean = repoName.replace(/[-_]/g, ' ');
+
+    const match = folderNames.find(f =>
+        f.name === repoName ||
+        f.name === repoNameClean ||
+        f.name.replace(/ /g, '') === repoName.replace(/[-_]/g, '') ||
+        repoName.includes(f.name) ||
+        f.name.includes(repoName)
+    );
+
+    if (match) {
+        m.prefix = match.path.substring(activeRepo.path.length + 1).replace(/\\/g, '/');
+        return true;
+    } else {
+        m.prefix = rawRepoName; // Fallback to repo name
+        return false;
+    }
+}
+
 async function showSubtreeHubModal() {
     if (!activeRepo) return;
     elements.subtreeHubModal.style.display = 'flex';
@@ -2236,52 +2268,6 @@ async function showSubtreeHubModal() {
     if (elements.subtreeClearAllBtn) elements.subtreeClearAllBtn.disabled = !hasMappings;
 
     elements.subtreeGitHubFetchBtn.onclick = () => showSubtreeGitHubModal();
-
-    if (elements.subtreeMagicMatchBtn) {
-        elements.subtreeMagicMatchBtn.onclick = async () => {
-            if (!activeRepo || currentSubtreeMappings.length === 0) return;
-
-            logToConsole('Running Magic Match for subtrees...', 'info');
-            const projectFolders = await scanFoldersRecursive(activeRepo.path);
-            const folderNames = projectFolders.map(f => ({
-                path: f,
-                name: f.substring(activeRepo.path.length + 1).replace(/\\/g, '/').toLowerCase()
-            }));
-
-            let matches = 0;
-            currentSubtreeMappings.forEach(m => {
-                if (m.prefix || !m.url) return;
-
-                // Extract repo name from URL (e.g. Cookie-Manager from .../Cookie-Manager.git)
-                const urlParts = m.url.split('/');
-                const repoName = urlParts[urlParts.length - 1].replace('.git', '').toLowerCase();
-                const repoNameClean = repoName.replace(/[-_]/g, ' ');
-
-                // Fuzzy Match: Exact, then clean match, then containment
-                const match = folderNames.find(f =>
-                    f.name === repoName ||
-                    f.name === repoNameClean ||
-                    f.name.replace(/ /g, '') === repoName.replace(/[-_]/g, '') ||
-                    repoName.includes(f.name) ||
-                    f.name.includes(repoName)
-                );
-
-                if (match) {
-                    m.prefix = match.path.substring(activeRepo.path.length + 1).replace(/\\/g, '/');
-                    matches++;
-                }
-            });
-
-            if (matches > 0) {
-                logToConsole(`✅ Magic Match: Automatically mapped ${matches} folders.`, 'success');
-                saveSubtreeMappings();
-                renderSubtreeMappings();
-            } else {
-                logToConsole('ℹ️ Magic Match: No automatic folder matches found.', 'info');
-                showAlert('Could not automatically match any folders to these URLs. You may need to select them manually.', 'No Matches');
-            }
-        };
-    }
 
     if (elements.subtreeMappingSelectAll) {
         elements.subtreeMappingSelectAll.checked = false;
@@ -2376,28 +2362,34 @@ async function showSubtreeGitHubModal(targetIndex = -1) {
             }
 
             if (elements.subtreeGitHubConfirm) {
-                elements.subtreeGitHubConfirm.onclick = () => {
+                elements.subtreeGitHubConfirm.onclick = async () => {
                     const selected = Array.from(list.querySelectorAll('.gh-repo-item-cb:checked'));
                     if (selected.length === 0) return showAlert('Select at least one repository.', 'Selection Required');
 
+                    const projectFolders = await scanFoldersRecursive(activeRepo.path);
+                    const folderNames = projectFolders.map(f => ({
+                        path: f,
+                        name: f.substring(activeRepo.path.length + 1).replace(/\\/g, '/').toLowerCase()
+                    }));
+
                     if (targetIndex >= 0) {
                         // Editing single row
-                        currentSubtreeMappings[targetIndex].url = selected[0].value;
+                        const m = currentSubtreeMappings[targetIndex];
+                        m.url = selected[0].value;
+                        await attemptAutoMatchMapping(m, folderNames);
                     } else {
                         // Bulk adding
-                        selected.forEach(item => {
-                            currentSubtreeMappings.push({
-                                prefix: item.dataset.name,
-                                url: item.value,
-                                branch: 'main'
-                            });
-                        });
+                        for (const item of selected) {
+                            const m = { prefix: '', url: item.value, branch: 'main' };
+                            await attemptAutoMatchMapping(m, folderNames);
+                            currentSubtreeMappings.push(m);
+                        }
                     }
 
                     elements.subtreeGitHubModal.style.display = 'none';
                     saveSubtreeMappings();
                     renderSubtreeMappings();
-                    logToConsole(`Added ${selected.length} GitHub repositories to subtree mappings.`, 'success');
+                    logToConsole(`Added/Updated ${selected.length} GitHub repositories in subtree mappings.`, 'success');
                 };
             }
         }
@@ -2511,8 +2503,16 @@ function renderSubtreeMappings() {
         };
     });
     list.querySelectorAll('.mapping-url').forEach(input => {
-        input.onchange = (e) => {
-            currentSubtreeMappings[parseInt(e.target.dataset.index)].url = e.target.value.trim();
+        input.onchange = async (e) => {
+            const index = parseInt(e.target.dataset.index);
+            const mapping = currentSubtreeMappings[index];
+            mapping.url = e.target.value.trim();
+
+            // Only auto-match if prefix is empty (likely just added)
+            if (!mapping.prefix) {
+                await attemptAutoMatchMapping(mapping);
+                renderSubtreeMappings();
+            }
             saveSubtreeMappings();
         };
     });
