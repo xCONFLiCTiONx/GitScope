@@ -6696,30 +6696,36 @@ function syncPreviewToEditor() {
             finalValue = contentArea.innerHTML;
         } else {
             const toMarkdown = (node) => {
-                if (node.nodeType === 3) return node.textContent;
+                if (node.nodeType === 3) {
+                    const text = node.textContent.replace(/\u00A0/g, ' ').replace(/\u200B/g, '');
+                    // Intelligence: Ignore whitespace-only text nodes between block elements in lists
+                    const parentTag = node.parentNode ? node.parentNode.tagName.toLowerCase() : '';
+                    if (['ul', 'ol'].includes(parentTag) && !text.trim()) return '';
+                    return text;
+                }
                 if (node.nodeType !== 1) return '';
 
                 const tag = node.tagName.toLowerCase();
                 const children = Array.from(node.childNodes).map(toMarkdown).join('');
 
                 switch(tag) {
-                    case 'h1': return `# ${children}\n\n`;
-                    case 'h2': return `## ${children}\n\n`;
-                    case 'h3': return `### ${children}\n\n`;
-                    case 'h4': return `#### ${children}\n\n`;
-                    case 'p': return `${children}\n\n`;
+                    case 'h1': return `# ${children.trim()}\n\n`;
+                    case 'h2': return `## ${children.trim()}\n\n`;
+                    case 'h3': return `### ${children.trim()}\n\n`;
+                    case 'h4': return `#### ${children.trim()}\n\n`;
+                    case 'p': return `${children.trim()}\n\n`;
                     case 'strong': case 'b': return `**${children}**`;
                     case 'em': case 'i': return `*${children}*`;
-                    case 'ul': return children + '\n';
-                    case 'ol': return children + '\n';
+                    case 'ul': return children.trim() + '\n\n';
+                    case 'ol': return children.trim() + '\n\n';
                     case 'li': {
                         const parent = node.parentNode ? node.parentNode.tagName.toLowerCase() : '';
-                        if (parent === 'ul') return `- ${children}\n`;
+                        if (parent === 'ul') return `- ${children.trim()}\n`;
                         if (parent === 'ol') {
                             const idx = Array.from(node.parentNode.children).indexOf(node) + 1;
-                            return `${idx}. ${children}\n`;
+                            return `${idx}. ${children.trim()}\n`;
                         }
-                        return `- ${children}\n`;
+                        return `- ${children.trim()}\n`;
                     }
                     case 'a': {
                         const href = node.getAttribute('href');
