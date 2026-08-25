@@ -21,6 +21,9 @@ let lastKnownStats = null;
 
 // Global Error Handling for Total Visibility
 window.onerror = function(message, source, lineno, colno, error) {
+    // Ignore harmless ResizeObserver loop limit errors which are common with Monaco/Flexbox
+    if (message.includes('ResizeObserver loop limit exceeded')) return;
+
     const errorMsg = `[Global Error] ${message}\nAt: ${source}:${lineno}:${colno}`;
     console.error(errorMsg, error);
     if (typeof showError === 'function') {
@@ -526,7 +529,7 @@ function initEditor() {
             // 2. Create the editor with the 'obsidian' theme already active
             monacoEditor = monaco.editor.create(elements.monacoContainer, {
                 theme: settings.obsidianIni ? 'obsidian' : 'vs-dark',
-                automaticLayout: true,
+                automaticLayout: false, // Turned off to prevent ResizeObserver loop errors
                 bracketPairColorization: { enabled: true },
                 tabSize: 4,
                 insertSpaces: true,
@@ -6234,6 +6237,7 @@ function setMarkdownViewMode(mode) {
 
     if (monacoEditor) {
         // Essential: Layout the editor after view switch to prevent blank space
+        // We handle this manually now to avoid ResizeObserver loops
         setTimeout(() => monacoEditor.layout(), 10);
     }
 }
