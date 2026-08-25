@@ -5272,12 +5272,6 @@ function updateEditorFileInfo() {
 
 function applyTextTransformation(type) {
     if (!monacoEditor) return;
-    const selection = monacoEditor.getSelection();
-    if (selection.isEmpty()) {
-        logToConsole('No text selected for transformation.', 'warn');
-        return;
-    }
-
     const model = monacoEditor.getModel();
     if (!model) return;
 
@@ -5294,6 +5288,12 @@ function applyTextTransformation(type) {
         logToConsole('File will be saved as UTF-8 encoded.', 'success');
         updateEditorFileInfo();
         updateEditorButtonStates(true);
+        return;
+    }
+
+    const selection = monacoEditor.getSelection();
+    if (selection.isEmpty()) {
+        logToConsole('No text selected for transformation.', 'warn');
         return;
     }
 
