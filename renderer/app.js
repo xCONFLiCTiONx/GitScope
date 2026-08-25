@@ -6300,8 +6300,12 @@ function setMarkdownViewMode(mode) {
     const isHTML = ext === 'html' || ext === 'htm';
 
     // Reset classes
-    elements.editorContainerWrapper.classList.remove('editor-mode-code', 'editor-mode-split', 'editor-mode-preview', 'editor-mode-standard');
-    elements.editorContainerWrapper.classList.add(`editor-mode-${mode}`);
+    [elements.editorView, elements.editorContainerWrapper].forEach(el => {
+        if (el) {
+            el.classList.remove('editor-mode-code', 'editor-mode-split', 'editor-mode-preview', 'editor-mode-standard');
+            el.classList.add(`editor-mode-${mode}`);
+        }
+    });
 
     // Intelligence: Specific visibility for HTML iframe vs Markdown div
     if (mode === 'preview' || mode === 'split') {
