@@ -357,6 +357,10 @@ const elements = {
     get newItemModal() { return document.getElementById('new-item-modal'); },
     get newItemName() { return document.getElementById('new-item-name'); },
     get newItemPathDisplay() { return document.getElementById('new-item-path-display'); },
+    get markdownTools() { return document.getElementById('markdown-tools'); },
+    get mdListBtn() { return document.getElementById('md-list-btn'); },
+    get mdTaskBtn() { return document.getElementById('md-task-btn'); },
+    get mdImageBtn() { return document.getElementById('md-image-btn'); },
     get newBranchModal() { return document.getElementById('new-branch-modal'); },
     get newBranchName() { return document.getElementById('new-branch-name'); },
     get newRemoteModal() { return document.getElementById('new-remote-modal'); },
@@ -886,6 +890,10 @@ function initEventListeners() {
     }
 
     // Editor Actions
+    if (elements.mdListBtn) elements.mdListBtn.onclick = () => insertMarkdownSnippet('list');
+    if (elements.mdTaskBtn) elements.mdTaskBtn.onclick = () => insertMarkdownSnippet('task');
+    if (elements.mdImageBtn) elements.mdImageBtn.onclick = () => insertMarkdownSnippet('image');
+
     if (elements.editorSaveBtn) elements.editorSaveBtn.onclick = () => saveCurrentFile();
     if (elements.editorRestoreBtn) elements.editorRestoreBtn.onclick = () => handleRestoreFile();
     if (elements.editorUndoBtn) elements.editorUndoBtn.onclick = () => {
@@ -2895,9 +2903,11 @@ async function renderTree(filter = '') {
                             ]);
 
                             const hasRemotes = remotes.length > 0;
-                            repo.changedFiles = [...changes.staged, ...changes.unstaged, ...changes.untracked].map(f => `${repo.path.replace(/\\/g, '/')}/${f.replace(/\\/g, '/')}`.toLowerCase());
+                            const normBase = repo.path.replace(/\\/g, '/').toLowerCase();
+                            repo.changedFiles = [...changes.staged, ...changes.unstaged, ...changes.untracked].map(f => `${normBase}/${f.replace(/\\/g, '/')}`.toLowerCase());
+                            repo.notTrackedFiles = [...(changes.untracked || []), ...(changes.ignored || [])].map(f => `${normBase}/${f.replace(/\\/g, '/')}`.toLowerCase());
 
-                            const hasChanges = changes.staged.length || changes.unstaged.length || changes.untracked.length;
+                            const hasChanges = (changes.staged.length + changes.unstaged.length + (changes.untracked || []).length) > 0;
                             const nameEl = nodeContainer.querySelector('.node-name');
 
                             if (nameEl) {
@@ -4968,6 +4978,52 @@ async function refreshActiveRepoUI(silent = false) {
     }
 }
 
+function insertMarkdownSnippet(type) {
+    if (!monacoEditor) return;
+    const selection = monacoEditor.getSelection();
+    const model = monacoEditor.getModel();
+    if (!model) return;
+
+    let range = selection;
+    let snippet = '';
+
+    if (type === 'image') {
+        const text = model.getValueInRange(selection) || 'alt text';
+        snippet = `![${text}](https://)`;
+        monacoEditor.executeEdits('markdown', [{
+            range: selection,
+            text: snippet,
+            forceMoveMarkers: true
+        }]);
+        // Position cursor inside the parentheses for URL
+        const startLine = selection.startLineNumber;
+        const startCol = selection.startColumn + text.length + 4; // after ![] (
+        monacoEditor.setSelection(new monaco.Selection(startLine, startCol, startLine, startCol));
+        monacoEditor.focus();
+        return;
+    }
+
+    // For list and task, we process each line in the selection
+    const startLine = selection.startLineNumber;
+    const endLine = selection.endLineNumber;
+    const edits = [];
+    const prefix = type === 'list' ? '- ' : '- [ ] ';
+
+    for (let i = startLine; i <= endLine; i++) {
+        const lineText = model.getLineContent(i);
+        // If line already starts with the prefix, maybe toggle it off?
+        // For now, just prepend it if it doesn't exist, or always prepend.
+        // Let's just prepend for simplicity.
+        edits.push({
+            range: new monaco.Range(i, 1, i, 1),
+            text: prefix
+        });
+    }
+
+    monacoEditor.executeEdits('markdown', edits);
+    monacoEditor.focus();
+}
+
 async function openFileInEditor(filePath) {
     if (!monacoEditor) return;
     try {
@@ -4984,6 +5040,7 @@ async function openFileInEditor(filePath) {
         elements.monacoContainer.style.display = 'none';
         elements.imagePreview.style.display = 'none';
         elements.editorPreviewToggle.style.display = 'none';
+        elements.markdownTools.style.display = 'none';
         elements.gitignoreScanBtn.style.display = 'none';
         elements.editorSaveBtn.style.display = 'block';
 
@@ -5024,6 +5081,7 @@ async function openFileInEditor(filePath) {
             };
 
             elements.editorPreviewToggle.style.display = (ext === 'md') ? 'block' : 'none';
+            elements.markdownTools.style.display = (ext === 'md') ? 'flex' : 'none';
             elements.gitignoreScanBtn.style.display = (filePath.endsWith('.gitignore')) ? 'block' : 'none';
 
             elements.monacoContainer.style.display = 'block';
@@ -5156,8 +5214,9 @@ async function updateTreeHighlights(specificRepoPath = null) {
             const normBase = repo.path.replace(/\\/g, '/').toLowerCase();
             const normBaseSlash = normBase.endsWith('/') ? normBase : normBase + '/';
             repo.changedFiles = [...changes.staged, ...changes.unstaged, ...changes.untracked].map(f => `${normBase}/${f.replace(/\\/g, '/')}`.toLowerCase());
+            repo.notTrackedFiles = [...(changes.untracked || []), ...(changes.ignored || [])].map(f => `${normBase}/${f.replace(/\\/g, '/')}`.toLowerCase());
 
-            const isRepoChanged = (changes.staged.length + changes.unstaged.length + changes.untracked.length) > 0;
+            const isRepoChanged = (changes.staged.length + changes.unstaged.length + (changes.untracked || []).length) > 0;
 
             allNodes.forEach(node => {
                 const nodePath = node.dataset.path.replace(/\\/g, '/').toLowerCase();
@@ -5196,9 +5255,15 @@ async function updateTreeHighlights(specificRepoPath = null) {
                     const isDirectlyChanged = repo.changedFiles.includes(nodePath);
                     const containsChangedFile = isDir && repo.changedFiles.some(f => f.startsWith(nodePath + '/'));
 
+                    const isNotTracked = repo.notTrackedFiles.includes(nodePath);
+                    const containsNotTracked = isDir && repo.notTrackedFiles.some(f => f.startsWith(nodePath + '/'));
+
                     if (isDirectlyChanged || containsChangedFile) {
                         node.classList.add('changed-file');
                         if (nameEl) nameEl.style.color = 'var(--accent-red)';
+                    } else if (isNotTracked || containsNotTracked) {
+                        node.classList.remove('changed-file');
+                        if (nameEl) nameEl.style.color = '#aaaaaa'; // Lighter gray for untracked/ignored
                     } else {
                         node.classList.remove('changed-file');
                         if (nameEl) nameEl.style.color = '';
