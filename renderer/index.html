@@ -1013,6 +1013,44 @@
         .editor-mode-split #monaco-container { display: block !important; position: relative !important; flex: 1; height: 100%; width: 50%; border-right: 1px solid var(--border-color); }
         .editor-mode-split #markdown-preview { display: block !important; position: relative !important; flex: 1; height: 100%; width: 50%; overflow-y: auto !important; }
 
+        /* Markdown Preview Styling & Word Wrap Fixes */
+        #markdown-preview {
+            overflow-wrap: break-word;
+            word-wrap: break-word;
+            word-break: break-word;
+            overflow-x: hidden !important;
+        }
+        #markdown-preview p, #markdown-preview li {
+            white-space: normal !important;
+        }
+        #markdown-preview pre {
+            white-space: pre-wrap !important;
+            word-wrap: break-word !important;
+            background: rgba(255,255,255,0.05);
+            padding: 12px;
+            border-radius: 4px;
+            border: 1px solid var(--border-color);
+            overflow-x: auto;
+        }
+        #markdown-preview code {
+            white-space: pre-wrap !important;
+            word-wrap: break-word !important;
+            background: rgba(255,255,255,0.08);
+            padding: 2px 4px;
+            border-radius: 3px;
+            font-family: 'JetBrains Mono', 'Cascadia Code', monospace;
+        }
+        #markdown-preview blockquote {
+            border-left: 4px solid var(--accent-blue);
+            margin-left: 0;
+            padding-left: 16px;
+            color: var(--text-muted);
+        }
+        #markdown-preview img {
+            max-width: 100%;
+            height: auto;
+        }
+
     </style>
 </head>
 <body>

@@ -5160,18 +5160,19 @@ async function openFileInEditor(filePath) {
             if (elements.mdViewControls) elements.mdViewControls.style.display = isMarkdown ? 'flex' : 'none';
             elements.gitignoreScanBtn.style.display = (filePath.endsWith('.gitignore')) ? 'block' : 'none';
 
-            if (isMarkdown) {
-                setMarkdownViewMode('preview');
-            } else {
-                setMarkdownViewMode('standard');
-            }
-
             // Memory Management: Dispose of the old model if it exists
             const oldModel = monacoEditor.getModel();
             if (oldModel) oldModel.dispose();
 
             const model = monaco.editor.createModel(content, langMap[ext] || 'plaintext');
             monacoEditor.setModel(model);
+
+            // Intelligence: Now that the content is loaded into the editor, we can safely trigger the preview
+            if (isMarkdown) {
+                setMarkdownViewMode('preview');
+            } else {
+                setMarkdownViewMode('standard');
+            }
 
             // Intelligence: Track changes to enable/disable buttons
             model.onDidChangeContent(() => {
