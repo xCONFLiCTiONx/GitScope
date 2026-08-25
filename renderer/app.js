@@ -237,6 +237,7 @@ const elements = {
     get transformMenu() { return document.getElementById('transform-menu'); },
     get editorCloseBtn() { return document.getElementById('editor-close-btn'); },
     get editorPreviewToggle() { return document.getElementById('editor-preview-toggle'); },
+    get editorContainerWrapper() { return document.getElementById('editor-container-wrapper'); },
     get gitignoreScanBtn() { return document.getElementById('gitignore-scan-btn'); },
     get markdownPreview() { return document.getElementById('markdown-preview'); },
     get imagePreview() { return document.getElementById('image-preview'); },
@@ -360,6 +361,10 @@ const elements = {
     get mdListBtn() { return document.getElementById('md-list-btn'); },
     get mdTaskBtn() { return document.getElementById('md-task-btn'); },
     get mdImageBtn() { return document.getElementById('md-image-btn'); },
+    get mdViewControls() { return document.getElementById('md-view-controls'); },
+    get mdViewCodeBtn() { return document.getElementById('md-view-code'); },
+    get mdViewSplitBtn() { return document.getElementById('md-view-split'); },
+    get mdViewPreviewBtn() { return document.getElementById('md-view-preview'); },
     get newBranchModal() { return document.getElementById('new-branch-modal'); },
     get newBranchName() { return document.getElementById('new-branch-name'); },
     get newRemoteModal() { return document.getElementById('new-remote-modal'); },
@@ -947,7 +952,9 @@ function initEventListeners() {
         if (elements.transformMenu) elements.transformMenu.style.display = 'none';
     });
     if (elements.editorCloseBtn) elements.editorCloseBtn.onclick = () => closeEditor();
-    if (elements.editorPreviewToggle) elements.editorPreviewToggle.onclick = () => toggleMarkdownPreview();
+    if (elements.mdViewCodeBtn) elements.mdViewCodeBtn.onclick = () => setMarkdownViewMode('code');
+    if (elements.mdViewSplitBtn) elements.mdViewSplitBtn.onclick = () => setMarkdownViewMode('split');
+    if (elements.mdViewPreviewBtn) elements.mdViewPreviewBtn.onclick = () => setMarkdownViewMode('preview');
     if (elements.gitignoreScanBtn) elements.gitignoreScanBtn.onclick = () => runGitignoreScan();
 
     if (elements.unbornFoldersClose) elements.unbornFoldersClose.onclick = () => {
@@ -5034,14 +5041,19 @@ async function openFileInEditor(filePath) {
         elements.editorView.style.display = 'flex';
         elements.editorFileName.textContent = filePath.split(/[\\\/]/).pop();
 
-        // RESET UI States
-        elements.markdownPreview.style.display = 'none';
-        elements.monacoContainer.style.display = 'none';
-        elements.imagePreview.style.display = 'none';
-        elements.editorPreviewToggle.style.display = 'none';
-        document.querySelectorAll('.md-only').forEach(el => el.style.display = 'none');
+        // RESET UI States (Relying on classes now)
+        if (elements.mdViewControls) elements.mdViewControls.style.display = 'none';
         elements.gitignoreScanBtn.style.display = 'none';
         elements.editorSaveBtn.style.display = 'block';
+
+        // Essential: Clear inline display styles so CSS classes can take over
+        if (elements.monacoContainer) elements.monacoContainer.style.display = '';
+        if (elements.markdownPreview) elements.markdownPreview.style.display = '';
+        if (elements.imagePreview) elements.imagePreview.style.display = 'none';
+
+        if (elements.editorContainerWrapper) {
+            elements.editorContainerWrapper.classList.remove('editor-mode-code', 'editor-mode-split', 'editor-mode-preview', 'editor-mode-standard');
+        }
 
         if (imageExts.includes(ext)) {
             // Handle Image Preview
@@ -5080,13 +5092,14 @@ async function openFileInEditor(filePath) {
             };
 
             const isMarkdown = ext === 'md' || ext === 'markdown' || langMap[ext] === 'markdown';
-            elements.editorPreviewToggle.style.display = isMarkdown ? 'block' : 'none';
-            document.querySelectorAll('.md-only').forEach(el => el.style.display = isMarkdown ? 'inline-flex' : 'none');
+            if (elements.mdViewControls) elements.mdViewControls.style.display = isMarkdown ? 'flex' : 'none';
             elements.gitignoreScanBtn.style.display = (filePath.endsWith('.gitignore')) ? 'block' : 'none';
 
-            elements.monacoContainer.style.display = 'block';
-            elements.editorPreviewToggle.textContent = 'Preview';
-            elements.markdownPreview.innerHTML = '';
+            if (isMarkdown) {
+                setMarkdownViewMode('code');
+            } else {
+                setMarkdownViewMode('standard');
+            }
 
             // Memory Management: Dispose of the old model if it exists
             const oldModel = monacoEditor.getModel();
@@ -6198,52 +6211,64 @@ async function handleFileDrop(data, destDir, destContainer, depth, sourceId) {
     document.getElementById('drop-cancel').onclick = () => modal.style.display = 'none';
 }
 
-async function toggleMarkdownPreview() {
-    if (elements.monacoContainer.style.display !== 'none') {
-        const content = monacoEditor.getValue();
-        let html = typeof marked !== 'undefined' ? marked.parse(content) : '<p>Parser fail.</p>';
+function setMarkdownViewMode(mode) {
+    if (!elements.editorContainerWrapper) return;
 
-        // INTELLIGENCE: Resolve relative image & link paths
-        if (currentEditingPath) {
-            // Get directory of the current file
-            const lastSlash = Math.max(currentEditingPath.lastIndexOf('/'), currentEditingPath.lastIndexOf('\\'));
-            const dir = currentEditingPath.substring(0, lastSlash);
+    // Reset classes
+    elements.editorContainerWrapper.classList.remove('editor-mode-code', 'editor-mode-split', 'editor-mode-preview', 'editor-mode-standard');
+    elements.editorContainerWrapper.classList.add(`editor-mode-${mode}`);
 
-            const tempDiv = document.createElement('div');
-            tempDiv.innerHTML = html;
+    // Update button states
+    [elements.mdViewCodeBtn, elements.mdViewSplitBtn, elements.mdViewPreviewBtn].forEach(btn => {
+        if (btn) btn.classList.remove('active', 'button-primary');
+    });
 
-            const images = tempDiv.querySelectorAll('img');
-            images.forEach(img => {
-                const src = img.getAttribute('src');
-                if (src && !src.startsWith('http') && !src.startsWith('data:') && !src.startsWith('file:')) {
-                    // It's a relative path, convert to absolute file URL
-                    const absolutePath = dir + '/' + src;
-                    img.src = 'file:///' + absolutePath.replace(/\\/g, '/');
-                    img.style.maxWidth = '100%'; // Pro styling: ensure large banners don't overflow
-                }
-            });
-
-            const links = tempDiv.querySelectorAll('a');
-            links.forEach(link => {
-                const href = link.getAttribute('href');
-                if (href && !href.startsWith('http') && !href.startsWith('mailto:') && !href.startsWith('tel:') && !href.startsWith('#')) {
-                    // It's a relative path, convert to absolute file URL
-                    const absolutePath = dir + '/' + href;
-                    link.href = 'file:///' + absolutePath.replace(/\\/g, '/');
-                }
-            });
-
-            html = tempDiv.innerHTML;
-        }
-
-        elements.markdownPreview.innerHTML = html;
-        elements.monacoContainer.style.display = 'none';
-        elements.markdownPreview.style.display = 'block';
-        elements.editorPreviewToggle.textContent = 'Source';
-    } else {
-        elements.markdownPreview.style.display = 'none'; elements.monacoContainer.style.display = 'block';
-        elements.editorPreviewToggle.textContent = 'Preview'; monacoEditor.layout();
+    const activeBtn = mode === 'code' ? elements.mdViewCodeBtn : (mode === 'split' ? elements.mdViewSplitBtn : (mode === 'preview' ? elements.mdViewPreviewBtn : null));
+    if (activeBtn) {
+        activeBtn.classList.add('active', 'button-primary');
     }
+
+    if (mode === 'split' || mode === 'preview') {
+        updateMarkdownPreviewContent();
+    }
+
+    if (monacoEditor) {
+        // Essential: Layout the editor after view switch to prevent blank space
+        setTimeout(() => monacoEditor.layout(), 10);
+    }
+}
+
+function updateMarkdownPreviewContent() {
+    if (!monacoEditor) return;
+    const content = monacoEditor.getValue();
+    let html = typeof marked !== 'undefined' ? marked.parse(content) : '<p>Parser fail.</p>';
+
+    // INTELLIGENCE: Resolve relative image & link paths
+    if (currentEditingPath) {
+        const lastSlash = Math.max(currentEditingPath.lastIndexOf('/'), currentEditingPath.lastIndexOf('\\'));
+        const dir = currentEditingPath.substring(0, lastSlash);
+        const tempDiv = document.createElement('div');
+        tempDiv.innerHTML = html;
+
+        tempDiv.querySelectorAll('img').forEach(img => {
+            const src = img.getAttribute('src');
+            if (src && !src.startsWith('http') && !src.startsWith('data:') && !src.startsWith('file:')) {
+                const absolutePath = dir + '/' + src;
+                img.src = 'file:///' + absolutePath.replace(/\\/g, '/');
+                img.style.maxWidth = '100%';
+            }
+        });
+
+        tempDiv.querySelectorAll('a').forEach(link => {
+            const href = link.getAttribute('href');
+            if (href && !href.startsWith('http') && !href.startsWith('mailto:') && !href.startsWith('tel:') && !href.startsWith('#')) {
+                const absolutePath = dir + '/' + href;
+                link.href = 'file:///' + absolutePath.replace(/\\/g, '/');
+            }
+        });
+        html = tempDiv.innerHTML;
+    }
+    elements.markdownPreview.innerHTML = html;
 }
 
 function addRepository(repo, skipSave = false, skipRender = false) {
