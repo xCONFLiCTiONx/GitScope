@@ -3339,7 +3339,6 @@ async function showDashboard(forceRefresh = true) {
                     </div>
 
                     <div class="quick-actions" style="display:flex; gap:6px; margin-top:16px; padding-top:12px; border-top:1px solid var(--border-color);">
-                        <button class="button quick-btn visibility-btn" title="Toggle GitHub Visibility" style="flex:0.5; padding:4px; font-size:9px; display:none;">PVT</button>
                         <button class="button quick-btn pull-btn" title="Pull" style="flex:1; padding:4px; font-size:11px;">PULL</button>
                         <button class="button quick-btn restore-btn" title="Wipe all changes to HEAD" style="flex:1; padding:4px; font-size:11px; color:var(--accent-red); border-color:var(--accent-red);">RESTORE</button>
                         <button class="button quick-btn commit-btn" title="Quick Commit (Stages all)" style="flex:1; padding:4px; font-size:11px;">COMMIT</button>
@@ -3349,8 +3348,6 @@ async function showDashboard(forceRefresh = true) {
                 const cardPullBtn = card.querySelector('.pull-btn');
                 const cardPushBtn = card.querySelector('.push-btn');
                 const cardCommitBtn = card.querySelector('.commit-btn');
-                const cardVisibilityBtn = card.querySelector('.visibility-btn');
-
                 if (cardPullBtn) {
                     cardPullBtn.onclick = (e) => { e.stopPropagation(); handlePull(repo); };
                 }
@@ -3361,21 +3358,6 @@ async function showDashboard(forceRefresh = true) {
                     cardCommitBtn.onclick = (e) => { e.stopPropagation(); handleQuickCommit(repo); };
                 }
 
-                // GitHub Visibility on Dashboard
-                if (cardVisibilityBtn && !isLocal && settings.githubToken) {
-                    // We don't fetch visibility for all repos immediately to avoid rate limiting
-                    // Instead, we show the button if it's a GitHub repo and handle it on click or just show a general "VIS" button
-                    const remotes = await window.electronAPI.getRemotes(repo.path);
-                    const ghRemote = remotes.find(r => r.url.toLowerCase().includes('github.com'));
-                    if (ghRemote) {
-                        cardVisibilityBtn.style.display = 'inline-flex';
-                        cardVisibilityBtn.onclick = async (e) => {
-                            e.stopPropagation();
-                            await selectRepo(repo, true);
-                            handleToggleGitHubVisibility();
-                        };
-                    }
-                }
                 if ((status.behind || 0) > 0) {
                     cardPullBtn.classList.add('highlight-pull');
                     if (elements.dashboardBulkPullBtn) elements.dashboardBulkPullBtn.classList.add('highlight-pull');
