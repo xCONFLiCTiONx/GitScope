@@ -6569,9 +6569,7 @@ function getPreviewContentArea() {
 
         // Tab and Shortcut handling
         content.onkeydown = (e) => {
-            if (e.key === 'Tab') {
-                handleIndentationAction(e, 'preview');
-            } else if (e.ctrlKey || e.metaKey) {
+            if (e.ctrlKey || e.metaKey) {
                 if (e.key.toLowerCase() === 'z') {
                     e.preventDefault();
                     if (e.shiftKey) {
@@ -6787,73 +6785,6 @@ function handleIndentationAction(e, targetType) {
                 editor.trigger('keyboard', 'outdent', null);
             } else {
                 editor.trigger('keyboard', 'tab', null);
-            }
-        }
-    } else if (targetType === 'preview') {
-        const contentArea = getPreviewContentArea();
-        if (!contentArea) return;
-
-        const selection = window.getSelection();
-        if (selection.rangeCount === 0) return;
-        const range = selection.getRangeAt(0);
-
-        // Intelligence: Determine if we are inside a list (LI/UL/OL)
-        let container = range.commonAncestorContainer;
-        let isList = false;
-        while (container && container !== contentArea) {
-            if (['LI', 'UL', 'OL'].includes(container.nodeName)) {
-                isList = true;
-                break;
-            }
-            container = container.parentNode;
-        }
-
-        if (isList) {
-            // Lists have special nesting requirements, native indent/outdent is best
-            document.execCommand(isShift ? 'outdent' : 'indent', false, null);
-        } else {
-            if (isShift) {
-                // Outdent logic: remove up to tabSize leading spaces
-                if (range.collapsed) {
-                    let container = range.startContainer;
-                    let offset = range.startOffset;
-
-                    // If at start of a block, look at previous text node
-                    if (container.nodeType === 1 && offset === 0 && container.previousSibling && container.previousSibling.nodeType === 3) {
-                        container = container.previousSibling;
-                        offset = container.textContent.length;
-                    }
-
-                    if (container.nodeType === 3) {
-                        const content = container.textContent;
-                        let toRemove = 0;
-                        // Find how many spaces we can remove to the left
-                        while (toRemove < tabSize && (offset - toRemove - 1) >= 0 && content[offset - toRemove - 1] === ' ') {
-                            toRemove++;
-                        }
-
-                        if (toRemove > 0) {
-                            const newRange = document.createRange();
-                            newRange.setStart(container, offset - toRemove);
-                            newRange.setEnd(container, offset);
-                            selection.removeAllRanges();
-                            selection.addRange(newRange);
-                            document.execCommand('delete', false, null);
-                        }
-                    }
-                } else {
-                    // Multi-selection outdent: fallback to native outdent for simplicity
-                    // which usually removes margins or blockquotes.
-                    document.execCommand('outdent', false, null);
-                }
-            } else {
-                // Indent logic: insert spaces
-                // If it's a single line, just insert. If it's multi-line, native indent.
-                if (range.collapsed) {
-                    document.execCommand('insertText', false, spaces);
-                } else {
-                    document.execCommand('indent', false, null);
-                }
             }
         }
     }
