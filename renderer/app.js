@@ -8,6 +8,7 @@ let selectedNodes = new Set();
 let expandedNodes = new Set();
 let tokenExpiration = null;
 let monacoEditor = null;
+let isSyncingFromPreview = false;
 let themeEditor = null;
 let currentEditingPath = null;
 let originalFileContent = null;
@@ -551,6 +552,14 @@ function initEditor() {
             });
 
             logToConsole('Code Editor ready.', 'info');
+
+            // INTELLIGENCE: Fix Tab key behavior in Electron
+            // Prevent Tab from moving focus out of the editor
+            monacoEditor.onKeyDown((e) => {
+                if (e.keyCode === monaco.KeyCode.Tab) {
+                    e.stopPropagation();
+                }
+            });
         });
     }
 }
@@ -963,6 +972,20 @@ function initEventListeners() {
     if (elements.mdViewSplitBtn) elements.mdViewSplitBtn.onclick = () => setMarkdownViewMode('split');
     if (elements.mdViewPreviewBtn) elements.mdViewPreviewBtn.onclick = () => setMarkdownViewMode('preview');
     if (elements.gitignoreScanBtn) elements.gitignoreScanBtn.onclick = () => runGitignoreScan();
+
+    if (elements.markdownPreview) {
+        elements.markdownPreview.oninput = () => {
+            if (isSyncingFromPreview) return;
+            syncPreviewToEditor();
+        };
+        // INTELLIGENCE: Enable Tab indentation in editable preview
+        elements.markdownPreview.onkeydown = (e) => {
+            if (e.key === 'Tab') {
+                e.preventDefault();
+                document.execCommand('insertText', false, '    ');
+            }
+        };
+    }
 
     if (elements.unbornFoldersClose) elements.unbornFoldersClose.onclick = () => {
         elements.unbornFoldersModal.style.display = 'none';
@@ -5138,7 +5161,7 @@ async function openFileInEditor(filePath) {
             elements.gitignoreScanBtn.style.display = (filePath.endsWith('.gitignore')) ? 'block' : 'none';
 
             if (isMarkdown) {
-                setMarkdownViewMode('code');
+                setMarkdownViewMode('preview');
             } else {
                 setMarkdownViewMode('standard');
             }
@@ -6299,7 +6322,7 @@ function setMarkdownViewMode(mode) {
 }
 
 function updateMarkdownPreviewContent() {
-    if (!monacoEditor) return;
+    if (!monacoEditor || isSyncingFromPreview) return;
     const content = monacoEditor.getValue();
     let html = typeof marked !== 'undefined' ? marked.parse(content) : '<p>Parser fail.</p>';
 
@@ -6329,6 +6352,82 @@ function updateMarkdownPreviewContent() {
         html = tempDiv.innerHTML;
     }
     elements.markdownPreview.innerHTML = html;
+}
+
+/**
+ * INTELLIGENCE: Sync editable preview back to Monaco.
+ * Since we don't have Turndown, we use a basic recursive HTML-to-MD converter.
+ */
+function syncPreviewToEditor() {
+    if (!monacoEditor || !elements.markdownPreview) return;
+    isSyncingFromPreview = true;
+
+    try {
+        const toMarkdown = (node) => {
+            if (node.nodeType === 3) return node.textContent;
+            if (node.nodeType !== 1) return '';
+
+            const tag = node.tagName.toLowerCase();
+            const children = Array.from(node.childNodes).map(toMarkdown).join('');
+
+            switch(tag) {
+                case 'h1': return `# ${children}\n\n`;
+                case 'h2': return `## ${children}\n\n`;
+                case 'h3': return `### ${children}\n\n`;
+                case 'h4': return `#### ${children}\n\n`;
+                case 'p': return `${children}\n\n`;
+                case 'strong': case 'b': return `**${children}**`;
+                case 'em': case 'i': return `*${children}*`;
+                case 'ul': return children + '\n';
+                case 'ol': return children + '\n';
+                case 'li': {
+                    const parent = node.parentNode ? node.parentNode.tagName.toLowerCase() : '';
+                    if (parent === 'ul') return `- ${children}\n`;
+                    if (parent === 'ol') {
+                        const idx = Array.from(node.parentNode.children).indexOf(node) + 1;
+                        return `${idx}. ${children}\n`;
+                    }
+                    return `- ${children}\n`;
+                }
+                case 'a': {
+                    const href = node.getAttribute('href');
+                    // Strip the file:/// prefix if we added it for previewing
+                    const cleanHref = (href && href.startsWith('file:///')) ? href.substring(8) : href;
+                    return `[${children}](${cleanHref || ''})`;
+                }
+                case 'img': {
+                    const src = node.getAttribute('src');
+                    const cleanSrc = (src && src.startsWith('file:///')) ? src.substring(8) : src;
+                    return `![${node.getAttribute('alt') || ''}](${cleanSrc || ''})`;
+                }
+                case 'code': return `\`${children}\``;
+                case 'pre': return `\`\`\`\n${children}\n\`\`\`\n\n`;
+                case 'blockquote': return `> ${children.replace(/\n/g, '\n> ')}\n\n`;
+                case 'br': return '\n';
+                case 'div': return `${children}\n`;
+                default: return children;
+            }
+        };
+
+        let markdown = Array.from(elements.markdownPreview.childNodes).map(toMarkdown).join('');
+
+        // Clean up excessive newlines
+        markdown = markdown.replace(/\n{3,}/g, '\n\n').trim();
+
+        const model = monacoEditor.getModel();
+        if (model) {
+            // Apply as a single edit to preserve undo stack as much as possible
+            model.pushEditOperations([], [{
+                range: model.getFullModelRange(),
+                text: markdown
+            }], () => null);
+        }
+    } catch (e) {
+        console.error('Preview sync failed:', e);
+    } finally {
+        // Delay resetting the flag to ensure Monaco's onDidChangeContent is ignored
+        setTimeout(() => { isSyncingFromPreview = false; }, 100);
+    }
 }
 
 function addRepository(repo, skipSave = false, skipRender = false) {
