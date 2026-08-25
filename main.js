@@ -200,6 +200,8 @@ function createWindow() {
       contextIsolation: true,
       nodeIntegration: false,
       spellcheck: false, // Tiny perf boost
+      webSecurity: false, // REQUIRED for previewing local HTML with dependencies
+      allowRunningInsecureContent: true
     },
   });
 

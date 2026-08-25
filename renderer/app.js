@@ -6447,7 +6447,14 @@ function updateMarkdownPreviewContent() {
         if (!content.toLowerCase().includes('<html')) {
             fullHtml = `<!DOCTYPE html><html><head><base href="${baseUrl}"></head><body>${content}</body></html>`;
         } else if (!content.toLowerCase().includes('<base')) {
-            fullHtml = content.replace(/<head>/i, `<head><base href="${baseUrl}">`);
+            // Robust injection: Try head, then html, then prepend
+            if (/<head>/i.test(fullHtml)) {
+                fullHtml = fullHtml.replace(/<head>/i, `<head><base href="${baseUrl}">`);
+            } else if (/<html>/i.test(fullHtml)) {
+                fullHtml = fullHtml.replace(/<html>/i, `<html><head><base href="${baseUrl}"></head>`);
+            } else {
+                fullHtml = `<base href="${baseUrl}">${fullHtml}`;
+            }
         }
 
         elements.htmlPreview.srcdoc = fullHtml;
