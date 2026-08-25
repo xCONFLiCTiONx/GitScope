@@ -911,10 +911,26 @@ function initEventListeners() {
     if (elements.editorSaveBtn) elements.editorSaveBtn.onclick = () => saveCurrentFile();
     if (elements.editorRestoreBtn) elements.editorRestoreBtn.onclick = () => handleRestoreFile();
     if (elements.editorUndoBtn) elements.editorUndoBtn.onclick = () => {
-        if (monacoEditor) { monacoEditor.focus(); monacoEditor.trigger('source', 'undo'); }
+        if (monacoEditor) {
+            const isPreview = elements.editorContainerWrapper.classList.contains('editor-mode-preview');
+            if (isPreview) {
+                monacoEditor.trigger('source', 'undo');
+            } else {
+                monacoEditor.focus();
+                monacoEditor.trigger('source', 'undo');
+            }
+        }
     };
     if (elements.editorRedoBtn) elements.editorRedoBtn.onclick = () => {
-        if (monacoEditor) { monacoEditor.focus(); monacoEditor.trigger('source', 'redo'); }
+        if (monacoEditor) {
+            const isPreview = elements.editorContainerWrapper.classList.contains('editor-mode-preview');
+            if (isPreview) {
+                monacoEditor.trigger('source', 'redo');
+            } else {
+                monacoEditor.focus();
+                monacoEditor.trigger('source', 'redo');
+            }
+        }
     };
     if (elements.editorWrapBtn) elements.editorWrapBtn.onclick = () => {
         if (!monacoEditor) return;
@@ -5073,7 +5089,11 @@ function insertMarkdownSnippet(type) {
         const startLine = selection.startLineNumber;
         const startCol = selection.startColumn + text.length + 4; // after ![] (
         monacoEditor.setSelection(new monaco.Selection(startLine, startCol, startLine, startCol));
-        monacoEditor.focus();
+
+        const isPreview = elements.editorContainerWrapper.classList.contains('editor-mode-preview');
+        if (!isPreview) {
+            monacoEditor.focus();
+        }
         return;
     }
 
@@ -5095,7 +5115,11 @@ function insertMarkdownSnippet(type) {
     }
 
     monacoEditor.executeEdits('markdown', edits);
-    monacoEditor.focus();
+
+    const isPreview = elements.editorContainerWrapper.classList.contains('editor-mode-preview');
+    if (!isPreview) {
+        monacoEditor.focus();
+    }
 }
 
 async function openFileInEditor(filePath) {
@@ -6380,6 +6404,25 @@ function setMarkdownViewMode(mode) {
         activeBtn.classList.add('active', 'button-primary');
     }
 
+    // INTELLIGENCE: Disable non-functional buttons in preview mode
+    const isPreview = mode === 'preview';
+    const toolbarButtons = {
+        'editorWrapBtn': !isPreview,
+        'editorFormatBtn': !isPreview,
+        'editorCommentBtn': !isPreview,
+        'editorFindBtn': !isPreview,
+        'editorTransformBtn': !isPreview
+    };
+
+    Object.entries(toolbarButtons).forEach(([key, enabled]) => {
+        const btn = elements[key];
+        if (btn) {
+            btn.disabled = !enabled;
+            btn.style.opacity = enabled ? '1' : '0.4';
+            btn.style.pointerEvents = enabled ? 'auto' : 'none';
+        }
+    });
+
     if (mode === 'split' || mode === 'preview') {
         updateMarkdownPreviewContent();
     }
@@ -6457,10 +6500,25 @@ function getPreviewContentArea() {
             syncPreviewToEditor();
         };
 
-        // Tab handling
+        // Tab and Shortcut handling
         content.onkeydown = (e) => {
             if (e.key === 'Tab') {
                 handleIndentationAction(e, 'preview');
+            } else if (e.ctrlKey || e.metaKey) {
+                if (e.key.toLowerCase() === 'z') {
+                    e.preventDefault();
+                    if (e.shiftKey) {
+                        if (monacoEditor) monacoEditor.trigger('source', 'redo');
+                    } else {
+                        if (monacoEditor) monacoEditor.trigger('source', 'undo');
+                    }
+                } else if (e.key.toLowerCase() === 'y') {
+                    e.preventDefault();
+                    if (monacoEditor) monacoEditor.trigger('source', 'redo');
+                } else if (e.key.toLowerCase() === 's') {
+                    e.preventDefault();
+                    saveCurrentFile();
+                }
             }
         };
 
