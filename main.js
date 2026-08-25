@@ -954,6 +954,14 @@ ipcMain.handle('github-delete-repo', async (event, token, owner, repo) => {
   return await githubApi.deleteRepo(token, owner, repo);
 });
 
+ipcMain.handle('github-get-repo', async (event, token, owner, repo) => {
+  return await githubApi.getRepo(token, owner, repo);
+});
+
+ipcMain.handle('github-update-repo-visibility', async (event, token, owner, repo, isPrivate) => {
+  return await githubApi.updateRepoVisibility(token, owner, repo, isPrivate);
+});
+
 ipcMain.handle('get-git-config', async () => {
   const gitconfigPath = path.join(os.homedir(), '.gitconfig');
   try {

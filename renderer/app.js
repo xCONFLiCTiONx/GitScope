@@ -375,6 +375,7 @@ const elements = {
     get gitignoreCancel() { return document.getElementById('gitignore-cancel'); },
     get deleteGitHubBtn() { return document.getElementById('delete-github-btn'); },
     get publishGitHubBtn() { return document.getElementById('publish-github-btn'); },
+    get githubVisibilityBtn() { return document.getElementById('github-visibility-btn'); },
     get publishGitHubModal() { return document.getElementById('publish-github-modal'); },
     get publishRepoName() { return document.getElementById('publish-repo-name'); },
     get publishRepoPrivate() { return document.getElementById('publish-repo-private'); },
@@ -860,6 +861,7 @@ function initEventListeners() {
     if (elements.removeRemoteBtn) elements.removeRemoteBtn.onclick = () => handleRemoveRemote();
     if (elements.openRemoteBtn) elements.openRemoteBtn.onclick = () => handleOpenRemote();
     if (elements.publishGitHubBtn) elements.publishGitHubBtn.onclick = () => handlePublishGitHub();
+    if (elements.githubVisibilityBtn) elements.githubVisibilityBtn.onclick = () => handleToggleGitHubVisibility();
     if (elements.repoSubtreeBtn) elements.repoSubtreeBtn.onclick = () => showSubtreeHubModal();
     if (elements.repoRefreshBtn) elements.repoRefreshBtn.onclick = () => { if (activeRepo) selectRepo(activeRepo); };
 
@@ -2766,7 +2768,34 @@ async function handlePublishGitHub() {
     };
 }
 
+async function handleToggleGitHubVisibility() {
+    const btn = elements.githubVisibilityBtn;
+    const owner = btn.dataset.owner;
+    const repo = btn.dataset.repo;
+    const isPrivate = btn.dataset.isPrivate === 'true';
+    const nextPrivate = !isPrivate;
 
+    const message = nextPrivate
+        ? `Are you sure you want to make the repository "${owner}/${repo}" PRIVATE?\n\nThis will hide it from the public.`
+        : `Are you sure you want to make the repository "${owner}/${repo}" PUBLIC?\n\nThis will make your code visible to everyone on the internet.`;
+
+    if (await showConfirm(message, nextPrivate ? "Make Private" : "Make Public")) {
+        setTaskState(true);
+        btn.classList.add('btn-loading');
+        try {
+            const res = await window.electronAPI.updateGitHubRepoVisibility(settings.githubToken, owner, repo, nextPrivate);
+            if (res.expiration) updateTokenExpirationUI(res.expiration);
+            logToConsole(`Successfully changed visibility to ${nextPrivate ? 'PRIVATE' : 'PUBLIC'} for ${owner}/${repo}`, 'success');
+            await refreshActiveRepoUI();
+        } catch (e) {
+            logToConsole(`Failed to change visibility: ${e.message}`, 'error');
+            showError(e.message, 'GitHub API Error');
+        } finally {
+            setTaskState(false);
+            btn.classList.remove('btn-loading');
+        }
+    }
+}
 
 async function handleNukeReinit() {
     if (!activeRepo) return;
@@ -4834,9 +4863,38 @@ async function refreshActiveRepoUI(silent = false) {
         // Smart GitHub Button Visibility
         const remotes = await window.electronAPI.getRemotes(activeRepo.path);
         const hasAnyRemote = remotes.length > 0;
-        const hasGitHub = remotes.some(r => r.url.toLowerCase().includes('github.com'));
+        const githubRemote = remotes.find(r => r.url.toLowerCase().includes('github.com'));
+        const hasGitHub = !!githubRemote;
 
         if (elements.publishGitHubBtn) elements.publishGitHubBtn.style.display = hasAnyRemote ? 'none' : 'inline-flex';
+
+        if (elements.githubVisibilityBtn) {
+            if (hasGitHub && settings.githubToken) {
+                elements.githubVisibilityBtn.style.display = 'inline-flex';
+                elements.githubVisibilityBtn.classList.add('btn-loading');
+                try {
+                    const url = githubRemote.url;
+                    let match = url.match(/github\.com[\/|:]([^\/]+)\/([^\/\.]+)(\.git)?$/);
+                    if (match) {
+                        const owner = match[1];
+                        const repo = match[2];
+                        const res = await window.electronAPI.getGitHubRepo(settings.githubToken, owner, repo);
+                        const isPrivate = res.repo.private;
+                        elements.githubVisibilityBtn.textContent = isPrivate ? 'Make Public' : 'Make Private';
+                        elements.githubVisibilityBtn.dataset.owner = owner;
+                        elements.githubVisibilityBtn.dataset.repo = repo;
+                        elements.githubVisibilityBtn.dataset.isPrivate = isPrivate;
+                    }
+                } catch (err) {
+                    console.warn('Failed to fetch GitHub repo status:', err);
+                    elements.githubVisibilityBtn.style.display = 'none';
+                } finally {
+                    elements.githubVisibilityBtn.classList.remove('btn-loading');
+                }
+            } else {
+                elements.githubVisibilityBtn.style.display = 'none';
+            }
+        }
 
         renderChangesList(activeRepo, changes);
         await updateTreeHighlights(activeRepo.path);
