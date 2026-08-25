@@ -1691,6 +1691,14 @@ async function handleRenameBranch() {
     elements.renameBranchNewName.focus();
     elements.renameBranchNewName.select();
 
+    elements.renameBranchNewName.onkeydown = (e) => {
+        if (e.key === 'Enter') {
+            elements.renameBranchConfirm.click();
+        } else if (e.key === 'Escape') {
+            elements.renameBranchModal.style.display = 'none';
+        }
+    };
+
     elements.renameBranchCancel.onclick = () => elements.renameBranchModal.style.display = 'none';
 
     elements.renameBranchConfirm.onclick = async () => {
@@ -5609,6 +5617,15 @@ async function handleRename(oldPath) {
     elements.renamePathDisplay.textContent = fileName;
     elements.renameNewName.value = fileName;
     elements.renameNewName.focus();
+    elements.renameNewName.select();
+
+    elements.renameNewName.onkeydown = (e) => {
+        if (e.key === 'Enter') {
+            elements.renameConfirm.click();
+        } else if (e.key === 'Escape') {
+            elements.renameModal.style.display = 'none';
+        }
+    };
 
     elements.renameConfirm.onclick = async () => {
         const newName = elements.renameNewName.value.trim();
