@@ -267,6 +267,7 @@ const elements = {
     get branchSelect() { return document.getElementById('branch-select'); },
     get remoteSelect() { return document.getElementById('remote-select'); },
     get openRemoteBtn() { return document.getElementById('open-remote-btn'); },
+    get restoreAllBtn() { return document.getElementById('restore-all-btn'); },
     get stageAllBtn() { return document.getElementById('stage-all-btn'); },
     get unstageAllBtn() { return document.getElementById('unstage-all-btn'); },
     get createBranchBtn() { return document.getElementById('create-branch-btn'); },
@@ -281,6 +282,7 @@ const elements = {
     get restoreFileBtn() { return document.getElementById('restore-file-btn'); },
     get consoleOutput() { return document.getElementById('console-output'); },
     get sidebarCollapse() { return document.getElementById('sidebar-collapse'); },
+    get sidebarUnstageAll() { return document.getElementById('sidebar-unstage-all'); },
     get sidebarToggleIgnored() { return document.getElementById('sidebar-toggle-ignored'); },
     get sidebarRefresh() { return document.getElementById('sidebar-refresh'); },
     get sidebar() { return document.getElementById('sidebar'); },
@@ -813,6 +815,7 @@ function initEventListeners() {
 
     // Sidebar Header Actions
     if (elements.sidebarRefresh) elements.sidebarRefresh.onclick = () => renderTree(elements.repoFilter.value);
+    if (elements.sidebarUnstageAll) elements.sidebarUnstageAll.onclick = () => handleUnstageAll();
     if (elements.sidebarToggleIgnored) {
         elements.sidebarToggleIgnored.onclick = () => {
             hideIgnoredFiles = !hideIgnoredFiles;
@@ -863,6 +866,7 @@ function initEventListeners() {
     if (elements.magicCommitBtn) elements.magicCommitBtn.onclick = () => generateMagicMsg();
     if (elements.stageAllBtn) elements.stageAllBtn.onclick = () => handleStageAll();
     if (elements.unstageAllBtn) elements.unstageAllBtn.onclick = () => handleUnstageAll();
+    if (elements.restoreAllBtn) elements.restoreAllBtn.onclick = () => handleRestoreHead();
     if (elements.branchSelect) elements.branchSelect.onchange = () => handleBranchChange();
     if (elements.createBranchBtn) elements.createBranchBtn.onclick = () => handleCreateBranch();
     if (elements.deleteBranchBtn) elements.deleteBranchBtn.onclick = () => handleDeleteBranch();
@@ -1412,6 +1416,33 @@ async function handleDashboardPush(repo) {
     }
 }
 
+/**
+ * Dashboard Restore: Wipes all changes to HEAD for a project.
+ */
+async function handleDashboardRestore(repo) {
+    if (!repo) return;
+    const warning = `DANGER: WIPE ALL CHANGES?\n\nThis will restore ${repo.name} to HEAD state.\n\nSTAGED and UNSTAGED changes will be PERMANENTLY LOST.`;
+    if (await showConfirm(warning, "Restore Project to HEAD")) {
+        setTaskState(true);
+        logToConsole(`Restoring ${repo.name} to HEAD...`, 'info');
+        try {
+            const res = await window.electronAPI.gitRestoreToHead(repo.path);
+            if (res.success) {
+                logToConsole(`Successfully restored ${repo.name}`, 'success');
+                await showDashboard();
+            } else {
+                logToConsole(`Restore failed: ${res.output}`, 'error');
+                showError(res.output, 'Restore Failed');
+            }
+        } catch (e) {
+            logToConsole(`Restore error: ${e.message}`, 'error');
+            showError(e.message, 'System Error');
+        } finally {
+            setTaskState(false);
+        }
+    }
+}
+
 async function handleStageAll() {
     if (!activeRepo) return;
     setTaskState(true);
@@ -1420,6 +1451,7 @@ async function handleStageAll() {
         const res = await window.electronAPI.gitStageAll(activeRepo.path);
         if (res.success) {
             logToConsole(res.output, 'success');
+            await smartRefreshTree();
             await refreshActiveRepoUI();
         } else {
             logToConsole(`Stage Failed: ${res.output}`, 'error');
@@ -1439,6 +1471,7 @@ async function handleUnstageAll() {
         const res = await window.electronAPI.gitUnstageAll(activeRepo.path);
         if (res.success) {
             logToConsole(res.output, 'success');
+            await smartRefreshTree();
             await refreshActiveRepoUI();
         } else {
             logToConsole(`Unstage Failed: ${res.output}`, 'error');
@@ -3271,6 +3304,7 @@ async function showDashboard(forceRefresh = true) {
                     <div class="quick-actions" style="display:flex; gap:6px; margin-top:16px; padding-top:12px; border-top:1px solid var(--border-color);">
                         <button class="button quick-btn visibility-btn" title="Toggle GitHub Visibility" style="flex:0.5; padding:4px; font-size:9px; display:none;">PVT</button>
                         <button class="button quick-btn pull-btn" title="Pull" style="flex:1; padding:4px; font-size:11px;">PULL</button>
+                        <button class="button quick-btn restore-btn" title="Wipe all changes to HEAD" style="flex:1; padding:4px; font-size:11px; color:var(--accent-red); border-color:var(--accent-red);">RESTORE</button>
                         <button class="button quick-btn commit-btn" title="Quick Commit (Stages all)" style="flex:1; padding:4px; font-size:11px;">COMMIT</button>
                         <button class="button quick-btn button-primary push-btn" title="Push" style="flex:1; padding:4px; font-size:11px;">PUSH</button>
                     </div>`;
@@ -3324,6 +3358,11 @@ async function showDashboard(forceRefresh = true) {
                 card.querySelector('.push-btn').onclick = (e) => {
                     e.stopPropagation();
                     handleDashboardPush(repo);
+                };
+
+                card.querySelector('.restore-btn').onclick = (e) => {
+                    e.stopPropagation();
+                    handleDashboardRestore(repo);
                 };
 
                 updateDashboardSummary(stats);
@@ -5335,6 +5374,13 @@ async function handleContextMenuCommand({ command, paths, path, repoPath }) {
     }
     else if (command === 'add-subtree') handleAddSubtreeFromTree(targets[0]);
     else if (command === 'apply-patch') showPatchModal(targets[0]);
+    else if (command === 'unstage-all') {
+        const repo = repositories.find(r => targets[0].replace(/\\/g, '/').toLowerCase() === r.path.replace(/\\/g, '/').toLowerCase());
+        if (repo) {
+            activeRepo = repo;
+            handleUnstageAll();
+        }
+    }
     else if (command === 'see-changes') showFileDiff(targets[0]);
     else if (command === 'create-readme') handleCreateReadme(targets[0]);
     else if (command === 'generate-gitignore') handleGenerateGitignore(targets[0]);

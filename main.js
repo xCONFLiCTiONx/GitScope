@@ -1340,6 +1340,10 @@ ipcMain.handle('show-context-menu', (event, options) => {
           click: () => event.sender.send('context-menu-command', { command: 'create-readme', path: paths[0] })
         },
         {
+          label: 'Unstage All Changes',
+          click: () => event.sender.send('context-menu-command', { command: 'unstage-all', path: paths[0] })
+        },
+        {
           label: 'Generate .gitignore',
           click: () => event.sender.send('context-menu-command', { command: 'generate-gitignore', path: paths[0] })
         }
