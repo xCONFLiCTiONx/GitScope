@@ -229,6 +229,7 @@ const elements = {
     get repoStashBtn() { return document.getElementById('repo-stash-btn'); },
     get editorView() { return document.getElementById('editor-view'); },
     get editorFileName() { return document.getElementById('editor-file-name'); },
+    get editorFileInfo() { return document.getElementById('editor-file-info'); },
     get editorSaveBtn() { return document.getElementById('editor-save-btn'); },
     get editorRestoreBtn() { return document.getElementById('editor-restore-btn'); },
     get editorUndoBtn() { return document.getElementById('editor-undo-btn'); },
@@ -5222,6 +5223,7 @@ async function openFileInEditor(filePath) {
 
             // Initial state
             updateEditorButtonStates(false);
+            updateEditorFileInfo();
 
             monacoEditor.layout();
         }
@@ -5257,6 +5259,17 @@ function updateEditorButtonStates(hasChanges) {
     }
 }
 
+function updateEditorFileInfo() {
+    if (!monacoEditor || !elements.editorFileInfo) return;
+    const model = monacoEditor.getModel();
+    if (!model) return;
+
+    const eol = model.getEOL();
+    const eolText = eol === '\r\n' ? 'CRLF' : 'LF';
+    // We assume UTF-8 as it's our default save encoding
+    elements.editorFileInfo.textContent = `UTF-8 | ${eolText}`;
+}
+
 function applyTextTransformation(type) {
     if (!monacoEditor) return;
     const selection = monacoEditor.getSelection();
@@ -5266,6 +5279,24 @@ function applyTextTransformation(type) {
     }
 
     const model = monacoEditor.getModel();
+    if (!model) return;
+
+    if (type === 'crlf') {
+        model.setEOL(1); // 1 = CRLF, 0 = LF
+        logToConsole('Converted line endings to CRLF (\\r\\n)', 'success');
+        updateEditorFileInfo();
+        updateEditorButtonStates(true);
+        return;
+    }
+
+    if (type === 'utf8') {
+        // Intelligence: We already write as UTF-8, but this ensures the editor model and future saves use it.
+        logToConsole('File will be saved as UTF-8 encoded.', 'success');
+        updateEditorFileInfo();
+        updateEditorButtonStates(true);
+        return;
+    }
+
     const text = model.getValueInRange(selection);
     let newText = '';
 

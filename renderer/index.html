@@ -1273,6 +1273,7 @@
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; gap: 8px; flex-wrap: wrap;">
                     <div style="display: flex; align-items: center; gap: 12px;">
                         <h2 id="editor-file-name" style="margin: 0; font-size: 14px;">filename.js</h2>
+                        <span id="editor-file-info" style="font-size: 9px; color: var(--text-muted); font-family: monospace; background: rgba(255,255,255,0.05); padding: 2px 6px; border-radius: 4px; border: 1px solid var(--border-color);">UTF-8 | LF</span>
                         <div id="md-view-controls" class="md-only" style="display: none; gap: 2px; background: rgba(255,255,255,0.05); padding: 2px; border-radius: 6px; border: 1px solid var(--border-color); align-items: center;">
                             <button id="md-view-code" class="button" style="border: none; background: transparent; font-size: 9px; height: 22px; padding: 0 8px;" title="Code View">Code</button>
                             <button id="md-view-split" class="button" style="border: none; background: transparent; font-size: 9px; height: 22px; padding: 0 8px;" title="Split View">Split</button>
@@ -1318,12 +1319,14 @@
                             <!-- Transform Dropdown -->
                             <div style="position: relative; display: inline-block;">
                                 <button id="editor-transform-btn" class="button" style="font-size: 10px;" title="Text Transformations">Transform ▾</button>
-                                <div id="transform-menu" style="display: none; position: absolute; top: 100%; right: 0; background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: 4px; z-index: 1000; min-width: 120px; box-shadow: 0 4px 12px rgba(0,0,0,0.5); margin-top: 4px;">
+                                <div id="transform-menu" style="display: none; position: absolute; top: 100%; right: 0; background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: 4px; z-index: 1000; min-width: 150px; box-shadow: 0 4px 12px rgba(0,0,0,0.5); margin-top: 4px;">
                                     <div class="menu-item" data-transform="uppercase" style="padding: 6px 12px; font-size: 11px; cursor: pointer; color: var(--text-main);">UPPERCASE</div>
                                     <div class="menu-item" data-transform="lowercase" style="padding: 6px 12px; font-size: 11px; cursor: pointer; color: var(--text-main);">lowercase</div>
                                     <div class="menu-item" data-transform="snake" style="padding: 6px 12px; font-size: 11px; cursor: pointer; color: var(--text-main);">snake_case</div>
                                     <div class="menu-item" data-transform="camel" style="padding: 6px 12px; font-size: 11px; cursor: pointer; color: var(--text-main);">camelCase</div>
-                                    <div class="menu-item" data-transform="sort" style="padding: 6px 12px; font-size: 11px; cursor: pointer; color: var(--text-main); border-top: 1px solid var(--border-color);">Sort Lines</div>
+                                    <div class="menu-item" data-transform="sort" style="padding: 6px 12px; font-size: 11px; cursor: pointer; color: var(--text-main); border-bottom: 1px solid var(--border-color);">Sort Lines</div>
+                                    <div class="menu-item" data-transform="crlf" style="padding: 6px 12px; font-size: 11px; cursor: pointer; color: var(--text-main);">Convert to CRLF (\r\n)</div>
+                                    <div class="menu-item" data-transform="utf8" style="padding: 6px 12px; font-size: 11px; cursor: pointer; color: var(--text-main);">Ensure UTF-8 Encoding</div>
                                 </div>
                             </div>
 
