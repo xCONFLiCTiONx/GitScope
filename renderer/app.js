@@ -2909,14 +2909,6 @@ async function renderTree(filter = '') {
                                     nameEl.style.color = ''; // Reset to default (white) for online/clean
                                 }
                             }
-
-                            if (hasChanges) {
-                                const statusDot = nodeContainer.querySelector('.status-dot-mini');
-                                if (statusDot) {
-                                    statusDot.classList.add('active');
-                                    statusDot.style.opacity = '1';
-                                }
-                            }
                         }
                     } catch (e) {}
                 })();
@@ -2976,7 +2968,7 @@ function createTreeNode(name, fullPath, isDirectory, depth, repo) {
     if (selectedNodes.has(fullPath)) item.classList.add('active');
     const ext = name.split('.').pop().toLowerCase();
     const fileClass = !isDirectory ? `file-type-${ext.replace(/[^a-z0-9]/g, '-')}` : '';
-    item.innerHTML = `<span class="chevron">${isDirectory ? '▸' : ''}</span><span class="node-name ${fileClass}">${name}</span>${(isDirectory && isChanged) ? '<span class="status-dot-mini active"></span>' : ''}`;
+    item.innerHTML = `<span class="chevron">${isDirectory ? '▸' : ''}</span><span class="node-name ${fileClass}">${name}</span>`;
     item.dataset.path = fullPath;
     item.dataset.isDirectory = isDirectory;
     item.oncontextmenu = async (e) => {
@@ -5198,17 +5190,6 @@ async function updateTreeHighlights(specificRepoPath = null) {
                             }
                         }
                     }
-
-                    const dot = node.querySelector('.status-dot-mini');
-                    if (dot) {
-                        if (isRepoChanged) {
-                            dot.classList.add('active');
-                            dot.style.opacity = '1';
-                        } else {
-                            dot.classList.remove('active');
-                            dot.style.opacity = '0.5';
-                        }
-                    }
                 } else if (nodePath.startsWith(normBaseSlash)) {
                     // Update children (files/folders inside)
                     const isDir = node.classList.contains('is-directory') || node.classList.contains('repo-root');
@@ -5217,25 +5198,10 @@ async function updateTreeHighlights(specificRepoPath = null) {
 
                     if (isDirectlyChanged || containsChangedFile) {
                         node.classList.add('changed-file');
-                        if (nameEl) nameEl.style.color = '#f85149';
-
-                        // If it's a directory, ensure it has a status dot
-                        if (isDir) {
-                             let dot = node.querySelector('.status-dot-mini');
-                             if (!dot) {
-                                 dot = document.createElement('span');
-                                 dot.className = 'status-dot-mini active';
-                                 node.appendChild(dot);
-                             } else {
-                                 dot.classList.add('active');
-                                 dot.style.opacity = '1';
-                             }
-                        }
+                        if (nameEl) nameEl.style.color = 'var(--accent-red)';
                     } else {
                         node.classList.remove('changed-file');
                         if (nameEl) nameEl.style.color = '';
-                        const dot = node.querySelector('.status-dot-mini');
-                        if (dot) dot.classList.remove('active');
                     }
                 }
             });
