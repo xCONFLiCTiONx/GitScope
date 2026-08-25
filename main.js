@@ -7,6 +7,7 @@ const githubApi = require('./lib/github-api');
 const chokidar = require('chokidar');
 const pty = require('node-pty');
 const os = require('os');
+const { isUtf8 } = require('buffer');
 
 // Global error handling for the main process
 process.on('uncaughtException', (error) => {
@@ -478,7 +479,12 @@ ipcMain.handle('search-files', async (event, repoPath, query) => {
 
 ipcMain.handle('read-file', async (event, filePath) => {
   try {
-    return await fs.readFile(filePath, 'utf8');
+    const buffer = await fs.readFile(filePath);
+    const utf8 = isUtf8(buffer);
+    return {
+      content: utf8 ? buffer.toString('utf8') : buffer.toString('latin1'),
+      encoding: utf8 ? 'UTF-8' : 'Windows-1252'
+    };
   } catch (e) {
     throw e;
   }

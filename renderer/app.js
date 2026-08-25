@@ -12,6 +12,7 @@ let isSyncingFromPreview = false;
 let themeEditor = null;
 let currentEditingPath = null;
 let originalFileContent = null;
+let currentFileEncoding = 'UTF-8';
 let activeTasks = 0;
 let lastSelectedPath = null;
 let currentDashboardFilter = 'all';
@@ -2186,7 +2187,8 @@ async function getRepoSubtreeMappings(repoPath) {
         const mappingPath = `${repoPath}/.gitsubtree.json`;
         const exists = await window.electronAPI.pathExists(mappingPath);
         if (exists) {
-            const content = await window.electronAPI.readFile(mappingPath);
+            const result = await window.electronAPI.readFile(mappingPath);
+            const content = result.content;
             const parsed = JSON.parse(content);
             if (repo) repo.subtrees = parsed;
             return parsed;
@@ -3905,7 +3907,8 @@ async function importThemeFromIni() {
 
     if (filePath) {
         try {
-            const content = await window.electronAPI.readFile(filePath);
+            const result = await window.electronAPI.readFile(filePath);
+            const content = result.content;
             if (themeEditor) {
                 themeEditor.setValue(content);
                 applyObsidianTheme(content);
@@ -5157,7 +5160,9 @@ async function openFileInEditor(filePath) {
             elements.editorSaveBtn.style.display = 'none'; // Can't save images in text editor
         } else {
             // Handle Text Editor
-            const content = await window.electronAPI.readFile(filePath);
+            const result = await window.electronAPI.readFile(filePath);
+            const content = result.content;
+            currentFileEncoding = result.encoding;
             originalFileContent = content; // Store for change detection
 
             const langMap = {
@@ -5266,8 +5271,7 @@ function updateEditorFileInfo() {
 
     const eol = model.getEOL();
     const eolText = eol === '\r\n' ? 'CRLF' : 'LF';
-    // We assume UTF-8 as it's our default save encoding
-    elements.editorFileInfo.textContent = `UTF-8 | ${eolText}`;
+    elements.editorFileInfo.textContent = `${currentFileEncoding} | ${eolText}`;
 }
 
 function applyTextTransformation(type) {
@@ -5285,6 +5289,7 @@ function applyTextTransformation(type) {
 
     if (type === 'utf8') {
         // Intelligence: We already write as UTF-8, but this ensures the editor model and future saves use it.
+        currentFileEncoding = 'UTF-8';
         logToConsole('File will be saved as UTF-8 encoded.', 'success');
         updateEditorFileInfo();
         updateEditorButtonStates(true);
