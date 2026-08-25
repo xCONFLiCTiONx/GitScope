@@ -5065,6 +5065,7 @@ async function refreshActiveRepoUI(silent = false, forceVisibilityCheck = false)
         if (!silent) logToConsole(`Refresh error: ${e.message}`, 'error');
     } finally {
         if (title && !silent) title.textContent = originalText;
+        if (elements.editorView.style.display !== 'none') updateEditorButtonStates();
     }
 }
 
@@ -5230,18 +5231,32 @@ async function openFileInEditor(filePath) {
 }
 
 function updateEditorButtonStates(hasChanges) {
-    const buttons = [
-        elements.editorSaveBtn,
-        elements.editorRestoreBtn,
-        elements.editorUndoBtn,
-        elements.editorRedoBtn
-    ];
-    buttons.forEach(btn => {
-        if (btn) {
-            btn.disabled = !hasChanges;
-            btn.style.opacity = hasChanges ? '1' : '0.5';
-        }
-    });
+    if (hasChanges === undefined && monacoEditor) {
+        hasChanges = monacoEditor.getValue() !== originalFileContent;
+    }
+
+    const isFileChangedInGit = activeRepo && currentEditingPath &&
+                               activeRepo.changedFiles &&
+                               activeRepo.changedFiles.includes(currentEditingPath.replace(/\\/g, '/').toLowerCase());
+
+    const canRestore = hasChanges || isFileChangedInGit;
+
+    if (elements.editorSaveBtn) {
+        elements.editorSaveBtn.disabled = !hasChanges;
+        elements.editorSaveBtn.style.opacity = hasChanges ? '1' : '0.5';
+    }
+    if (elements.editorRestoreBtn) {
+        elements.editorRestoreBtn.disabled = !canRestore;
+        elements.editorRestoreBtn.style.opacity = canRestore ? '1' : '0.5';
+    }
+    if (elements.editorUndoBtn) {
+        elements.editorUndoBtn.disabled = !hasChanges;
+        elements.editorUndoBtn.style.opacity = hasChanges ? '1' : '0.5';
+    }
+    if (elements.editorRedoBtn) {
+        elements.editorRedoBtn.disabled = !hasChanges;
+        elements.editorRedoBtn.style.opacity = hasChanges ? '1' : '0.5';
+    }
 }
 
 function applyTextTransformation(type) {
@@ -5395,6 +5410,7 @@ async function updateTreeHighlights(specificRepoPath = null) {
             });
         } catch (e) {}
     }
+    if (elements.editorView.style.display !== 'none') updateEditorButtonStates();
 }
 
 async function smartRefreshTree() {
