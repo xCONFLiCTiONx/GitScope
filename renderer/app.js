@@ -5453,11 +5453,37 @@ async function handleGenerateGitignore(repoPath) {
     const search = document.getElementById('gitignore-search');
     const confirmBtn = document.getElementById('gitignore-confirm');
     const cancelBtn = document.getElementById('gitignore-cancel');
+    const blankBtn = document.getElementById('gitignore-blank');
+    const blankConfigBtn = document.getElementById('gitignore-blank-config');
 
     modal.style.display = 'flex';
     list.innerHTML = '<p style="padding:20px; color:var(--text-muted); text-align:center;">Loading GitHub templates...</p>';
     confirmBtn.disabled = true;
     search.value = '';
+
+    const createBlankFile = async (filename) => {
+        const filePath = `${repoPath}/${filename}`.replace(/\\/g, '/');
+        const exists = await window.electronAPI.pathExists(filePath);
+        if (exists) {
+            if (!(await showConfirm(`${filename} already exists. Overwrite with a blank file?`, 'File Exists'))) return;
+        }
+
+        modal.style.display = 'none';
+        try {
+            await window.electronAPI.writeFile(filePath, '');
+            logToConsole(`Successfully generated blank ${filename}`, 'success');
+            renderTree(elements.repoFilter.value);
+            openFileInEditor(filePath);
+        } catch (err) {
+            logToConsole(`Failed to create blank file: ${err.message}`, 'error');
+            showError(err.message, 'File Creation Failed');
+        }
+    };
+
+    blankBtn.onclick = () => createBlankFile('.gitignore');
+    blankConfigBtn.onclick = () => createBlankFile('.gitconfig');
+
+
 
     let templates = [];
     let selectedTemplate = null;
