@@ -357,7 +357,6 @@ const elements = {
     get newItemModal() { return document.getElementById('new-item-modal'); },
     get newItemName() { return document.getElementById('new-item-name'); },
     get newItemPathDisplay() { return document.getElementById('new-item-path-display'); },
-    get markdownTools() { return document.getElementById('markdown-tools'); },
     get mdListBtn() { return document.getElementById('md-list-btn'); },
     get mdTaskBtn() { return document.getElementById('md-task-btn'); },
     get mdImageBtn() { return document.getElementById('md-image-btn'); },
@@ -5040,7 +5039,7 @@ async function openFileInEditor(filePath) {
         elements.monacoContainer.style.display = 'none';
         elements.imagePreview.style.display = 'none';
         elements.editorPreviewToggle.style.display = 'none';
-        elements.markdownTools.style.display = 'none';
+        document.querySelectorAll('.md-only').forEach(el => el.style.display = 'none');
         elements.gitignoreScanBtn.style.display = 'none';
         elements.editorSaveBtn.style.display = 'block';
 
@@ -5082,7 +5081,7 @@ async function openFileInEditor(filePath) {
 
             const isMarkdown = ext === 'md' || ext === 'markdown' || langMap[ext] === 'markdown';
             elements.editorPreviewToggle.style.display = isMarkdown ? 'block' : 'none';
-            elements.markdownTools.style.display = isMarkdown ? 'flex' : 'none';
+            document.querySelectorAll('.md-only').forEach(el => el.style.display = isMarkdown ? 'inline-flex' : 'none');
             elements.gitignoreScanBtn.style.display = (filePath.endsWith('.gitignore')) ? 'block' : 'none';
 
             elements.monacoContainer.style.display = 'block';
@@ -5228,7 +5227,6 @@ async function updateTreeHighlights(specificRepoPath = null) {
                     const exists = changes.current !== 'missing';
 
                     if (!exists) {
-                        // Project is missing, keep it red/danger
                         node.classList.add('changed-file');
                         if (nameEl) {
                             nameEl.style.color = 'var(--accent-red)';
@@ -5242,29 +5240,34 @@ async function updateTreeHighlights(specificRepoPath = null) {
                     } else {
                         node.classList.remove('changed-file');
                         if (nameEl) {
-                            nameEl.textContent = repo.name; // Restore name if it was missing
+                            nameEl.textContent = repo.name;
                             if (!hasRemotes) {
-                                nameEl.style.color = '#e3b341'; // Light yellow for offline
+                                nameEl.style.color = '#e3b341';
                             } else {
-                                nameEl.style.color = ''; // Reset to default
+                                nameEl.style.color = '';
                             }
                         }
                     }
                 } else if (nodePath.startsWith(normBaseSlash)) {
                     // Update children (files/folders inside)
-                    const isDir = node.classList.contains('is-directory') || node.classList.contains('repo-root');
+                    const isDir = node.classList.contains('is-directory');
+
+                    // Normalize notTrackedFiles to remove trailing slashes for exact matching
+                    const cleanNotTracked = repo.notTrackedFiles.map(f => f.replace(/\/$/, ''));
+
                     const isDirectlyChanged = repo.changedFiles.includes(nodePath);
                     const containsChangedFile = isDir && repo.changedFiles.some(f => f.startsWith(nodePath + '/'));
 
-                    const isNotTracked = repo.notTrackedFiles.includes(nodePath);
-                    const containsNotTracked = isDir && repo.notTrackedFiles.some(f => f.startsWith(nodePath + '/'));
+                    const isNotTracked = cleanNotTracked.includes(nodePath);
+                    // A folder is only considered "untracked" if IT is in the list,
+                    // not just because it contains something untracked.
 
                     if (isDirectlyChanged || containsChangedFile) {
                         node.classList.add('changed-file');
                         if (nameEl) nameEl.style.color = 'var(--accent-red)';
-                    } else if (isNotTracked || containsNotTracked) {
+                    } else if (isNotTracked) {
                         node.classList.remove('changed-file');
-                        if (nameEl) nameEl.style.color = '#aaaaaa'; // Lighter gray for untracked/ignored
+                        if (nameEl) nameEl.style.color = '#aaaaaa';
                     } else {
                         node.classList.remove('changed-file');
                         if (nameEl) nameEl.style.color = '';
