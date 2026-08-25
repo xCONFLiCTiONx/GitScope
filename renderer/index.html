@@ -171,6 +171,7 @@
             --text-main: #c9d1d9;
             --text-muted: #8b949e;
             --accent-green: #238636;
+            --accent-yellow: #e3b341;
             --accent-red: #da3633;
             --accent-blue: #1f6feb;
             --hover-bg: #21262d;
@@ -1206,7 +1207,7 @@
                         <div class="changes-section" id="staged-section" style="flex: 1;">
                             <div class="changes-header">
                                 <span>STAGED</span>
-                                <button id="unstage-all-btn" class="button" style="font-size: 9px; height: 18px; padding: 0 6px;">Unstage All</button>
+                                <button id="unstage-all-btn" class="button" style="font-size: 9px; height: 18px; padding: 0 6px; color: var(--accent-yellow); border-color: var(--accent-yellow);" title="Unstage all changes">Unstage All</button>
                             </div>
                             <div class="changes-list" id="staged-list"></div>
                         </div>
@@ -1216,7 +1217,7 @@
                                 <span>UNSTAGED</span>
                                 <div style="display: flex; gap: 4px;">
                                     <button id="restore-all-btn" class="button" style="font-size: 9px; height: 18px; padding: 0 6px; color: var(--accent-red); border-color: var(--accent-red);" title="Discard all changes (Wipe to HEAD)">Restore All</button>
-                                    <button id="stage-all-btn" class="button" style="font-size: 9px; height: 18px; padding: 0 6px;">Stage All</button>
+                                    <button id="stage-all-btn" class="button" style="font-size: 9px; height: 18px; padding: 0 6px; color: var(--accent-green); border-color: var(--accent-green);" title="Stage all changes">Stage All</button>
                                 </div>
                             </div>
                             <div class="changes-list" id="unstaged-list"></div>
