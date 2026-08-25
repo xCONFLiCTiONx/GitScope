@@ -3242,12 +3242,42 @@ async function showDashboard(forceRefresh = true) {
                     </div>
 
                     <div class="quick-actions" style="display:flex; gap:6px; margin-top:16px; padding-top:12px; border-top:1px solid var(--border-color);">
+                        <button class="button quick-btn visibility-btn" title="Toggle GitHub Visibility" style="flex:0.5; padding:4px; font-size:9px; display:none;">PVT</button>
                         <button class="button quick-btn pull-btn" title="Pull" style="flex:1; padding:4px; font-size:11px;">PULL</button>
                         <button class="button quick-btn commit-btn" title="Quick Commit (Stages all)" style="flex:1; padding:4px; font-size:11px;">COMMIT</button>
                         <button class="button quick-btn button-primary push-btn" title="Push" style="flex:1; padding:4px; font-size:11px;">PUSH</button>
                     </div>`;
 
                 const cardPullBtn = card.querySelector('.pull-btn');
+                const cardPushBtn = card.querySelector('.push-btn');
+                const cardCommitBtn = card.querySelector('.commit-btn');
+                const cardVisibilityBtn = card.querySelector('.visibility-btn');
+
+                if (cardPullBtn) {
+                    cardPullBtn.onclick = (e) => { e.stopPropagation(); handlePull(repo); };
+                }
+                if (cardPushBtn) {
+                    cardPushBtn.onclick = (e) => { e.stopPropagation(); handlePush(repo); };
+                }
+                if (cardCommitBtn) {
+                    cardCommitBtn.onclick = (e) => { e.stopPropagation(); handleQuickCommit(repo); };
+                }
+
+                // GitHub Visibility on Dashboard
+                if (cardVisibilityBtn && !isLocal && settings.githubToken) {
+                    // We don't fetch visibility for all repos immediately to avoid rate limiting
+                    // Instead, we show the button if it's a GitHub repo and handle it on click or just show a general "VIS" button
+                    const remotes = await window.electronAPI.getRemotes(repo.path);
+                    const ghRemote = remotes.find(r => r.url.toLowerCase().includes('github.com'));
+                    if (ghRemote) {
+                        cardVisibilityBtn.style.display = 'inline-flex';
+                        cardVisibilityBtn.onclick = async (e) => {
+                            e.stopPropagation();
+                            await selectRepo(repo, true);
+                            handleToggleGitHubVisibility();
+                        };
+                    }
+                }
                 if ((status.behind || 0) > 0) {
                     cardPullBtn.classList.add('highlight-pull');
                     if (elements.dashboardBulkPullBtn) elements.dashboardBulkPullBtn.classList.add('highlight-pull');
@@ -4869,30 +4899,55 @@ async function refreshActiveRepoUI(silent = false) {
         if (elements.publishGitHubBtn) elements.publishGitHubBtn.style.display = hasAnyRemote ? 'none' : 'inline-flex';
 
         if (elements.githubVisibilityBtn) {
-            if (hasGitHub && settings.githubToken) {
-                elements.githubVisibilityBtn.style.display = 'inline-flex';
-                elements.githubVisibilityBtn.classList.add('btn-loading');
-                try {
-                    const url = githubRemote.url;
-                    let match = url.match(/github\.com[\/|:]([^\/]+)\/([^\/\.]+)(\.git)?$/);
-                    if (match) {
-                        const owner = match[1];
-                        const repo = match[2];
-                        const res = await window.electronAPI.getGitHubRepo(settings.githubToken, owner, repo);
-                        const isPrivate = res.repo.private;
-                        elements.githubVisibilityBtn.textContent = isPrivate ? 'Make Public' : 'Make Private';
-                        elements.githubVisibilityBtn.dataset.owner = owner;
-                        elements.githubVisibilityBtn.dataset.repo = repo;
-                        elements.githubVisibilityBtn.dataset.isPrivate = isPrivate;
+            elements.githubVisibilityBtn.style.display = 'inline-flex';
+            elements.githubVisibilityBtn.classList.remove('button-danger', 'button-blue', 'btn-loading');
+            elements.githubVisibilityBtn.onclick = null;
+            elements.githubVisibilityBtn.disabled = false;
+            elements.githubVisibilityBtn.style.opacity = '1';
+
+            if (hasGitHub) {
+                if (!settings.githubToken) {
+                    elements.githubVisibilityBtn.textContent = 'Auth Required';
+                    elements.githubVisibilityBtn.title = 'Set GitHub PAT in Settings to toggle visibility';
+                    elements.githubVisibilityBtn.classList.add('button-danger');
+                    elements.githubVisibilityBtn.onclick = () => showSettings();
+                } else {
+                    elements.githubVisibilityBtn.onclick = () => handleToggleGitHubVisibility();
+                    elements.githubVisibilityBtn.classList.add('btn-loading');
+                    elements.githubVisibilityBtn.textContent = 'Checking...';
+                    try {
+                        const url = githubRemote.url.replace(/\.git\/?$/, '');
+                        let match = url.match(/github\.com[\/|:]([^\/]+)\/([^\/]+)$/);
+                        if (match) {
+                            const owner = match[1];
+                            const repo = match[2];
+                            const res = await window.electronAPI.getGitHubRepo(settings.githubToken, owner, repo);
+                            const isPrivate = res.repo.private;
+                            elements.githubVisibilityBtn.textContent = isPrivate ? 'Private' : 'Public';
+                            elements.githubVisibilityBtn.title = isPrivate ? 'Click to make Public' : 'Click to make Private';
+                            if (isPrivate) elements.githubVisibilityBtn.classList.add('button');
+                            else elements.githubVisibilityBtn.classList.add('button-blue');
+
+                            elements.githubVisibilityBtn.dataset.owner = owner;
+                            elements.githubVisibilityBtn.dataset.repo = repo;
+                            elements.githubVisibilityBtn.dataset.isPrivate = isPrivate;
+                        } else {
+                            elements.githubVisibilityBtn.textContent = 'Invalid URL';
+                            elements.githubVisibilityBtn.disabled = true;
+                        }
+                    } catch (err) {
+                        console.warn('Failed to fetch GitHub repo status:', err);
+                        elements.githubVisibilityBtn.textContent = 'Offline';
+                        elements.githubVisibilityBtn.title = err.message;
+                    } finally {
+                        elements.githubVisibilityBtn.classList.remove('btn-loading');
                     }
-                } catch (err) {
-                    console.warn('Failed to fetch GitHub repo status:', err);
-                    elements.githubVisibilityBtn.style.display = 'none';
-                } finally {
-                    elements.githubVisibilityBtn.classList.remove('btn-loading');
                 }
             } else {
-                elements.githubVisibilityBtn.style.display = 'none';
+                elements.githubVisibilityBtn.textContent = 'Local Only';
+                elements.githubVisibilityBtn.title = 'This project is not linked to GitHub';
+                elements.githubVisibilityBtn.disabled = true;
+                elements.githubVisibilityBtn.style.opacity = '0.5';
             }
         }
 
