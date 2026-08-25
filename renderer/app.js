@@ -244,6 +244,7 @@ const elements = {
     get editorContainerWrapper() { return document.getElementById('editor-container-wrapper'); },
     get gitignoreScanBtn() { return document.getElementById('gitignore-scan-btn'); },
     get markdownPreview() { return document.getElementById('markdown-preview'); },
+    get htmlPreview() { return document.getElementById('html-preview'); },
     get imagePreview() { return document.getElementById('image-preview'); },
     get previewImg() { return document.getElementById('preview-img'); },
     get monacoContainer() { return document.getElementById('monaco-container'); },
@@ -5108,6 +5109,7 @@ async function openFileInEditor(filePath) {
         // Essential: Clear inline display styles so CSS classes can take over
         if (elements.monacoContainer) elements.monacoContainer.style.display = '';
         if (elements.markdownPreview) elements.markdownPreview.style.display = '';
+        if (elements.htmlPreview) elements.htmlPreview.style.display = 'none';
         if (elements.imagePreview) elements.imagePreview.style.display = 'none';
 
         if (elements.editorContainerWrapper) {
@@ -6294,9 +6296,25 @@ async function handleFileDrop(data, destDir, destContainer, depth, sourceId) {
 function setMarkdownViewMode(mode) {
     if (!elements.editorContainerWrapper) return;
 
+    const ext = currentEditingPath ? currentEditingPath.split('.').pop().toLowerCase() : '';
+    const isHTML = ext === 'html' || ext === 'htm';
+
     // Reset classes
     elements.editorContainerWrapper.classList.remove('editor-mode-code', 'editor-mode-split', 'editor-mode-preview', 'editor-mode-standard');
     elements.editorContainerWrapper.classList.add(`editor-mode-${mode}`);
+
+    // Intelligence: Specific visibility for HTML iframe vs Markdown div
+    if (mode === 'preview' || mode === 'split') {
+        if (isHTML) {
+            if (elements.markdownPreview) elements.markdownPreview.style.display = 'none';
+            if (elements.htmlPreview) elements.htmlPreview.style.display = 'block';
+        } else {
+            if (elements.markdownPreview) elements.markdownPreview.style.display = ''; // Let CSS take over
+            if (elements.htmlPreview) elements.htmlPreview.style.display = 'none';
+        }
+    } else {
+        if (elements.htmlPreview) elements.htmlPreview.style.display = 'none';
+    }
 
     // Update button states
     [elements.mdViewCodeBtn, elements.mdViewSplitBtn, elements.mdViewPreviewBtn].forEach(btn => {
@@ -6405,19 +6423,34 @@ function getPreviewContentArea() {
 
 function updateMarkdownPreviewContent() {
     if (!monacoEditor || isSyncingFromPreview) return;
-    const contentArea = getPreviewContentArea();
-    if (!contentArea) return;
 
     const content = monacoEditor.getValue();
     const ext = currentEditingPath ? currentEditingPath.split('.').pop().toLowerCase() : '';
     const isHTML = ext === 'html' || ext === 'htm';
 
-    let html = '';
     if (isHTML) {
-        html = content;
-    } else {
-        html = typeof marked !== 'undefined' ? marked.parse(content) : '<p>Parser fail.</p>';
+        if (!elements.htmlPreview) return;
+
+        // INTELLIGENCE: Inject content into iframe with base href for local resources
+        const lastSlash = Math.max(currentEditingPath.lastIndexOf('/'), currentEditingPath.lastIndexOf('\\'));
+        const dir = currentEditingPath.substring(0, lastSlash);
+        const baseUrl = 'file:///' + dir.replace(/\\/g, '/') + '/';
+
+        let fullHtml = content;
+        if (!content.toLowerCase().includes('<html')) {
+            fullHtml = `<!DOCTYPE html><html><head><base href="${baseUrl}"></head><body>${content}</body></html>`;
+        } else if (!content.toLowerCase().includes('<base')) {
+            fullHtml = content.replace(/<head>/i, `<head><base href="${baseUrl}">`);
+        }
+
+        elements.htmlPreview.srcdoc = fullHtml;
+        return;
     }
+
+    const contentArea = getPreviewContentArea();
+    if (!contentArea) return;
+
+    let html = typeof marked !== 'undefined' ? marked.parse(content) : '<p>Parser fail.</p>';
 
     // INTELLIGENCE: Use DOMParser for safer path resolution and to isolate body content if needed
     const parser = new DOMParser();
@@ -6461,6 +6494,9 @@ function updateMarkdownPreviewContent() {
  * Since we don't have Turndown, we use a basic recursive HTML-to-MD converter.
  */
 function syncPreviewToEditor() {
+    const ext = currentEditingPath ? currentEditingPath.split('.').pop().toLowerCase() : '';
+    if (ext === 'html' || ext === 'htm') return; // Don't sync from HTML preview iframe
+
     const contentArea = getPreviewContentArea();
     if (!monacoEditor || !contentArea) return;
     isSyncingFromPreview = true;
