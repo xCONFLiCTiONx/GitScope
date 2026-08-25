@@ -967,76 +967,6 @@ function initEventListeners() {
     if (elements.mdViewPreviewBtn) elements.mdViewPreviewBtn.onclick = () => setMarkdownViewMode('preview');
     if (elements.gitignoreScanBtn) elements.gitignoreScanBtn.onclick = () => runGitignoreScan();
 
-    if (elements.markdownPreview) {
-        elements.markdownPreview.oninput = () => {
-            if (isSyncingFromPreview) return;
-            syncPreviewToEditor();
-        };
-        // INTELLIGENCE: Enable Tab indentation/outdent in editable preview
-        elements.markdownPreview.onkeydown = (e) => {
-            if (e.key === 'Tab') {
-                e.preventDefault();
-
-                // INTELLIGENCE: Match the indentation of the actual file/editor
-                const model = monacoEditor ? monacoEditor.getModel() : null;
-                const tabSize = model ? model.getOptions().tabSize : 4;
-                const spaces = ' '.repeat(tabSize);
-
-                if (e.shiftKey) {
-                    // 1. Try native outdent (for lists)
-                    document.execCommand('outdent', false, null);
-
-                    // 2. Manual space-based outdent for plain text blocks
-                    const selection = window.getSelection();
-                    if (selection.rangeCount > 0) {
-                        const range = selection.getRangeAt(0);
-                        let container = range.startContainer;
-                        let offset = range.startOffset;
-
-                        // If we are at the start of an element but there's a preceding text node
-                        if (container.nodeType === 1 && offset === 0 && container.previousSibling && container.previousSibling.nodeType === 3) {
-                            container = container.previousSibling;
-                            offset = container.textContent.length;
-                        }
-
-                        if (container.nodeType === 3) { // Text node
-                            const content = container.textContent;
-
-                            // Look back up to tabSize spaces to remove, strictly on current line
-                            let toRemove = 0;
-                            while (toRemove < tabSize && (offset - toRemove - 1) >= 0) {
-                                const char = content[offset - toRemove - 1];
-                                if (char === ' ') {
-                                    toRemove++;
-                                } else if (char === '\n' || char === '\r') {
-                                    break; // Stop at newline
-                                } else {
-                                    // Found a non-space character, but we only want to outdent if it's all spaces
-                                    // Actually, standard outdent removes spaces even if there's text after them
-                                    // but we only remove leading spaces usually.
-                                    // However, the user said "reverse of tab", so if they tabbed in the middle of a line,
-                                    // shift-tab should remove those spaces.
-                                    break;
-                                }
-                            }
-
-                            if (toRemove > 0) {
-                                const newRange = document.createRange();
-                                newRange.setStart(container, offset - toRemove);
-                                newRange.setEnd(container, offset);
-                                selection.removeAllRanges();
-                                selection.addRange(newRange);
-                                document.execCommand('delete', false, null);
-                            }
-                        }
-                    }
-                } else {
-                    document.execCommand('insertText', false, spaces);
-                }
-            }
-        };
-    }
-
     if (elements.unbornFoldersClose) elements.unbornFoldersClose.onclick = () => {
         elements.unbornFoldersModal.style.display = 'none';
     };
@@ -5208,7 +5138,10 @@ async function openFileInEditor(filePath) {
             };
 
             const isMarkdown = ext === 'md' || ext === 'markdown' || langMap[ext] === 'markdown';
-            if (elements.mdViewControls) elements.mdViewControls.style.display = isMarkdown ? 'flex' : 'none';
+            const isHTML = ext === 'html' || ext === 'htm';
+            const isRenderable = isMarkdown || isHTML;
+
+            if (elements.mdViewControls) elements.mdViewControls.style.display = isRenderable ? 'flex' : 'none';
             elements.gitignoreScanBtn.style.display = (filePath.endsWith('.gitignore')) ? 'block' : 'none';
 
             // Memory Management: Dispose of the old model if it exists
@@ -5219,7 +5152,7 @@ async function openFileInEditor(filePath) {
             monacoEditor.setModel(model);
 
             // Intelligence: Now that the content is loaded into the editor, we can safely trigger the preview
-            if (isMarkdown) {
+            if (isRenderable) {
                 setMarkdownViewMode('preview');
             } else {
                 setMarkdownViewMode('standard');
@@ -5231,8 +5164,8 @@ async function openFileInEditor(filePath) {
                 const hasChanges = currentContent !== originalFileContent;
                 updateEditorButtonStates(hasChanges);
 
-                // Real-time Markdown Preview
-                if (isMarkdown && elements.editorContainerWrapper) {
+                // Real-time Markdown/HTML Preview
+                if (isRenderable && elements.editorContainerWrapper) {
                     const isShowingPreview = elements.editorContainerWrapper.classList.contains('editor-mode-split') ||
                                            elements.editorContainerWrapper.classList.contains('editor-mode-preview');
                     if (isShowingPreview) {
@@ -6375,35 +6308,55 @@ function setMarkdownViewMode(mode) {
 
 function updateMarkdownPreviewContent() {
     if (!monacoEditor || isSyncingFromPreview) return;
-    const content = monacoEditor.getValue();
-    let html = typeof marked !== 'undefined' ? marked.parse(content) : '<p>Parser fail.</p>';
+    const contentArea = getPreviewContentArea();
+    if (!contentArea) return;
 
-    // INTELLIGENCE: Resolve relative image & link paths
+    const content = monacoEditor.getValue();
+    const ext = currentEditingPath ? currentEditingPath.split('.').pop().toLowerCase() : '';
+    const isHTML = ext === 'html' || ext === 'htm';
+
+    let html = '';
+    if (isHTML) {
+        html = content;
+    } else {
+        html = typeof marked !== 'undefined' ? marked.parse(content) : '<p>Parser fail.</p>';
+    }
+
+    // INTELLIGENCE: Use DOMParser for safer path resolution and to isolate body content if needed
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(html, 'text/html');
+
     if (currentEditingPath) {
         const lastSlash = Math.max(currentEditingPath.lastIndexOf('/'), currentEditingPath.lastIndexOf('\\'));
         const dir = currentEditingPath.substring(0, lastSlash);
-        const tempDiv = document.createElement('div');
-        tempDiv.innerHTML = html;
 
-        tempDiv.querySelectorAll('img').forEach(img => {
+        doc.querySelectorAll('img').forEach(img => {
             const src = img.getAttribute('src');
             if (src && !src.startsWith('http') && !src.startsWith('data:') && !src.startsWith('file:')) {
                 const absolutePath = dir + '/' + src;
                 img.src = 'file:///' + absolutePath.replace(/\\/g, '/');
-                img.style.maxWidth = '100%';
             }
         });
 
-        tempDiv.querySelectorAll('a').forEach(link => {
+        doc.querySelectorAll('a').forEach(link => {
             const href = link.getAttribute('href');
             if (href && !href.startsWith('http') && !href.startsWith('mailto:') && !href.startsWith('tel:') && !href.startsWith('#')) {
                 const absolutePath = dir + '/' + href;
                 link.href = 'file:///' + absolutePath.replace(/\\/g, '/');
             }
         });
-        html = tempDiv.innerHTML;
     }
-    elements.markdownPreview.innerHTML = html;
+
+    // If it's a full HTML page, we only want the body content for the editable area
+    // but we can also inject styles if they exist.
+    if (isHTML) {
+        // Move styles from head to body so they live in our shadow root content area
+        const headStyles = doc.querySelectorAll('head style, head link[rel="stylesheet"]');
+        headStyles.forEach(s => doc.body.prepend(s));
+        contentArea.innerHTML = doc.body.innerHTML;
+    } else {
+        contentArea.innerHTML = doc.body.innerHTML;
+    }
 }
 
 /**
@@ -6411,67 +6364,75 @@ function updateMarkdownPreviewContent() {
  * Since we don't have Turndown, we use a basic recursive HTML-to-MD converter.
  */
 function syncPreviewToEditor() {
-    if (!monacoEditor || !elements.markdownPreview) return;
+    const contentArea = getPreviewContentArea();
+    if (!monacoEditor || !contentArea) return;
     isSyncingFromPreview = true;
 
     try {
-        const toMarkdown = (node) => {
-            if (node.nodeType === 3) return node.textContent;
-            if (node.nodeType !== 1) return '';
+        const ext = currentEditingPath ? currentEditingPath.split('.').pop().toLowerCase() : '';
+        const isHTML = ext === 'html' || ext === 'htm';
 
-            const tag = node.tagName.toLowerCase();
-            const children = Array.from(node.childNodes).map(toMarkdown).join('');
+        let finalValue = '';
+        if (isHTML) {
+            finalValue = contentArea.innerHTML;
+        } else {
+            const toMarkdown = (node) => {
+                if (node.nodeType === 3) return node.textContent;
+                if (node.nodeType !== 1) return '';
 
-            switch(tag) {
-                case 'h1': return `# ${children}\n\n`;
-                case 'h2': return `## ${children}\n\n`;
-                case 'h3': return `### ${children}\n\n`;
-                case 'h4': return `#### ${children}\n\n`;
-                case 'p': return `${children}\n\n`;
-                case 'strong': case 'b': return `**${children}**`;
-                case 'em': case 'i': return `*${children}*`;
-                case 'ul': return children + '\n';
-                case 'ol': return children + '\n';
-                case 'li': {
-                    const parent = node.parentNode ? node.parentNode.tagName.toLowerCase() : '';
-                    if (parent === 'ul') return `- ${children}\n`;
-                    if (parent === 'ol') {
-                        const idx = Array.from(node.parentNode.children).indexOf(node) + 1;
-                        return `${idx}. ${children}\n`;
+                const tag = node.tagName.toLowerCase();
+                const children = Array.from(node.childNodes).map(toMarkdown).join('');
+
+                switch(tag) {
+                    case 'h1': return `# ${children}\n\n`;
+                    case 'h2': return `## ${children}\n\n`;
+                    case 'h3': return `### ${children}\n\n`;
+                    case 'h4': return `#### ${children}\n\n`;
+                    case 'p': return `${children}\n\n`;
+                    case 'strong': case 'b': return `**${children}**`;
+                    case 'em': case 'i': return `*${children}*`;
+                    case 'ul': return children + '\n';
+                    case 'ol': return children + '\n';
+                    case 'li': {
+                        const parent = node.parentNode ? node.parentNode.tagName.toLowerCase() : '';
+                        if (parent === 'ul') return `- ${children}\n`;
+                        if (parent === 'ol') {
+                            const idx = Array.from(node.parentNode.children).indexOf(node) + 1;
+                            return `${idx}. ${children}\n`;
+                        }
+                        return `- ${children}\n`;
                     }
-                    return `- ${children}\n`;
+                    case 'a': {
+                        const href = node.getAttribute('href');
+                        // Strip the file:/// prefix if we added it for previewing
+                        const cleanHref = (href && href.startsWith('file:///')) ? href.substring(8) : href;
+                        return `[${children}](${cleanHref || ''})`;
+                    }
+                    case 'img': {
+                        const src = node.getAttribute('src');
+                        const cleanSrc = (src && src.startsWith('file:///')) ? src.substring(8) : src;
+                        return `![${node.getAttribute('alt') || ''}](${cleanSrc || ''})`;
+                    }
+                    case 'code': return `\`${children}\``;
+                    case 'pre': return `\`\`\`\n${children}\n\`\`\`\n\n`;
+                    case 'blockquote': return `> ${children.replace(/\n/g, '\n> ')}\n\n`;
+                    case 'br': return '\n';
+                    case 'div': return `${children}\n`;
+                    default: return children;
                 }
-                case 'a': {
-                    const href = node.getAttribute('href');
-                    // Strip the file:/// prefix if we added it for previewing
-                    const cleanHref = (href && href.startsWith('file:///')) ? href.substring(8) : href;
-                    return `[${children}](${cleanHref || ''})`;
-                }
-                case 'img': {
-                    const src = node.getAttribute('src');
-                    const cleanSrc = (src && src.startsWith('file:///')) ? src.substring(8) : src;
-                    return `![${node.getAttribute('alt') || ''}](${cleanSrc || ''})`;
-                }
-                case 'code': return `\`${children}\``;
-                case 'pre': return `\`\`\`\n${children}\n\`\`\`\n\n`;
-                case 'blockquote': return `> ${children.replace(/\n/g, '\n> ')}\n\n`;
-                case 'br': return '\n';
-                case 'div': return `${children}\n`;
-                default: return children;
-            }
-        };
+            };
 
-        let markdown = Array.from(elements.markdownPreview.childNodes).map(toMarkdown).join('');
-
-        // Clean up excessive newlines
-        markdown = markdown.replace(/\n{3,}/g, '\n\n').trim();
+            finalValue = Array.from(contentArea.childNodes).map(toMarkdown).join('');
+            // Clean up excessive newlines
+            finalValue = finalValue.replace(/\n{3,}/g, '\n\n').trim();
+        }
 
         const model = monacoEditor.getModel();
         if (model) {
             // Apply as a single edit to preserve undo stack as much as possible
             model.pushEditOperations([], [{
                 range: model.getFullModelRange(),
-                text: markdown
+                text: finalValue
             }], () => null);
         }
     } catch (e) {
@@ -6479,6 +6440,72 @@ function syncPreviewToEditor() {
     } finally {
         // Delay resetting the flag to ensure Monaco's onDidChangeContent is ignored
         setTimeout(() => { isSyncingFromPreview = false; }, 100);
+    }
+}
+
+/**
+ * INTELLIGENCE: Unified Tab/Shift-Tab handler for Editors and Preview
+ */
+function handleIndentationAction(e, targetType) {
+    e.preventDefault();
+    if (e.stopImmediatePropagation) e.stopImmediatePropagation();
+
+    const isShift = e.shiftKey;
+    const model = monacoEditor ? monacoEditor.getModel() : null;
+    const tabSize = model ? model.getOptions().tabSize : 4;
+    const spaces = ' '.repeat(tabSize);
+
+    if (targetType === 'monaco' || targetType === 'theme') {
+        const editor = targetType === 'monaco' ? monacoEditor : themeEditor;
+        if (editor) {
+            if (isShift) {
+                editor.trigger('keyboard', 'outdent', null);
+            } else {
+                editor.trigger('keyboard', 'tab', null);
+            }
+        }
+    } else if (targetType === 'preview') {
+        const contentArea = getPreviewContentArea();
+        if (!contentArea) return;
+
+        if (isShift) {
+            // 1. Try native outdent (for lists)
+            document.execCommand('outdent', false, null);
+
+            // 2. Manual space-based outdent for plain text blocks
+            const selection = window.getSelection();
+            if (selection.rangeCount > 0) {
+                const range = selection.getRangeAt(0);
+                let container = range.startContainer;
+                let offset = range.startOffset;
+
+                if (container.nodeType === 1 && offset === 0 && container.previousSibling && container.previousSibling.nodeType === 3) {
+                    container = container.previousSibling;
+                    offset = container.textContent.length;
+                }
+
+                if (container.nodeType === 3) {
+                    const content = container.textContent;
+                    let toRemove = 0;
+                    while (toRemove < tabSize && (offset - toRemove - 1) >= 0) {
+                        const char = content[offset - toRemove - 1];
+                        if (char === ' ') toRemove++;
+                        else break;
+                    }
+
+                    if (toRemove > 0) {
+                        const newRange = document.createRange();
+                        newRange.setStart(container, offset - toRemove);
+                        newRange.setEnd(container, offset);
+                        selection.removeAllRanges();
+                        selection.addRange(newRange);
+                        document.execCommand('delete', false, null);
+                    }
+                }
+            }
+        } else {
+            document.execCommand('insertText', false, spaces);
+        }
     }
 }
 
@@ -6561,21 +6588,10 @@ function showDeleteModal(paths) {
 // We use the Capture Phase (true) to intercept the event before the browser steals it for focus cycling
 window.addEventListener('keydown', (e) => {
     if (e.key === 'Tab') {
-        const isMainEditor = document.activeElement.closest('#monaco-container');
-        const isThemeEditor = document.activeElement.closest('#theme-monaco-container');
-
-        if (isMainEditor || isThemeEditor) {
-            e.preventDefault();
-            e.stopImmediatePropagation();
-
-            const editor = isMainEditor ? monacoEditor : themeEditor;
-            if (editor) {
-                if (e.shiftKey) {
-                    editor.trigger('keyboard', 'outdent', null);
-                } else {
-                    editor.trigger('keyboard', 'tab', null);
-                }
-            }
+        if (document.activeElement.closest('#monaco-container')) {
+            handleIndentationAction(e, 'monaco');
+        } else if (document.activeElement.closest('#theme-monaco-container')) {
+            handleIndentationAction(e, 'theme');
         }
     }
 }, true);
