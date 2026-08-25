@@ -6470,6 +6470,20 @@ const PREVIEW_STYLES = `
         word-wrap: break-word;
         word-break: break-word;
     }
+    #content p, #content ul, #content ol, #content pre, #content blockquote {
+        margin-top: 0;
+        margin-bottom: 8px;
+    }
+    #content li {
+        margin-bottom: 0;
+    }
+    #content li > p {
+        margin-top: 0;
+        margin-bottom: 4px;
+    }
+    #content p:last-child, #content ul:last-child, #content ol:last-child, #content pre:last-child, #content blockquote:last-child {
+        margin-bottom: 0;
+    }
     #content p, #content li { white-space: normal !important; }
     #content pre {
         white-space: pre-wrap !important;
