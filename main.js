@@ -1295,6 +1295,19 @@ ipcMain.handle('show-context-menu', (event, options) => {
     template.push({ type: 'separator' });
   }
 
+  const isFile = !options.isDirectory && !options.isRepoRoot && totalCount === 1;
+  if (isFile) {
+    const ext = paths[0].split('.').pop().toLowerCase();
+    const executableExts = ['exe', 'bat', 'cmd', 'vbs', 'vbe', 'js', 'jse', 'wsf', 'wsh', 'msc', 'ps1', 'sh', 'html', 'htm', 'jar'];
+    if (executableExts.includes(ext)) {
+      template.push({
+        label: 'Execute',
+        click: () => event.sender.send('context-menu-command', { command: 'execute', path: paths[0] })
+      });
+      template.push({ type: 'separator' });
+    }
+  }
+
   template.push(
     {
       label: 'Open',
