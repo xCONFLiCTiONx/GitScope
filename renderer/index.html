@@ -2031,6 +2031,18 @@
         </div>
     </div>
 
+    <div id="unsaved-changes-modal" class="modal" style="z-index: 10000;">
+        <div class="modal-content" style="box-shadow: 0 0 30px rgba(0,0,0,0.5); border-color: var(--accent-yellow);">
+            <h3>Unsaved Changes</h3>
+            <p>You have unsaved changes in the editor. Would you like to save them before leaving?</p>
+            <div style="text-align: right; margin-top: 20px; display: flex; justify-content: flex-end; gap: 8px;">
+                <button id="unsaved-cancel" class="button">Cancel</button>
+                <button id="unsaved-discard" class="button button-danger">Don't Save</button>
+                <button id="unsaved-save" class="button button-primary">Save Changes</button>
+            </div>
+        </div>
+    </div>
+
     <script src="../node_modules/xterm/lib/xterm.js"></script>
     <script src="../node_modules/xterm-addon-fit/lib/xterm-addon-fit.js"></script>
     <script src="../node_modules/marked/marked.min.js"></script>

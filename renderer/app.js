@@ -195,6 +195,46 @@ function showError(message, title = 'Error') {
     });
 }
 
+function showUnsavedChangesDialog() {
+    return new Promise((resolve) => {
+        const modal = document.getElementById('unsaved-changes-modal');
+        const saveBtn = document.getElementById('unsaved-save');
+        const discardBtn = document.getElementById('unsaved-discard');
+        const cancelBtn = document.getElementById('unsaved-cancel');
+
+        if (!modal) {
+            const res = confirm("You have unsaved changes. Save them now?");
+            resolve(res ? 'save' : 'discard');
+            return;
+        }
+
+        modal.style.display = 'flex';
+
+        saveBtn.onclick = () => { modal.style.display = 'none'; resolve('save'); };
+        discardBtn.onclick = () => { modal.style.display = 'none'; resolve('discard'); };
+        cancelBtn.onclick = () => { modal.style.display = 'none'; resolve('cancel'); };
+    });
+}
+
+async function guardNavigation() {
+    if (!monacoEditor || !elements.editorView) return true;
+    if (elements.editorView.style.display === 'none') return true;
+
+    const currentContent = monacoEditor.getValue();
+    if (currentContent !== originalFileContent) {
+        const result = await showUnsavedChangesDialog();
+        if (result === 'save') {
+            await saveCurrentFile();
+            return true;
+        } else if (result === 'discard') {
+            return true;
+        } else {
+            return false; // User cancelled navigation
+        }
+    }
+    return true;
+}
+
 // DOM Elements Mapping (Getter-based for total resilience)
 const elements = {
     get navHome() { return document.getElementById('nav-home'); },
@@ -779,27 +819,25 @@ function initResizers() {
 
 function initEventListeners() {
     // Navigation Rail
-    if (elements.navHome) elements.navHome.onclick = () => {
+    if (elements.navHome) elements.navHome.onclick = async () => {
         currentDashboardFilter = 'all'; // Reset filter when coming from nav
-        setActiveNavItem(elements.navHome);
-        showDashboard(true);
+        await showDashboard(true);
     };
-    if (elements.appLogoBox) elements.appLogoBox.onclick = () => {
+    if (elements.appLogoBox) elements.appLogoBox.onclick = async () => {
         currentDashboardFilter = 'all'; // Reset filter when coming from logo
-        setActiveNavItem(elements.navHome);
-        showDashboard(true);
+        await showDashboard(true);
     };
     if (elements.navGithub) elements.navGithub.onclick = () => showGitHubImportModal();
     if (elements.navNew) elements.navNew.onclick = () => showCreateRepoModal();
     if (elements.navAdd) elements.navAdd.onclick = () => handleAddRepo();
-    if (elements.navSettings) elements.navSettings.onclick = () => showSettings();
-    if (elements.navGitConfig) elements.navGitConfig.onclick = () => {
-        setActiveNavItem(elements.navGitConfig);
-        showGitConfigView();
+    if (elements.navSettings) elements.navSettings.onclick = async () => await showSettings();
+    if (elements.navGitConfig) elements.navGitConfig.onclick = async () => {
+        if (!(await setActiveNavItem(elements.navGitConfig))) return;
+        await showGitConfigView();
     };
-    if (elements.navTheme) elements.navTheme.onclick = () => {
-        setActiveNavItem(elements.navTheme);
-        showThemeEditor();
+    if (elements.navTheme) elements.navTheme.onclick = async () => {
+        if (!(await setActiveNavItem(elements.navTheme))) return;
+        await showThemeEditor();
     };
     if (elements.themeSaveBtn) elements.themeSaveBtn.onclick = () => saveThemeFromEditor();
     if (elements.themeExportIniBtn) elements.themeExportIniBtn.onclick = () => exportThemeToIni();
@@ -813,9 +851,9 @@ function initEventListeners() {
             await saveThemeFromEditor();
         }
     };
-    if (elements.themeCloseBtn) elements.themeCloseBtn.onclick = () => {
+    if (elements.themeCloseBtn) elements.themeCloseBtn.onclick = async () => {
         elements.themeEditorView.style.display = 'none';
-        showDashboard();
+        await showDashboard();
     };
 
     // Sidebar Header Actions
@@ -830,12 +868,12 @@ function initEventListeners() {
             renderTree(elements.repoFilter.value);
         };
     }
-    if (elements.dashboardRefreshBtn) elements.dashboardRefreshBtn.onclick = () => showDashboard();
+    if (elements.dashboardRefreshBtn) elements.dashboardRefreshBtn.onclick = async () => await showDashboard();
     if (elements.dashboardBulkFetchBtn) elements.dashboardBulkFetchBtn.onclick = () => handleBulkFetch();
     if (elements.dashboardBulkPullBtn) elements.dashboardBulkPullBtn.onclick = () => handleBulkPull();
     if (elements.dashboardBulkCommitBtn) elements.dashboardBulkCommitBtn.onclick = () => showBulkCommitModal();
     if (elements.dashboardBulkRestoreBtn) elements.dashboardBulkRestoreBtn.onclick = () => handleBulkRestore();
-    if (elements.repoRefreshBtn) elements.repoRefreshBtn.onclick = () => { if (activeRepo) selectRepo(activeRepo); };
+    if (elements.repoRefreshBtn) elements.repoRefreshBtn.onclick = async () => { if (activeRepo) await selectRepo(activeRepo); };
     if (elements.repoStatusBtn) elements.repoStatusBtn.onclick = () => showGitStatus();
     if (elements.repoStashBtn) elements.repoStashBtn.onclick = () => handleStashModal();
     if (elements.stashSaveBtn) elements.stashSaveBtn.onclick = () => saveStash();
@@ -898,7 +936,6 @@ function initEventListeners() {
     if (elements.publishGitHubBtn) elements.publishGitHubBtn.onclick = () => handlePublishGitHub();
     if (elements.githubVisibilityBtn) elements.githubVisibilityBtn.onclick = () => handleToggleGitHubVisibility();
     if (elements.repoSubtreeBtn) elements.repoSubtreeBtn.onclick = () => showSubtreeHubModal();
-    if (elements.repoRefreshBtn) elements.repoRefreshBtn.onclick = () => { if (activeRepo) selectRepo(activeRepo); };
 
     // Project-specific Git Operation Toggles
     if (elements.gitForceToggle) {
@@ -979,7 +1016,7 @@ function initEventListeners() {
     document.addEventListener('click', () => {
         if (elements.transformMenu) elements.transformMenu.style.display = 'none';
     });
-    if (elements.editorCloseBtn) elements.editorCloseBtn.onclick = () => closeEditor();
+    if (elements.editorCloseBtn) elements.editorCloseBtn.onclick = async () => await closeEditor();
     if (elements.mdViewCodeBtn) elements.mdViewCodeBtn.onclick = () => setMarkdownViewMode('code');
     if (elements.mdViewSplitBtn) elements.mdViewSplitBtn.onclick = () => setMarkdownViewMode('split');
     if (elements.mdViewPreviewBtn) elements.mdViewPreviewBtn.onclick = () => setMarkdownViewMode('preview');
@@ -1213,7 +1250,9 @@ function initEventListeners() {
     };
 }
 
-function setActiveNavItem(item) {
+async function setActiveNavItem(item) {
+    if (!(await guardNavigation())) return false;
+
     document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
     if (item) item.classList.add('active');
 
@@ -1237,10 +1276,12 @@ function setActiveNavItem(item) {
     elements.themeEditorView.style.display = 'none';
     elements.statusView.style.display = 'none';
     document.querySelectorAll('.modal').forEach(m => m.style.display = 'none');
+
+    return true;
 }
 
-function showSettings() {
-    setActiveNavItem(elements.navSettings);
+async function showSettings() {
+    if (!(await setActiveNavItem(elements.navSettings))) return;
     elements.settingsView.style.display = 'flex';
 }
 
@@ -3105,7 +3146,7 @@ function createTreeNode(name, fullPath, isDirectory, depth, repo) {
             isSubtreeMapped
         });
     };
-    item.onclick = (e) => {
+    item.onclick = async (e) => {
         e.stopPropagation();
 
         if (e.shiftKey && lastSelectedPath) {
@@ -3128,9 +3169,14 @@ function createTreeNode(name, fullPath, isDirectory, depth, repo) {
         lastSelectedPath = fullPath;
 
         if (e.ctrlKey) { if (selectedNodes.has(fullPath)) selectedNodes.delete(fullPath); else selectedNodes.add(fullPath); updateTreeSelectionUI(); return; }
+
         selectedNodes.clear(); selectedNodes.add(fullPath); updateTreeSelectionUI();
-        if (isDirectory) { if (depth === 0) selectRepo(repo, false); toggleFolder(container, fullPath, depth, repo); }
-        else openFileInEditor(fullPath);
+        if (isDirectory) {
+            if (depth === 0) await selectRepo(repo, false);
+            toggleFolder(container, fullPath, depth, repo);
+        } else {
+            await openFileInEditor(fullPath);
+        }
     };
     if (isDirectory) {
         item.ondragover = (e) => { e.preventDefault(); item.style.backgroundColor = 'var(--hover-bg)'; };
@@ -3211,7 +3257,7 @@ async function restoreExpansionRecursive(container, depth, repo) {
 }
 
 async function showDashboard(forceRefresh = true) {
-    setActiveNavItem(elements.navHome);
+    if (!(await setActiveNavItem(elements.navHome))) return;
     elements.dashboardView.style.display = 'flex';
     elements.dashboardView.scrollTop = 0;
 
@@ -3321,7 +3367,7 @@ async function showDashboard(forceRefresh = true) {
                 card.dataset.isUnborn = 'false';
 
                 card.className = `dashboard-card ${hasChanges || needsSync ? 'has-changes' : 'is-clean'}`;
-                card.onclick = () => selectRepo(repo, true);
+                card.onclick = async () => await selectRepo(repo, true);
                 card.innerHTML = `
                     <div class="card-header" style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:12px;">
                         <div style="flex:1; min-width:0;">
@@ -3472,7 +3518,7 @@ function createUnbornCard(folder) {
 }
 
 async function showThemeEditor() {
-    setActiveNavItem(null);
+    if (!(await setActiveNavItem(null))) return;
     elements.themeEditorView.style.display = 'flex';
 
     // Intelligence: If the current theme is in the old massive format, offer to clean it
@@ -4935,8 +4981,9 @@ async function showUnbornFoldersModal(unbornList) {
 }
 
 async function selectRepo(repo, fromDashboard = false) {
+    if (!(await setActiveNavItem(null))) return;
+
     activeRepo = repo;
-    setActiveNavItem(null);
     elements.repoView.style.display = 'flex';
 
     // Default Layout: Commit message visible, Diffs hidden
@@ -5122,13 +5169,14 @@ function insertMarkdownSnippet(type) {
 }
 
 async function openFileInEditor(filePath) {
+    if (!(await setActiveNavItem(null))) return;
+
     if (!monacoEditor) return;
     try {
         const ext = filePath.split('.').pop().toLowerCase();
         const imageExts = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'ico', 'svg'];
 
         currentEditingPath = filePath;
-        setActiveNavItem(null);
         elements.editorView.style.display = 'flex';
         elements.editorFileName.textContent = filePath.split(/[\\\/]/).pop();
 
@@ -5345,7 +5393,11 @@ async function saveCurrentFile() {
     }
 }
 
-function closeEditor() { elements.editorView.style.display = 'none'; if (activeRepo) elements.repoView.style.display = 'flex'; else showDashboard(); }
+async function closeEditor() {
+    if (!(await setActiveNavItem(null))) return;
+    if (activeRepo) elements.repoView.style.display = 'flex';
+    else await showDashboard();
+}
 
 function logToConsole(msg, type = 'info') {
     if (!elements.consoleOutput) return;
@@ -5467,7 +5519,7 @@ async function handleContextMenuCommand({ command, paths, path, repoPath }) {
     else if (command === 'open-android-studio') targets.forEach(p => window.electronAPI.openAndroidStudio(p));
     else if (command === 'open-default') targets.forEach(p => window.electronAPI.openPath(p));
     else if (command === 'reveal-in-explorer') targets.forEach(p => window.electronAPI.revealInExplorer(p));
-    else if (command === 'open-editor') openFileInEditor(targets[0]);
+    else if (command === 'open-editor') await openFileInEditor(targets[0]);
     else if (command === 'rename') handleRename(targets[0]);
     else if (command === 'manage-subtrees') {
         const repo = repositories.find(r => targets[0].toLowerCase().startsWith(r.path.toLowerCase()));
@@ -5483,7 +5535,7 @@ async function handleContextMenuCommand({ command, paths, path, repoPath }) {
             handleUnstageAll();
         }
     }
-    else if (command === 'see-changes') showFileDiff(targets[0]);
+    else if (command === 'see-changes') await showFileDiff(targets[0]);
     else if (command === 'create-readme') handleCreateReadme(targets[0]);
     else if (command === 'generate-gitignore') handleGenerateGitignore(targets[0]);
     else if (command === 'delete') showDeleteModal(targets);
@@ -6064,6 +6116,8 @@ async function listStashes() {
 }
 
 async function showFileDiff(filePath) {
+    if (!(await setActiveNavItem(null))) return;
+
     const normPath = filePath.replace(/\\/g, '/').toLowerCase();
     const repo = repositories.find(r => normPath.startsWith(r.path.replace(/\\/g, '/').toLowerCase()));
     if (!repo) return;
