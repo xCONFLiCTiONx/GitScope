@@ -3002,7 +3002,7 @@ async function renderTree(filter = '') {
         const results = await Promise.all(searchPromises);
         const fragment = document.createDocumentFragment();
 
-        for (const { repo, fileMatches } of results) {
+        results.forEach(({ repo, fileMatches }, index) => {
             const nameMatch = repo.name.toLowerCase().includes(search);
 
             if (!search || nameMatch || fileMatches.length > 0) {
@@ -3037,7 +3037,8 @@ async function renderTree(filter = '') {
                 }
 
                 // Metadata hydration (Status dots, missing indicators, online/offline status)
-                (async () => {
+                // Use staggered delays to prevent saturating the main process with many git status calls at once
+                setTimeout(async () => {
                     try {
                         const exists = await window.electronAPI.pathExists(repo.path);
                         if (!exists) {
@@ -3047,11 +3048,12 @@ async function renderTree(filter = '') {
                                 nameEl.textContent += ' (MISSING)';
                             }
                         } else {
-                            const [changes, remotes] = await Promise.all([
-                                window.electronAPI.getDetailedChanges(repo.path),
+                            const [status, remotes] = await Promise.all([
+                                window.electronAPI.gitStatus(repo.path),
                                 window.electronAPI.getRemotes(repo.path)
                             ]);
 
+                            const changes = status.details || { staged: [], unstaged: [], untracked: [], deleted: [], ignored: [] };
                             const hasRemotes = remotes.length > 0;
                             const normBase = repo.path.replace(/\\/g, '/').toLowerCase();
                             repo.changedFiles = [...changes.staged, ...changes.unstaged, ...changes.untracked].map(f => `${normBase}/${f.replace(/\\/g, '/')}`.toLowerCase());
@@ -3071,9 +3073,9 @@ async function renderTree(filter = '') {
                             }
                         }
                     } catch (e) {}
-                })();
+                }, 50 * index);
             }
-        }
+        });
 
         if (fragment.children.length === 0) {
             elements.repoTree.innerHTML = `<div style="padding:20px; color:var(--text-muted); text-align:center;">No matches for "${filter}"</div>`;
@@ -5027,24 +5029,32 @@ async function refreshActiveRepoUI(silent = false) {
     if (!activeRepo) return;
     const title = document.getElementById('active-repo-name');
     const originalText = activeRepo.name;
+    const currentPath = activeRepo.path;
 
     // Visual feedback: Syncing state
     if (title && !silent) title.innerHTML = `${originalText} <span style="font-size: 10px; color: var(--accent-blue); font-weight: normal; margin-left: 8px; opacity: 0.8;">(SYNCING...)</span>`;
 
     try {
-        const status = await window.electronAPI.gitStatus(activeRepo.path);
-        const changes = await window.electronAPI.getDetailedChanges(activeRepo.path);
+        // Parallelize heavy git calls to prevent sequential blocking
+        // Optimization: gitStatus now returns details, avoiding an extra git call
+        const [status, remotes] = await Promise.all([
+            window.electronAPI.gitStatus(activeRepo.path),
+            window.electronAPI.getRemotes(activeRepo.path)
+        ]);
+
+        const changes = status.details || { staged: [], unstaged: [], untracked: [], deleted: [], ignored: [] };
 
         // Update state
         activeRepo.changedFiles = [...changes.staged, ...changes.unstaged, ...changes.untracked].map(f => `${activeRepo.path.replace(/\\/g, '/')}/${f.replace(/\\/g, '/')}`.toLowerCase());
 
-        // Update individual UI components
-        await updateRepoStatus(status);
-        await updateBranchSelector(activeRepo.path);
-        await updateRemoteSelector(activeRepo.path);
+        // Update UI components in parallel
+        await Promise.all([
+            updateRepoStatus(status),
+            updateBranchSelector(activeRepo.path),
+            updateRemoteSelector(activeRepo.path)
+        ]);
 
         // Smart GitHub Button Visibility
-        const remotes = await window.electronAPI.getRemotes(activeRepo.path);
         const hasAnyRemote = remotes.length > 0;
         const githubRemote = remotes.find(r => r.url.toLowerCase().includes('github.com'));
         const hasGitHub = !!githubRemote;
@@ -5070,49 +5080,60 @@ async function refreshActiveRepoUI(silent = false) {
                     const cached = repoVisibilityCache.get(activeRepo.path);
 
                     if (!cached) {
-                        elements.githubVisibilityBtn.classList.add('btn-loading');
-                        elements.githubVisibilityBtn.textContent = 'Checking...';
-                        try {
-                            const url = githubRemote.url.replace(/\.git\/?$/, '');
-                            let match = url.match(/github\.com[\/|:]([^\/]+)\/([^\/]+)$/);
-                            if (match) {
-                                const owner = match[1];
-                                const repo = match[2];
-                                const res = await window.electronAPI.getGitHubRepo(settings.githubToken, owner, repo);
-                                const isPrivate = res.repo.private;
+                        // NON-BLOCKING BACKGROUND TASK for GitHub API
+                        (async () => {
+                            if (!activeRepo || activeRepo.path !== currentPath) return;
+                            elements.githubVisibilityBtn.classList.add('btn-loading');
+                            elements.githubVisibilityBtn.textContent = 'Checking...';
+                            try {
+                                const url = githubRemote.url.replace(/\.git\/?$/, '');
+                                let match = url.match(/github\.com[\/|:]([^\/]+)\/([^\/]+)$/);
+                                if (match) {
+                                    const owner = match[1];
+                                    const repoName = match[2];
+                                    const res = await window.electronAPI.getGitHubRepo(settings.githubToken, owner, repoName);
+                                    const isPrivate = res.repo.private;
 
-                                // Update Cache
-                                repoVisibilityCache.set(activeRepo.path, { owner, repo, isPrivate });
+                                    repoVisibilityCache.set(currentPath, { owner, repo: repoName, isPrivate });
 
-                                elements.githubVisibilityBtn.textContent = isPrivate ? 'Private' : 'Public';
-                                elements.githubVisibilityBtn.title = isPrivate ? 'Click to make Public' : 'Click to make Private';
-                                if (isPrivate) elements.githubVisibilityBtn.classList.add('button');
-                                else elements.githubVisibilityBtn.classList.add('button-blue');
+                                    // Verify user hasn't switched repos while we were waiting for network
+                                    if (activeRepo && activeRepo.path === currentPath) {
+                                        elements.githubVisibilityBtn.textContent = isPrivate ? 'Private' : 'Public';
+                                        elements.githubVisibilityBtn.title = isPrivate ? 'Click to make Public' : 'Click to make Private';
+                                        elements.githubVisibilityBtn.classList.remove('button', 'button-blue');
+                                        if (isPrivate) elements.githubVisibilityBtn.classList.add('button');
+                                        else elements.githubVisibilityBtn.classList.add('button-blue');
 
-                                elements.githubVisibilityBtn.dataset.owner = owner;
-                                elements.githubVisibilityBtn.dataset.repo = repo;
-                                elements.githubVisibilityBtn.dataset.isPrivate = isPrivate;
-                            } else {
-                                elements.githubVisibilityBtn.textContent = 'Invalid URL';
-                                elements.githubVisibilityBtn.disabled = true;
+                                        elements.githubVisibilityBtn.dataset.owner = owner;
+                                        elements.githubVisibilityBtn.dataset.repo = repoName;
+                                        elements.githubVisibilityBtn.dataset.isPrivate = isPrivate;
+                                    }
+                                } else {
+                                    elements.githubVisibilityBtn.textContent = 'Invalid URL';
+                                    elements.githubVisibilityBtn.disabled = true;
+                                }
+                            } catch (err) {
+                                console.warn('Failed to fetch GitHub repo status:', err);
+                                if (activeRepo && activeRepo.path === currentPath) {
+                                    elements.githubVisibilityBtn.textContent = 'Offline';
+                                    elements.githubVisibilityBtn.title = err.message;
+                                }
+                            } finally {
+                                if (activeRepo && activeRepo.path === currentPath) {
+                                    elements.githubVisibilityBtn.classList.remove('btn-loading');
+                                }
                             }
-                        } catch (err) {
-                            console.warn('Failed to fetch GitHub repo status:', err);
-                            elements.githubVisibilityBtn.textContent = 'Offline';
-                            elements.githubVisibilityBtn.title = err.message;
-                        } finally {
-                            elements.githubVisibilityBtn.classList.remove('btn-loading');
-                        }
+                        })();
                     } else {
                         // Use session-cached state
-                        const { owner, repo, isPrivate } = cached;
+                        const { owner, repo: repoName, isPrivate } = cached;
                         elements.githubVisibilityBtn.textContent = isPrivate ? 'Private' : 'Public';
                         elements.githubVisibilityBtn.title = isPrivate ? 'Click to make Public' : 'Click to make Private';
                         if (isPrivate) elements.githubVisibilityBtn.classList.add('button');
                         else elements.githubVisibilityBtn.classList.add('button-blue');
 
                         elements.githubVisibilityBtn.dataset.owner = owner;
-                        elements.githubVisibilityBtn.dataset.repo = repo;
+                        elements.githubVisibilityBtn.dataset.repo = repoName;
                         elements.githubVisibilityBtn.dataset.isPrivate = isPrivate;
                     }
                 }
