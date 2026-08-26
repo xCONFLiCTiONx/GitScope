@@ -1174,32 +1174,34 @@
                             </div>
                         </div>
                     </div>
-
                     <div style="display: flex; gap: 8px; align-items: center;">
-                        <button id="repo-refresh-btn" class="button" style="height: 24px; width: 24px; padding: 0;" title="Refresh Project">↻</button>
-                        <div style="width: 1px; height: 16px; background: var(--border-color); margin: 0 4px;"></div>
-
-                        <label style="display: flex; align-items: center; gap: 4px; font-size: 12px; cursor: pointer; color: var(--accent-red); font-weight: 600; margin-right: 4px;" title="Force Push/Pull operations (adds --force flag)">
-                            <input type="checkbox" id="git-force-toggle" style="width: 12px; height: 12px;"> Force
-                        </label>
-
-                        <label style="display: flex; align-items: center; gap: 4px; font-size: 10px; cursor: pointer; color: var(--accent-blue); font-weight: 800; margin-right: 8px;" title="Automatically fetch when opening a project">
-                            <input type="checkbox" id="git-auto-fetch-toggle" style="width: 12px; height: 12px;"> ALWAYS FETCH
-                        </label>
-
-                        <div style="display: flex; gap: 4px;">
+                        <div style="display: flex; gap: 4px; margin-left: 4px; align-items: center;">
+                            <button id="repo-refresh-btn" class="button" style="height: 24px; width: 24px; padding: 0;" title="Refresh Project">↻</button>
                             <button id="github-visibility-btn" class="button" style="height: 24px; font-size: 10px; color: var(--accent-blue); border-color: var(--accent-blue);" title="GitHub Repository Visibility">Visibility: ...</button>
+
+                            <!-- Divider 1 -->
+                            <span aria-hidden="true" style="border-left: 1px solid #ccc; height: 16px; margin: 0 4px;"></span>
+
                             <button class="button git-btn" data-action="pull" style="height: 24px; font-size: 10px;" title="Pull changes">Pull</button>
                             <button class="button git-btn" data-action="fetch" style="height: 24px; font-size: 10px;" title="Fetch updates">Fetch</button>
                             <button class="button git-btn button-primary" data-action="push" style="height: 24px; font-size: 10px;" title="Push changes">Push</button>
-                        </div>
-                        <div style="display: flex; gap: 4px; margin-left: 4px;">
+                            <label style="display: flex; align-items: center; gap: 4px; font-size: 12px; cursor: pointer; color: var(--accent-red); font-weight: 600; margin-right: 4px;" title="Force Push/Pull operations (adds --force flag)">
+                                <input type="checkbox" id="git-force-toggle" style="width: 12px; height: 12px;"> Force
+                            </label>
+
+                            <!-- Divider 2 -->
+                            <span aria-hidden="true" style="border-left: 1px solid #ccc; height: 16px; margin: 0 4px;"></span>
+
                             <button id="repo-stash-btn" class="button" style="height: 24px; font-size: 10px;" title="Manage Git Stashes">Stash</button>
                             <button id="revert-changes-btn-top" class="button" style="height: 24px; font-size: 10px;" title="Restore to past commit">Revert</button>
-                            <button id="repo-status-btn" class="button" style="height: 24px; font-size: 10px;" title="View Full Git Status">Status</button>
+
+                            <!-- Divider 3 -->
+                            <span aria-hidden="true" style="border-left: 1px solid #ccc; height: 16px; margin: 0 4px;"></span>
+
                             <button id="repo-subtree-btn" class="button" style="height: 24px; font-size: 10px;" title="Manage Subtree Hub Mappings">Subtrees</button>
+                            <button id="repo-status-btn" class="button" style="height: 24px; font-size: 10px;" title="View Full Git Status">Status</button>
+                            <button id="publish-github-btn" class="button button-blue" style="height: 24px; font-size: 10px; margin-left: 4px; display: none;" title="Publish to GitHub">Publish</button>
                         </div>
-                        <button id="publish-github-btn" class="button button-blue" style="height: 24px; font-size: 10px; margin-left: 4px; display: none;" title="Publish to GitHub">Publish</button>
                     </div>
                 </div>
 

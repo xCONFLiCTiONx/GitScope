@@ -352,7 +352,6 @@ const elements = {
     get subtreeModalClose() { return document.getElementById('subtree-modal-close'); },
     get repoSubtreeBtn() { return document.getElementById('repo-subtree-btn'); },
     get gitForceToggle() { return document.getElementById('git-force-toggle'); },
-    get gitAutoFetchToggle() { return document.getElementById('git-auto-fetch-toggle'); },
     get unbornFoldersModal() { return document.getElementById('unborn-folders-modal'); },
     get unbornFoldersList() { return document.getElementById('unborn-folders-list'); },
     get unbornFoldersClose() { return document.getElementById('unborn-folders-close'); },
@@ -892,15 +891,6 @@ function initEventListeners() {
                 activeRepo.gitForce = e.target.checked;
                 window.electronAPI.saveRepositories(repositories);
                 logToConsole(`FORCE mode ${activeRepo.gitForce ? 'ENABLED' : 'DISABLED'} for ${activeRepo.name}`, 'info');
-            }
-        };
-    }
-    if (elements.gitAutoFetchToggle) {
-        elements.gitAutoFetchToggle.onchange = (e) => {
-            if (activeRepo) {
-                activeRepo.gitAutoFetch = e.target.checked;
-                window.electronAPI.saveRepositories(repositories);
-                logToConsole(`AUTO-FETCH ${activeRepo.gitAutoFetch ? 'ENABLED' : 'DISABLED'} for ${activeRepo.name}`, 'info');
             }
         };
     }
@@ -4936,18 +4926,6 @@ async function selectRepo(repo, fromDashboard = false) {
 
     // Hydrate project-specific toggles
     if (elements.gitForceToggle) elements.gitForceToggle.checked = !!repo.gitForce;
-    if (elements.gitAutoFetchToggle) elements.gitAutoFetchToggle.checked = !!repo.gitAutoFetch;
-
-    // Auto-Fetch Feature
-    if (repo.gitAutoFetch) {
-        logToConsole(`Auto-fetching for ${repo.name}...`, 'info');
-        window.electronAPI.gitFetch(repo.path).then(() => {
-            logToConsole(`Auto-fetch complete for ${repo.name}`, 'success');
-            refreshActiveRepoUI(true); // Silent refresh to update ahead/behind
-        }).catch(err => {
-            logToConsole(`Auto-fetch failed: ${err.message}`, 'error');
-        });
-    }
 
     await refreshActiveRepoUI();
     if (fromDashboard) { selectedNodes.clear(); selectedNodes.add(repo.path); updateTreeSelectionUI(); scrollToRepoInTree(repo.path); }
