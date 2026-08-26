@@ -4059,17 +4059,21 @@ function renderGitConfig(content) {
     });
 
     // 1. Render Recommendations (Smart Header)
-    const missingRecs = [];
+    const recs = [];
     Object.keys(RECOMMENDED_GIT_CONFIG).forEach(s => {
         Object.keys(RECOMMENDED_GIT_CONFIG[s]).forEach(k => {
+            const recommendedVal = RECOMMENDED_GIT_CONFIG[s][k];
             const existing = sections[s] ? sections[s].find(e => e.key === k) : null;
+
             if (!existing) {
-                missingRecs.push({ section: s, key: k, val: RECOMMENDED_GIT_CONFIG[s][k] });
+                recs.push({ section: s, key: k, val: recommendedVal, type: 'missing' });
+            } else if (recommendedVal !== '' && existing.val !== recommendedVal) {
+                recs.push({ section: s, key: k, val: recommendedVal, type: 'different', current: existing.val });
             }
         });
     });
 
-    if (missingRecs.length > 0) {
+    if (recs.length > 0) {
         const recDiv = document.createElement('div');
         recDiv.style.padding = '16px';
         recDiv.style.background = 'rgba(31, 111, 235, 0.1)';
@@ -4079,14 +4083,14 @@ function renderGitConfig(content) {
 
         recDiv.innerHTML = `
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
-                <h4 style="margin:0; color:#fff; font-size:13px;">💡 Recommended Settings Missing</h4>
-                <button id="add-all-recommended" class="button button-blue" style="font-size:10px;">Apply All Recommendations</button>
+                <h4 style="margin:0; color:#fff; font-size:13px;">💡 Recommended Optimizations</h4>
+                <button id="apply-all-recommended" class="button button-blue" style="font-size:10px;">Apply All Recommendations</button>
             </div>
             <div id="recommended-items-list" style="display:grid; grid-template-columns: 1fr 1fr; gap:8px;"></div>
         `;
 
         const recList = recDiv.querySelector('#recommended-items-list');
-        missingRecs.forEach(r => {
+        recs.forEach(r => {
             const item = document.createElement('div');
             item.style.fontSize = '11px';
             item.style.color = 'var(--text-muted)';
@@ -4097,9 +4101,10 @@ function renderGitConfig(content) {
             item.style.background = 'rgba(255,255,255,0.02)';
             item.style.borderRadius = '4px';
 
+            const isDiff = r.type === 'different';
             item.innerHTML = `
-                <span>[${r.section}] <b>${r.key}</b> = ${r.val || '(blank)'}</span>
-                <button class="button" style="height:20px; font-size:9px; padding:0 6px;">+ Add</button>
+                <span>[${r.section}] <b>${r.key}</b> = ${r.val || '(blank)'} ${isDiff ? `<span style="color:var(--accent-red); text-decoration:line-through; margin-left:4px;">(was ${r.current})</span>` : ''}</span>
+                <button class="button" style="height:20px; font-size:9px; padding:0 6px;">${isDiff ? 'Fix' : '+ Add'}</button>
             `;
 
             item.querySelector('button').onclick = () => {
@@ -4111,8 +4116,8 @@ function renderGitConfig(content) {
             recList.appendChild(item);
         });
 
-        recDiv.querySelector('#add-all-recommended').onclick = () => {
-            missingRecs.forEach(r => addConfigEntry(r.section, r.key, r.val));
+        recDiv.querySelector('#apply-all-recommended').onclick = () => {
+            recs.forEach(r => addConfigEntry(r.section, r.key, r.val));
             recDiv.remove();
         };
 
@@ -4165,6 +4170,16 @@ function renderGitConfig(content) {
             container.appendChild(sectionDiv);
         }
         const entriesDiv = sectionDiv.querySelector('.config-entries');
+
+        // Check if entry already exists in the UI
+        const existingInput = Array.from(entriesDiv.querySelectorAll('.config-val-input')).find(input => input.dataset.key === k);
+        if (existingInput) {
+            existingInput.value = v;
+            existingInput.style.background = 'rgba(31, 111, 235, 0.2)';
+            setTimeout(() => { existingInput.style.background = ''; }, 1000);
+            return;
+        }
+
         const row = document.createElement('div');
         row.className = 'config-entry-row';
         row.innerHTML = `
@@ -4216,31 +4231,6 @@ function renderGitConfig(content) {
             setTaskState(false);
         }
     };
-
-    const handleFixLineEndings = async () => {
-        if (await showConfirm('Set core.autocrlf to true globally? This is highly recommended on Windows to avoid line-ending issues.', 'Fix Line Endings')) {
-            setTaskState(true);
-            try {
-                const res = await window.electronAPI.setGitConfigGlobalAutocrlf();
-                if (res.success) {
-                    showAlert('Successfully updated global Git configuration (autocrlf=true).', 'Success');
-                    // Refresh if config view is open
-                    if (elements.gitConfigView.style.display !== 'none') {
-                        showGitConfigView();
-                    }
-                } else {
-                    logToConsole(res.error, 'error');
-                }
-            } catch(e) { logToConsole(e.message, 'error'); }
-            finally { setTaskState(false); }
-        }
-    };
-
-    const fixBtnHeader = document.getElementById('fix-line-endings-btn-header');
-    if (fixBtnHeader) fixBtnHeader.onclick = handleFixLineEndings;
-
-    const fixBtnSettings = document.getElementById('fix-line-endings-btn-settings');
-    if (fixBtnSettings) fixBtnSettings.onclick = handleFixLineEndings;
 
     // Add Entry Logic
     elements.addConfigEntryBtn.onclick = () => {
