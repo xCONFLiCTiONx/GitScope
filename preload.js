@@ -45,7 +45,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   gitStopTracking: (path, filePath) => ipcRenderer.invoke('git-stop-tracking', path, filePath),
   gitStartTracking: (path, filePath) => ipcRenderer.invoke('git-start-tracking', path, filePath),
   gitIsTracked: (path, filePath) => ipcRenderer.invoke('git-is-tracked', path, filePath),
-  gitCommit: (path, message) => ipcRenderer.invoke('git-commit', path, message),
+  gitCommit: (path, message, amend) => ipcRenderer.invoke('git-commit', path, message, amend),
   getBranches: (path) => ipcRenderer.invoke('git-get-branches', path),
   getRemotes: (path) => ipcRenderer.invoke('git-get-remotes', path),
   addRemote: (path, name, url) => ipcRenderer.invoke('git-add-remote', path, name, url),

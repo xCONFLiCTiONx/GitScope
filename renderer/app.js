@@ -278,6 +278,7 @@ const elements = {
     get deleteBranchBtn() { return document.getElementById('delete-branch-btn'); },
     get renameBranchBtn() { return document.getElementById('rename-branch-btn'); },
     get magicCommitBtn() { return document.getElementById('magic-commit-btn'); },
+    get commitAmendToggle() { return document.getElementById('commit-amend-toggle'); },
     get commitMsgArea() { return document.getElementById('commit-msg'); },
     get commitBtn() { return document.getElementById('commit-btn'); },
     get commitPushBtn() { return document.getElementById('commit-push-btn'); },
@@ -868,6 +869,21 @@ function initEventListeners() {
     if (elements.revertChangesBtnTop) elements.revertChangesBtnTop.onclick = () => showRevertModal();
     if (elements.restoreFileBtn) elements.restoreFileBtn.onclick = () => handleRestoreFile();
     if (elements.magicCommitBtn) elements.magicCommitBtn.onclick = () => generateMagicMsg();
+    if (elements.commitAmendToggle) {
+        elements.commitAmendToggle.onchange = async (e) => {
+            if (e.target.checked && activeRepo) {
+                try {
+                    const commits = await window.electronAPI.gitGetCommits(activeRepo.path);
+                    if (commits && commits.length > 0) {
+                        elements.commitMsgArea.value = commits[0].message;
+                        logToConsole('Loaded last commit message for amending.', 'info');
+                    }
+                } catch (err) {
+                    logToConsole(`Failed to load last commit: ${err.message}`, 'error');
+                }
+            }
+        };
+    }
     if (elements.stageAllBtn) elements.stageAllBtn.onclick = () => handleStageAll();
     if (elements.unstageAllBtn) elements.unstageAllBtn.onclick = () => handleUnstageAll();
     if (elements.restoreAllBtn) elements.restoreAllBtn.onclick = () => handleRestoreHead();
@@ -1528,12 +1544,15 @@ async function handleCommit(pushAfter = false) {
     setTaskState(true);
     elements.commitBtn.disabled = true;
     if (elements.commitPushBtn) elements.commitPushBtn.disabled = true;
+    const amend = elements.commitAmendToggle ? elements.commitAmendToggle.checked : false;
+
     try {
-        const res = await window.electronAPI.gitCommit(activeRepo.path, msg);
+        const res = await window.electronAPI.gitCommit(activeRepo.path, msg, amend);
         if (res && res.success) {
-            logToConsole('Commit Successful.', 'success');
+            logToConsole(amend ? 'Commit Amended Successfully.' : 'Commit Successful.', 'success');
             logToConsole(res.output, 'info');
             elements.commitMsgArea.value = '';
+            if (elements.commitAmendToggle) elements.commitAmendToggle.checked = false;
 
             if (pushAfter) {
                 logToConsole('Pushing changes...', 'info');
@@ -4931,6 +4950,7 @@ async function selectRepo(repo, fromDashboard = false) {
 
     // Hydrate project-specific toggles
     if (elements.gitForceToggle) elements.gitForceToggle.checked = !!repo.gitForce;
+    if (elements.commitAmendToggle) elements.commitAmendToggle.checked = false;
 
     await refreshActiveRepoUI();
     if (fromDashboard) { selectedNodes.clear(); selectedNodes.add(repo.path); updateTreeSelectionUI(); scrollToRepoInTree(repo.path); }

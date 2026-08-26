@@ -631,8 +631,8 @@ ipcMain.handle('git-restore-file', async (event, path, filePath) => {
   return await gitActions.restoreFile(path, filePath);
 });
 
-ipcMain.handle('git-commit', async (event, path, message) => {
-  return await gitActions.commit(path, message);
+ipcMain.handle('git-commit', async (event, path, message, amend) => {
+  return await gitActions.commit(path, message, amend);
 });
 
 ipcMain.handle('rename-item', async (event, oldPath, newPath) => {
