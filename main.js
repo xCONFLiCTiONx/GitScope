@@ -1254,11 +1254,20 @@ ipcMain.handle('open-path', async (event, filePath) => {
 ipcMain.handle('open-path-admin', async (event, filePath) => {
   const { exec } = require('child_process');
   const nativePath = path.win32.normalize(filePath);
-  // Intelligence: Use PowerShell to trigger the Windows UAC prompt (RunAs)
-  const command = `powershell Start-Process "${nativePath}" -Verb RunAs`;
-  exec(command, (error) => {
+
+  // Intelligence: Use -EncodedCommand to avoid all quoting and escaping issues
+  // between Node.js, cmd.exe, and PowerShell.
+  const psCommand = `Start-Process -FilePath '${nativePath.replace(/'/g, "''")}' -Verb RunAs`;
+  const encodedCommand = Buffer.from(psCommand, 'utf16le').toString('base64');
+
+  exec(`powershell.exe -NoProfile -ExecutionPolicy Bypass -EncodedCommand ${encodedCommand}`, (error, stdout, stderr) => {
     if (error) {
-      console.error('Admin execution failed:', error);
+      // Check for user cancellation (UAC prompt declined)
+      if (error.message.includes('The operation was canceled by the user')) {
+        console.log('User cancelled admin elevation.');
+        return;
+      }
+      console.error('Admin execution failed:', error, stderr);
       reportError('Execution Failed', `Could not execute ${path.basename(filePath)} as administrator: ${error.message}`);
     }
   });
