@@ -5995,6 +5995,8 @@ async function revealInTree(fullPath) {
     const repo = findRepoForPath(fullPath);
     if (!repo) return;
 
+    const normTarget = fullPath.replace(/\\/g, '/').toLowerCase();
+
     // 1. Ensure the repo itself is selected and visible
     const repoPath = repo.path.replace(/\\/g, '/');
     const repoNode = Array.from(document.querySelectorAll('.repo-root')).find(n => n.dataset.path.replace(/\\/g, '/').toLowerCase() === repoPath.toLowerCase());
@@ -6600,6 +6602,7 @@ async function showPatchModal(sourcePath) {
 
         try {
             // Find which repo this file belongs to
+            const normPath = sourcePath.replace(/\\/g, '/').toLowerCase();
             const sourceRepo = findRepoForPath(sourcePath);
             if (!sourceRepo) throw new Error('Source repository not found.');
 
@@ -6636,6 +6639,18 @@ async function handleFileDrop(data, destDir, destContainer, depth, sourceId) {
     }
 
     if (!Array.isArray(srcPaths)) srcPaths = [srcPaths];
+
+    // INTELLIGENCE: Sync active repository context to the destination
+    const repo = findRepoForPath(destDir);
+    if (repo && activeRepo !== repo) {
+        activeRepo = repo;
+        const title = document.getElementById('active-repo-name');
+        if (title) title.textContent = repo.name;
+        if (window.terminal) window.terminal.sendCommand(`cd "${repo.path}"`);
+        if (elements.gitForceToggle) elements.gitForceToggle.checked = !!repo.gitForce;
+        if (elements.commitAmendToggle) elements.commitAmendToggle.checked = false;
+        refreshActiveRepoUI(true);
+    }
 
     const modal = document.getElementById('drop-action-modal');
     modal.style.display = 'flex';

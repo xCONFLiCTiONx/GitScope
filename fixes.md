@@ -8,6 +8,9 @@ A detailed summary of recent bug fixes and architectural improvements.
 - **Nested Repository Support**: Implemented `findRepoForPath` utility that uses "deepest match" logic. This ensures that when a file is opened inside a nested repository, GitScope correctly identifies the child repository rather than the parent.
 - **Active Project Synchronization**: Fixed an issue where switching between files in different projects wouldn't update the active repository context. Closing a file now correctly returns the UI to the project that owned that file.
 - **Terminal Sync**: Opening a file now automatically triggers a `cd` command in the integrated terminal to the correct repository root.
+- **Bug Fix**: Resolved `ReferenceError: normTarget is not defined` when clicking the "Edit" button in the diff view.
+- **Bug Fix**: Fixed a missing variable error in the "Apply Patch" logic.
+- **Drag & Drop Sync**: Dropping files into a project folder now automatically switches the active repository context to the destination project.
 
 ### Windows Integration & Security
 - **Admin Execution (Spaces Fix)**: Fixed "Execute as Admin" for files with spaces in their path (e.g., `Clear DNS.bat`). Refactored to use PowerShell's `-EncodedCommand` (Base64) to bypass standard shell quoting limitations.
