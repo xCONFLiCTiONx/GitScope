@@ -789,6 +789,8 @@
         .button-blue { border-color: var(--accent-blue); color: var(--accent-blue); }
         .button-blue:hover { background-color: var(--accent-blue); color: #fff; }
 
+        .button-warning { border-color: var(--accent-yellow); color: var(--accent-yellow); }
+        .button-warning:hover { background-color: var(--accent-yellow); color: #fff; }
         .button-danger { border-color: var(--accent-red); color: var(--accent-red); }
         .button-danger:hover { background-color: var(--accent-red); color: #fff; }
 
@@ -1136,7 +1138,7 @@
                         <button id="dashboard-bulk-fetch-btn" class="button" title="Fetch updates for all projects">Bulk Fetch</button>
                         <button id="dashboard-bulk-pull-btn" class="button button-primary" title="Pull latest changes for all projects">Bulk Pull (All)</button>
                         <button id="dashboard-bulk-commit-btn" class="button button-blue" title="Commit & Push all projects with changes">Bulk Commit & Push</button>
-                        <button id="dashboard-bulk-restore-btn" class="button button-danger" title="Wipe all uncommitted changes in ALL projects">Bulk Restore to HEAD</button>
+                        <button id="dashboard-bulk-restore-btn" class="button button-warning" title="Wipe all uncommitted changes in ALL projects">Bulk Restore to HEAD</button>
                         <button id="dashboard-refresh-btn" class="button" title="Refresh Workspace Status">Refresh Dashboard</button>
                     </div>
                 </div>
@@ -1640,7 +1642,7 @@
                 <p style="padding: 20px; color: var(--text-muted); text-align: center;">Loading history...</p>
             </div>
             <div style="text-align: right; display: flex; justify-content: flex-end; gap: 8px;">
-                <button id="revert-wipe-uncommitted" class="button button-danger">Wipe All Uncommitted</button>
+                <button id="revert-wipe-uncommitted" class="button button-warning">Wipe All Uncommitted</button>
                 <button id="nuke-reinit-btn" class="button button-danger" style="margin-right: auto;">Initialize</button>
                 <button id="revert-cancel" class="button">Cancel</button>
                 <button id="revert-confirm" class="button button-danger" disabled>Revert to Selected</button>
