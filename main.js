@@ -41,6 +41,8 @@ let mainWindow;
 let tray = null;
 let watcher;
 let ptyProcess;
+let cachedSettings = null;
+let cachedRepos = null;
 const configPath = path.join(app.getPath('userData'), 'config.json');
 const settingsPath = path.join(app.getPath('userData'), 'settings.json');
 const windowStatePath = path.join(app.getPath('userData'), 'window-state.json');
@@ -104,21 +106,25 @@ function saveThemes(themes) {
 }
 
 function getSettings() {
+  if (cachedSettings) return cachedSettings;
   try {
     if (fs.existsSync(settingsPath)) {
-      return fs.readJsonSync(settingsPath);
+      cachedSettings = fs.readJsonSync(settingsPath);
+      return cachedSettings;
     }
   } catch (e) {
     reportError('Failed to get settings', e);
   }
-  return {
+  cachedSettings = {
     shell: process.platform === 'win32' ? 'C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe' : '/bin/bash',
     rootRepoDir: '',
     githubToken: ''
   };
+  return cachedSettings;
 }
 
 function saveSettings(settings) {
+  cachedSettings = settings;
   fs.writeJsonSync(settingsPath, settings);
 }
 
@@ -911,16 +917,20 @@ ipcMain.handle('get-workspace-stats', async (event, rootPath) => {
 });
 
 ipcMain.handle('get-repositories', async () => {
+  if (cachedRepos) return cachedRepos;
   try {
     if (fs.existsSync(configPath)) {
       const config = await fs.readJson(configPath);
-      return config.repositories || [];
+      cachedRepos = config.repositories || [];
+      return cachedRepos;
     }
   } catch (e) {}
-  return [];
+  cachedRepos = [];
+  return cachedRepos;
 });
 
 ipcMain.handle('save-repositories', async (event, repos) => {
+  cachedRepos = repos;
   await fs.writeJson(configPath, { repositories: repos });
   setupWatcher(repos);
 });

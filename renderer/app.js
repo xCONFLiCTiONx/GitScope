@@ -100,7 +100,7 @@ function checkFontAvailability(fontName) {
 // Re-render theme controls when fonts finish loading to update (Not Installed) labels
 if (document.fonts) {
     // Force browser to start loading project fonts by checking/requesting them
-    const projectFonts = ['Fira Code', 'JetBrains Mono', 'Source Code Pro', 'Cascadia Code'];
+    const projectFonts = ['Fira Code', 'JetBrains Mono', 'Source Code Pro', 'JetBrains Mono'];
     projectFonts.forEach(f => document.fonts.load(`12px "${f}"`));
 
     document.fonts.ready.then(() => {
@@ -469,7 +469,7 @@ const elements = {
 };
 
 // Initialize app
-window.onload = async () => {
+document.addEventListener('DOMContentLoaded', async () => {
     try {
         // 1. Setup UI Mechanics (Instant - No async work here)
         initResizers();
@@ -486,9 +486,6 @@ window.onload = async () => {
         // 2. Parallel Data Loading
         const settingsPromise = window.electronAPI.getSettings();
         const reposPromise = window.electronAPI.getRepositories();
-
-        // 3. Initialize Background Components
-        initEditor();
 
         // 4. Populate Shell with Settings
         settings = await settingsPromise;
@@ -519,6 +516,7 @@ window.onload = async () => {
         setTimeout(() => {
             renderTree();
             showDashboard();
+            initEditor();
             console.log("Initial render complete.");
         }, 0);
 
@@ -542,7 +540,7 @@ window.onload = async () => {
         console.error('FATAL STARTUP ERROR:', e);
         showError(e.message, 'Fatal Startup Error');
     }
-};
+});
 
 function initEditor() {
     if (typeof require !== 'undefined') {
@@ -573,8 +571,8 @@ function initEditor() {
             // Resolve initial font stack
             const initialTheme = parseObsidianIni(settings.obsidianIni || DEFAULT_THEME_INI);
             const initialFont = (initialTheme.fontFamily && !initialTheme.fontFamily.includes(','))
-                ? `"${initialTheme.fontFamily}", Cascadia Code, Cascadia Mono, Consolas, monospace`
-                : (initialTheme.fontFamily || 'Cascadia Code, Cascadia Mono, Consolas, monospace');
+                ? `"${initialTheme.fontFamily}", JetBrains Mono, Cascadia Mono, Consolas, monospace`
+                : (initialTheme.fontFamily || 'JetBrains Mono, Cascadia Mono, Consolas, monospace');
 
             // 2. Create the editor with the 'obsidian' theme already active
             monacoEditor = monaco.editor.create(elements.monacoContainer, {
@@ -625,8 +623,8 @@ function applyObsidianTheme(iniContent) {
 
         const rawFont = themeData.fontFamily;
         const fontStack = (rawFont && !rawFont.includes(','))
-            ? `"${rawFont}", Cascadia Code, Cascadia Mono, Consolas, monospace`
-            : (rawFont || 'Cascadia Code, Cascadia Mono, Consolas, monospace');
+            ? `"${rawFont}", JetBrains Mono, Cascadia Mono, Consolas, monospace`
+            : (rawFont || 'JetBrains Mono, Cascadia Mono, Consolas, monospace');
 
         const weight = themeData.fontWeight || 'normal';
 
@@ -662,42 +660,42 @@ function applyObsidianTheme(iniContent) {
 
 const DEFAULT_THEME_INI = `[Theme]
 ; Global Workspace Colors
-Font=Cascadia Code
+Font=JetBrains Mono
 FontWeight=normal
 Ligatures=true
-Background=#121314
-Foreground=#d4d4d4
-LineNumbers=#858585
-Selection=#264f78
-Cursor=#569cd6
+Background=#0b0e14
+Foreground=#d4d8e2
+LineNumbers=#5a6b82
+Selection=#1d3b59
+Cursor=#3388ff
 
 [Syntax]
 ; Code Element Colors
-Comment=#008000
-String=#3ADB00
-Integer=#AFE1A2
-Keyword=#46AFAD
-Operator=#d4d4d4
-Identifier=#9cdcfe
-Preprocessor=#8EC587
-Tag=#569cd6
-Attribute=#9cdcfe
+Comment=#4a7090
+String=#3ad8ff
+Integer=#8ae2ff
+Keyword=#2299ff
+Operator=#d4d8e2
+Identifier=#75c9ff
+Preprocessor=#52b0ef
+Tag=#2288ff
+Attribute=#75c9ff
 Bracket1=#ffd700
-Bracket2=#71DA94
-Bracket3=#179fff`;
+Bracket2=#3affcc
+Bracket3=#66a3ff`;
 
 const BUILTIN_THEMES = {
-    "Red Lantern": "[Theme]\n; Global Workspace Colors\nFont=Cascadia Code\nFontWeight=normal\nLigatures=true\nBackground=#0e0a0b\nForeground=#e0e0e0\nLineNumbers=#7a5c5c\nSelection=#541212\nCursor=#ff3333\n\n[Syntax]\n; Code Element Colors\nComment=#803b3b\nString=#ff5555\nInteger=#ff8866\nKeyword=#ff2222\nOperator=#e0e0e0\nIdentifier=#ff9999\nPreprocessor=#cc4444\nTag=#ff4444\nAttribute=#ff9999\nBracket1=#ffcc00\nBracket2=#ff6600\nBracket3=#ff1a1a",
-    "Green lantern": "[Theme]\n; Global Workspace Colors\nFont=Cascadia Code\nFontWeight=normal\nLigatures=true\nBackground=#141513\nForeground=#d4d4d4\nLineNumbers=#858585\nSelection=#264f78\nCursor=#569cd6\n\n[Syntax]\n; Code Element Colors\nComment=#008000\nString=#3ADB00\nInteger=#AFE1A2\nKeyword=#46AFAD\nOperator=#d4d4d4\nIdentifier=#9cdcfe\nPreprocessor=#8EC587\nTag=#569cd6\nAttribute=#9cdcfe\nBracket1=#ffd700\nBracket2=#71DA94\nBracket3=#179fff",
-    "Blue Lantern": "[Theme]\n; Global Workspace Colors\nFont=Cascadia Code\nFontWeight=normal\nLigatures=true\nBackground=#0b0e14\nForeground=#d4d8e2\nLineNumbers=#5a6b82\nSelection=#1d3b59\nCursor=#3388ff\n\n[Syntax]\n; Code Element Colors\nComment=#4a7090\nString=#3ad8ff\nInteger=#8ae2ff\nKeyword=#2299ff\nOperator=#d4d8e2\nIdentifier=#75c9ff\nPreprocessor=#52b0ef\nTag=#2288ff\nAttribute=#75c9ff\nBracket1=#ffd700\nBracket2=#3affcc\nBracket3=#66a3ff",
-    "Yellow Lantern": "[Theme]\n; Global Workspace Colors\nFont=Cascadia Code\nFontWeight=normal\nLigatures=true\nBackground=#0f0e0b\nForeground=#e0e0dc\nLineNumbers=#7a725c\nSelection=#544412\nCursor=#ffcc00\n\n[Syntax]\n; Code Element Colors\nComment=#80733b\nString=#ffea55\nInteger=#fffaa2\nKeyword=#ffb700\nOperator=#e0e0dc\nIdentifier=#ffe175\nPreprocessor=#d4a337\nTag=#ffc400\nAttribute=#ffe175\nBracket1=#ff5555\nBracket2=#71DA94\nBracket3=#ff9900",
-    "Cyberpunk Void": "[Theme]\n; Global Workspace Colors\nFont=Cascadia Code\nFontWeight=normal\nLigatures=true\nBackground=#0a0812\nForeground=#e0def4\nLineNumbers=#6e6a86\nSelection=#403d52\nCursor=#ebbcba\n\n[Syntax]\n; Code Element Colors\nComment=#6b5b95\nString=#eb6f92\nInteger=#f6c177\nKeyword=#31748f\nOperator=#e0def4\nIdentifier=#9ccfd8\nPreprocessor=#c4a7e7\nTag=#ea9a97\nAttribute=#9ccfd8\nBracket1=#f6c177\nBracket2=#31748f\nBracket3=#ebbcba",
-    "Deep Trench": "[Theme]\n; Global Workspace Colors\nFont=Cascadia Code\nFontWeight=normal\nLigatures=true\nBackground=#070b12\nForeground=#c5d1de\nLineNumbers=#3f536e\nSelection=#132b47\nCursor=#00f0ff\n\n[Syntax]\n; Code Element Colors\nComment=#335c67\nString=#00f5d4\nInteger=#70c1b3\nKeyword=#00bbf9\nOperator=#c5d1de\nIdentifier=#48cae4\nPreprocessor=#90e0ef\nTag=#0096c7\nAttribute=#48cae4\nBracket1=#f77f00\nBracket2=#00f5d4\nBracket3=#90e0ef",
-    "Supernova": "[Theme]\n; Global Workspace Colors\nFont=Cascadia Code\nFontWeight=normal\nLigatures=true\nBackground=#080608\nForeground=#f2eeef\nLineNumbers=#6b5c63\nSelection=#421d31\nCursor=#ff2a85\n\n[Syntax]\n; Code Element Colors\nComment=#7a4f65\nString=#ff5588\nInteger=#ffaa55\nKeyword=#ff2a55\nOperator=#f2eeef\nIdentifier=#ff88bb\nPreprocessor=#ffa500\nTag=#ff3366\nAttribute=#ff88bb\nBracket1=#ffe600\nBracket2=#ff5588\nBracket3=#00ffff",
-    "Cryptic Moss": "[Theme]\n; Global Workspace Colors\nFont=Cascadia Code\nFontWeight=normal\nLigatures=true\nBackground=#0d1110\nForeground=#d0dcd7\nLineNumbers=#4a5c55\nSelection=#1d362e\nCursor=#53b692\n\n[Syntax]\n; Code Element Colors\nComment=#3e6b5a\nString=#73d085\nInteger=#a2f689\nKeyword=#2fb988\nOperator=#d0dcd7\nIdentifier=#80cdc1\nPreprocessor=#4db6ac\nTag=#38a169\nAttribute=#80cdc1\nBracket1=#f6c177\nBracket2=#73d085\nBracket3=#53b692",
-    "Obsidian Amethyst": "[Theme]\n; Global Workspace Colors\nFont=Cascadia Code\nFontWeight=normal\nLigatures=true\nBackground=#0d0b12\nForeground=#dcd6f7\nLineNumbers=#5b5270\nSelection=#31224d\nCursor=#b892ff\n\n[Syntax]\n; Code Element Colors\nComment=#6a5a8a\nString=#c4b5fd\nInteger=#f3e8ff\nKeyword=#9333ea\nOperator=#dcd6f7\nIdentifier=#d8b4fe\nPreprocessor=#a855f7\nTag=#7c3aed\nAttribute=#d8b4fe\nBracket1=#f43f5e\nBracket2=#c4b5fd\nBracket3=#38bdf8",
-    "Solar Flare": "[Theme]\n; Global Workspace Colors\nFont=Cascadia Code\nFontWeight=normal\nLigatures=true\nBackground=#120f0a\nForeground=#f5edd6\nLineNumbers=#6b5c43\nSelection=#4a3512\nCursor=#ffb700\n\n[Syntax]\n; Code Element Colors\nComment=#7a602c\nString=#ffcc00\nInteger=#ffe680\nKeyword=#ff9900\nOperator=#f5edd6\nIdentifier=#ffdb4d\nPreprocessor=#ffaa33\nTag=#ff8800\nAttribute=#ffdb4d\nBracket1=#ff4444\nBracket2=#ffcc00\nBracket3=#33ccff",
-    "Vaporwave Sunset": "[Theme]\n; Global Workspace Colors\nFont=Cascadia Code\nFontWeight=normal\nLigatures=true\nBackground=#100c1c\nForeground=#f1eff8\nLineNumbers=#61527c\nSelection=#432b63\nCursor=#ff71ce\n\n[Syntax]\n; Code Element Colors\nComment=#8b78af\nString=#01cdfe\nInteger=#05ffa1\nKeyword=#ff71ce\nOperator=#f1eff8\nIdentifier=#b967ff\nPreprocessor=#01cdfe\nTag=#ff71ce\nAttribute=#b967ff\nBracket1=#fffb96\nBracket2=#05ffa1\nBracket3=#01cdfe"
+    "Blue Lantern": "[Theme]\n; Global Workspace Colors\nFont=JetBrains Mono\nFontWeight=normal\nLigatures=true\nBackground=#0b0e14\nForeground=#d4d8e2\nLineNumbers=#5a6b82\nSelection=#1d3b59\nCursor=#3388ff\n\n[Syntax]\n; Code Element Colors\nComment=#4a7090\nString=#3ad8ff\nInteger=#8ae2ff\nKeyword=#2299ff\nOperator=#d4d8e2\nIdentifier=#75c9ff\nPreprocessor=#52b0ef\nTag=#2288ff\nAttribute=#75c9ff\nBracket1=#ffd700\nBracket2=#3affcc\nBracket3=#66a3ff",
+    "Green lantern": "[Theme]\n; Global Workspace Colors\nFont=JetBrains Mono\nFontWeight=normal\nLigatures=true\nBackground=#141513\nForeground=#d4d4d4\nLineNumbers=#858585\nSelection=#264f78\nCursor=#569cd6\n\n[Syntax]\n; Code Element Colors\nComment=#008000\nString=#3ADB00\nInteger=#AFE1A2\nKeyword=#46AFAD\nOperator=#d4d4d4\nIdentifier=#9cdcfe\nPreprocessor=#8EC587\nTag=#569cd6\nAttribute=#9cdcfe\nBracket1=#ffd700\nBracket2=#71DA94\nBracket3=#179fff",
+    "Red Lantern": "[Theme]\n; Global Workspace Colors\nFont=JetBrains Mono\nFontWeight=normal\nLigatures=true\nBackground=#0e0a0b\nForeground=#e0e0e0\nLineNumbers=#7a5c5c\nSelection=#541212\nCursor=#ff3333\n\n[Syntax]\n; Code Element Colors\nComment=#803b3b\nString=#ff5555\nInteger=#ff8866\nKeyword=#ff2222\nOperator=#e0e0e0\nIdentifier=#ff9999\nPreprocessor=#cc4444\nTag=#ff4444\nAttribute=#ff9999\nBracket1=#ffcc00\nBracket2=#ff6600\nBracket3=#ff1a1a",
+    "Yellow Lantern": "[Theme]\n; Global Workspace Colors\nFont=JetBrains Mono\nFontWeight=normal\nLigatures=true\nBackground=#0f0e0b\nForeground=#e0e0dc\nLineNumbers=#7a725c\nSelection=#544412\nCursor=#ffcc00\n\n[Syntax]\n; Code Element Colors\nComment=#80733b\nString=#ffea55\nInteger=#fffaa2\nKeyword=#ffb700\nOperator=#e0e0dc\nIdentifier=#ffe175\nPreprocessor=#d4a337\nTag=#ffc400\nAttribute=#ffe175\nBracket1=#ff5555\nBracket2=#71DA94\nBracket3=#ff9900",
+    "Cyberpunk Void": "[Theme]\n; Global Workspace Colors\nFont=JetBrains Mono\nFontWeight=normal\nLigatures=true\nBackground=#0a0812\nForeground=#e0def4\nLineNumbers=#6e6a86\nSelection=#403d52\nCursor=#ebbcba\n\n[Syntax]\n; Code Element Colors\nComment=#6b5b95\nString=#eb6f92\nInteger=#f6c177\nKeyword=#31748f\nOperator=#e0def4\nIdentifier=#9ccfd8\nPreprocessor=#c4a7e7\nTag=#ea9a97\nAttribute=#9ccfd8\nBracket1=#f6c177\nBracket2=#31748f\nBracket3=#ebbcba",
+    "Deep Trench": "[Theme]\n; Global Workspace Colors\nFont=JetBrains Mono\nFontWeight=normal\nLigatures=true\nBackground=#070b12\nForeground=#c5d1de\nLineNumbers=#3f536e\nSelection=#132b47\nCursor=#00f0ff\n\n[Syntax]\n; Code Element Colors\nComment=#335c67\nString=#00f5d4\nInteger=#70c1b3\nKeyword=#00bbf9\nOperator=#c5d1de\nIdentifier=#48cae4\nPreprocessor=#90e0ef\nTag=#0096c7\nAttribute=#48cae4\nBracket1=#f77f00\nBracket2=#00f5d4\nBracket3=#90e0ef",
+    "Supernova": "[Theme]\n; Global Workspace Colors\nFont=JetBrains Mono\nFontWeight=normal\nLigatures=true\nBackground=#080608\nForeground=#f2eeef\nLineNumbers=#6b5c63\nSelection=#421d31\nCursor=#ff2a85\n\n[Syntax]\n; Code Element Colors\nComment=#7a4f65\nString=#ff5588\nInteger=#ffaa55\nKeyword=#ff2a55\nOperator=#f2eeef\nIdentifier=#ff88bb\nPreprocessor=#ffa500\nTag=#ff3366\nAttribute=#ff88bb\nBracket1=#ffe600\nBracket2=#ff5588\nBracket3=#00ffff",
+    "Cryptic Moss": "[Theme]\n; Global Workspace Colors\nFont=JetBrains Mono\nFontWeight=normal\nLigatures=true\nBackground=#0d1110\nForeground=#d0dcd7\nLineNumbers=#4a5c55\nSelection=#1d362e\nCursor=#53b692\n\n[Syntax]\n; Code Element Colors\nComment=#3e6b5a\nString=#73d085\nInteger=#a2f689\nKeyword=#2fb988\nOperator=#d0dcd7\nIdentifier=#80cdc1\nPreprocessor=#4db6ac\nTag=#38a169\nAttribute=#80cdc1\nBracket1=#f6c177\nBracket2=#73d085\nBracket3=#53b692",
+    "Obsidian Amethyst": "[Theme]\n; Global Workspace Colors\nFont=JetBrains Mono\nFontWeight=normal\nLigatures=true\nBackground=#0d0b12\nForeground=#dcd6f7\nLineNumbers=#5b5270\nSelection=#31224d\nCursor=#b892ff\n\n[Syntax]\n; Code Element Colors\nComment=#6a5a8a\nString=#c4b5fd\nInteger=#f3e8ff\nKeyword=#9333ea\nOperator=#dcd6f7\nIdentifier=#d8b4fe\nPreprocessor=#a855f7\nTag=#7c3aed\nAttribute=#d8b4fe\nBracket1=#f43f5e\nBracket2=#c4b5fd\nBracket3=#38bdf8",
+    "Solar Flare": "[Theme]\n; Global Workspace Colors\nFont=JetBrains Mono\nFontWeight=normal\nLigatures=true\nBackground=#120f0a\nForeground=#f5edd6\nLineNumbers=#6b5c43\nSelection=#4a3512\nCursor=#ffb700\n\n[Syntax]\n; Code Element Colors\nComment=#7a602c\nString=#ffcc00\nInteger=#ffe680\nKeyword=#ff9900\nOperator=#f5edd6\nIdentifier=#ffdb4d\nPreprocessor=#ffaa33\nTag=#ff8800\nAttribute=#ffdb4d\nBracket1=#ff4444\nBracket2=#ffcc00\nBracket3=#33ccff",
+    "Vaporwave Sunset": "[Theme]\n; Global Workspace Colors\nFont=JetBrains Mono\nFontWeight=normal\nLigatures=true\nBackground=#100c1c\nForeground=#f1eff8\nLineNumbers=#61527c\nSelection=#432b63\nCursor=#ff71ce\n\n[Syntax]\n; Code Element Colors\nComment=#8b78af\nString=#01cdfe\nInteger=#05ffa1\nKeyword=#ff71ce\nOperator=#f1eff8\nIdentifier=#b967ff\nPreprocessor=#01cdfe\nTag=#ff71ce\nAttribute=#b967ff\nBracket1=#fffb96\nBracket2=#05ffa1\nBracket3=#01cdfe"
 };
 
 function parseObsidianIni(ini) {
@@ -765,7 +763,7 @@ function parseObsidianIni(ini) {
     return {
         rules,
         colors,
-        fontFamily: theme['font'] || 'Cascadia Code',
+        fontFamily: theme['font'] || 'JetBrains Mono',
         fontWeight: theme['fontweight'] || 'normal',
         fontLigatures: theme['ligatures'] !== 'false'
     };
@@ -3566,8 +3564,8 @@ async function showThemeEditor() {
         if (!themeEditor && typeof monaco !== 'undefined') {
             const currentTheme = parseObsidianIni(currentIni);
             const initialFont = (currentTheme.fontFamily && !currentTheme.fontFamily.includes(','))
-                ? `"${currentTheme.fontFamily}", Cascadia Code, Cascadia Mono, Consolas, monospace`
-                : (currentTheme.fontFamily || 'Cascadia Code, Cascadia Mono, Consolas, monospace');
+                ? `"${currentTheme.fontFamily}", JetBrains Mono, Cascadia Mono, Consolas, monospace`
+                : (currentTheme.fontFamily || 'JetBrains Mono, Cascadia Mono, Consolas, monospace');
 
             themeEditor = monaco.editor.create(elements.themeMonacoContainer, {
                 value: currentIni,
@@ -3655,7 +3653,7 @@ function renderThemeVisualControls(ini, fromEditor = false) {
     const ligaturesEnabled = themeData.fontLigatures;
 
     const supportedFonts = [
-        'Cascadia Code',
+        'JetBrains Mono',
         'Cascadia Mono',
         'JetBrains Mono',
         'Consolas',
@@ -6780,7 +6778,7 @@ const PREVIEW_STYLES = `
         background: rgba(255,255,255,0.08);
         padding: 2px 4px;
         border-radius: 3px;
-        font-family: 'JetBrains Mono', 'Cascadia Code', monospace;
+        font-family: 'JetBrains Mono', 'JetBrains Mono', monospace;
     }
     #content blockquote {
         border-left: 4px solid #1f6feb;
