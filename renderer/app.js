@@ -4618,17 +4618,13 @@ async function handleBulkRestore() {
     elements.bulkRestoreModal.style.display = 'flex';
     elements.bulkRestoreRepoList.innerHTML = '<div style="color:var(--text-muted); font-size:11px; padding:10px;">Analyzing workspace...</div>';
 
-    // Fetch fresh status for all projects to see who actually has changes AND remotes
+    // Fetch fresh status for all projects to see who actually has changes
     const projectsWithChanges = [];
     for (const repo of repositories) {
         try {
-            const [status, remotes] = await Promise.all([
-                window.electronAPI.gitStatus(repo.path),
-                window.electronAPI.getRemotes(repo.path)
-            ]);
+            const status = await window.electronAPI.gitStatus(repo.path);
             const hasChanges = (status.modified || 0) + (status.not_added || 0) + (status.deleted || 0) > 0;
-            const hasRemotes = remotes.length > 0;
-            if (hasChanges && hasRemotes) projectsWithChanges.push({ repo, status });
+            if (hasChanges) projectsWithChanges.push({ repo, status });
         } catch(e) {}
     }
 
