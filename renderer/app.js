@@ -663,39 +663,39 @@ const DEFAULT_THEME_INI = `[Theme]
 Font=JetBrains Mono
 FontWeight=normal
 Ligatures=true
-Background=#0b0e14
-Foreground=#d4d8e2
-LineNumbers=#5a6b82
-Selection=#1d3b59
-Cursor=#3388ff
+Background=#0B0E14
+Foreground=#D4D8E2
+LineNumbers=#5A6B82
+Selection=#1D3B59
+Cursor=#3388FF
 
 [Syntax]
 ; Code Element Colors
-Comment=#4a7090
-String=#3ad8ff
-Integer=#8ae2ff
-Keyword=#2299ff
-Operator=#d4d8e2
-Identifier=#75c9ff
-Preprocessor=#52b0ef
-Tag=#2288ff
-Attribute=#75c9ff
-Bracket1=#ffd700
-Bracket2=#3affcc
-Bracket3=#66a3ff`;
+Comment=#4A7090
+String=#36BCDD
+Integer=#70FFE2
+Keyword=#2299FF
+Operator=#D4D8E2
+Identifier=#75C9FF
+Preprocessor=#52B0EF
+Tag=#2288FF
+Attribute=#4DBBFF
+Bracket1=#9DC9DD
+Bracket2=#66FFF5
+Bracket3=#0096E1`;
 
 const BUILTIN_THEMES = {
-    "Blue Lantern": "[Theme]\n; Global Workspace Colors\nFont=JetBrains Mono\nFontWeight=normal\nLigatures=true\nBackground=#0b0e14\nForeground=#d4d8e2\nLineNumbers=#5a6b82\nSelection=#1d3b59\nCursor=#3388ff\n\n[Syntax]\n; Code Element Colors\nComment=#4a7090\nString=#3ad8ff\nInteger=#8ae2ff\nKeyword=#2299ff\nOperator=#d4d8e2\nIdentifier=#75c9ff\nPreprocessor=#52b0ef\nTag=#2288ff\nAttribute=#75c9ff\nBracket1=#ffd700\nBracket2=#3affcc\nBracket3=#66a3ff",
-    "Green lantern": "[Theme]\n; Global Workspace Colors\nFont=JetBrains Mono\nFontWeight=normal\nLigatures=true\nBackground=#141513\nForeground=#d4d4d4\nLineNumbers=#858585\nSelection=#264f78\nCursor=#569cd6\n\n[Syntax]\n; Code Element Colors\nComment=#008000\nString=#3ADB00\nInteger=#AFE1A2\nKeyword=#46AFAD\nOperator=#d4d4d4\nIdentifier=#9cdcfe\nPreprocessor=#8EC587\nTag=#569cd6\nAttribute=#9cdcfe\nBracket1=#ffd700\nBracket2=#71DA94\nBracket3=#179fff",
-    "Red Lantern": "[Theme]\n; Global Workspace Colors\nFont=JetBrains Mono\nFontWeight=normal\nLigatures=true\nBackground=#0e0a0b\nForeground=#e0e0e0\nLineNumbers=#7a5c5c\nSelection=#541212\nCursor=#ff3333\n\n[Syntax]\n; Code Element Colors\nComment=#803b3b\nString=#ff5555\nInteger=#ff8866\nKeyword=#ff2222\nOperator=#e0e0e0\nIdentifier=#ff9999\nPreprocessor=#cc4444\nTag=#ff4444\nAttribute=#ff9999\nBracket1=#ffcc00\nBracket2=#ff6600\nBracket3=#ff1a1a",
-    "Yellow Lantern": "[Theme]\n; Global Workspace Colors\nFont=JetBrains Mono\nFontWeight=normal\nLigatures=true\nBackground=#0f0e0b\nForeground=#e0e0dc\nLineNumbers=#7a725c\nSelection=#544412\nCursor=#ffcc00\n\n[Syntax]\n; Code Element Colors\nComment=#80733b\nString=#ffea55\nInteger=#fffaa2\nKeyword=#ffb700\nOperator=#e0e0dc\nIdentifier=#ffe175\nPreprocessor=#d4a337\nTag=#ffc400\nAttribute=#ffe175\nBracket1=#ff5555\nBracket2=#71DA94\nBracket3=#ff9900",
-    "Cyberpunk Void": "[Theme]\n; Global Workspace Colors\nFont=JetBrains Mono\nFontWeight=normal\nLigatures=true\nBackground=#0a0812\nForeground=#e0def4\nLineNumbers=#6e6a86\nSelection=#403d52\nCursor=#ebbcba\n\n[Syntax]\n; Code Element Colors\nComment=#6b5b95\nString=#eb6f92\nInteger=#f6c177\nKeyword=#31748f\nOperator=#e0def4\nIdentifier=#9ccfd8\nPreprocessor=#c4a7e7\nTag=#ea9a97\nAttribute=#9ccfd8\nBracket1=#f6c177\nBracket2=#31748f\nBracket3=#ebbcba",
-    "Deep Trench": "[Theme]\n; Global Workspace Colors\nFont=JetBrains Mono\nFontWeight=normal\nLigatures=true\nBackground=#070b12\nForeground=#c5d1de\nLineNumbers=#3f536e\nSelection=#132b47\nCursor=#00f0ff\n\n[Syntax]\n; Code Element Colors\nComment=#335c67\nString=#00f5d4\nInteger=#70c1b3\nKeyword=#00bbf9\nOperator=#c5d1de\nIdentifier=#48cae4\nPreprocessor=#90e0ef\nTag=#0096c7\nAttribute=#48cae4\nBracket1=#f77f00\nBracket2=#00f5d4\nBracket3=#90e0ef",
-    "Supernova": "[Theme]\n; Global Workspace Colors\nFont=JetBrains Mono\nFontWeight=normal\nLigatures=true\nBackground=#080608\nForeground=#f2eeef\nLineNumbers=#6b5c63\nSelection=#421d31\nCursor=#ff2a85\n\n[Syntax]\n; Code Element Colors\nComment=#7a4f65\nString=#ff5588\nInteger=#ffaa55\nKeyword=#ff2a55\nOperator=#f2eeef\nIdentifier=#ff88bb\nPreprocessor=#ffa500\nTag=#ff3366\nAttribute=#ff88bb\nBracket1=#ffe600\nBracket2=#ff5588\nBracket3=#00ffff",
-    "Cryptic Moss": "[Theme]\n; Global Workspace Colors\nFont=JetBrains Mono\nFontWeight=normal\nLigatures=true\nBackground=#0d1110\nForeground=#d0dcd7\nLineNumbers=#4a5c55\nSelection=#1d362e\nCursor=#53b692\n\n[Syntax]\n; Code Element Colors\nComment=#3e6b5a\nString=#73d085\nInteger=#a2f689\nKeyword=#2fb988\nOperator=#d0dcd7\nIdentifier=#80cdc1\nPreprocessor=#4db6ac\nTag=#38a169\nAttribute=#80cdc1\nBracket1=#f6c177\nBracket2=#73d085\nBracket3=#53b692",
-    "Obsidian Amethyst": "[Theme]\n; Global Workspace Colors\nFont=JetBrains Mono\nFontWeight=normal\nLigatures=true\nBackground=#0d0b12\nForeground=#dcd6f7\nLineNumbers=#5b5270\nSelection=#31224d\nCursor=#b892ff\n\n[Syntax]\n; Code Element Colors\nComment=#6a5a8a\nString=#c4b5fd\nInteger=#f3e8ff\nKeyword=#9333ea\nOperator=#dcd6f7\nIdentifier=#d8b4fe\nPreprocessor=#a855f7\nTag=#7c3aed\nAttribute=#d8b4fe\nBracket1=#f43f5e\nBracket2=#c4b5fd\nBracket3=#38bdf8",
-    "Solar Flare": "[Theme]\n; Global Workspace Colors\nFont=JetBrains Mono\nFontWeight=normal\nLigatures=true\nBackground=#120f0a\nForeground=#f5edd6\nLineNumbers=#6b5c43\nSelection=#4a3512\nCursor=#ffb700\n\n[Syntax]\n; Code Element Colors\nComment=#7a602c\nString=#ffcc00\nInteger=#ffe680\nKeyword=#ff9900\nOperator=#f5edd6\nIdentifier=#ffdb4d\nPreprocessor=#ffaa33\nTag=#ff8800\nAttribute=#ffdb4d\nBracket1=#ff4444\nBracket2=#ffcc00\nBracket3=#33ccff",
-    "Vaporwave Sunset": "[Theme]\n; Global Workspace Colors\nFont=JetBrains Mono\nFontWeight=normal\nLigatures=true\nBackground=#100c1c\nForeground=#f1eff8\nLineNumbers=#61527c\nSelection=#432b63\nCursor=#ff71ce\n\n[Syntax]\n; Code Element Colors\nComment=#8b78af\nString=#01cdfe\nInteger=#05ffa1\nKeyword=#ff71ce\nOperator=#f1eff8\nIdentifier=#b967ff\nPreprocessor=#01cdfe\nTag=#ff71ce\nAttribute=#b967ff\nBracket1=#fffb96\nBracket2=#05ffa1\nBracket3=#01cdfe"
+    "Blue Lantern": "[Theme]\n; Global Workspace Colors\nFont=JetBrains Mono\nFontWeight=normal\nLigatures=true\nBackground=#0B0E14\nForeground=#D4D8E2\nLineNumbers=#5A6B82\nSelection=#1D3B59\nCursor=#3388FF\n\n[Syntax]\n; Code Element Colors\nComment=#4A7090\nString=#36BCDD\nInteger=#70FFE2\nKeyword=#2299FF\nOperator=#D4D8E2\nIdentifier=#75C9FF\nPreprocessor=#52B0EF\nTag=#2288FF\nAttribute=#4DBBFF\nBracket1=#9DC9DD\nBracket2=#66FFF5\nBracket3=#0096E1",
+    "Green lantern": "[Theme]\n; Global Workspace Colors\nFont=JetBrains Mono\nFontWeight=normal\nLigatures=true\nBackground=#141513\nForeground=#D4D4D4\nLineNumbers=#858585\nSelection=#264F78\nCursor=#569CD6\n\n[Syntax]\n; Code Element Colors\nComment=#008000\nString=#3ADB00\nInteger=#AFE1A2\nKeyword=#46AFAD\nOperator=#D4D4D4\nIdentifier=#9CDCFE\nPreprocessor=#8EC587\nTag=#569CD6\nAttribute=#9CDCFE\nBracket1=#FFD700\nBracket2=#71DA94\nBracket3=#179FFF",
+    "Red Lantern": "[Theme]\n; Global Workspace Colors\nFont=JetBrains Mono\nFontWeight=normal\nLigatures=true\nBackground=#0E0A0B\nForeground=#E0E0E0\nLineNumbers=#7A5C5C\nSelection=#541212\nCursor=#FF3333\n\n[Syntax]\n; Code Element Colors\nComment=#803B3B\nString=#FF5555\nInteger=#FF8866\nKeyword=#FF2222\nOperator=#E0E0E0\nIdentifier=#FF9999\nPreprocessor=#CC4444\nTag=#FF4444\nAttribute=#FF9999\nBracket1=#FFCC00\nBracket2=#FF6600\nBracket3=#FF1A1A",
+    "Yellow Lantern": "[Theme]\n; Global Workspace Colors\nFont=JetBrains Mono\nFontWeight=normal\nLigatures=true\nBackground=#0F0E0B\nForeground=#E0E0DC\nLineNumbers=#7A725C\nSelection=#544412\nCursor=#FFCC00\n\n[Syntax]\n; Code Element Colors\nComment=#80733B\nString=#FFEA55\nInteger=#FFFAA2\nKeyword=#FFB700\nOperator=#E0E0DC\nIdentifier=#FFE175\nPreprocessor=#D4A337\nTag=#FFC400\nAttribute=#FFE175\nBracket1=#FF5555\nBracket2=#71DA94\nBracket3=#FF9900",
+    "Cyberpunk Void": "[Theme]\n; Global Workspace Colors\nFont=JetBrains Mono\nFontWeight=normal\nLigatures=true\nBackground=#0A0812\nForeground=#E0DEF4\nLineNumbers=#6E6A86\nSelection=#403D52\nCursor=#EBBCBA\n\n[Syntax]\n; Code Element Colors\nComment=#6B5B95\nString=#EB6F92\nInteger=#F6C177\nKeyword=#31748F\nOperator=#E0DEF4\nIdentifier=#9CCFD8\nPreprocessor=#C4A7E7\nTag=#EA9A97\nAttribute=#9CCFD8\nBracket1=#F6C177\nBracket2=#31748F\nBracket3=#EBBCBA",
+    "Deep Trench": "[Theme]\n; Global Workspace Colors\nFont=JetBrains Mono\nFontWeight=normal\nLigatures=true\nBackground=#070B12\nForeground=#C5D1DE\nLineNumbers=#3F536E\nSelection=#132B47\nCursor=#00F0FF\n\n[Syntax]\n; Code Element Colors\nComment=#335C67\nString=#00F5D4\nInteger=#70C1B3\nKeyword=#00BBF9\nOperator=#C5D1DE\nIdentifier=#48CAE4\nPreprocessor=#90E0EF\nTag=#0096C7\nAttribute=#48CAE4\nBracket1=#F77F00\nBracket2=#00F5D4\nBracket3=#90E0EF",
+    "Supernova": "[Theme]\n; Global Workspace Colors\nFont=JetBrains Mono\nFontWeight=normal\nLigatures=true\nBackground=#080608\nForeground=#F2EEEF\nLineNumbers=#6B5C63\nSelection=#421D31\nCursor=#FF2A85\n\n[Syntax]\n; Code Element Colors\nComment=#7A4F65\nString=#FF5588\nInteger=#FFAA55\nKeyword=#FF2A55\nOperator=#F2EEEF\nIdentifier=#FF88BB\nPreprocessor=#FFA500\nTag=#FF3366\nAttribute=#FF88BB\nBracket1=#FFE600\nBracket2=#FF5588\nBracket3=#00FFFF",
+    "Cryptic Moss": "[Theme]\n; Global Workspace Colors\nFont=JetBrains Mono\nFontWeight=normal\nLigatures=true\nBackground=#0D1110\nForeground=#D0DCD7\nLineNumbers=#4A5C55\nSelection=#1D362E\nCursor=#53B692\n\n[Syntax]\n; Code Element Colors\nComment=#3E6B5A\nString=#73D085\nInteger=#A2F689\nKeyword=#2FB988\nOperator=#D0DCD7\nIdentifier=#80CDC1\nPreprocessor=#4DB6AC\nTag=#38A169\nAttribute=#80CDC1\nBracket1=#F6C177\nBracket2=#73D085\nBracket3=#53B692",
+    "Obsidian Amethyst": "[Theme]\n; Global Workspace Colors\nFont=JetBrains Mono\nFontWeight=normal\nLigatures=true\nBackground=#0D0B12\nForeground=#DCD6F7\nLineNumbers=#5B5270\nSelection=#31224D\nCursor=#B892FF\n\n[Syntax]\n; Code Element Colors\nComment=#6A5A8A\nString=#C4B5FD\nInteger=#F3E8FF\nKeyword=#9333EA\nOperator=#DCD6F7\nIdentifier=#D8B4FE\nPreprocessor=#A855F7\nTag=#7C3AED\nAttribute=#D8B4FE\nBracket1=#F43F5E\nBracket2=#C4B5FD\nBracket3=#38BDF8",
+    "Solar Flare": "[Theme]\n; Global Workspace Colors\nFont=JetBrains Mono\nFontWeight=normal\nLigatures=true\nBackground=#120F0A\nForeground=#F5EDD6\nLineNumbers=#6B5C43\nSelection=#4A3512\nCursor=#FFB700\n\n[Syntax]\n; Code Element Colors\nComment=#7A602C\nString=#FFCC00\nInteger=#FFE680\nKeyword=#FF9900\nOperator=#F5EDD6\nIdentifier=#FFDB4D\nPreprocessor=#FFAA33\nTag=#FF8800\nAttribute=#FFDB4D\nBracket1=#FF4444\nBracket2=#FFCC00\nBracket3=#33CCFF",
+    "Vaporwave Sunset": "[Theme]\n; Global Workspace Colors\nFont=JetBrains Mono\nFontWeight=normal\nLigatures=true\nBackground=#100C1C\nForeground=#F1EFF8\nLineNumbers=#61527C\nSelection=#432B63\nCursor=#FF71CE\n\n[Syntax]\n; Code Element Colors\nComment=#8B78AF\nString=#01CDFE\nInteger=#05FFA1\nKeyword=#FF71CE\nOperator=#F1EFF8\nIdentifier=#B967FF\nPreprocessor=#01CDFE\nTag=#FF71CE\nAttribute=#B967FF\nBracket1=#FFFB96\nBracket2=#05FFA1\nBracket3=#01CDFE"
 };
 
 function parseObsidianIni(ini) {
