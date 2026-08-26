@@ -635,6 +635,10 @@ ipcMain.handle('git-commit', async (event, path, message, amend) => {
   return await gitActions.commit(path, message, amend);
 });
 
+ipcMain.handle('git-get-commit-diff', async (event, path, hash) => {
+  return await gitActions.getCommitDiff(path, hash);
+});
+
 ipcMain.handle('rename-item', async (event, oldPath, newPath) => {
   try {
     await fs.rename(oldPath, newPath);

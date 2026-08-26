@@ -1125,6 +1125,12 @@ function initEventListeners() {
     if (elements.exportSettingsBtn) elements.exportSettingsBtn.onclick = () => handleExportSettings();
     if (elements.importSettingsBtn) elements.importSettingsBtn.onclick = () => handleImportSettings();
 
+    if (document.getElementById('commit-diff-close')) {
+        document.getElementById('commit-diff-close').onclick = () => {
+            document.getElementById('commit-diff-modal').style.display = 'none';
+        };
+    }
+
     if (elements.themeSavePresetBtn) elements.themeSavePresetBtn.onclick = () => saveThemePreset();
     if (elements.themeDeletePresetBtn) elements.themeDeletePresetBtn.onclick = () => deleteThemePreset();
     if (elements.themePresetsSelect) elements.themePresetsSelect.onchange = () => loadSelectedThemePreset();
@@ -1970,13 +1976,22 @@ async function showRevertModal() {
             const date = new Date(commit.date).toLocaleString();
 
             item.innerHTML = `
-                <div style="display: flex; justify-content: space-between; margin-bottom: 4px; pointer-events: none;">
-                    <span style="font-weight: 700; color: var(--accent-blue); font-family: monospace;">${commit.hash.substring(0, 7)}</span>
-                    <span style="font-size: 11px; color: var(--text-muted);">${date}</span>
+                <div style="display: flex; justify-content: space-between; margin-bottom: 4px; align-items: center;">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <span style="font-weight: 700; color: var(--accent-blue); font-family: monospace;">${commit.hash.substring(0, 7)}</span>
+                        <button class="button diff-commit-btn" data-hash="${commit.hash}" style="padding: 2px 6px; font-size: 9px; height: 18px;">Diff</button>
+                    </div>
+                    <span style="font-size: 11px; color: var(--text-muted); pointer-events: none;">${date}</span>
                 </div>
                 <div style="font-size: 13px; color: #fff; margin-bottom: 4px; pointer-events: none;">${commit.message}</div>
                 <div style="font-size: 11px; color: var(--text-muted); pointer-events: none;">Author: ${commit.author_name}</div>
             `;
+
+            const diffBtn = item.querySelector('.diff-commit-btn');
+            diffBtn.onclick = (e) => {
+                e.stopPropagation();
+                showCommitDiff(commit.hash, commit.message);
+            };
 
             item.onclick = () => {
                 Array.from(list.children).forEach(child => child.classList.remove('active'));
@@ -6150,6 +6165,34 @@ async function showFileDiff(filePath) {
             elements.diffContainer.appendChild(el);
         });
     } catch (e) {
+        logToConsole(e.message, 'error');
+    }
+}
+
+async function showCommitDiff(hash, message) {
+    if (!activeRepo) return;
+    const modal = document.getElementById('commit-diff-modal');
+    const container = document.getElementById('commit-diff-container');
+    const title = document.getElementById('commit-diff-title');
+
+    if (!modal || !container || !title) return;
+
+    title.textContent = `Diff: ${hash.substring(0, 7)} - ${message}`;
+    container.innerHTML = '<p style="padding: 20px; color: var(--text-muted); text-align: center;">Loading diff...</p>';
+    modal.style.display = 'flex';
+
+    try {
+        const diffLines = await window.electronAPI.getCommitDiff(activeRepo.path, hash);
+        container.innerHTML = diffLines.length ? '' : '<div class="diff-line info" style="padding:20px;">No changes found in this commit.</div>';
+
+        diffLines.forEach(line => {
+            const el = document.createElement('div');
+            el.className = `diff-line ${line.type}`;
+            el.textContent = line.text || ' ';
+            container.appendChild(el);
+        });
+    } catch (e) {
+        container.innerHTML = `<div class="diff-line deletion" style="padding:20px;">Error: ${e.message}</div>`;
         logToConsole(e.message, 'error');
     }
 }

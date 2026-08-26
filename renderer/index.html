@@ -1193,7 +1193,7 @@
                             <span aria-hidden="true" style="border-left: 1px solid #ccc; height: 16px; margin: 0 4px;"></span>
 
                             <button id="repo-stash-btn" class="button" style="height: 24px; font-size: 10px;" title="Manage Git Stashes">Stash</button>
-                            <button id="revert-changes-btn-top" class="button" style="height: 24px; font-size: 10px;" title="Restore to past commit">Revert</button>
+                            <button id="revert-changes-btn-top" class="button" style="height: 24px; font-size: 10px;" title="Restore to past commit">Diff/Revert</button>
 
                             <!-- Divider 3 -->
                             <span aria-hidden="true" style="border-left: 1px solid #ccc; height: 16px; margin: 0 4px;"></span>
@@ -2039,6 +2039,18 @@
                 <button id="unsaved-cancel" class="button">Cancel</button>
                 <button id="unsaved-discard" class="button button-danger">Don't Save</button>
                 <button id="unsaved-save" class="button button-primary">Save Changes</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="commit-diff-modal" class="modal" style="z-index: 11000;">
+        <div class="modal-content" style="width: 800px; max-width: 95vw; height: 80vh; display: flex; flex-direction: column;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                <h3 id="commit-diff-title">Commit Diff</h3>
+                <button id="commit-diff-close" class="button">Close</button>
+            </div>
+            <div id="commit-diff-container" style="flex: 1; overflow-y: auto; background: var(--bg-sidebar); border: 1px solid var(--border-color); border-radius: 4px; font-family: monospace; font-size: 12px; padding: 10px;">
+                <!-- Diff content will be injected here -->
             </div>
         </div>
     </div>

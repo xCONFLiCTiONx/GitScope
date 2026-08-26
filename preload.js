@@ -54,6 +54,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   switchBranch: (path, branchName) => ipcRenderer.invoke('git-switch-branch', path, branchName),
   getFullDiff: (path) => ipcRenderer.invoke('git-get-full-diff', path),
   getStagedDiff: (path) => ipcRenderer.invoke('git-get-staged-diff', path),
+  getCommitDiff: (path, hash) => ipcRenderer.invoke('git-get-commit-diff', path, hash),
   generateCommitMsg: (diff) => ipcRenderer.invoke('generate-commit-msg', diff),
   getChangedFiles: (path) => ipcRenderer.invoke('git-changed-files', path),
   getDetailedChanges: (path) => ipcRenderer.invoke('git-detailed-changes', path),
