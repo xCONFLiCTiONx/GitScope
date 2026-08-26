@@ -327,7 +327,6 @@ const elements = {
     get restoreFileBtn() { return document.getElementById('restore-file-btn'); },
     get consoleOutput() { return document.getElementById('console-output'); },
     get sidebarCollapse() { return document.getElementById('sidebar-collapse'); },
-    get sidebarUnstageAll() { return document.getElementById('sidebar-unstage-all'); },
     get sidebarToggleIgnored() { return document.getElementById('sidebar-toggle-ignored'); },
     get sidebarRefresh() { return document.getElementById('sidebar-refresh'); },
     get sidebar() { return document.getElementById('sidebar'); },
@@ -861,7 +860,6 @@ function initEventListeners() {
 
     // Sidebar Header Actions
     if (elements.sidebarRefresh) elements.sidebarRefresh.onclick = () => renderTree(elements.repoFilter.value);
-    if (elements.sidebarUnstageAll) elements.sidebarUnstageAll.onclick = () => handleUnstageAll();
     if (elements.sidebarToggleIgnored) {
         elements.sidebarToggleIgnored.onclick = () => {
             hideIgnoredFiles = !hideIgnoredFiles;
