@@ -11,6 +11,7 @@ A detailed summary of recent bug fixes and architectural improvements.
 - **Bug Fix**: Resolved `ReferenceError: normTarget is not defined` when clicking the "Edit" button in the diff view.
 - **Bug Fix**: Fixed a missing variable error in the "Apply Patch" logic.
 - **Drag & Drop Sync**: Dropping files into a project folder now automatically switches the active repository context to the destination project.
+- **Markdown Scroll Reset**: Fixed an issue where the markdown preview would stay scrolled to a previous position when opening a different file; it now correctly resets to the top for every new file.
 
 ### Windows Integration & Security
 - **Admin Execution (Spaces Fix)**: Fixed "Execute as Admin" for files with spaces in their path (e.g., `Clear DNS.bat`). Refactored to use PowerShell's `-EncodedCommand` (Base64) to bypass standard shell quoting limitations.

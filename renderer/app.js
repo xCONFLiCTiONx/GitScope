@@ -5289,6 +5289,9 @@ async function openFileInEditor(filePath) {
             elements.editorContainerWrapper.classList.remove('editor-mode-code', 'editor-mode-split', 'editor-mode-preview', 'editor-mode-standard');
         }
 
+        // INTELLIGENCE: Reset scroll positions for the new file
+        if (elements.markdownPreview) elements.markdownPreview.scrollTop = 0;
+
         if (imageExts.includes(ext)) {
             // Handle Image Preview
             const base64 = await window.electronAPI.readFileBase64(filePath);
