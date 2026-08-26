@@ -792,6 +792,16 @@ ipcMain.handle('git-clear-creds', async () => {
     }
 });
 
+ipcMain.handle('git-config-global-autocrlf', async () => {
+    try {
+        const { execSync } = require('child_process');
+        execSync('git config --global core.autocrlf true');
+        return { success: true };
+    } catch (e) {
+        return { success: false, error: e.message };
+    }
+});
+
 ipcMain.handle('git-switch-branch', async (event, path, branchName) => {
   return await gitActions.switchBranch(path, branchName);
 });
@@ -1037,7 +1047,7 @@ ipcMain.handle('get-git-config', async () => {
 
 [core]
 	pager = less
-	autocrlf = false
+	autocrlf = true
 
 [init]
 	defaultBranch = main

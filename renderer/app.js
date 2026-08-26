@@ -4012,7 +4012,7 @@ async function showGitConfigView() {
 
 const RECOMMENDED_GIT_CONFIG = {
     'user': { 'name': '', 'email': '' },
-    'core': { 'pager': 'less', 'autocrlf': 'false' },
+    'core': { 'pager': 'less', 'autocrlf': 'true' },
     'http': {
         'postBuffer': '524288000',
         'version': 'HTTP/1.1',
@@ -4216,6 +4216,31 @@ function renderGitConfig(content) {
             setTaskState(false);
         }
     };
+
+    const handleFixLineEndings = async () => {
+        if (await showConfirm('Set core.autocrlf to true globally? This is highly recommended on Windows to avoid line-ending issues.', 'Fix Line Endings')) {
+            setTaskState(true);
+            try {
+                const res = await window.electronAPI.setGitConfigGlobalAutocrlf();
+                if (res.success) {
+                    showAlert('Successfully updated global Git configuration (autocrlf=true).', 'Success');
+                    // Refresh if config view is open
+                    if (elements.gitConfigView.style.display !== 'none') {
+                        showGitConfigView();
+                    }
+                } else {
+                    logToConsole(res.error, 'error');
+                }
+            } catch(e) { logToConsole(e.message, 'error'); }
+            finally { setTaskState(false); }
+        }
+    };
+
+    const fixBtnHeader = document.getElementById('fix-line-endings-btn-header');
+    if (fixBtnHeader) fixBtnHeader.onclick = handleFixLineEndings;
+
+    const fixBtnSettings = document.getElementById('fix-line-endings-btn-settings');
+    if (fixBtnSettings) fixBtnSettings.onclick = handleFixLineEndings;
 
     // Add Entry Logic
     elements.addConfigEntryBtn.onclick = () => {
@@ -5100,9 +5125,14 @@ async function refreshActiveRepoUI(silent = false) {
                                     if (activeRepo && activeRepo.path === currentPath) {
                                         elements.githubVisibilityBtn.textContent = isPrivate ? 'Private' : 'Public';
                                         elements.githubVisibilityBtn.title = isPrivate ? 'Click to make Public' : 'Click to make Private';
-                                        elements.githubVisibilityBtn.classList.remove('button', 'button-blue');
-                                        if (isPrivate) elements.githubVisibilityBtn.classList.add('button');
-                                        else elements.githubVisibilityBtn.classList.add('button-blue');
+
+                                        // Robust styling: Ensure 'button' class is always present, toggle 'button-blue'
+                                        elements.githubVisibilityBtn.classList.add('button');
+                                        if (isPrivate) {
+                                            elements.githubVisibilityBtn.classList.remove('button-blue');
+                                        } else {
+                                            elements.githubVisibilityBtn.classList.add('button-blue');
+                                        }
 
                                         elements.githubVisibilityBtn.dataset.owner = owner;
                                         elements.githubVisibilityBtn.dataset.repo = repoName;
@@ -5129,8 +5159,13 @@ async function refreshActiveRepoUI(silent = false) {
                         const { owner, repo: repoName, isPrivate } = cached;
                         elements.githubVisibilityBtn.textContent = isPrivate ? 'Private' : 'Public';
                         elements.githubVisibilityBtn.title = isPrivate ? 'Click to make Public' : 'Click to make Private';
-                        if (isPrivate) elements.githubVisibilityBtn.classList.add('button');
-                        else elements.githubVisibilityBtn.classList.add('button-blue');
+
+                        elements.githubVisibilityBtn.classList.add('button');
+                        if (isPrivate) {
+                            elements.githubVisibilityBtn.classList.remove('button-blue');
+                        } else {
+                            elements.githubVisibilityBtn.classList.add('button-blue');
+                        }
 
                         elements.githubVisibilityBtn.dataset.owner = owner;
                         elements.githubVisibilityBtn.dataset.repo = repoName;

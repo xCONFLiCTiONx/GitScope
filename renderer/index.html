@@ -1413,6 +1413,13 @@
                             <button id="import-settings-btn" class="button" style="width: 100%; height: 38px; font-weight: 600;">IMPORT SETTINGS PACKAGE (.JSON)</button>
                         </div>
                     </div>
+                    <div class="settings-section">
+                        <h3>Git Utilities</h3>
+                        <p>Common fixes for Git issues on Windows.</p>
+                        <div class="settings-control">
+                            <button id="fix-line-endings-btn-settings" class="button button-blue" style="width: 100%; height: 38px; font-weight: 600;">FIX LINE ENDINGS (SET AUTOCRLF TRUE GLOBALLY)</button>
+                        </div>
+                    </div>
                     <div class="settings-section" style="border-bottom: none;">
                         <h3 style="color: var(--accent-red);">Danger Zone</h3>
                         <p>Permanently remove all settings and projects from the application.</p>
@@ -1474,7 +1481,10 @@
                 <div class="settings-container">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
                         <h1 style="margin: 0;">Global Git Configuration</h1>
-                        <button id="save-git-config-btn" class="button button-primary">Save .gitconfig</button>
+                        <div style="display: flex; gap: 8px;">
+                            <button id="fix-line-endings-btn-header" class="button" title="Set core.autocrlf to true globally">Fix Line Endings (autocrlf true)</button>
+                            <button id="save-git-config-btn" class="button button-primary">Save .gitconfig</button>
+                        </div>
                     </div>
                     <p style="color: var(--text-muted); font-size: 13px; margin-bottom: 24px;">
                         Editing: <span id="git-config-path-display" style="color: var(--accent-blue); font-family: monospace;"></span>
