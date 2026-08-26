@@ -22,6 +22,20 @@ let feedTimer = null;
 let lastKnownStats = null;
 let repoVisibilityCache = new Map(); // Session-level cache for Public/Private status
 
+/**
+ * INTELLIGENCE: Find which repository a given file or folder path belongs to.
+ * Returns the deepest matching repository (longest path) to correctly handle nested repos.
+ */
+function findRepoForPath(filePath) {
+    if (!filePath) return null;
+    const normPath = filePath.replace(/\\/g, '/').toLowerCase();
+    const matches = repositories.filter(r => {
+        const rPath = String(r.path || '').replace(/\\/g, '/').toLowerCase();
+        return normPath === rPath || normPath.startsWith(rPath + '/');
+    });
+    return matches.sort((a, b) => b.path.length - a.path.length)[0] || null;
+}
+
 // Global Error Handling for Total Visibility
 window.onerror = function(message, source, lineno, colno, error) {
     // Ignore harmless ResizeObserver loop limit errors which are common with Monaco/Flexbox
@@ -1188,8 +1202,7 @@ function initEventListeners() {
     window.electronAPI.onExternalChange((changedPath) => {
         if (changedPath) {
             // Find which repo this change belongs to
-            const normPath = changedPath.replace(/\\/g, '/').toLowerCase();
-            const repo = repositories.find(r => normPath.startsWith(r.path.replace(/\\/g, '/').toLowerCase()));
+            const repo = findRepoForPath(changedPath);
             if (repo) {
                 console.log(`External change detected in ${repo.name}: ${changedPath}`);
                 updateTreeHighlights(repo.path);
@@ -2270,11 +2283,8 @@ async function getRepoSubtreeMappings(repoPath) {
 }
 
 async function handleAddSubtreeFromTree(folderPath) {
-    // 1. Normalize and identify parent repo
-    const targetPath = folderPath.replace(/\\/g, '/');
-    const repo = repositories
-        .filter(r => targetPath.toLowerCase().startsWith(r.path.toLowerCase()))
-        .sort((a, b) => b.path.length - a.path.length)[0];
+    // 1. Identify parent repo
+    const repo = findRepoForPath(folderPath);
 
     if (!repo) {
         logToConsole(`Error: Could not identify parent repository for selection.`, 'error');
@@ -2284,6 +2294,7 @@ async function handleAddSubtreeFromTree(folderPath) {
     activeRepo = repo;
 
     // 2. Calculate relative path (prefix)
+    const targetPath = folderPath.replace(/\\/g, '/');
     let relPath = targetPath.substring(repo.path.length).replace(/^[\\\/]/, '');
     if (!relPath) {
         showAlert('You cannot map the repository root as a subtree prefix. Please select a subfolder.', 'Invalid Selection');
@@ -2305,7 +2316,7 @@ async function handleAddSubtreeFromTree(folderPath) {
 }
 
 async function handlePushSubtreeFromTree(folderPath) {
-    const repo = repositories.find(r => folderPath.toLowerCase().startsWith(r.path.toLowerCase()));
+    const repo = findRepoForPath(folderPath);
     if (!repo) return;
     activeRepo = repo;
     const relPath = folderPath.substring(repo.path.length).replace(/^[\\\/]/, '').replace(/\\/g, '/');
@@ -5242,6 +5253,19 @@ async function openFileInEditor(filePath) {
     if (!(await setActiveNavItem(null))) return;
 
     if (!monacoEditor) return;
+
+    // INTELLIGENCE: Sync active repository context so that closing the file returns us to the correct project
+    const repo = findRepoForPath(filePath);
+    if (repo && activeRepo !== repo) {
+        activeRepo = repo;
+        const title = document.getElementById('active-repo-name');
+        if (title) title.textContent = repo.name;
+        if (window.terminal) window.terminal.sendCommand(`cd "${repo.path}"`);
+        if (elements.gitForceToggle) elements.gitForceToggle.checked = !!repo.gitForce;
+        if (elements.commitAmendToggle) elements.commitAmendToggle.checked = false;
+        refreshActiveRepoUI(true); // Hydrate in background
+    }
+
     try {
         const ext = filePath.split('.').pop().toLowerCase();
         const imageExts = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'ico', 'svg'];
@@ -5968,8 +5992,7 @@ function sortRepositories() {
 }
 
 async function revealInTree(fullPath) {
-    const normTarget = fullPath.replace(/\\/g, '/').toLowerCase();
-    const repo = repositories.find(r => normTarget.startsWith(r.path.replace(/\\/g, '/').toLowerCase()));
+    const repo = findRepoForPath(fullPath);
     if (!repo) return;
 
     // 1. Ensure the repo itself is selected and visible
@@ -6273,9 +6296,19 @@ async function listStashes() {
 async function showFileDiff(filePath) {
     if (!(await setActiveNavItem(null))) return;
 
-    const normPath = filePath.replace(/\\/g, '/').toLowerCase();
-    const repo = repositories.find(r => normPath.startsWith(r.path.replace(/\\/g, '/').toLowerCase()));
+    const repo = findRepoForPath(filePath);
     if (!repo) return;
+
+    // INTELLIGENCE: Sync active repository context
+    if (activeRepo !== repo) {
+        activeRepo = repo;
+        const title = document.getElementById('active-repo-name');
+        if (title) title.textContent = repo.name;
+        if (window.terminal) window.terminal.sendCommand(`cd "${repo.path}"`);
+        if (elements.gitForceToggle) elements.gitForceToggle.checked = !!repo.gitForce;
+        if (elements.commitAmendToggle) elements.commitAmendToggle.checked = false;
+        refreshActiveRepoUI(true);
+    }
 
     currentEditingPath = filePath;
 
@@ -6567,8 +6600,7 @@ async function showPatchModal(sourcePath) {
 
         try {
             // Find which repo this file belongs to
-            const normPath = sourcePath.replace(/\\/g, '/').toLowerCase();
-            const sourceRepo = repositories.find(r => normPath.startsWith(r.path.replace(/\\/g, '/').toLowerCase()));
+            const sourceRepo = findRepoForPath(sourcePath);
             if (!sourceRepo) throw new Error('Source repository not found.');
 
             const repoBase = sourceRepo.path.replace(/\\/g, '/').toLowerCase();
