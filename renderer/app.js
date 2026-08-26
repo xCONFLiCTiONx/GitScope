@@ -1167,12 +1167,17 @@ function initEventListeners() {
     // Global click listener for deselection & Markdown Link Interception
     document.addEventListener('click', (e) => {
         // Markdown link interception
-        const link = e.target.closest('#markdown-preview a');
-        if (link) {
-            e.preventDefault();
+        const path = e.composedPath();
+        const link = path.find(el => el.nodeName === 'A');
+        const isFromMarkdownPreview = path.some(el => el.id === 'markdown-preview');
+
+        if (link && isFromMarkdownPreview) {
             const href = link.getAttribute('href');
-            if (href) window.electronAPI.openExternal(href);
-            return;
+            if (href && !href.startsWith('#')) {
+                e.preventDefault();
+                window.electronAPI.openExternal(href);
+                return;
+            }
         }
 
         if (!e.target.closest('.tree-node') && !e.target.closest('.nav-item') && !e.target.closest('.modal-content') && !e.target.closest('.console-tab') && !e.target.closest('.sidebar-action-icon')) {
@@ -6785,7 +6790,8 @@ const PREVIEW_STYLES = `
     }
     #content img { max-width: 100%; height: auto; }
     #content h1, #content h2, #content h3 { color: #fff; margin-top: 24px; margin-bottom: 16px; font-weight: 600; }
-    #content a { color: #58a6ff; text-decoration: none; }
+    #content a { color: #58a6ff; text-decoration: none; cursor: text; }
+    :host(.ctrl-active) #content a { cursor: pointer; }
     #content a:hover { text-decoration: underline; }
 `;
 
@@ -7107,6 +7113,10 @@ function showDeleteModal(paths) {
 // INTELLIGENCE: Force Tab key indentation/outdent for ALL editors
 // We use the Capture Phase (true) to intercept the event before the browser steals it for focus cycling
 window.addEventListener('keydown', (e) => {
+    if (e.key === 'Control') {
+        const preview = elements.markdownPreview;
+        if (preview) preview.classList.add('ctrl-active');
+    }
     if (e.key === 'Tab') {
         if (document.activeElement.closest('#monaco-container')) {
             handleIndentationAction(e, 'monaco');
@@ -7115,6 +7125,18 @@ window.addEventListener('keydown', (e) => {
         }
     }
 }, true);
+
+window.addEventListener('keyup', (e) => {
+    if (e.key === 'Control') {
+        const preview = elements.markdownPreview;
+        if (preview) preview.classList.remove('ctrl-active');
+    }
+});
+
+window.addEventListener('blur', () => {
+    const preview = elements.markdownPreview;
+    if (preview) preview.classList.remove('ctrl-active');
+});
 
 console.log('GitScope Professional logic loaded.');
 
