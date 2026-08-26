@@ -9,6 +9,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   scanDirectory: (path) => ipcRenderer.invoke('scan-directory', path),
   listDirectory: (path, showIgnored) => ipcRenderer.invoke('list-directory', path, showIgnored),
   searchFiles: (repoPath, query) => ipcRenderer.invoke('search-files', repoPath, query),
+  searchAdvanced: (repos, options) => ipcRenderer.invoke('search-advanced', repos, options),
   readFile: (path) => ipcRenderer.invoke('read-file', path),
   createDirectory: (path) => ipcRenderer.invoke('create-directory', path),
   readFileBase64: (path) => ipcRenderer.invoke('read-file-base64', path),

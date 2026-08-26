@@ -478,7 +478,18 @@ const elements = {
     get stashMessageInput() { return document.getElementById('stash-message-input'); },
     get stashSaveBtn() { return document.getElementById('stash-save-btn'); },
     get stashListContainer() { return document.getElementById('stash-list-container'); },
-    get stashCloseBtn() { return document.getElementById('stash-close-btn'); }
+    get stashCloseBtn() { return document.getElementById('stash-close-btn'); },
+    get advancedSearchBtn() { return document.getElementById('advanced-search-btn'); },
+    get advancedSearchModal() { return document.getElementById('advanced-search-modal'); },
+    get advancedSearchClose() { return document.getElementById('advanced-search-close'); },
+    get advSearchQuery() { return document.getElementById('adv-search-query'); },
+    get advSearchProject() { return document.getElementById('adv-search-project'); },
+    get advSearchContent() { return document.getElementById('adv-search-content'); },
+    get advSearchFiles() { return document.getElementById('adv-search-files'); },
+    get advSearchRegex() { return document.getElementById('adv-search-regex'); },
+    get advSearchExecute() { return document.getElementById('adv-search-execute'); },
+    get advSearchResults() { return document.getElementById('adv-search-results'); },
+    get advSearchResultsHeader() { return document.getElementById('adv-search-results-header'); }
 };
 
 // Initialize app
@@ -874,6 +885,29 @@ function initEventListeners() {
 
     // Sidebar Header Actions
     if (elements.sidebarRefresh) elements.sidebarRefresh.onclick = () => renderTree(elements.repoFilter.value);
+
+    // Advanced Search Logic
+    if (elements.advancedSearchBtn) {
+        elements.advancedSearchBtn.onclick = () => {
+            elements.advancedSearchModal.style.display = 'flex';
+            populateAdvSearchProjects();
+            setTimeout(() => elements.advSearchQuery.focus(), 10);
+        };
+    }
+    if (elements.advancedSearchClose) {
+        elements.advancedSearchClose.onclick = () => {
+            elements.advancedSearchModal.style.display = 'none';
+        };
+    }
+    if (elements.advSearchExecute) {
+        elements.advSearchExecute.onclick = executeAdvancedSearch;
+    }
+    if (elements.advSearchQuery) {
+        elements.advSearchQuery.onkeyup = (e) => {
+            if (e.key === 'Enter') executeAdvancedSearch();
+        };
+    }
+
     if (elements.sidebarToggleIgnored) {
         elements.sidebarToggleIgnored.onclick = () => {
             hideIgnoredFiles = !hideIgnoredFiles;
@@ -7212,6 +7246,118 @@ window.addEventListener('blur', () => {
     const preview = elements.markdownPreview;
     if (preview) preview.classList.remove('ctrl-active');
 });
+
+function populateAdvSearchProjects() {
+    if (!elements.advSearchProject) return;
+    const currentVal = elements.advSearchProject.value;
+    elements.advSearchProject.innerHTML = '<option value="all">All Projects</option>';
+    repositories.forEach(repo => {
+        const opt = document.createElement('option');
+        opt.value = repo.path;
+        opt.textContent = repo.name;
+        elements.advSearchProject.appendChild(opt);
+    });
+    elements.advSearchProject.value = currentVal || 'all';
+}
+
+async function executeAdvancedSearch() {
+    const query = (elements.advSearchQuery.value || '').trim();
+    if (!query) return;
+
+    elements.advSearchResults.innerHTML = '<div style="padding: 60px; text-align: center; color: var(--text-muted);"><div class="spinner"></div> Searching...</div>';
+
+    const projectPath = elements.advSearchProject.value;
+    let targetRepos = [];
+    if (projectPath === 'all') {
+        targetRepos = repositories.map(r => ({ name: r.name, path: r.path }));
+    } else {
+        const repo = repositories.find(r => r.path === projectPath);
+        if (repo) targetRepos = [{ name: repo.name, path: repo.path }];
+    }
+
+    const options = {
+        query,
+        isRegex: elements.advSearchRegex.checked,
+        searchContent: elements.advSearchContent.checked,
+        searchFiles: elements.advSearchFiles.checked
+    };
+
+    try {
+        const results = await window.electronAPI.searchAdvanced(targetRepos, options);
+        renderAdvancedSearchResults(results);
+    } catch (e) {
+        elements.advSearchResults.innerHTML = `<div style="padding: 60px; text-align: center; color: var(--accent-red);">Search failed: ${e.message}</div>`;
+    }
+}
+
+function renderAdvancedSearchResults(results) {
+    if (results.length === 0) {
+        elements.advSearchResults.innerHTML = '<div style="padding: 60px; text-align: center; color: var(--text-muted);">No results found.</div>';
+        return;
+    }
+
+    elements.advSearchResults.innerHTML = '';
+    const fragment = document.createDocumentFragment();
+
+    results.forEach(res => {
+        const item = document.createElement('div');
+        item.className = 'search-result-item';
+        item.style.padding = '10px 15px';
+        item.style.borderBottom = '1px solid var(--border-color)';
+        item.style.cursor = 'pointer';
+        item.style.fontSize = '12px';
+        item.style.transition = 'background 0.2s';
+
+        const header = document.createElement('div');
+        header.style.display = 'flex';
+        header.style.justifyContent = 'space-between';
+        header.style.marginBottom = '6px';
+        header.style.alignItems = 'center';
+
+        const pathEl = document.createElement('span');
+        pathEl.style.overflow = 'hidden';
+        pathEl.style.textOverflow = 'ellipsis';
+        pathEl.style.whiteSpace = 'nowrap';
+        pathEl.innerHTML = `<span style="color: var(--accent-blue); font-weight: 800; font-family: var(--font-sans);">[${res.repoName}]</span> <span style="color: var(--text-main);">${res.path}</span>`;
+        header.appendChild(pathEl);
+
+        if (res.line) {
+            const lineEl = document.createElement('span');
+            lineEl.style.color = 'var(--text-muted)';
+            lineEl.style.fontSize = '10px';
+            lineEl.style.flexShrink = '0';
+            lineEl.textContent = `LINE ${res.line}`;
+            header.appendChild(lineEl);
+        }
+
+        item.appendChild(header);
+
+        if (res.text) {
+            const textEl = document.createElement('div');
+            textEl.style.color = 'var(--text-muted)';
+            textEl.style.fontSize = '11px';
+            textEl.style.whiteSpace = 'pre';
+            textEl.style.overflow = 'hidden';
+            textEl.style.textOverflow = 'ellipsis';
+            textEl.style.background = 'rgba(0,0,0,0.2)';
+            textEl.style.padding = '6px 10px';
+            textEl.style.borderRadius = '3px';
+            textEl.style.borderLeft = '2px solid var(--accent-blue)';
+            textEl.textContent = res.text;
+            item.appendChild(textEl);
+        }
+
+        item.onclick = () => {
+            const fullPath = `${res.repoPath}/${res.path}`.replace(/\\/g, '/');
+            openFileInEditor(fullPath);
+            elements.advancedSearchModal.style.display = 'none';
+        };
+
+        fragment.appendChild(item);
+    });
+
+    elements.advSearchResults.appendChild(fragment);
+}
 
 console.log('GitScope Professional logic loaded.');
 

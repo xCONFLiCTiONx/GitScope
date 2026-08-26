@@ -483,6 +483,89 @@ ipcMain.handle('search-files', async (event, repoPath, query) => {
     }
 });
 
+ipcMain.handle('search-advanced', async (event, targetRepos, options) => {
+    const { query, isRegex, searchContent, searchFiles } = options;
+    const results = [];
+    const simpleGit = require('simple-git');
+
+    if (!query) return [];
+
+    for (const repo of targetRepos) {
+        try {
+            const git = simpleGit(repo.path);
+
+            if (searchFiles) {
+                const files = await git.raw(['ls-files', '-c', '-o', '--exclude-standard']);
+                const allFiles = files.split('\n').filter(f => f.trim() !== '');
+
+                let matches;
+                if (isRegex) {
+                    try {
+                        const re = new RegExp(query, 'i');
+                        matches = allFiles.filter(f => re.test(f));
+                    } catch(e) {
+                        // Invalid regex, treat as literal or just skip
+                        matches = [];
+                    }
+                } else {
+                    const lowerQuery = query.toLowerCase();
+                    matches = allFiles.filter(f => f.toLowerCase().includes(lowerQuery));
+                }
+
+                matches.slice(0, 500).forEach(f => {
+                    results.push({
+                        repoName: repo.name,
+                        repoPath: repo.path,
+                        path: f,
+                        type: 'file'
+                    });
+                });
+            }
+
+            if (searchContent) {
+                const args = ['grep', '-n', '--column', '--ignore-case'];
+                if (isRegex) args.push('-E');
+                args.push('--untracked');
+                args.push('-e', query);
+
+                try {
+                    const grepOutput = await git.raw(args);
+                    const lines = grepOutput.split('\n').filter(l => l.trim() !== '');
+                    lines.slice(0, 500).forEach(line => {
+                        const parts = line.split(':');
+                        if (parts.length >= 3) {
+                            const filePath = parts[0];
+                            const lineNum = parts[1];
+                            const column = parts[2];
+                            const text = parts.slice(3).join(':');
+                            results.push({
+                                repoName: repo.name,
+                                repoPath: repo.path,
+                                path: filePath,
+                                line: parseInt(lineNum),
+                                column: parseInt(column),
+                                text: text.trim(),
+                                type: 'content'
+                            });
+                        }
+                    });
+                } catch (grepError) {
+                    // git grep returns exit code 1 if no matches found
+                    if (grepError.exitCode !== 1 && !grepError.message.includes('exit code: 1')) {
+                        console.error(`Grep failed for ${repo.name}:`, grepError);
+                    }
+                }
+            }
+        } catch (e) {
+            console.error(`Search failed for ${repo.name}:`, e);
+        }
+
+        if (results.length > 2000) break; // Hard limit for safety
+    }
+
+    return results;
+});
+
 ipcMain.handle('read-file', async (event, filePath) => {
   try {
     const buffer = await fs.readFile(filePath);
