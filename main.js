@@ -591,6 +591,10 @@ ipcMain.handle('git-fetch', async (event, path) => {
   return await gitActions.fetch(path);
 });
 
+ipcMain.handle('git-merge', async (event, path) => {
+  return await gitActions.merge(path);
+});
+
 ipcMain.handle('git-push', async (event, path, force) => {
   return await gitActions.push(path, force);
 });

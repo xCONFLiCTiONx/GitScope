@@ -1398,7 +1398,7 @@ async function quickGitAction(action) {
         // UI Refresh loop: Since we can't easily "wait" for terminal finish,
         // we'll refresh after a few seconds and then again later.
         setTimeout(async () => {
-            if (action === 'pull' || action === 'fetch') await smartRefreshTree();
+            if (action === 'pull' || action === 'fetch' || action === 'merge') await smartRefreshTree();
             // Force visibility check after push/pull/fetch as requested
             await refreshActiveRepoUI(true);
             setTaskState(false);
@@ -1415,7 +1415,7 @@ async function quickGitAction(action) {
         logToConsole(res.output, res.success ? 'success' : 'error');
         if (!res.success) showError(res.output, `Git ${action.toUpperCase()} Failed`);
 
-        if (action === 'pull' || action === 'fetch') {
+        if (action === 'pull' || action === 'fetch' || action === 'merge') {
             await smartRefreshTree();
         }
         // Force visibility check after push/pull/fetch

@@ -28,6 +28,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   gitStashDrop: (path, index) => ipcRenderer.invoke('git-stash-drop', path, index),
   gitPull: (path, force) => ipcRenderer.invoke('git-pull', path, force),
   gitFetch: (path) => ipcRenderer.invoke('git-fetch', path),
+  gitMerge: (path) => ipcRenderer.invoke('git-merge', path),
   gitPush: (path, force) => ipcRenderer.invoke('git-push', path, force),
   gitPublishSequence: (path, cloneUrl) => ipcRenderer.invoke('git-publish-sequence', path, cloneUrl),
   gitGetCommits: (path) => ipcRenderer.invoke('git-get-commits', path),
