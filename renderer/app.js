@@ -4491,13 +4491,17 @@ async function showBulkCommitModal() {
     elements.bulkCommitMsg.value = '';
     elements.bulkCommitRepoList.innerHTML = '<div style="color:var(--text-muted); font-size:11px; padding:10px;">Analyzing workspace...</div>';
 
-    // Fetch fresh status for all projects to see who actually has changes
+    // Fetch fresh status for all projects to see who actually has changes AND remotes
     const projectsWithChanges = [];
     for (const repo of repositories) {
         try {
-            const status = await window.electronAPI.gitStatus(repo.path);
+            const [status, remotes] = await Promise.all([
+                window.electronAPI.gitStatus(repo.path),
+                window.electronAPI.getRemotes(repo.path)
+            ]);
             const hasChanges = (status.modified || 0) + (status.not_added || 0) + (status.deleted || 0) > 0;
-            if (hasChanges) projectsWithChanges.push({ repo, status });
+            const hasRemotes = remotes.length > 0;
+            if (hasChanges && hasRemotes) projectsWithChanges.push({ repo, status });
         } catch(e) {}
     }
 
@@ -4614,13 +4618,17 @@ async function handleBulkRestore() {
     elements.bulkRestoreModal.style.display = 'flex';
     elements.bulkRestoreRepoList.innerHTML = '<div style="color:var(--text-muted); font-size:11px; padding:10px;">Analyzing workspace...</div>';
 
-    // Fetch fresh status for all projects to see who actually has changes
+    // Fetch fresh status for all projects to see who actually has changes AND remotes
     const projectsWithChanges = [];
     for (const repo of repositories) {
         try {
-            const status = await window.electronAPI.gitStatus(repo.path);
+            const [status, remotes] = await Promise.all([
+                window.electronAPI.gitStatus(repo.path),
+                window.electronAPI.getRemotes(repo.path)
+            ]);
             const hasChanges = (status.modified || 0) + (status.not_added || 0) + (status.deleted || 0) > 0;
-            if (hasChanges) projectsWithChanges.push({ repo, status });
+            const hasRemotes = remotes.length > 0;
+            if (hasChanges && hasRemotes) projectsWithChanges.push({ repo, status });
         } catch(e) {}
     }
 
@@ -4688,20 +4696,35 @@ async function handleBulkFetch() {
     if (repositories.length === 0) return showAlert('No projects found in workspace.', 'Action Blocked');
 
     elements.bulkFetchModal.style.display = 'flex';
-    elements.bulkFetchRepoList.innerHTML = '<div style="color:var(--text-muted); font-size:11px; padding:10px;">Listing repositories...</div>';
-    elements.bulkFetchConfirm.disabled = false;
+    elements.bulkFetchRepoList.innerHTML = '<div style="color:var(--text-muted); font-size:11px; padding:10px;">Analyzing workspace remotes...</div>';
+    elements.bulkFetchConfirm.disabled = true;
 
-    elements.bulkFetchRepoList.innerHTML = repositories.map((repo) => {
-        return `
-            <label style="display:flex; align-items:center; gap:8px; cursor:pointer; padding:8px; background:rgba(255,255,255,0.02); border-radius:4px; margin-bottom:4px; border: 1px solid transparent;">
-                <input type="checkbox" class="bulk-fetch-item-cb" value="${repo.path}" data-name="${repo.name}" checked>
-                <div style="flex:1; min-width:0;">
-                    <div style="font-size:12px; font-weight:600; color:#fff; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${repo.name}</div>
-                    <div style="font-size:10px; color:var(--text-muted);">${repo.path}</div>
-                </div>
-            </label>
-        `;
-    }).join('');
+    // Filter for projects with remotes
+    const remoteChecks = await Promise.all(repositories.map(async repo => {
+        try {
+            const remotes = await window.electronAPI.getRemotes(repo.path);
+            return { repo, hasRemotes: remotes.length > 0 };
+        } catch(e) { return { repo, hasRemotes: false }; }
+    }));
+    const reposWithRemotes = remoteChecks.filter(c => c.hasRemotes).map(c => c.repo);
+
+    if (reposWithRemotes.length === 0) {
+        elements.bulkFetchRepoList.innerHTML = '<div style="color:var(--text-muted); font-size:11px; padding:10px;">No projects with remotes found.</div>';
+        elements.bulkFetchConfirm.disabled = true;
+    } else {
+        elements.bulkFetchConfirm.disabled = false;
+        elements.bulkFetchRepoList.innerHTML = reposWithRemotes.map((repo) => {
+            return `
+                <label style="display:flex; align-items:center; gap:8px; cursor:pointer; padding:8px; background:rgba(255,255,255,0.02); border-radius:4px; margin-bottom:4px; border: 1px solid transparent;">
+                    <input type="checkbox" class="bulk-fetch-item-cb" value="${repo.path}" data-name="${repo.name}" checked>
+                    <div style="flex:1; min-width:0;">
+                        <div style="font-size:12px; font-weight:600; color:#fff; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${repo.name}</div>
+                        <div style="font-size:10px; color:var(--text-muted);">${repo.path}</div>
+                    </div>
+                </label>
+            `;
+        }).join('');
+    }
 
     elements.bulkFetchSelectAll.checked = true;
     elements.bulkFetchSelectAll.onchange = (e) => {
@@ -4751,31 +4774,41 @@ async function handleBulkPull() {
     elements.bulkPullRepoList.innerHTML = '<div style="color:var(--text-muted); font-size:11px; padding:10px;">Analyzing remote status...</div>';
     elements.bulkPullConfirm.disabled = true;
 
-    // Fetch status for all repos in parallel to see who is behind
+    // Fetch status and remotes for all repos in parallel to see who is behind and has remotes
     const repoStatuses = await Promise.all(repositories.map(async (repo) => {
         try {
-            const status = await window.electronAPI.gitStatus(repo.path);
-            return { repo, status, isBehind: (status.behind || 0) > 0 };
+            const [status, remotes] = await Promise.all([
+                window.electronAPI.gitStatus(repo.path),
+                window.electronAPI.getRemotes(repo.path)
+            ]);
+            return { repo, status, isBehind: (status.behind || 0) > 0, hasRemotes: remotes.length > 0 };
         } catch (e) {
-            return { repo, status: null, isBehind: false };
+            return { repo, status: null, isBehind: false, hasRemotes: false };
         }
     }));
 
-    elements.bulkPullConfirm.disabled = false;
-    elements.bulkPullRepoList.innerHTML = repoStatuses.map(({ repo, status, isBehind }) => {
-        const behindCount = status ? (status.behind || 0) : 0;
-        const subtext = isBehind ? `<span style="color:#e3b341;">↓ ${behindCount} incoming commits</span>` : `<span style="color:var(--text-muted);">Up to date</span>`;
+    const filteredStatuses = repoStatuses.filter(s => s.hasRemotes);
 
-        return `
-            <label style="display:flex; align-items:center; gap:8px; cursor:pointer; padding:8px; background:rgba(255,255,255,0.02); border-radius:4px; margin-bottom:4px; border: 1px solid ${isBehind ? 'rgba(227, 179, 65, 0.2)' : 'transparent'};">
-                <input type="checkbox" class="bulk-pull-item-cb" value="${repo.path}" data-name="${repo.name}" checked>
-                <div style="flex:1; min-width:0;">
-                    <div style="font-size:12px; font-weight:600; color:#fff; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${repo.name}</div>
-                    <div style="font-size:10px;">${subtext}</div>
-                </div>
-            </label>
-        `;
-    }).join('');
+    if (filteredStatuses.length === 0) {
+        elements.bulkPullRepoList.innerHTML = '<div style="color:var(--text-muted); font-size:11px; padding:10px;">No projects with remotes found.</div>';
+        elements.bulkPullConfirm.disabled = true;
+    } else {
+        elements.bulkPullConfirm.disabled = false;
+        elements.bulkPullRepoList.innerHTML = filteredStatuses.map(({ repo, status, isBehind }) => {
+            const behindCount = status ? (status.behind || 0) : 0;
+            const subtext = isBehind ? `<span style="color:#e3b341;">↓ ${behindCount} incoming commits</span>` : `<span style="color:var(--text-muted);">Up to date</span>`;
+
+            return `
+                <label style="display:flex; align-items:center; gap:8px; cursor:pointer; padding:8px; background:rgba(255,255,255,0.02); border-radius:4px; margin-bottom:4px; border: 1px solid ${isBehind ? 'rgba(227, 179, 65, 0.2)' : 'transparent'};">
+                    <input type="checkbox" class="bulk-pull-item-cb" value="${repo.path}" data-name="${repo.name}" checked>
+                    <div style="flex:1; min-width:0;">
+                        <div style="font-size:12px; font-weight:600; color:#fff; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${repo.name}</div>
+                        <div style="font-size:10px;">${subtext}</div>
+                    </div>
+                </label>
+            `;
+        }).join('');
+    }
 
     elements.bulkPullSelectAll.checked = true;
     elements.bulkPullSelectAll.onchange = (e) => {
