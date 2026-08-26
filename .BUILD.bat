@@ -1,4 +1,6 @@
 @echo off
 echo Running npm build...
-npm run build
-pause
+cmd /c npm run build
+echo.
+echo Build finished. Press any key to exit...
+pause >nul
