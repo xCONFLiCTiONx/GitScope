@@ -5530,6 +5530,7 @@ async function handleContextMenuCommand({ command, paths, path, repoPath }) {
     if (command === 'new-file') handleNewItem('file', targets[0]);
     else if (command === 'new-folder') handleNewItem('folder', targets[0]);
     else if (command === 'execute') window.electronAPI.openPath(targets[0]);
+    else if (command === 'execute-admin') window.electronAPI.openPathAdmin(targets[0]);
     else if (command === 'open-vscode') targets.forEach(p => window.electronAPI.openVSCode(p));
     else if (command === 'open-android-studio') targets.forEach(p => window.electronAPI.openAndroidStudio(p));
     else if (command === 'open-default') targets.forEach(p => window.electronAPI.openPath(p));

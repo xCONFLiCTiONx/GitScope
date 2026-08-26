@@ -1229,6 +1229,19 @@ ipcMain.handle('open-path', async (event, filePath) => {
   shell.openPath(nativePath);
 });
 
+ipcMain.handle('open-path-admin', async (event, filePath) => {
+  const { exec } = require('child_process');
+  const nativePath = path.win32.normalize(filePath);
+  // Intelligence: Use PowerShell to trigger the Windows UAC prompt (RunAs)
+  const command = `powershell Start-Process "${nativePath}" -Verb RunAs`;
+  exec(command, (error) => {
+    if (error) {
+      console.error('Admin execution failed:', error);
+      reportError('Execution Failed', `Could not execute ${path.basename(filePath)} as administrator: ${error.message}`);
+    }
+  });
+});
+
 ipcMain.handle('open-external', async (event, url) => {
   shell.openExternal(url);
 });
@@ -1314,7 +1327,16 @@ ipcMain.handle('show-context-menu', (event, options) => {
     if (executableExts.includes(ext)) {
       template.push({
         label: 'Execute',
-        click: () => event.sender.send('context-menu-command', { command: 'execute', path: paths[0] })
+        submenu: [
+          {
+            label: 'Execute',
+            click: () => event.sender.send('context-menu-command', { command: 'execute', path: paths[0] })
+          },
+          {
+            label: 'Execute as Admin',
+            click: () => event.sender.send('context-menu-command', { command: 'execute-admin', path: paths[0] })
+          }
+        ]
       });
       template.push({ type: 'separator' });
     }

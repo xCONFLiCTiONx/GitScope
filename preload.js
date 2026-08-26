@@ -105,6 +105,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   openAndroidStudio: (path) => ipcRenderer.invoke('open-in-android-studio', path),
   openExternalTerminal: (path) => ipcRenderer.invoke('open-external-terminal', path),
   openPath: (path) => ipcRenderer.invoke('open-path', path),
+  openPathAdmin: (path) => ipcRenderer.invoke('open-path-admin', path),
   openExternal: (url) => ipcRenderer.invoke('open-external', url),
   revealInExplorer: (path) => ipcRenderer.invoke('reveal-in-explorer', path),
   trashItem: (path) => ipcRenderer.invoke('trash-item', path),
