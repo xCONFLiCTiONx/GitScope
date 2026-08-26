@@ -1428,29 +1428,25 @@ ipcMain.handle('show-context-menu', (event, options) => {
   } else {
     template.push({ type: 'separator' });
     template.push({
-      label: 'Git & Maintenance',
+      label: 'Git Maintenance',
       submenu: [
-        {
-          label: 'Manage Subtrees...',
-          click: () => event.sender.send('context-menu-command', { command: 'manage-subtrees', path: paths[0] })
-        },
         { type: 'separator' },
         {
-          label: 'Create README.md',
-          click: () => event.sender.send('context-menu-command', { command: 'create-readme', path: paths[0] })
-        },
-        {
-          label: 'Unstage All Changes',
-          click: () => event.sender.send('context-menu-command', { command: 'unstage-all', path: paths[0] })
-        },
-        {
-          label: 'Generate .gitignore',
+          label: 'Create .gitignore',
           click: () => event.sender.send('context-menu-command', { command: 'generate-gitignore', path: paths[0] })
         },
         {
-          label: 'Add License',
+          label: 'Create README.md',
+          click: () => event.sender.send('context-menu-command', { command: 'create-readme', path: paths[0] })
+        },        
+        {
+          label: 'Add LICENSE',
           click: () => event.sender.send('context-menu-command', { command: 'add-license', path: paths[0] })
-        }
+        },
+        {
+          label: 'Manage Subtrees',
+          click: () => event.sender.send('context-menu-command', { command: 'manage-subtrees', path: paths[0] })
+        },
       ]
     });
     template.push({ type: 'separator' });
