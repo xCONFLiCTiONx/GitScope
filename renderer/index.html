@@ -1726,6 +1726,23 @@
         </div>
     </div>
 
+    <div id="license-modal" class="modal">
+        <div class="modal-content" style="width: 500px;">
+            <h3>Add License</h3>
+            <p>Select a license template to download from GitHub:</p>
+            <div style="margin-bottom: 16px;">
+                <input type="text" id="license-search" class="settings-input" placeholder="Search licenses (e.g. MIT, Apache, GPL)..." style="width: 100%;">
+            </div>
+            <div id="license-list" style="max-height: 300px; overflow-y: auto; margin-bottom: 20px; border: 1px solid var(--border-color); border-radius: 4px; background: var(--bg-sidebar); padding: 4px;">
+                <p style="padding: 20px; color: var(--text-muted); text-align: center;">Loading templates...</p>
+            </div>
+            <div style="text-align: right; display: flex; justify-content: flex-end; gap: 8px;">
+                <button id="license-cancel" class="button">Cancel</button>
+                <button id="license-confirm" class="button button-primary" disabled>Add Selected License</button>
+            </div>
+        </div>
+    </div>
+
     <div id="rename-modal" class="modal">
         <div class="modal-content">
             <h3>Rename</h3>

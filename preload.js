@@ -82,6 +82,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   updateGitHubRepoVisibility: (token, owner, repo, isPrivate) => ipcRenderer.invoke('github-update-repo-visibility', token, owner, repo, isPrivate),
   fetchGitignoreTemplates: () => ipcRenderer.invoke('github-fetch-gitignore-templates'),
   fetchGitignoreContent: (name) => ipcRenderer.invoke('github-fetch-gitignore-content', name),
+  fetchLicenseTemplates: () => ipcRenderer.invoke('github-fetch-license-templates'),
+  fetchLicenseContent: (key) => ipcRenderer.invoke('github-fetch-license-content', key),
   getWorkspaceStats: (rootPath) => ipcRenderer.invoke('get-workspace-stats', rootPath),
   getGitConfig: () => ipcRenderer.invoke('get-git-config'),
   saveGitConfig: (content) => ipcRenderer.invoke('save-git-config', content),

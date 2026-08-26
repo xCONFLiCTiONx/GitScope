@@ -429,6 +429,11 @@ const elements = {
     get gitignoreSearch() { return document.getElementById('gitignore-search'); },
     get gitignoreConfirm() { return document.getElementById('gitignore-confirm'); },
     get gitignoreCancel() { return document.getElementById('gitignore-cancel'); },
+    get licenseModal() { return document.getElementById('license-modal'); },
+    get licenseList() { return document.getElementById('license-list'); },
+    get licenseSearch() { return document.getElementById('license-search'); },
+    get licenseConfirm() { return document.getElementById('license-confirm'); },
+    get licenseCancel() { return document.getElementById('license-cancel'); },
     get deleteGitHubBtn() { return document.getElementById('delete-github-btn'); },
     get publishGitHubBtn() { return document.getElementById('publish-github-btn'); },
     get githubVisibilityBtn() { return document.getElementById('github-visibility-btn'); },
@@ -5554,6 +5559,7 @@ async function handleContextMenuCommand({ command, paths, path, repoPath }) {
     else if (command === 'see-changes') await showFileDiff(targets[0]);
     else if (command === 'create-readme') handleCreateReadme(targets[0]);
     else if (command === 'generate-gitignore') handleGenerateGitignore(targets[0]);
+    else if (command === 'add-license') handleAddLicense(targets[0]);
     else if (command === 'delete') showDeleteModal(targets);
     else if (command === 'stop-tracking') handleStopTracking(targets[0], repoPath);
     else if (command === 'start-tracking') handleStartTracking(targets[0], repoPath);
@@ -5678,6 +5684,89 @@ async function handleGenerateGitignore(repoPath) {
             } catch (err) {
                 logToConsole(`Failed to fetch template: ${err.message}`, 'error');
                 showError(err.message, 'Template Fetch Failed');
+            } finally {
+                setTaskState(false);
+            }
+        };
+
+    } catch (e) {
+        logToConsole(`GitHub API error: ${e.message}`, 'error');
+        list.innerHTML = `<p style="padding:20px; color:var(--accent-red); text-align:center;">Error: ${e.message}</p>`;
+    }
+
+    cancelBtn.onclick = () => modal.style.display = 'none';
+}
+
+async function handleAddLicense(repoPath) {
+    const modal = elements.licenseModal;
+    const list = elements.licenseList;
+    const search = elements.licenseSearch;
+    const confirmBtn = elements.licenseConfirm;
+    const cancelBtn = elements.licenseCancel;
+
+    modal.style.display = 'flex';
+    list.innerHTML = '<p style="padding:20px; color:var(--text-muted); text-align:center;">Loading GitHub licenses...</p>';
+    confirmBtn.disabled = true;
+    search.value = '';
+
+    let licenses = [];
+    let selectedLicense = null;
+
+    try {
+        licenses = await window.electronAPI.fetchLicenseTemplates();
+
+        const renderList = (filter = '') => {
+            list.innerHTML = '';
+            const filtered = licenses.filter(l =>
+                l.name.toLowerCase().includes(filter.toLowerCase()) ||
+                l.key.toLowerCase().includes(filter.toLowerCase())
+            );
+
+            filtered.forEach(license => {
+                const item = document.createElement('div');
+                item.className = 'tree-node';
+                item.style.padding = '8px 12px';
+                item.style.borderBottom = '1px solid var(--border-color)';
+                item.textContent = license.name;
+
+                item.onclick = () => {
+                    Array.from(list.children).forEach(el => el.classList.remove('active'));
+                    item.classList.add('active');
+                    selectedLicense = license;
+                    confirmBtn.disabled = false;
+                };
+
+                list.appendChild(item);
+            });
+        };
+
+        renderList();
+        search.oninput = () => renderList(search.value);
+        search.focus();
+
+        confirmBtn.onclick = async () => {
+            if (!selectedLicense) return;
+
+            const licensePath = `${repoPath}/LICENSE`.replace(/\\/g, '/');
+            const exists = await window.electronAPI.pathExists(licensePath);
+            if (exists) {
+                if (!(await showConfirm('A LICENSE file already exists. Overwrite with official template?', 'File Exists'))) return;
+            }
+
+            modal.style.display = 'none';
+            setTaskState(true);
+            logToConsole(`Downloading ${selectedLicense.name} license...`, 'info');
+
+            try {
+                const content = await window.electronAPI.fetchLicenseContent(selectedLicense.key);
+                await window.electronAPI.writeFile(licensePath, content);
+                logToConsole(`Successfully added LICENSE: ${selectedLicense.name}`, 'success');
+
+                renderTree(elements.repoFilter.value);
+                openFileInEditor(licensePath);
+            } catch (err) {
+                logToConsole(`Failed to fetch license: ${err.message}`, 'error');
+                showError(err.message, 'License Fetch Failed');
             } finally {
                 setTaskState(false);
             }

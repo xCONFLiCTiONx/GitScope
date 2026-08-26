@@ -998,6 +998,14 @@ ipcMain.handle('github-fetch-gitignore-content', async (event, name) => {
   return await githubApi.fetchGitignoreTemplateContent(name);
 });
 
+ipcMain.handle('github-fetch-license-templates', async () => {
+  return await githubApi.fetchLicenseTemplates();
+});
+
+ipcMain.handle('github-fetch-license-content', async (event, key) => {
+  return await githubApi.fetchLicenseTemplateContent(key);
+});
+
 ipcMain.handle('github-create-repo', async (event, token, name, isPrivate) => {
   return await githubApi.createRepo(token, name, isPrivate);
 });
@@ -1396,6 +1404,11 @@ ipcMain.handle('show-context-menu', (event, options) => {
             label: 'Add as Subtree Mapping',
             click: () => event.sender.send('context-menu-command', { command: 'add-subtree', path: paths[0] })
           });
+          subtreeSubmenu.push({ type: 'separator' });
+          subtreeSubmenu.push({
+            label: 'Add License',
+            click: () => event.sender.send('context-menu-command', { command: 'add-license', path: paths[0] })
+          });
       }
 
       template.push({
@@ -1433,6 +1446,10 @@ ipcMain.handle('show-context-menu', (event, options) => {
         {
           label: 'Generate .gitignore',
           click: () => event.sender.send('context-menu-command', { command: 'generate-gitignore', path: paths[0] })
+        },
+        {
+          label: 'Add License',
+          click: () => event.sender.send('context-menu-command', { command: 'add-license', path: paths[0] })
         }
       ]
     });
