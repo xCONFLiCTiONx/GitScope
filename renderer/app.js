@@ -1309,6 +1309,9 @@ function switchConsoleTab(tab) {
                 window.terminal.fitAddon.fit();
                 window.terminal.term.focus();
             }, 50);
+        } else if (targetId === 'console-output') {
+            // Force scroll to bottom when switching to console tab
+            target.scrollTop = target.scrollHeight;
         }
     }
 }
