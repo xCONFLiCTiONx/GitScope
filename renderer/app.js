@@ -977,6 +977,11 @@ function initEventListeners() {
     if (elements.diffEditBtn) elements.diffEditBtn.onclick = async () => {
         if (!currentEditingPath) return;
         const path = currentEditingPath;
+        // Clean up UI state
+        elements.diffView.style.display = 'none';
+        elements.messageView.style.display = 'flex';
+        document.querySelectorAll('.change-item').forEach(el => el.classList.remove('active'));
+
         await openFileInEditor(path);
         await revealInTree(path);
     };
@@ -5757,17 +5762,24 @@ async function revealInTree(fullPath) {
     for (const segment of segments) {
         // Expand the current folder if not already expanded
         const treeNode = currentContainer.querySelector('.tree-node');
+        if (!treeNode) break;
+
         const existingChildren = currentContainer.querySelector('.children-container');
 
         if (!existingChildren) {
-            const depth = parseInt(treeNode.style.paddingLeft) / 12 - 1.33; // Rough depth calculation
-            await toggleFolder(currentContainer, currentPath, isNaN(depth) ? 0 : depth, repo);
+            // Find current path from the node's dataset
+            const nodePath = treeNode.dataset.path;
+            const depth = parseInt(treeNode.style.paddingLeft) / 12 - 1.33;
+            await toggleFolder(currentContainer, nodePath, isNaN(depth) ? 0 : depth, repo);
         }
 
         // Find the next segment's container
+        // We look for a direct child div that contains the node with the matching segment name
         const nextContainer = Array.from(currentContainer.querySelectorAll(':scope > .children-container > div')).find(div => {
             const node = div.querySelector('.tree-node');
-            return node && node.dataset.path.split(/[\\\/]/).pop().toLowerCase() === segment;
+            if (!node) return false;
+            const parts = node.dataset.path.replace(/\\/g, '/').split('/');
+            return parts.pop().toLowerCase() === segment.toLowerCase();
         });
 
         if (!nextContainer) break;
@@ -5776,12 +5788,13 @@ async function revealInTree(fullPath) {
         currentPath = currentContainer.querySelector('.tree-node').dataset.path;
     }
 
-    // Highlight the final node
+    // Highlight and Scroll to the final node
     const finalNode = currentContainer.querySelector('.tree-node');
     if (finalNode) {
         selectedNodes.clear();
         selectedNodes.add(finalNode.dataset.path);
         updateTreeSelectionUI();
+        finalNode.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     }
 }
 
