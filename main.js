@@ -1376,11 +1376,6 @@ ipcMain.handle('show-context-menu', (event, options) => {
           label: isMulti ? `In VS Code (${totalCount})` : 'In VS Code',
           click: () => event.sender.send('context-menu-command', { command: 'open-vscode', paths })
         },
-        { type: 'separator' },
-        {
-          label: isMulti ? `With Default App (${totalCount})` : 'With Default App',
-          click: () => event.sender.send('context-menu-command', { command: 'open-default', paths })
-        },
         {
           label: isMulti ? `Show in Folder (${totalCount})` : 'Show in Folder',
           click: () => event.sender.send('context-menu-command', { command: 'reveal-in-explorer', paths })
@@ -1400,34 +1395,11 @@ ipcMain.handle('show-context-menu', (event, options) => {
       })
     });
     template.push({ type: 'separator' });
-    if (!isMulti) {
+    const isFolder = require('fs').statSync(paths[0]).isDirectory();
+    if (!isMulti && !isFolder) {
       template.push({
         label: 'See Changes',
         click: () => event.sender.send('context-menu-command', { command: 'see-changes', path: paths[0] })
-      });
-
-      const subtreeSubmenu = [
-        {
-          label: 'Manage Subtrees...',
-          click: () => event.sender.send('context-menu-command', { command: 'manage-subtrees', path: paths[0] })
-        }
-      ];
-
-      if (options.isDirectory) {
-          subtreeSubmenu.push({
-            label: 'Add as Subtree Mapping',
-            click: () => event.sender.send('context-menu-command', { command: 'add-subtree', path: paths[0] })
-          });
-          subtreeSubmenu.push({ type: 'separator' });
-          subtreeSubmenu.push({
-            label: 'Add License',
-            click: () => event.sender.send('context-menu-command', { command: 'add-license', path: paths[0] })
-          });
-      }
-
-      template.push({
-        label: 'Subtrees',
-        submenu: subtreeSubmenu
       });
 
       template.push({
@@ -1456,10 +1428,6 @@ ipcMain.handle('show-context-menu', (event, options) => {
         {
           label: 'Add LICENSE',
           click: () => event.sender.send('context-menu-command', { command: 'add-license', path: paths[0] })
-        },
-        {
-          label: 'Manage Subtrees',
-          click: () => event.sender.send('context-menu-command', { command: 'manage-subtrees', path: paths[0] })
         },
       ]
     });
