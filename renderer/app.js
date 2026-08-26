@@ -261,6 +261,7 @@ const elements = {
     get appLogoBox() { return document.getElementById('app-logo-box'); },
     get repoTree() { return document.getElementById('repo-tree'); },
     get repoFilter() { return document.getElementById('repo-filter'); },
+    get repoFilterClear() { return document.getElementById('repo-filter-clear'); },
     get mainContent() { return document.getElementById('main-content'); },
     get dashboardView() { return document.getElementById('dashboard-view'); },
     get dashboardSummary() { return document.getElementById('dashboard-summary'); },
@@ -479,7 +480,6 @@ const elements = {
     get stashSaveBtn() { return document.getElementById('stash-save-btn'); },
     get stashListContainer() { return document.getElementById('stash-list-container'); },
     get stashCloseBtn() { return document.getElementById('stash-close-btn'); },
-    get advancedSearchBtn() { return document.getElementById('advanced-search-btn'); },
     get advancedSearchModal() { return document.getElementById('advanced-search-modal'); },
     get advancedSearchClose() { return document.getElementById('advanced-search-close'); },
     get advSearchQuery() { return document.getElementById('adv-search-query'); },
@@ -887,13 +887,6 @@ function initEventListeners() {
     if (elements.sidebarRefresh) elements.sidebarRefresh.onclick = () => renderTree(elements.repoFilter.value);
 
     // Advanced Search Logic
-    if (elements.advancedSearchBtn) {
-        elements.advancedSearchBtn.onclick = () => {
-            elements.advancedSearchModal.style.display = 'flex';
-            populateAdvSearchProjects();
-            setTimeout(() => elements.advSearchQuery.focus(), 10);
-        };
-    }
     if (elements.advancedSearchClose) {
         elements.advancedSearchClose.onclick = () => {
             elements.advancedSearchModal.style.display = 'none';
@@ -941,8 +934,20 @@ function initEventListeners() {
     let filterTimeout;
     if (elements.repoFilter) {
         elements.repoFilter.oninput = () => {
+            if (elements.repoFilterClear) {
+                elements.repoFilterClear.style.display = elements.repoFilter.value ? 'block' : 'none';
+            }
             clearTimeout(filterTimeout);
             filterTimeout = setTimeout(() => renderTree(elements.repoFilter.value), 300);
+        };
+    }
+
+    if (elements.repoFilterClear) {
+        elements.repoFilterClear.onclick = () => {
+            elements.repoFilter.value = '';
+            elements.repoFilterClear.style.display = 'none';
+            renderTree('');
+            elements.repoFilter.focus();
         };
     }
 
@@ -3050,11 +3055,13 @@ async function renderTree(filter = '') {
 
         const results = await Promise.all(searchPromises);
         const fragment = document.createDocumentFragment();
+        let hasDirectMatches = false;
 
         results.forEach(({ repo, fileMatches }, index) => {
             const nameMatch = repo.name.toLowerCase().includes(search);
 
             if (!search || nameMatch || fileMatches.length > 0) {
+                hasDirectMatches = true;
                 const nodeContainer = createTreeNode(repo.name, repo.path, true, 0, repo);
                 fragment.appendChild(nodeContainer);
 
@@ -3125,6 +3132,42 @@ async function renderTree(filter = '') {
                 }, 50 * index);
             }
         });
+
+        if (search) {
+            if (!hasDirectMatches) {
+                const noMatches = document.createElement('div');
+                noMatches.style.padding = '20px';
+                noMatches.style.color = 'var(--text-muted)';
+                noMatches.style.textAlign = 'center';
+                noMatches.style.fontSize = '11px';
+                noMatches.textContent = `No direct matches for "${filter}"`;
+                fragment.appendChild(noMatches);
+            }
+
+            const advSearchItem = document.createElement('div');
+            advSearchItem.className = 'adv-search-tree-item';
+            advSearchItem.style.padding = '12px 20px';
+            advSearchItem.style.marginTop = '8px';
+            advSearchItem.style.borderTop = '1px solid var(--border-color)';
+            advSearchItem.style.cursor = 'pointer';
+            advSearchItem.style.fontSize = '11px';
+            advSearchItem.style.textAlign = 'center';
+            advSearchItem.style.background = 'rgba(255,255,255,0.02)';
+            advSearchItem.innerHTML = `<span style="color: var(--text-muted);">Not finding it?</span><br><span style="color: var(--accent-blue); font-weight: 800;">OPEN ADVANCED SEARCH</span>`;
+
+            advSearchItem.onclick = (e) => {
+                e.stopPropagation();
+                elements.advancedSearchModal.style.display = 'flex';
+                elements.advSearchQuery.value = filter;
+                populateAdvSearchProjects();
+                setTimeout(() => elements.advSearchQuery.focus(), 10);
+            };
+
+            advSearchItem.onmouseover = () => advSearchItem.style.background = 'rgba(255,255,255,0.05)';
+            advSearchItem.onmouseout = () => advSearchItem.style.background = 'rgba(255,255,255,0.02)';
+
+            fragment.appendChild(advSearchItem);
+        }
 
         if (fragment.children.length === 0) {
             elements.repoTree.innerHTML = `<div style="padding:20px; color:var(--text-muted); text-align:center;">No matches for "${filter}"</div>`;

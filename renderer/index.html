@@ -313,20 +313,32 @@
         }
         #repo-filter-container {
             padding: 0 12px 10px 12px;
-            display: flex;
-            gap: 4px;
+            position: relative;
         }
         #repo-filter {
-            flex: 1;
+            width: 100%;
             background: var(--bg-surface);
             border: 1px solid var(--border-color);
             border-radius: 4px;
-            padding: 4px 8px;
+            padding: 4px 24px 4px 8px;
             color: var(--text-main);
             font-size: 11px;
             outline: none;
             box-sizing: border-box;
         }
+        #repo-filter-clear {
+            position: absolute;
+            right: 18px;
+            top: 6px;
+            cursor: pointer;
+            color: var(--text-muted);
+            display: none;
+            font-size: 16px;
+            line-height: 1;
+            user-select: none;
+            z-index: 5;
+        }
+        #repo-filter-clear:hover { color: var(--text-main); }
         #repo-filter:focus { border-color: var(--accent-blue); box-shadow: 0 0 0 2px rgba(31,111,235,0.3); }
 
         .search-result-item:hover {
@@ -1108,8 +1120,8 @@
                 </div>
             </div>
             <div id="repo-filter-container">
-                <input type="text" id="repo-filter" placeholder="Search...">
-                <button id="advanced-search-btn" class="button" title="Advanced Multi-Project Search" style="height: 24px; padding: 0 8px; font-size: 10px;">Advanced</button>
+                <input type="text" id="repo-filter" placeholder="Filter repositories and files...">
+                <span id="repo-filter-clear" title="Clear Search">&times;</span>
             </div>
             <div id="repo-tree">
                 <div style="padding: 20px; color: var(--text-muted); text-align: center; font-size: 11px;">
