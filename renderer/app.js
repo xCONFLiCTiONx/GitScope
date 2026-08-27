@@ -8219,6 +8219,48 @@ async function handlePrivacyBulkGitRm() {
     }
 }
 
+async function handlePrivacyBulkIgnore() {
+    const checked = Array.from(elements.privacyResults.querySelectorAll('.match-select:checked'))
+        .filter(cb => cb.closest('.privacy-match-item').style.display !== 'none');
+    const paths = Array.from(new Set(checked.map(cb => cb.dataset.path)));
+
+    if (paths.length === 0) return showAlert('Select at least one file.', 'Selection Required');
+
+    if (await showConfirm(`Add ${paths.length} files to their respective .gitignore files?`, "Confirm Ignore")) {
+        setTaskState(true);
+        try {
+            for (const fullPath of paths) {
+                const repo = findRepoForPath(fullPath);
+                if (repo) {
+                    const relPath = fullPath.substring(repo.path.length).replace(/^[\\\/]/, '').replace(/\\/g, '/');
+                    const gitignorePath = `${repo.path}/.gitignore`.replace(/\\/g, '/');
+
+                    let content = '';
+                    const exists = await window.electronAPI.pathExists(gitignorePath);
+                    if (exists) {
+                        const result = await window.electronAPI.readFile(gitignorePath);
+                        content = result.content;
+                        if (content && !content.endsWith('\n')) content += '\n';
+                    }
+
+                    if (!content.includes(relPath)) {
+                        content += `${relPath}\n`;
+                        await window.electronAPI.writeFile(gitignorePath, content);
+                    }
+                }
+            }
+            logToConsole(`Privacy: Added ${paths.length} files to .gitignore.`, 'success');
+            showAlert(`Successfully added ${paths.length} files to .gitignore.`, 'Success');
+            await smartRefreshTree();
+        } catch (e) {
+            logToConsole(`Privacy Action Failed: ${e.message}`, 'error');
+            showError(e.message, 'Action Failed');
+        } finally {
+            setTaskState(false);
+        }
+    }
+}
+
 async function exportAdvancedSearchResults() {
     if (lastAdvancedSearchResults.length === 0) return;
 
