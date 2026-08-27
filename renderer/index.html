@@ -2150,8 +2150,11 @@
                 <button id="adv-search-execute" class="button button-primary" style="margin-left: auto; height: 32px; padding: 0 25px;">Search</button>
             </div>
 
-            <div id="adv-search-results-header" style="font-size: 11px; font-weight: 800; color: var(--text-muted); text-transform: uppercase; margin-bottom: 8px;">
-                Results
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                <div id="adv-search-results-header" style="font-size: 11px; font-weight: 800; color: var(--text-muted); text-transform: uppercase;">
+                    Results
+                </div>
+                <button id="adv-search-export" class="button" style="font-size: 10px; padding: 2px 8px; display: none;">Export CSV</button>
             </div>
             <div id="adv-search-results" style="flex: 1; overflow-y: auto; border: 1px solid var(--border-color); border-radius: 4px; background: rgba(0,0,0,0.1); font-family: var(--font-mono);">
                 <div style="padding: 60px; text-align: center; color: var(--text-muted); font-family: var(--font-sans);">
@@ -2197,6 +2200,7 @@
                         <div style="display: flex; align-items: center; gap: 10px;">
                             <h4 style="font-size: 11px; text-transform: uppercase; color: var(--text-muted); margin: 0;">Matches</h4>
                             <span id="privacy-results-select-all" style="font-size: 10px; color: var(--accent-blue); cursor: pointer; font-weight: 600;">Select All</span>
+                            <button id="privacy-export-csv" class="button" style="font-size: 10px; padding: 2px 8px; display: none;">Export CSV</button>
                         </div>
                         <div id="privacy-scan-status" style="font-size: 11px; color: var(--accent-blue);"></div>
                     </div>

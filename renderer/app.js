@@ -23,6 +23,7 @@ let lastKnownStats = null;
 let repoVisibilityCache = new Map(); // Session-level cache for Public/Private status
 
 let lastPrivacyScanResults = [];
+let lastAdvancedSearchResults = [];
 let lastPrivacyScanProject = 'all';
 
 const PRIVACY_PATTERNS = [
@@ -316,6 +317,7 @@ const elements = {
     get privacyPatternsSelectAll() { return document.getElementById('privacy-patterns-select-all'); },
     get privacyResultsSelectAll() { return document.getElementById('privacy-results-select-all'); },
     get privacyAddPattern() { return document.getElementById('privacy-add-pattern'); },
+    get privacyExportCsv() { return document.getElementById('privacy-export-csv'); },
     get privacySearchClose() { return document.getElementById('privacy-search-close'); },
     get statusBackBtn() { return document.getElementById('status-back-btn'); },
     get repoStatusBtn() { return document.getElementById('repo-status-btn'); },
@@ -525,6 +527,7 @@ const elements = {
     get advSearchFiles() { return document.getElementById('adv-search-files'); },
     get advSearchRegex() { return document.getElementById('adv-search-regex'); },
     get advSearchExecute() { return document.getElementById('adv-search-execute'); },
+    get advSearchExport() { return document.getElementById('adv-search-export'); },
     get advSearchResults() { return document.getElementById('adv-search-results'); },
     get advSearchResultsHeader() { return document.getElementById('adv-search-results-header'); }
 };
@@ -954,6 +957,9 @@ function initEventListeners() {
     }
     if (elements.advSearchExecute) {
         elements.advSearchExecute.onclick = executeAdvancedSearch;
+    }
+    if (elements.advSearchExport) {
+        elements.advSearchExport.onclick = exportAdvancedSearchResults;
     }
     if (elements.advSearchQuery) {
         elements.advSearchQuery.onkeyup = (e) => {
@@ -7612,6 +7618,8 @@ async function executeAdvancedSearch() {
     }
 
     elements.advSearchResults.innerHTML = '<div style="padding: 60px; text-align: center; color: var(--text-muted);"><div class="spinner"></div> Searching...</div>';
+    if (elements.advSearchExport) elements.advSearchExport.style.display = 'none';
+    lastAdvancedSearchResults = [];
 
     const projectPath = elements.advSearchProject.value;
     let targetRepos = [];
@@ -7639,21 +7647,25 @@ async function executeAdvancedSearch() {
             const results = await window.electronAPI.searchAdvanced(repo, options);
             if (results && results.length > 0) {
                 totalResults += results.length;
+                lastAdvancedSearchResults.push(...results);
                 renderAdvancedSearchResultsIncremental(results, options.query, options.isRegex);
             }
         }
 
         if (totalResults === 0 && !stopAdvancedSearchRequested) {
             elements.advSearchResults.innerHTML = '<div style="padding: 60px; text-align: center; color: var(--text-muted);">No results found.</div>';
-        } else if (stopAdvancedSearchRequested) {
-            const stopMsg = document.createElement('div');
-            stopMsg.style.padding = '15px';
-            stopMsg.style.textAlign = 'center';
-            stopMsg.style.color = 'var(--accent-yellow)';
-            stopMsg.style.borderTop = '1px solid var(--border-color)';
-            stopMsg.style.background = 'rgba(0,0,0,0.2)';
-            stopMsg.textContent = `Search stopped. Found ${totalResults} matches so far.`;
-            elements.advSearchResults.appendChild(stopMsg);
+        } else {
+            if (elements.advSearchExport) elements.advSearchExport.style.display = 'block';
+            if (stopAdvancedSearchRequested) {
+                const stopMsg = document.createElement('div');
+                stopMsg.style.padding = '15px';
+                stopMsg.style.textAlign = 'center';
+                stopMsg.style.color = 'var(--accent-yellow)';
+                stopMsg.style.borderTop = '1px solid var(--border-color)';
+                stopMsg.style.background = 'rgba(0,0,0,0.2)';
+                stopMsg.textContent = `Search stopped. Found ${totalResults} matches so far.`;
+                elements.advSearchResults.appendChild(stopMsg);
+            }
         }
     } catch (e) {
         elements.advSearchResults.innerHTML = `<div style="padding: 60px; text-align: center; color: var(--accent-red);">Search failed: ${e.message}</div>`;
@@ -7785,6 +7797,7 @@ function showPrivacySearchModal(projectPath = null) {
         elements.privacyScanStatus.textContent = `Last scan: ${lastPrivacyScanResults.length} matches found`;
         elements.privacyBulkGitRm.disabled = false;
         elements.privacyBulkIgnore.disabled = false;
+        if (elements.privacyExportCsv) elements.privacyExportCsv.style.display = 'block';
         filterPrivacyResults();
     } else {
         resultsContainer.innerHTML = '<div style="padding: 60px; text-align: center; color: var(--text-muted);">Configure patterns and click Start Scan to detect sensitive data.</div>';
@@ -7828,6 +7841,9 @@ function showPrivacySearchModal(projectPath = null) {
 
     elements.privacyBulkGitRm.onclick = handlePrivacyBulkGitRm;
     elements.privacyBulkIgnore.onclick = handlePrivacyBulkIgnore;
+    if (elements.privacyExportCsv) {
+        elements.privacyExportCsv.onclick = exportPrivacySearchResults;
+    }
 
     elements.privacyResults.onclick = (e) => {
         if (e.target.classList.contains('match-select')) {
@@ -7915,6 +7931,7 @@ async function startPrivacyScan(rootPath = null) {
     isPrivacyScanning = true;
     stopPrivacyScanRequested = false;
     lastPrivacyScanResults = []; // Clear previous results
+    if (elements.privacyExportCsv) elements.privacyExportCsv.style.display = 'none';
 
     const startBtn = elements.privacyScanStart;
     startBtn.textContent = 'Stop Scan';
@@ -7979,6 +7996,10 @@ async function startPrivacyScan(rootPath = null) {
             statusEl.textContent = 'Scan Stopped';
         } else {
             statusEl.textContent = `Scan Complete: ${matchCount} matches found`;
+        }
+
+        if (matchCount > 0 && elements.privacyExportCsv) {
+            elements.privacyExportCsv.style.display = 'block';
         }
 
         elements.privacyBulkGitRm.disabled = matchCount === 0;
@@ -8172,6 +8193,69 @@ async function handlePrivacyBulkGitRm() {
     }
 }
 
+async function exportAdvancedSearchResults() {
+    if (lastAdvancedSearchResults.length === 0) return;
+
+    try {
+        const headers = ['repoName', 'path', 'type', 'line', 'column', 'text'];
+        const csvContent = convertToCSV(lastAdvancedSearchResults, headers);
+
+        const res = await window.electronAPI.showSaveDialog({
+            title: 'Export Advanced Search Results',
+            defaultPath: 'search_results.csv',
+            filters: [{ name: 'CSV Files', extensions: ['csv'] }]
+        });
+
+        if (!res.canceled && res.filePath) {
+            await window.electronAPI.writeFile(res.filePath, csvContent);
+            logToConsole(`Results exported to ${res.filePath}`, 'success');
+            showAlert(`Successfully exported ${lastAdvancedSearchResults.length} results to:\n${res.filePath}`, 'Export Complete');
+        }
+    } catch (e) {
+        logToConsole(`Export failed: ${e.message}`, 'error');
+        showError(e.message, 'Export Failed');
+    }
+}
+
+async function exportPrivacySearchResults() {
+    if (lastPrivacyScanResults.length === 0) return;
+
+    try {
+        const headers = ['repoName', 'filePath', 'patternName', 'lineNumber', 'lineText', 'matchedText'];
+        const csvContent = convertToCSV(lastPrivacyScanResults, headers);
+
+        const res = await window.electronAPI.showSaveDialog({
+            title: 'Export Privacy Search Results',
+            defaultPath: 'privacy_matches.csv',
+            filters: [{ name: 'CSV Files', extensions: ['csv'] }]
+        });
+
+        if (!res.canceled && res.filePath) {
+            await window.electronAPI.writeFile(res.filePath, csvContent);
+            logToConsole(`Privacy matches exported to ${res.filePath}`, 'success');
+            showAlert(`Successfully exported ${lastPrivacyScanResults.length} matches to:\n${res.filePath}`, 'Export Complete');
+        }
+    } catch (e) {
+        logToConsole(`Export failed: ${e.message}`, 'error');
+        showError(e.message, 'Export Failed');
+    }
+}
+
+function convertToCSV(data, headers) {
+    const rows = [headers.join(',')];
+    data.forEach(item => {
+        const row = headers.map(header => {
+            let val = item[header];
+            if (val === undefined || val === null) val = '';
+            // Escape double quotes and wrap in double quotes
+            const escaped = String(val).replace(/"/g, '""');
+            return `"${escaped}"`;
+        });
+        rows.push(row.join(','));
+    });
+    return rows.join('\n');
+}
+
 async function handlePrivacyBulkIgnore() {
     const checked = Array.from(elements.privacyResults.querySelectorAll('.match-select:checked'))
         .filter(cb => cb.closest('.privacy-match-item').style.display !== 'none');
@@ -8212,6 +8296,69 @@ async function handlePrivacyBulkIgnore() {
             setTaskState(false);
         }
     }
+}
+
+async function exportAdvancedSearchResults() {
+    if (lastAdvancedSearchResults.length === 0) return;
+
+    try {
+        const headers = ['repoName', 'path', 'type', 'line', 'column', 'text'];
+        const csvContent = convertToCSV(lastAdvancedSearchResults, headers);
+
+        const res = await window.electronAPI.showSaveDialog({
+            title: 'Export Advanced Search Results',
+            defaultPath: 'search_results.csv',
+            filters: [{ name: 'CSV Files', extensions: ['csv'] }]
+        });
+
+        if (!res.canceled && res.filePath) {
+            await window.electronAPI.writeFile(res.filePath, csvContent);
+            logToConsole(`Results exported to ${res.filePath}`, 'success');
+            showAlert(`Successfully exported ${lastAdvancedSearchResults.length} results to:\n${res.filePath}`, 'Export Complete');
+        }
+    } catch (e) {
+        logToConsole(`Export failed: ${e.message}`, 'error');
+        showError(e.message, 'Export Failed');
+    }
+}
+
+async function exportPrivacySearchResults() {
+    if (lastPrivacyScanResults.length === 0) return;
+
+    try {
+        const headers = ['repoName', 'filePath', 'patternName', 'lineNumber', 'lineText', 'matchedText'];
+        const csvContent = convertToCSV(lastPrivacyScanResults, headers);
+
+        const res = await window.electronAPI.showSaveDialog({
+            title: 'Export Privacy Search Results',
+            defaultPath: 'privacy_matches.csv',
+            filters: [{ name: 'CSV Files', extensions: ['csv'] }]
+        });
+
+        if (!res.canceled && res.filePath) {
+            await window.electronAPI.writeFile(res.filePath, csvContent);
+            logToConsole(`Privacy matches exported to ${res.filePath}`, 'success');
+            showAlert(`Successfully exported ${lastPrivacyScanResults.length} matches to:\n${res.filePath}`, 'Export Complete');
+        }
+    } catch (e) {
+        logToConsole(`Export failed: ${e.message}`, 'error');
+        showError(e.message, 'Export Failed');
+    }
+}
+
+function convertToCSV(data, headers) {
+    const rows = [headers.join(',')];
+    data.forEach(item => {
+        const row = headers.map(header => {
+            let val = item[header];
+            if (val === undefined || val === null) val = '';
+            // Escape double quotes and wrap in double quotes
+            const escaped = String(val).replace(/"/g, '""');
+            return `"${escaped}"`;
+        });
+        rows.push(row.join(','));
+    });
+    return rows.join('\n');
 }
 
 
