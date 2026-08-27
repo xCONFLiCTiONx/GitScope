@@ -943,15 +943,14 @@ function initEventListeners() {
     let filterTimeout;
     if (elements.repoFilter) {
         elements.repoFilter.oninput = () => {
-            if (elements.repoFilterClear) {
-                elements.repoFilterClear.style.display = elements.repoFilter.value ? 'block' : 'none';
-            }
+            updateClearButtonVisibility();
             clearTimeout(filterTimeout);
             filterTimeout = setTimeout(() => renderTree(elements.repoFilter.value), 300);
         };
 
         elements.repoFilter.onfocus = () => {
             if (elements.sidebar) elements.sidebar.classList.add('search-active');
+            updateClearButtonVisibility();
             updateSearchViewState();
         };
 
@@ -960,6 +959,7 @@ function initEventListeners() {
                 if (elements.sidebar && !elements.repoFilter.value) {
                     elements.sidebar.classList.remove('search-active');
                 }
+                updateClearButtonVisibility();
                 updateSearchViewState();
             }, 200);
         };
@@ -7681,6 +7681,14 @@ function updateSearchViewState() {
     } else {
         elements.sidebar.classList.remove('search-view-active');
     }
+}
+
+function updateClearButtonVisibility() {
+    if (!elements.repoFilter || !elements.repoFilterClear) return;
+    const isFocused = document.activeElement === elements.repoFilter;
+    const hasValue = !!elements.repoFilter.value;
+    // Show 'X' if the input is focused (blinking cursor) OR if it has text
+    elements.repoFilterClear.style.display = (isFocused || hasValue) ? 'block' : 'none';
 }
 
 console.log('GitScope Professional logic loaded.');
