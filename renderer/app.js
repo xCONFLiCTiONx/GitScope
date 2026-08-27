@@ -8197,8 +8197,22 @@ async function exportAdvancedSearchResults() {
     if (lastAdvancedSearchResults.length === 0) return;
 
     try {
-        const headers = ['repoName', 'path', 'type', 'line', 'column', 'text'];
-        const csvContent = convertToCSV(lastAdvancedSearchResults, headers);
+        const query = (elements.advSearchQuery.value || '').trim();
+        const headers = ['projectName', 'filePath', 'absolutePath', 'lineNumber', 'searchTerm', 'lineSnippet'];
+
+        const mappedData = lastAdvancedSearchResults.map(item => {
+            const absPath = `${item.repoPath}/${item.path}`.replace(/\\/g, '/').replace(/\/+/g, '/');
+            return {
+                projectName: item.repoName,
+                filePath: item.path,
+                absolutePath: absPath,
+                lineNumber: item.line || 0,
+                searchTerm: query,
+                lineSnippet: (item.text || '').trim().substring(0, 200)
+            };
+        });
+
+        const csvContent = convertToCSV(mappedData, headers);
 
         const filePath = await window.electronAPI.showSaveDialog({
             title: 'Export Advanced Search Results',
@@ -8209,7 +8223,7 @@ async function exportAdvancedSearchResults() {
         if (filePath) {
             await window.electronAPI.writeFile(filePath, csvContent);
             logToConsole(`Results exported to ${filePath}`, 'success');
-            showAlert(`Successfully exported ${lastAdvancedSearchResults.length} results to:\n${filePath}`, 'Export Complete');
+            showAlert(`Successfully exported ${mappedData.length} results to:\n${filePath}`, 'Export Complete');
         }
     } catch (e) {
         logToConsole(`Export failed: ${e.message}`, 'error');
@@ -8221,8 +8235,25 @@ async function exportPrivacySearchResults() {
     if (lastPrivacyScanResults.length === 0) return;
 
     try {
-        const headers = ['repoName', 'filePath', 'patternName', 'lineNumber', 'lineText', 'matchedText'];
-        const csvContent = convertToCSV(lastPrivacyScanResults, headers);
+        const headers = ['projectName', 'filePath', 'absolutePath', 'lineNumber', 'searchTerm', 'lineSnippet'];
+
+        const mappedData = lastPrivacyScanResults.map(item => {
+            const repo = findRepoForPath(item.filePath);
+            let relPath = item.filePath;
+            if (repo) {
+                relPath = item.filePath.substring(repo.path.length).replace(/^[\\\/]/, '').replace(/\\/g, '/');
+            }
+            return {
+                projectName: item.repoName,
+                filePath: relPath,
+                absolutePath: item.filePath.replace(/\\/g, '/'),
+                lineNumber: item.lineNumber,
+                searchTerm: item.patternName,
+                lineSnippet: (item.lineText || '').trim().substring(0, 200)
+            };
+        });
+
+        const csvContent = convertToCSV(mappedData, headers);
 
         const filePath = await window.electronAPI.showSaveDialog({
             title: 'Export Privacy Search Results',
@@ -8233,7 +8264,7 @@ async function exportPrivacySearchResults() {
         if (filePath) {
             await window.electronAPI.writeFile(filePath, csvContent);
             logToConsole(`Privacy matches exported to ${filePath}`, 'success');
-            showAlert(`Successfully exported ${lastPrivacyScanResults.length} matches to:\n${filePath}`, 'Export Complete');
+            showAlert(`Successfully exported ${mappedData.length} matches to:\n${filePath}`, 'Export Complete');
         }
     } catch (e) {
         logToConsole(`Export failed: ${e.message}`, 'error');
