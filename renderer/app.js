@@ -256,8 +256,7 @@ async function guardNavigation() {
     if (!monacoEditor || !elements.editorView) return true;
     if (elements.editorView.style.display === 'none') return true;
 
-    const currentContent = monacoEditor.getValue();
-    if (currentContent !== originalFileContent) {
+    if (hasUnsavedChanges()) {
         const result = await showUnsavedChangesDialog();
         if (result === 'save') {
             await saveCurrentFile();
@@ -271,6 +270,14 @@ async function guardNavigation() {
     return true;
 }
 
+function hasUnsavedChanges() {
+    if (!monacoEditor) return false;
+    // Normalize both strings to LF to prevent false positives from CRLF vs LF
+    const currentContent = monacoEditor.getValue().replace(/\r\n/g, '\n');
+    const originalNormalized = (originalFileContent || '').replace(/\r\n/g, '\n');
+    return currentContent !== originalNormalized;
+}
+
 // DOM Elements Mapping (Getter-based for total resilience)
 const elements = {
     get navHome() { return document.getElementById('nav-home'); },
@@ -278,9 +285,6 @@ const elements = {
     get navNew() { return document.getElementById('nav-new'); },
     get navAdd() { return document.getElementById('nav-add'); },
     get navSearch() { return document.getElementById('nav-search'); },
-    get searchPopout() { return document.getElementById('search-popout'); },
-    get popoutAdvSearch() { return document.getElementById('popout-adv-search'); },
-    get popoutPrivacySearch() { return document.getElementById('popout-privacy-search'); },
     get navGitConfig() { return document.getElementById('nav-git-config'); },
     get navTheme() { return document.getElementById('nav-theme'); },
     get navSettings() { return document.getElementById('nav-settings'); },
@@ -306,7 +310,12 @@ const elements = {
     get diffBackBtn() { return document.getElementById('diff-back-btn'); },
     get statusView() { return document.getElementById('status-view'); },
     get statusContainer() { return document.getElementById('status-container'); },
-    get privacySearchModal() { return document.getElementById('privacy-search-modal'); },
+    get searchHubModal() { return document.getElementById('search-hub-modal'); },
+    get searchHubClose() { return document.getElementById('search-hub-close'); },
+    get tabAdvanced() { return document.getElementById('tab-advanced'); },
+    get tabPrivacy() { return document.getElementById('tab-privacy'); },
+    get contentAdvanced() { return document.getElementById('content-advanced'); },
+    get contentPrivacy() { return document.getElementById('content-privacy'); },
     get privacyResults() { return document.getElementById('privacy-results'); },
     get privacySearchProject() { return document.getElementById('privacy-search-project'); },
     get privacyScanStart() { return document.getElementById('privacy-scan-start'); },
@@ -319,7 +328,6 @@ const elements = {
     get privacyAddPattern() { return document.getElementById('privacy-add-pattern'); },
     get privacyExportCsv() { return document.getElementById('privacy-export-csv'); },
     get privacyExportMd() { return document.getElementById('privacy-export-md'); },
-    get privacySearchClose() { return document.getElementById('privacy-search-close'); },
     get statusBackBtn() { return document.getElementById('status-back-btn'); },
     get repoStatusBtn() { return document.getElementById('repo-status-btn'); },
     get repoStashBtn() { return document.getElementById('repo-stash-btn'); },
@@ -520,8 +528,6 @@ const elements = {
     get stashSaveBtn() { return document.getElementById('stash-save-btn'); },
     get stashListContainer() { return document.getElementById('stash-list-container'); },
     get stashCloseBtn() { return document.getElementById('stash-close-btn'); },
-    get advancedSearchModal() { return document.getElementById('advanced-search-modal'); },
-    get advancedSearchClose() { return document.getElementById('advanced-search-close'); },
     get advSearchQuery() { return document.getElementById('adv-search-query'); },
     get advSearchProject() { return document.getElementById('adv-search-project'); },
     get advSearchContent() { return document.getElementById('adv-search-content'); },
@@ -909,17 +915,7 @@ function initEventListeners() {
     if (elements.navAdd) elements.navAdd.onclick = () => handleAddRepo();
     if (elements.navSearch) elements.navSearch.onclick = (e) => {
         e.stopPropagation();
-        const popout = elements.searchPopout;
-        popout.style.display = popout.style.display === 'flex' ? 'none' : 'flex';
-    };
-    if (elements.popoutAdvSearch) elements.popoutAdvSearch.onclick = () => {
-        elements.searchPopout.style.display = 'none';
-        elements.advancedSearchModal.style.display = 'flex';
-        populateAdvSearchProjects();
-    };
-    if (elements.popoutPrivacySearch) elements.popoutPrivacySearch.onclick = () => {
-        elements.searchPopout.style.display = 'none';
-        showPrivacySearchModal();
+        showSearchHub('advanced');
     };
     if (elements.navSettings) elements.navSettings.onclick = async () => await showSettings();
     if (elements.navGitConfig) elements.navGitConfig.onclick = async () => {
@@ -947,16 +943,17 @@ function initEventListeners() {
         await showDashboard();
     };
 
-    // Sidebar Header Actions
-    if (elements.sidebarRefresh) elements.sidebarRefresh.onclick = () => renderTree(elements.repoFilter.value);
-
-    // Advanced Search Logic
-    if (elements.advancedSearchClose) {
-        elements.advancedSearchClose.onclick = () => {
-            elements.advancedSearchModal.style.display = 'none';
+    // Search Hub Logic
+    if (elements.searchHubClose) {
+        elements.searchHubClose.onclick = () => {
+            elements.searchHubModal.style.display = 'none';
             if (isAdvancedSearching) stopAdvancedSearchRequested = true;
+            if (isPrivacyScanning) stopPrivacyScanRequested = true;
         };
     }
+    if (elements.tabAdvanced) elements.tabAdvanced.onclick = () => switchSearchTab('advanced');
+    if (elements.tabPrivacy) elements.tabPrivacy.onclick = () => switchSearchTab('privacy');
+
     if (elements.advSearchExecute) {
         elements.advSearchExecute.onclick = executeAdvancedSearch;
     }
@@ -5631,7 +5628,8 @@ async function openFileInEditor(filePath, line = null, col = null, searchQuery =
             const result = await window.electronAPI.readFile(filePath);
             const content = result.content;
             currentFileEncoding = result.encoding;
-            originalFileContent = content; // Store for change detection
+            // Store for change detection (Normalize line endings to LF)
+            originalFileContent = content ? content.replace(/\r\n/g, '\n') : '';
 
             const langMap = {
                 'js': 'javascript',
@@ -5668,7 +5666,7 @@ async function openFileInEditor(filePath, line = null, col = null, searchQuery =
             const oldModel = monacoEditor.getModel();
             if (oldModel) oldModel.dispose();
 
-            const model = monaco.editor.createModel(content, langMap[ext] || 'plaintext');
+            const model = monaco.editor.createModel(originalFileContent, langMap[ext] || 'plaintext');
             monacoEditor.setModel(model);
 
             // Intelligence: Now that the content is loaded into the editor, we can safely trigger the preview
@@ -5681,8 +5679,7 @@ async function openFileInEditor(filePath, line = null, col = null, searchQuery =
 
             // Intelligence: Track changes to enable/disable buttons
             model.onDidChangeContent(() => {
-                const currentContent = monacoEditor.getValue();
-                const hasChanges = currentContent !== originalFileContent;
+                const hasChanges = hasUnsavedChanges();
                 updateEditorButtonStates(hasChanges);
 
                 // Real-time Markdown/HTML Preview
@@ -5742,7 +5739,7 @@ async function openFileInEditor(filePath, line = null, col = null, searchQuery =
 
 function updateEditorButtonStates(hasChanges) {
     if (hasChanges === undefined && monacoEditor) {
-        hasChanges = monacoEditor.getValue() !== originalFileContent;
+        hasChanges = hasUnsavedChanges();
     }
 
     const isFileChangedInGit = activeRepo && currentEditingPath &&
@@ -5998,7 +5995,7 @@ async function handleContextMenuCommand({ command, paths, path, repoPath }) {
         }
     }
     else if (command === 'see-changes') await showFileDiff(targets[0]);
-    else if (command === 'privacy-search') showPrivacySearchModal(targets[0]);
+    else if (command === 'privacy-search') showSearchHub('privacy');
     else if (command === 'create-readme') handleCreateReadme(targets[0]);
     else if (command === 'generate-gitignore') handleGenerateGitignore(targets[0]);
     else if (command === 'add-license') handleAddLicense(targets[0]);
@@ -7579,6 +7576,28 @@ window.addEventListener('blur', () => {
     if (preview) preview.classList.remove('ctrl-active');
 });
 
+function showSearchHub(tab = 'advanced', projectPath = null) {
+    elements.searchHubModal.style.display = 'flex';
+    switchSearchTab(tab, projectPath);
+}
+
+function switchSearchTab(tab, projectPath = null) {
+    if (tab === 'advanced') {
+        elements.tabAdvanced.classList.add('active');
+        elements.tabPrivacy.classList.remove('active');
+        elements.contentAdvanced.classList.add('active');
+        elements.contentPrivacy.classList.remove('active');
+        populateAdvSearchProjects();
+        if (projectPath) elements.advSearchProject.value = projectPath;
+    } else {
+        elements.tabAdvanced.classList.remove('active');
+        elements.tabPrivacy.classList.add('active');
+        elements.contentAdvanced.classList.remove('active');
+        elements.contentPrivacy.classList.add('active');
+        showPrivacySearchModal(projectPath);
+    }
+}
+
 function populateAdvSearchProjects() {
     if (!elements.advSearchProject) return;
     const currentVal = elements.advSearchProject.value;
@@ -7741,7 +7760,7 @@ function renderAdvancedSearchResultsIncremental(results, searchQuery = null, isR
         item.onclick = () => {
             const fullPath = `${res.repoPath}/${res.path}`.replace(/\\/g, '/');
             openFileInEditor(fullPath, res.line, res.column, searchQuery, isRegex);
-            elements.advancedSearchModal.style.display = 'none';
+            elements.searchHubModal.style.display = 'none';
         };
 
         fragment.appendChild(item);
@@ -7777,9 +7796,6 @@ let stopPrivacyScanRequested = false;
 let activePrivacyPatterns = [];
 
 function showPrivacySearchModal(projectPath = null) {
-    const modal = elements.privacySearchModal;
-    modal.style.display = 'flex';
-
     if (!activePrivacyPatterns || activePrivacyPatterns.length === 0) {
         activePrivacyPatterns = PRIVACY_PATTERNS.map((p, idx) => ({ ...p, id: 'p-' + idx }));
     }
@@ -7841,11 +7857,6 @@ function showPrivacySearchModal(projectPath = null) {
             filterPrivacyResults();
         };
     }
-
-    elements.privacySearchClose.onclick = () => {
-        modal.style.display = 'none';
-        stopPrivacyScanRequested = true;
-    };
 
     elements.privacyBulkGitRm.onclick = handlePrivacyBulkGitRm;
     elements.privacyBulkIgnore.onclick = handlePrivacyBulkIgnore;
@@ -8133,11 +8144,11 @@ function renderPrivacyMatch(match, skipScroll = false) {
 
     item.querySelector('.privacy-edit-btn').onclick = () => {
         openFileInEditor(match.filePath, match.lineNumber, 1, match.matchedText);
-        elements.privacySearchModal.style.display = 'none';
+        elements.searchHubModal.style.display = 'none';
     };
 
     item.querySelector('.privacy-tree-btn').onclick = async () => {
-        elements.privacySearchModal.style.display = 'none';
+        elements.searchHubModal.style.display = 'none';
         await revealFileInSidebar(match.filePath);
     };
 

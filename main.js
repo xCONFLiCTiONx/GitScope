@@ -494,30 +494,35 @@ ipcMain.handle('search-advanced', async (event, repo, options) => {
         const git = simpleGit(repo.path);
 
         if (searchFiles) {
-            const files = await git.raw(['ls-files', '-c', '-o', '--exclude-standard']);
-            const allFiles = files.split('\n').filter(f => f.trim() !== '');
+            try {
+                const files = await git.raw(['ls-files', '-c', '-o', '--exclude-standard']);
+                const allFiles = files.split('\n').filter(f => f.trim() !== '');
 
-            let matches;
-            if (isRegex) {
-                try {
-                    const re = new RegExp(query, 'i');
-                    matches = allFiles.filter(f => re.test(f));
-                } catch (e) {
-                    matches = [];
+                let matches;
+                if (isRegex) {
+                    try {
+                        const re = new RegExp(query, 'i');
+                        matches = allFiles.filter(f => re.test(f));
+                    } catch (e) {
+                        matches = [];
+                    }
+                } else {
+                    const lowerQuery = query.toLowerCase();
+                    matches = allFiles.filter(f => f.toLowerCase().includes(lowerQuery));
                 }
-            } else {
-                const lowerQuery = query.toLowerCase();
-                matches = allFiles.filter(f => f.toLowerCase().includes(lowerQuery));
-            }
 
-            matches.slice(0, 500).forEach(f => {
-                results.push({
-                    repoName: repo.name,
-                    repoPath: repo.path,
-                    path: f,
-                    type: 'file'
+                matches.slice(0, 1000).forEach(f => {
+                    results.push({
+                        repoName: repo.name,
+                        repoPath: repo.path,
+                        path: f,
+                        text: `File name match: ${f}`,
+                        type: 'file'
+                    });
                 });
-            });
+            } catch (lsError) {
+                console.error(`ls-files failed for ${repo.name}:`, lsError);
+            }
         }
 
         if (searchContent) {

@@ -179,6 +179,41 @@
             --nav-rail-bg: #010409;
         }
 
+        /* Tabs UI */
+        .tab-bar {
+            display: flex;
+            gap: 2px;
+            margin-bottom: 20px;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 0;
+        }
+        .tab-item {
+            padding: 8px 16px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-muted);
+            border-bottom: 2px solid transparent;
+            transition: all 0.2s;
+        }
+        .tab-item:hover {
+            color: var(--text-main);
+            background: rgba(255,255,255,0.05);
+        }
+        .tab-item.active {
+            color: var(--accent-blue);
+            border-bottom-color: var(--accent-blue);
+        }
+        .tab-content {
+            display: none;
+            flex: 1;
+            flex-direction: column;
+            min-height: 0;
+        }
+        .tab-content.active {
+            display: flex;
+        }
+
         * {
             box-sizing: border-box;
         }
@@ -1138,10 +1173,6 @@
     </div>
     <div id="top-container">
         <div id="nav-rail">
-            <div id="search-popout" class="nav-popout">
-                <div class="popout-item" id="popout-adv-search">Advanced Search</div>
-                <div class="popout-item" id="popout-privacy-search">Privacy Search</div>
-            </div>
             <div id="nav-home" class="nav-item active" title="Dashboard">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
             </div>
@@ -2117,107 +2148,108 @@
         </div>
     </div>
 
-    <div id="advanced-search-modal" class="modal">
-        <div class="modal-content" style="width: 800px; max-width: 95vw; height: 85vh; display: flex; flex-direction: column; background: var(--bg-main); border-color: var(--accent-blue);">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                <h3 style="margin: 0;">Advanced Search</h3>
-                <span class="modal-close" id="advanced-search-close" style="cursor: pointer; font-size: 24px;">&times;</span>
+    <!-- Search Hub Modal -->
+    <div id="search-hub-modal" class="modal">
+        <div class="modal-content" style="width: 950px; max-width: 95vw; height: 90vh; display: flex; flex-direction: column; background: var(--bg-main); border-color: var(--accent-blue);">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                <div class="tab-bar" style="margin-bottom: 0; flex: 1;">
+                    <div class="tab-item active" id="tab-advanced" data-tab="advanced">Advanced Search</div>
+                    <div class="tab-item" id="tab-privacy" data-tab="privacy">Privacy Search</div>
+                </div>
+                <span class="modal-close" id="search-hub-close" style="cursor: pointer; font-size: 24px; margin-left: 20px;">&times;</span>
             </div>
 
-            <div style="display: flex; gap: 10px; margin-bottom: 15px; flex-wrap: wrap;">
-                <div style="flex: 1; min-width: 250px;">
-                    <label style="display: block; font-size: 11px; margin-bottom: 4px; color: var(--text-muted); text-transform: uppercase; font-weight: 800;">Search Query</label>
-                    <input type="text" id="adv-search-query" class="settings-input" placeholder="Search text or file name..." style="width: 100%;">
-                </div>
-                <div style="width: 250px;">
-                    <label style="display: block; font-size: 11px; margin-bottom: 4px; color: var(--text-muted); text-transform: uppercase; font-weight: 800;">In Project</label>
-                    <select id="adv-search-project" class="settings-input" style="width: 100%; height: 32px; padding: 0 8px;">
-                        <option value="all">All Projects</option>
-                    </select>
-                </div>
-            </div>
-
-            <div style="display: flex; gap: 20px; margin-bottom: 20px; align-items: center; padding: 10px; background: rgba(0,0,0,0.2); border-radius: 4px;">
-                <label class="checkbox-container" style="font-size: 11px; margin: 0;">
-                    <input type="checkbox" id="adv-search-content" checked> Search Content
-                </label>
-                <label class="checkbox-container" style="font-size: 11px; margin: 0;">
-                    <input type="checkbox" id="adv-search-files" checked> Search File Names
-                </label>
-                <label class="checkbox-container" style="font-size: 11px; margin: 0;">
-                    <input type="checkbox" id="adv-search-regex"> Use Regex
-                </label>
-                <button id="adv-search-execute" class="button button-primary" style="margin-left: auto; height: 32px; padding: 0 25px;">Search</button>
-            </div>
-
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                <div id="adv-search-results-header" style="font-size: 11px; font-weight: 800; color: var(--text-muted); text-transform: uppercase;">
-                    Results
-                </div>
-                <div style="display: flex; gap: 4px;">
-                    <button id="adv-search-export" class="button" style="font-size: 10px; padding: 2px 8px; display: none;">Export CSV</button>
-                    <button id="adv-search-export-md" class="button" style="font-size: 10px; padding: 2px 8px; display: none;">Export Markdown</button>
-                </div>
-            </div>
-            <div id="adv-search-results" style="flex: 1; overflow-y: auto; border: 1px solid var(--border-color); border-radius: 4px; background: rgba(0,0,0,0.1); font-family: var(--font-mono);">
-                <div style="padding: 60px; text-align: center; color: var(--text-muted); font-family: var(--font-sans);">
-                    Enter a query and click Search to find matches across your repositories.
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <div id="privacy-search-modal" class="modal">
-        <div class="modal-content" style="width: 900px; max-width: 95vw; height: 85vh; display: flex; flex-direction: column; background: var(--bg-main); border-color: var(--accent-red);">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                <h3 style="margin: 0; color: var(--accent-red);">Privacy Search</h3>
-                <span class="modal-close" id="privacy-search-close" style="cursor: pointer; font-size: 24px;">&times;</span>
-            </div>
-
-            <div style="display: flex; gap: 20px; flex: 1; min-height: 0;">
-                <!-- Left: Configuration -->
-                <div style="width: 320px; display: flex; flex-direction: column; border-right: 1px solid var(--border-color); padding-right: 20px;">
-                    <div style="margin-bottom: 20px;">
-                        <label style="display: block; font-size: 11px; margin-bottom: 4px; color: var(--text-muted); text-transform: uppercase; font-weight: 800;">Target Project</label>
-                        <select id="privacy-search-project" class="settings-input" style="width: 100%; height: 32px; padding: 0 8px;">
+            <!-- Advanced Search Tab Content -->
+            <div id="content-advanced" class="tab-content active">
+                <div style="display: flex; gap: 10px; margin-bottom: 15px; flex-wrap: wrap;">
+                    <div style="flex: 1; min-width: 250px;">
+                        <label style="display: block; font-size: 11px; margin-bottom: 4px; color: var(--text-muted); text-transform: uppercase; font-weight: 800;">Search Query</label>
+                        <input type="text" id="adv-search-query" class="settings-input" placeholder="Search text or file name..." style="width: 100%;">
+                    </div>
+                    <div style="width: 250px;">
+                        <label style="display: block; font-size: 11px; margin-bottom: 4px; color: var(--text-muted); text-transform: uppercase; font-weight: 800;">In Project</label>
+                        <select id="adv-search-project" class="settings-input" style="width: 100%; height: 32px; padding: 0 8px;">
                             <option value="all">All Projects</option>
                         </select>
                     </div>
-
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-                        <div style="display: flex; align-items: center; gap: 10px;">
-                            <h4 style="font-size: 11px; text-transform: uppercase; color: var(--text-muted); margin: 0;">Search Patterns</h4>
-                            <span id="privacy-patterns-select-all" style="font-size: 10px; color: var(--accent-blue); cursor: pointer; font-weight: 600;">Select All</span>
-                        </div>
-                        <button id="privacy-add-pattern" class="button" style="padding: 2px 6px; font-size: 10px;">+ Add</button>
-                    </div>
-                    <div id="privacy-patterns-list" style="flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; margin-bottom: 16px; padding-right: 5px;">
-                        <!-- Pattern items injected via JS -->
-                    </div>
-                    <button id="privacy-scan-start" class="button button-primary" style="width: 100%;">Start Scan</button>
                 </div>
 
-                <!-- Right: Results -->
-                <div style="flex: 1; display: flex; flex-direction: column; min-width: 0;">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                        <div style="display: flex; align-items: center; gap: 10px;">
-                            <h4 style="font-size: 11px; text-transform: uppercase; color: var(--text-muted); margin: 0;">Matches</h4>
-                            <span id="privacy-results-select-all" style="font-size: 10px; color: var(--accent-blue); cursor: pointer; font-weight: 600;">Select All</span>
-                            <div style="display: flex; gap: 4px;">
-                                <button id="privacy-export-csv" class="button" style="font-size: 10px; padding: 2px 8px; display: none;">Export CSV</button>
-                                <button id="privacy-export-md" class="button" style="font-size: 10px; padding: 2px 8px; display: none;">Export Markdown</button>
+                <div style="display: flex; gap: 20px; margin-bottom: 20px; align-items: center; padding: 10px; background: rgba(0,0,0,0.2); border-radius: 4px;">
+                    <label class="checkbox-container" style="font-size: 11px; margin: 0;">
+                        <input type="checkbox" id="adv-search-content" checked> Search Content
+                    </label>
+                    <label class="checkbox-container" style="font-size: 11px; margin: 0;">
+                        <input type="checkbox" id="adv-search-files" checked> Search File Names
+                    </label>
+                    <label class="checkbox-container" style="font-size: 11px; margin: 0;">
+                        <input type="checkbox" id="adv-search-regex"> Use Regex
+                    </label>
+                    <button id="adv-search-execute" class="button button-primary" style="margin-left: auto; height: 32px; padding: 0 25px;">Search</button>
+                </div>
+
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                    <div id="adv-search-results-header" style="font-size: 11px; font-weight: 800; color: var(--text-muted); text-transform: uppercase;">
+                        Results
+                    </div>
+                    <div style="display: flex; gap: 4px;">
+                        <button id="adv-search-export" class="button" style="font-size: 10px; padding: 2px 8px; display: none;">Export CSV</button>
+                        <button id="adv-search-export-md" class="button" style="font-size: 10px; padding: 2px 8px; display: none;">Export Markdown</button>
+                    </div>
+                </div>
+                <div id="adv-search-results" style="flex: 1; overflow-y: auto; border: 1px solid var(--border-color); border-radius: 4px; background: rgba(0,0,0,0.1); font-family: var(--font-mono);">
+                    <div style="padding: 60px; text-align: center; color: var(--text-muted); font-family: var(--font-sans);">
+                        Enter a query and click Search to find matches across your repositories.
+                    </div>
+                </div>
+            </div>
+
+            <!-- Privacy Search Tab Content -->
+            <div id="content-privacy" class="tab-content">
+                <div style="display: flex; gap: 20px; flex: 1; min-height: 0;">
+                    <!-- Left: Configuration -->
+                    <div style="width: 320px; display: flex; flex-direction: column; border-right: 1px solid var(--border-color); padding-right: 20px;">
+                        <div style="margin-bottom: 20px;">
+                            <label style="display: block; font-size: 11px; margin-bottom: 4px; color: var(--text-muted); text-transform: uppercase; font-weight: 800;">Target Project</label>
+                            <select id="privacy-search-project" class="settings-input" style="width: 100%; height: 32px; padding: 0 8px;">
+                                <option value="all">All Projects</option>
+                            </select>
+                        </div>
+
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                            <div style="display: flex; align-items: center; gap: 10px;">
+                                <h4 style="font-size: 11px; text-transform: uppercase; color: var(--text-muted); margin: 0;">Search Patterns</h4>
+                                <span id="privacy-patterns-select-all" style="font-size: 10px; color: var(--accent-blue); cursor: pointer; font-weight: 600;">Select All</span>
+                            </div>
+                            <button id="privacy-add-pattern" class="button" style="padding: 2px 6px; font-size: 10px;">+ Add</button>
+                        </div>
+                        <div id="privacy-patterns-list" style="flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; margin-bottom: 16px; padding-right: 5px;">
+                            <!-- Pattern items injected via JS -->
+                        </div>
+                        <button id="privacy-scan-start" class="button button-primary" style="width: 100%;">Start Scan</button>
+                    </div>
+
+                    <!-- Right: Results -->
+                    <div style="flex: 1; display: flex; flex-direction: column; min-width: 0;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                            <div style="display: flex; align-items: center; gap: 10px;">
+                                <h4 style="font-size: 11px; text-transform: uppercase; color: var(--text-muted); margin: 0;">Matches</h4>
+                                <span id="privacy-results-select-all" style="font-size: 10px; color: var(--accent-blue); cursor: pointer; font-weight: 600;">Select All</span>
+                                <div style="display: flex; gap: 4px;">
+                                    <button id="privacy-export-csv" class="button" style="font-size: 10px; padding: 2px 8px; display: none;">Export CSV</button>
+                                    <button id="privacy-export-md" class="button" style="font-size: 10px; padding: 2px 8px; display: none;">Export Markdown</button>
+                                </div>
+                            </div>
+                            <div id="privacy-scan-status" style="font-size: 11px; color: var(--accent-blue);"></div>
+                        </div>
+                        <div id="privacy-results" style="flex: 1; overflow-y: auto; border: 1px solid var(--border-color); border-radius: 4px; background: rgba(0,0,0,0.1); font-family: var(--font-mono); font-size: 11px;">
+                            <div style="padding: 60px; text-align: center; color: var(--text-muted); font-family: var(--font-sans);">
+                                Configure patterns and click Start Scan to detect sensitive data.
                             </div>
                         </div>
-                        <div id="privacy-scan-status" style="font-size: 11px; color: var(--accent-blue);"></div>
-                    </div>
-                    <div id="privacy-results" style="flex: 1; overflow-y: auto; border: 1px solid var(--border-color); border-radius: 4px; background: rgba(0,0,0,0.1); font-family: var(--font-mono); font-size: 11px;">
-                        <div style="padding: 60px; text-align: center; color: var(--text-muted); font-family: var(--font-sans);">
-                            Configure patterns and click Start Scan to detect sensitive data.
+                        <div style="margin-top: 12px; display: flex; justify-content: flex-end; gap: 8px;">
+                            <button id="privacy-bulk-git-rm" class="button button-danger" disabled>git rm --cached Selected</button>
+                            <button id="privacy-bulk-ignore" class="button" disabled>Add to .gitignore</button>
                         </div>
-                    </div>
-                    <div style="margin-top: 12px; display: flex; justify-content: flex-end; gap: 8px;">
-                        <button id="privacy-bulk-git-rm" class="button button-danger" disabled>git rm --cached Selected</button>
-                        <button id="privacy-bulk-ignore" class="button" disabled>Add to .gitignore</button>
                     </div>
                 </div>
             </div>
