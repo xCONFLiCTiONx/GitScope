@@ -863,6 +863,10 @@ ipcMain.handle('git-stage-all', async (event, path) => {
   return await gitActions.stageAllChanges(path);
 });
 
+ipcMain.handle('git-add-to-gitignore', async (event, path, entry) => {
+  return await gitActions.addToGitignore(path, entry);
+});
+
 ipcMain.handle('git-stage-file', async (event, path, filePath) => {
   return await gitActions.stageFile(path, filePath);
 });

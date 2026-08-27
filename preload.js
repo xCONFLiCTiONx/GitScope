@@ -41,6 +41,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   gitDeleteBranch: (path, name) => ipcRenderer.invoke('git-delete-branch', path, name),
   gitRenameBranch: (path, oldName, newName) => ipcRenderer.invoke('git-rename-branch', path, oldName, newName),
   gitStageAll: (path) => ipcRenderer.invoke('git-stage-all', path),
+  gitAddToGitignore: (path, entry) => ipcRenderer.invoke('git-add-to-gitignore', path, entry),
   gitStageFile: (path, filePath) => ipcRenderer.invoke('git-stage-file', path, filePath),
   gitUnstageAll: (path) => ipcRenderer.invoke('git-unstage-all', path),
   gitUnstageFile: (path, filePath) => ipcRenderer.invoke('git-unstage-file', path, filePath),

@@ -1763,16 +1763,43 @@ async function handleDashboardRestore(repo) {
 async function handleStageAll() {
     if (!activeRepo) return;
     setTaskState(true);
-    logToConsole('Staging all changes (git add .)...', 'info');
+    logToConsole('Staging all changes (git add -A)...', 'info');
     try {
         const res = await window.electronAPI.gitStageAll(activeRepo.path);
         if (res.success) {
-            logToConsole(res.output, 'success');
+            if (res.partial) {
+                logToConsole(res.output, 'warn');
+
+                // Intelligence: If it's a locked .vs file, offer to ignore the folder
+                if (res.output.toLowerCase().includes('.vs')) {
+                    const ignore = await showConfirm(
+                        "Some files in the .vs/ folder are locked by Visual Studio and couldn't be staged.\n\nWould you like to add '.vs/' to your .gitignore to prevent this in the future?",
+                        "Locked IDE Files Detected"
+                    );
+                    if (ignore) {
+                        const ignoreRes = await window.electronAPI.gitAddToGitignore(activeRepo.path, '.vs/');
+                        if (ignoreRes.success) logToConsole(ignoreRes.output, 'success');
+                    }
+                } else {
+                    showError(res.output, 'Partial Stage Successful');
+                }
+            } else {
+                logToConsole(res.output, 'success');
+            }
             await smartRefreshTree();
             await refreshActiveRepoUI();
         } else {
             logToConsole(`Stage Failed: ${res.output}`, 'error');
-            showError(res.output, 'Stage Failed');
+
+            // Intelligence: Special handling for common locked file errors if partial sync also failed
+            if (res.output.includes('Permission denied') || res.output.includes('locked')) {
+                showError(
+                    "Git could not stage some files because they are locked by another application (e.g. Visual Studio, Excel).\n\nPlease close the application using these files or add them to .gitignore.",
+                    "Stage Failed: Files Locked"
+                );
+            } else {
+                showError(res.output, 'Stage Failed');
+            }
         }
     } catch (e) {
         logToConsole(`System Error: ${e.message}`, 'error');
