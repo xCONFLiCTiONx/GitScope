@@ -8200,16 +8200,16 @@ async function exportAdvancedSearchResults() {
         const headers = ['repoName', 'path', 'type', 'line', 'column', 'text'];
         const csvContent = convertToCSV(lastAdvancedSearchResults, headers);
 
-        const res = await window.electronAPI.showSaveDialog({
+        const filePath = await window.electronAPI.showSaveDialog({
             title: 'Export Advanced Search Results',
             defaultPath: 'search_results.csv',
             filters: [{ name: 'CSV Files', extensions: ['csv'] }]
         });
 
-        if (!res.canceled && res.filePath) {
-            await window.electronAPI.writeFile(res.filePath, csvContent);
-            logToConsole(`Results exported to ${res.filePath}`, 'success');
-            showAlert(`Successfully exported ${lastAdvancedSearchResults.length} results to:\n${res.filePath}`, 'Export Complete');
+        if (filePath) {
+            await window.electronAPI.writeFile(filePath, csvContent);
+            logToConsole(`Results exported to ${filePath}`, 'success');
+            showAlert(`Successfully exported ${lastAdvancedSearchResults.length} results to:\n${filePath}`, 'Export Complete');
         }
     } catch (e) {
         logToConsole(`Export failed: ${e.message}`, 'error');
@@ -8224,121 +8224,16 @@ async function exportPrivacySearchResults() {
         const headers = ['repoName', 'filePath', 'patternName', 'lineNumber', 'lineText', 'matchedText'];
         const csvContent = convertToCSV(lastPrivacyScanResults, headers);
 
-        const res = await window.electronAPI.showSaveDialog({
+        const filePath = await window.electronAPI.showSaveDialog({
             title: 'Export Privacy Search Results',
             defaultPath: 'privacy_matches.csv',
             filters: [{ name: 'CSV Files', extensions: ['csv'] }]
         });
 
-        if (!res.canceled && res.filePath) {
-            await window.electronAPI.writeFile(res.filePath, csvContent);
-            logToConsole(`Privacy matches exported to ${res.filePath}`, 'success');
-            showAlert(`Successfully exported ${lastPrivacyScanResults.length} matches to:\n${res.filePath}`, 'Export Complete');
-        }
-    } catch (e) {
-        logToConsole(`Export failed: ${e.message}`, 'error');
-        showError(e.message, 'Export Failed');
-    }
-}
-
-function convertToCSV(data, headers) {
-    const rows = [headers.join(',')];
-    data.forEach(item => {
-        const row = headers.map(header => {
-            let val = item[header];
-            if (val === undefined || val === null) val = '';
-            // Escape double quotes and wrap in double quotes
-            const escaped = String(val).replace(/"/g, '""');
-            return `"${escaped}"`;
-        });
-        rows.push(row.join(','));
-    });
-    return rows.join('\n');
-}
-
-async function handlePrivacyBulkIgnore() {
-    const checked = Array.from(elements.privacyResults.querySelectorAll('.match-select:checked'))
-        .filter(cb => cb.closest('.privacy-match-item').style.display !== 'none');
-    const paths = Array.from(new Set(checked.map(cb => cb.dataset.path)));
-
-    if (paths.length === 0) return showAlert('Select at least one file.', 'Selection Required');
-
-    if (await showConfirm(`Add ${paths.length} files to their respective .gitignore files?`, "Confirm Ignore")) {
-        setTaskState(true);
-        try {
-            for (const fullPath of paths) {
-                const repo = findRepoForPath(fullPath);
-                if (repo) {
-                    const relPath = fullPath.substring(repo.path.length).replace(/^[\\\/]/, '').replace(/\\/g, '/');
-                    const gitignorePath = `${repo.path}/.gitignore`.replace(/\\/g, '/');
-
-                    let content = '';
-                    const exists = await window.electronAPI.pathExists(gitignorePath);
-                    if (exists) {
-                        const result = await window.electronAPI.readFile(gitignorePath);
-                        content = result.content;
-                        if (content && !content.endsWith('\n')) content += '\n';
-                    }
-
-                    if (!content.includes(relPath)) {
-                        content += `${relPath}\n`;
-                        await window.electronAPI.writeFile(gitignorePath, content);
-                    }
-                }
-            }
-            logToConsole(`Privacy: Added ${paths.length} files to .gitignore.`, 'success');
-            showAlert(`Successfully added ${paths.length} files to .gitignore.`, 'Success');
-            await smartRefreshTree();
-        } catch (e) {
-            logToConsole(`Privacy Action Failed: ${e.message}`, 'error');
-            showError(e.message, 'Action Failed');
-        } finally {
-            setTaskState(false);
-        }
-    }
-}
-
-async function exportAdvancedSearchResults() {
-    if (lastAdvancedSearchResults.length === 0) return;
-
-    try {
-        const headers = ['repoName', 'path', 'type', 'line', 'column', 'text'];
-        const csvContent = convertToCSV(lastAdvancedSearchResults, headers);
-
-        const res = await window.electronAPI.showSaveDialog({
-            title: 'Export Advanced Search Results',
-            defaultPath: 'search_results.csv',
-            filters: [{ name: 'CSV Files', extensions: ['csv'] }]
-        });
-
-        if (!res.canceled && res.filePath) {
-            await window.electronAPI.writeFile(res.filePath, csvContent);
-            logToConsole(`Results exported to ${res.filePath}`, 'success');
-            showAlert(`Successfully exported ${lastAdvancedSearchResults.length} results to:\n${res.filePath}`, 'Export Complete');
-        }
-    } catch (e) {
-        logToConsole(`Export failed: ${e.message}`, 'error');
-        showError(e.message, 'Export Failed');
-    }
-}
-
-async function exportPrivacySearchResults() {
-    if (lastPrivacyScanResults.length === 0) return;
-
-    try {
-        const headers = ['repoName', 'filePath', 'patternName', 'lineNumber', 'lineText', 'matchedText'];
-        const csvContent = convertToCSV(lastPrivacyScanResults, headers);
-
-        const res = await window.electronAPI.showSaveDialog({
-            title: 'Export Privacy Search Results',
-            defaultPath: 'privacy_matches.csv',
-            filters: [{ name: 'CSV Files', extensions: ['csv'] }]
-        });
-
-        if (!res.canceled && res.filePath) {
-            await window.electronAPI.writeFile(res.filePath, csvContent);
-            logToConsole(`Privacy matches exported to ${res.filePath}`, 'success');
-            showAlert(`Successfully exported ${lastPrivacyScanResults.length} matches to:\n${res.filePath}`, 'Export Complete');
+        if (filePath) {
+            await window.electronAPI.writeFile(filePath, csvContent);
+            logToConsole(`Privacy matches exported to ${filePath}`, 'success');
+            showAlert(`Successfully exported ${lastPrivacyScanResults.length} matches to:\n${filePath}`, 'Export Complete');
         }
     } catch (e) {
         logToConsole(`Export failed: ${e.message}`, 'error');
