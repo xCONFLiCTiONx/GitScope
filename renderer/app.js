@@ -26,21 +26,21 @@ let lastPrivacyScanResults = [];
 let lastPrivacyScanProject = 'all';
 
 const PRIVACY_PATTERNS = [
-    { name: 'Private Keys (PEM)', regex: '-----BEGIN (RSA|EC|DSA|OPENSSH|CERTIFICATE) PRIVATE KEY-----', enabled: true },
-    { name: 'API Keys & Secrets', regex: '(?i)(api[_-]?key|secret[_-]?key|auth[_-]?token|access[_-]?token|client[_-]?secret)\\s*[:=]\\s*[\'"]?[a-zA-Z0-9_\\-\\.]{16,50}[\'"]?', enabled: true },
-    { name: 'JWT Tokens', regex: 'ey[A-Za-z0-9-_=]+\\.[A-Za-z0-9-_=]+\\.?[A-Za-z0-9-_.+/=]*', enabled: true },
-    { name: 'SSN', regex: '\\b(?!000|666|9\\d{2})\\d{3}[- ]?(?!00)\\d{2}[- ]?(?!0000)\\d{4}\\b', enabled: true },
-    { name: 'Email Addresses', regex: '\\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Z|a-z]{2,}\\b', enabled: true },
-    { name: 'Phone Numbers', regex: '\\b(?:\\+?1[-.]?)?\\(?([0-9]{3})\\)?[-. ]?([0-9]{3})[-. ]?([0-9]{4})\\b', enabled: true },
-    { name: 'Credit Card Numbers', regex: '\\b(?:\\d[ -]*?){13,16}\\b', enabled: true },
-    { name: 'Crypto Seeds', regex: '(?i)(seed phrase|recovery phrase|mnemonic|wallet seed)[\\s:=]+', enabled: true },
-    { name: 'Bank Routing/Account', regex: '(?i)(routing|account)[\\s_-]?number[\\s:=]+\\d{8,12}', enabled: true },
-    { name: 'Plaintext Passwords', regex: '(?i)(password|passwd|pwd)[\\s:=]+[\'"]?[^\\s]{8,}[\'"]?', enabled: true },
-    { name: 'Database URIs', regex: '(mongodb(?:\\+srv)?|postgres(?:ql)?|mysql|redis)://[^\\s]+', enabled: true },
-    { name: 'AWS Access Keys', regex: '(?i)\\b(AKIA|A3T|AGPA|AIDA|AROA|AIPA|ANPA|ANVA|ASIA)[A-Z0-9]{16}\\b', enabled: true },
-    { name: 'IPv4 Addresses', regex: '\\b(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\b', enabled: true },
-    { name: 'URLs (HTTP/FTP)', regex: '(?i)\\b(?:https?|ftp)://[^\\s/$.?#].[^\\s]*\\b', enabled: true },
-    { name: 'Localhost Domains', regex: '(?i)\\b(?:https?://)?(?:localhost|127\\.0\\.0\\.1|[\\w-]+\\.local)(?::\\d{1,5})?\\b', enabled: true }
+    { name: 'Private Keys (PEM)', regex: '-----BEGIN (?:RSA|EC|DSA|OPENSSH|CERTIFICATE) PRIVATE KEY-----', flags: 'g', enabled: true },
+    { name: 'API Keys & Secrets', regex: '(?:api[_-]?key|secret[_-]?key|auth[_-]?token|access[_-]?token|client[_-]?secret)\\s*[:=]\\s*(["\']?)[a-zA-Z0-9_\\-\\.\\+\\/=]{16,50}\\1', flags: 'gi', enabled: true },
+    { name: 'JWT Tokens', regex: '\\beyJ[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+\\b', flags: 'g', enabled: true },
+    { name: 'SSN', regex: '\\b(?!000|666|9\\d{2})\\d{3}[- ]?(?!00)\\d{2}[- ]?(?!0000)\\d{4}\\b', flags: 'g', enabled: true },
+    { name: 'Email Addresses', regex: '\\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[a-zA-Z]{2,}\\b', flags: 'gi', enabled: true },
+    { name: 'Phone Numbers', regex: '\\b(?:\\+?1[-.]?)?\\(?[0-9]{3}\\)?[-. ]?[0-9]{3}[-. ]?[0-9]{4}\\b', flags: 'g', enabled: true },
+    { name: 'Credit Card Numbers', regex: '\\b(?:\\d[ -]?){13,16}\\b', flags: 'g', enabled: true },
+    { name: 'Crypto Seeds', regex: '(?:seed phrase|recovery phrase|mnemonic|wallet seed)[\\s:=]+[a-z\\s]{20,}', flags: 'gi', enabled: true },
+    { name: 'Bank Routing/Account', regex: '(?:routing|account)[\\s_-]?number[\\s:=]+\\d{8,12}', flags: 'gi', enabled: true },
+    { name: 'Plaintext Passwords', regex: '(?:password|passwd|pwd)\\s*[:=]\\s*(["\']?)[^\\s"\'\`]{8,}\\1', flags: 'gi', enabled: true },
+    { name: 'Database URIs', regex: '(?:mongodb(?:\\+srv)?|postgres(?:ql)?|mysql|redis)://[^\\s]+', flags: 'gi', enabled: true },
+    { name: 'AWS Access Keys', regex: '\\b(?:AKIA|A3T|AGPA|AIDA|AROA|AIPA|ANPA|ANVA|ASIA)[A-Z0-9]{16}\\b', flags: 'g', enabled: true },
+    { name: 'IPv4 Addresses', regex: '\\b(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\b', flags: 'g', enabled: true },
+    { name: 'URLs (HTTP/FTP)', regex: '\\b(?:https?|ftp)://[^\\s/$.?#].[^\\s]*\\b', flags: 'gi', enabled: true },
+    { name: 'Localhost Domains', regex: '\\b(?:https?://)?(?:localhost|127\\.0\\.0\\.1|[\\w-]+\\.local)(?::\\d{1,5})?\\b', flags: 'gi', enabled: true }
 ];
 
 /**
