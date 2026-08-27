@@ -1482,11 +1482,13 @@ ipcMain.handle('show-context-menu', (event, options) => {
     });
     template.push({ type: 'separator' });
     const isFolder = require('fs').statSync(paths[0]).isDirectory();
-    if (!isMulti && !isFolder) {
-      template.push({
-        label: 'See Changes',
-        click: () => event.sender.send('context-menu-command', { command: 'see-changes', path: paths[0] })
-      });
+    if (!isMulti) {
+      if (!isFolder) {
+        template.push({
+          label: 'See Changes',
+          click: () => event.sender.send('context-menu-command', { command: 'see-changes', path: paths[0] })
+        });
+      }
 
       template.push({
         label: 'Rename',
@@ -1518,6 +1520,10 @@ ipcMain.handle('show-context-menu', (event, options) => {
       ]
     });
     template.push({ type: 'separator' });
+    template.push({
+      label: 'Rename Project',
+      click: () => event.sender.send('context-menu-command', { command: 'rename', path: paths[0] })
+    });
     template.push({
       label: repoCount > 1 ? `Remove ${repoCount} projects from Workspace` : 'Remove from Workspace',
       click: () => event.sender.send('context-menu-command', { command: 'remove', paths: repoPaths })

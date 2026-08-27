@@ -6233,6 +6233,23 @@ async function handleRename(oldPath) {
             const res = await window.electronAPI.renameItem(oldPath, newPath);
             if (res.success) {
                 logToConsole(`Renamed ${fileName} to ${newName}`, 'success');
+
+                // Intelligence: If this was a project root, update our internal repositories list
+                const repoIndex = repositories.findIndex(r => r.path === oldPath);
+                if (repoIndex !== -1) {
+                    repositories[repoIndex].path = newPath;
+                    repositories[repoIndex].name = newName;
+                    window.electronAPI.saveRepositories(repositories);
+                }
+
+                // If it was the active repo, update the reference and UI
+                if (activeRepo && activeRepo.path === oldPath) {
+                    activeRepo.path = newPath;
+                    activeRepo.name = newName;
+                    const title = document.getElementById('active-repo-name');
+                    if (title) title.textContent = newName;
+                }
+
                 elements.renameModal.style.display = 'none';
                 selectedNodes.clear();
                 selectedNodes.add(newPath); // Stay on the renamed item
