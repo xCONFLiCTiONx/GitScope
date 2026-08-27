@@ -1061,28 +1061,57 @@ function initEventListeners() {
                 if (model) {
                     const lineCount = model.getLineCount();
                     const edits = [];
+                    let inCodeBlock = false;
+
                     for (let i = 1; i <= lineCount; i++) {
                         let lineContent = model.getLineContent(i);
+                        const trimmed = lineContent.trim();
                         const nextLine = i < lineCount ? model.getLineContent(i + 1) : null;
 
-                        // Rule: If current line is not empty, doesn't start with '#' (header),
-                        // and next line is also not empty, ensure current line ends with 2 spaces.
-                        if (lineContent.trim() !== '' && !lineContent.trim().startsWith('#') && nextLine && nextLine.trim() !== '') {
+                        // Toggle code block state
+                        if (trimmed.startsWith('```')) {
+                            inCodeBlock = !inCodeBlock;
+                            continue;
+                        }
+
+                        if (inCodeBlock) continue;
+
+                        let newLineContent = lineContent;
+
+                        // 1. Fix Header Spacing: #Header -> # Header
+                        if (/^#+[^#\s]/.test(trimmed)) {
+                            newLineContent = newLineContent.replace(/^(#+)([^#\s])/, '$1 $2');
+                        }
+
+                        // 2. Fix List Spacing: *Item -> * Item
+                        if (/^([\*\-\+]|\d+\.)[^\s]/.test(trimmed)) {
+                            newLineContent = newLineContent.replace(/^([\*\-\+]|\d+\.)([^\s])/, '$1 $2');
+                        }
+
+                        // 3. Add 2 spaces for hard breaks
+                        // Rule: Non-empty, not a header, not a HR (---), next line is also non-empty
+                        if (trimmed !== '' &&
+                            !trimmed.startsWith('#') &&
+                            !/^[\-\*_]{3,}$/.test(trimmed) &&
+                            nextLine && nextLine.trim() !== '') {
+
                             // Clean existing trailing spaces then add 2
-                            const cleaned = lineContent.replace(/\s+$/, '');
-                            if (cleaned + '  ' !== lineContent) {
-                                edits.push({
-                                    range: new monaco.Range(i, 1, i, lineContent.length + 1),
-                                    text: cleaned + '  '
-                                });
-                            }
+                            const cleaned = newLineContent.replace(/\s+$/, '');
+                            newLineContent = cleaned + '  ';
+                        }
+
+                        if (newLineContent !== lineContent) {
+                            edits.push({
+                                range: new monaco.Range(i, 1, i, lineContent.length + 1),
+                                text: newLineContent
+                            });
                         }
                     }
+
                     if (edits.length > 0) {
                         model.pushEditOperations([], edits, () => null);
-                        logToConsole(`Markdown Prettify: Added trailing spaces to ${edits.length} lines.`, 'success');
+                        logToConsole(`Markdown Prettify: Fixed ${edits.length} line formatting issues.`, 'success');
                     } else {
-                        // Fallback to default if no custom edits needed
                         monacoEditor.trigger('editor', 'editor.action.formatDocument');
                         logToConsole('Ran default code formatter.', 'info');
                     }
