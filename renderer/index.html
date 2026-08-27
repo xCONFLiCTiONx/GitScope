@@ -907,6 +907,8 @@
             box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
         }
 
+        .dashboard-git-btn { min-width: 75px; }
+
         .bulk-target-cb { accent-color: var(--accent-blue); }
         .bulk-expand-trigger:hover { color: #fff !important; text-decoration: underline; }
         input[type="radio"] { accent-color: var(--accent-blue); cursor: pointer; }
@@ -1246,13 +1248,12 @@
                         <p style="margin: 4px 0 0 0; color: var(--text-muted); font-size: 13px;">Overview and health of your projects.</p>
                     </div>
                     <div style="display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end;">
-                        <button id="dashboard-bulk-fetch-btn" class="button" title="Fetch updates for all projects">Fetch</button>
-                        <button id="dashboard-bulk-stage-btn" class="button button-primary" style="border-color: var(--accent-green); color: var(--accent-green);" title="Stage all changes in selected projects">Stage All</button>
-                        <button id="dashboard-bulk-commit-btn" class="button button-blue" title="Commit staged changes in selected projects">Commit</button>
-                        <button id="dashboard-bulk-pull-btn" class="button button-primary" title="Pull latest changes for all projects">Pull</button>
-                        <button id="dashboard-bulk-push-btn" class="button button-blue" title="Push committed changes to remotes">Push</button>
+                        <button id="dashboard-bulk-fetch-btn" class="button dashboard-git-btn" title="Fetch updates for all projects">Fetch</button>
+                        <button id="dashboard-bulk-stage-btn" class="button button-primary dashboard-git-btn" style="border-color: var(--accent-green); color: var(--accent-green);" title="Stage all changes in selected projects">Stage All</button>
+                        <button id="dashboard-bulk-commit-btn" class="button button-blue dashboard-git-btn" title="Commit staged changes in selected projects">Commit</button>
+                        <button id="dashboard-bulk-pull-btn" class="button button-primary dashboard-git-btn" title="Pull latest changes for all projects">Pull</button>
+                        <button id="dashboard-bulk-push-btn" class="button button-blue dashboard-git-btn" title="Push committed changes to remotes">Push</button>
                         <button id="dashboard-bulk-restore-btn" class="button button-warning" title="Wipe all uncommitted changes in ALL projects">Restore to HEAD</button>
-                        <button id="dashboard-refresh-btn" class="button" title="Refresh Workspace Status">Refresh Dashboard</button>
                     </div>
                 </div>
                 <div id="dashboard-summary" style="display: none; gap: 24px; margin-bottom: 32px; padding: 20px; background: var(--bg-sidebar); border: 1px solid var(--border-color); border-radius: 8px; align-items: center;">

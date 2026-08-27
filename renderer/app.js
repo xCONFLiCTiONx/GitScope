@@ -399,7 +399,6 @@ const elements = {
     get globalProgress() { return document.getElementById('global-progress-container'); },
     get dashboardProgressContainer() { return document.getElementById('dashboard-progress-container'); },
     get dashboardProgressBar() { return document.getElementById('dashboard-progress-bar'); },
-    get dashboardRefreshBtn() { return document.getElementById('dashboard-refresh-btn'); },
     get dashboardBulkPullBtn() { return document.getElementById('dashboard-bulk-pull-btn'); },
     get dashboardBulkCommitBtn() { return document.getElementById('dashboard-bulk-commit-btn'); },
     get dashboardBulkStageBtn() { return document.getElementById('dashboard-bulk-stage-btn'); },
@@ -990,7 +989,6 @@ function initEventListeners() {
             renderTree(elements.repoFilter.value);
         };
     }
-    if (elements.dashboardRefreshBtn) elements.dashboardRefreshBtn.onclick = async () => await showDashboard();
     if (elements.dashboardBulkFetchBtn) elements.dashboardBulkFetchBtn.onclick = () => handleBulkFetch();
     if (elements.dashboardBulkStageBtn) elements.dashboardBulkStageBtn.onclick = () => handleBulkStage();
     if (elements.dashboardBulkCommitBtn) elements.dashboardBulkCommitBtn.onclick = () => showBulkCommitModal();
@@ -5006,29 +5004,31 @@ async function handleBulkRestore() {
     elements.bulkRestoreModal.style.display = 'flex';
     elements.bulkRestoreRepoList.innerHTML = '<div style="color:var(--text-muted); font-size:11px; padding:10px;">Analyzing workspace...</div>';
 
-    // Fetch fresh status for all projects to see who actually has changes
-    const projectsWithChanges = [];
+    // Fetch fresh status for all projects
+    const projectsList = [];
     for (const repo of repositories) {
         try {
             const status = await window.electronAPI.gitStatus(repo.path);
-            const hasChanges = (status.modified || 0) + (status.not_added || 0) + (status.deleted || 0) > 0;
-            if (hasChanges) projectsWithChanges.push({ repo, status });
-        } catch(e) {}
+            projectsList.push({ repo, status });
+        } catch(e) {
+            projectsList.push({ repo, status: { error: true } });
+        }
     }
 
-    if (projectsWithChanges.length === 0) {
-        elements.bulkRestoreRepoList.innerHTML = '<div style="color:var(--accent-green); font-size:11px; padding:10px;">All projects are already clean.</div>';
+    if (projectsList.length === 0) {
+        elements.bulkRestoreRepoList.innerHTML = '<div style="color:var(--text-muted); font-size:11px; padding:10px;">No projects found in workspace.</div>';
         elements.bulkRestoreConfirm.disabled = true;
     } else {
         elements.bulkRestoreConfirm.disabled = false;
-        elements.bulkRestoreRepoList.innerHTML = projectsWithChanges.map(({ repo, status }) => {
-            const total = (status.modified || 0) + (status.not_added || 0) + (status.deleted || 0);
+        elements.bulkRestoreRepoList.innerHTML = projectsList.map(({ repo, status }) => {
+            const total = (status.modified || 0) + (status.not_added || 0) + (status.deleted || 0) + (status.staged || 0);
+            const statusText = total > 0 ? `<span style="color:var(--accent-red);">${total} dirty files will be wiped</span>` : `<span style="color:var(--accent-green);">Clean</span>`;
             return `
-                <label style="display:flex; align-items:center; gap:8px; cursor:pointer; padding:8px; background:rgba(255,255,255,0.02); border-radius:4px; margin-bottom:4px;">
-                    <input type="checkbox" class="bulk-restore-item-cb" value="${repo.path}" data-name="${repo.name}" checked>
+                <label style="display:flex; align-items:center; gap:8px; cursor:pointer; padding:8px; background:rgba(255,255,255,0.02); border-radius:4px; margin-bottom:4px; border: 1px solid ${total > 0 ? 'rgba(218, 54, 51, 0.2)' : 'transparent'};">
+                    <input type="checkbox" class="bulk-restore-item-cb" value="${repo.path}" data-name="${repo.name}" ${total > 0 ? 'checked' : ''}>
                     <div style="flex:1; min-width:0;">
                         <div style="font-size:12px; font-weight:600; color:#fff; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${repo.name}</div>
-                        <div style="font-size:10px; color:var(--accent-red);">${total} dirty files will be wiped</div>
+                        <div style="font-size:10px;">${statusText}</div>
                     </div>
                 </label>
             `;
