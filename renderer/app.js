@@ -949,6 +949,19 @@ function initEventListeners() {
             clearTimeout(filterTimeout);
             filterTimeout = setTimeout(() => renderTree(elements.repoFilter.value), 300);
         };
+
+        elements.repoFilter.onfocus = () => {
+            if (elements.sidebar) elements.sidebar.classList.add('search-active');
+        };
+
+        elements.repoFilter.onblur = () => {
+            // Delay slightly so that clicks on the Advanced Search button still work before it fades out
+            setTimeout(() => {
+                if (elements.sidebar && (!elements.repoFilter.value)) {
+                    elements.sidebar.classList.remove('search-active');
+                }
+            }, 200);
+        };
     }
 
     if (elements.repoFilterClear) {
@@ -3218,13 +3231,6 @@ async function renderTree(filter = '') {
 
         const advSearchItem = document.createElement('div');
         advSearchItem.className = 'adv-search-tree-item';
-        advSearchItem.style.padding = '12px 20px';
-        advSearchItem.style.marginTop = '8px';
-        advSearchItem.style.borderTop = '1px solid var(--border-color)';
-        advSearchItem.style.cursor = 'pointer';
-        advSearchItem.style.fontSize = '11px';
-        advSearchItem.style.textAlign = 'center';
-        advSearchItem.style.background = 'rgba(255,255,255,0.02)';
         advSearchItem.innerHTML = `<span style="color: var(--text-muted);">${search ? 'Not finding it?' : 'Need a deeper search?'}</span><br><span style="color: var(--accent-blue); font-weight: 800;">OPEN ADVANCED SEARCH</span>`;
 
         advSearchItem.onclick = (e) => {
@@ -3234,9 +3240,6 @@ async function renderTree(filter = '') {
             populateAdvSearchProjects();
             setTimeout(() => elements.advSearchQuery.focus(), 10);
         };
-
-        advSearchItem.onmouseover = () => advSearchItem.style.background = 'rgba(255,255,255,0.05)';
-        advSearchItem.onmouseout = () => advSearchItem.style.background = 'rgba(255,255,255,0.02)';
 
         fragment.appendChild(advSearchItem);
 
