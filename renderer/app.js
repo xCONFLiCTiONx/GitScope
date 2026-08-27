@@ -4332,31 +4332,7 @@ function renderGitConfig(content) {
     const container = elements.gitConfigSections;
     container.innerHTML = '';
 
-    // Simple INI Parser
-    const lines = content.split(/\r?\n/);
-    let currentSection = null;
-    let sections = {};
-
-    lines.forEach(line => {
-        line = line.trim();
-        if (!line || line.startsWith('#') || line.startsWith(';')) return;
-
-        const sectionMatch = line.match(/^\[(.+)\]$/);
-        if (sectionMatch) {
-            currentSection = sectionMatch[1].trim();
-            if (!sections[currentSection]) sections[currentSection] = [];
-            return;
-        }
-
-        if (currentSection) {
-            const eqIdx = line.indexOf('=');
-            if (eqIdx !== -1) {
-                const key = line.substring(0, eqIdx).trim();
-                const val = line.substring(eqIdx + 1).trim();
-                sections[currentSection].push({ key, val });
-            }
-        }
-    });
+    const sections = parseGitConfig(content);
 
     // 1. Render Recommendations (Smart Header)
     const recs = [];
@@ -5628,6 +5604,10 @@ async function openFileInEditor(filePath, line = null, col = null, searchQuery =
             const result = await window.electronAPI.readFile(filePath);
             const content = result.content;
             currentFileEncoding = result.encoding;
+
+            // Intelligence: Auto-fix encoding/EOL
+            setTimeout(() => checkAndOfferFixes(filePath, content, currentFileEncoding), 500);
+
             // Store for change detection (Normalize line endings to LF)
             originalFileContent = content ? content.replace(/\r\n/g, '\n') : '';
 
@@ -5668,6 +5648,9 @@ async function openFileInEditor(filePath, line = null, col = null, searchQuery =
 
             const model = monaco.editor.createModel(originalFileContent, langMap[ext] || 'plaintext');
             monacoEditor.setModel(model);
+
+            // Re-capture from Monaco to handle any internal normalization (BOM stripping, etc)
+            originalFileContent = monacoEditor.getValue();
 
             // Intelligence: Now that the content is loaded into the editor, we can safely trigger the preview
             // Force standard mode if we're jumping to a specific line (e.g. from search)
@@ -5980,6 +5963,9 @@ async function handleContextMenuCommand({ command, paths, path, repoPath }) {
     else if (command === 'reveal-in-explorer') targets.forEach(p => window.electronAPI.revealInExplorer(p));
     else if (command === 'open-editor') await openFileInEditor(targets[0]);
     else if (command === 'rename') handleRename(targets[0]);
+    else if (command === 'convert-lf') await handleConvertFile(targets[0], 'lf');
+    else if (command === 'convert-crlf') await handleConvertFile(targets[0], 'crlf');
+    else if (command === 'convert-utf8') await handleConvertFile(targets[0], 'utf8');
     else if (command === 'manage-subtrees') {
         const repo = repositories.find(r => targets[0].toLowerCase().startsWith(r.path.toLowerCase()));
         if (repo) activeRepo = repo;
@@ -6300,6 +6286,136 @@ async function handleStartTracking(fullPath, providedRepoPath = null) {
         logToConsole(`Start Tracking Error: ${e.message}`, 'error');
     } finally {
         setTaskState(false);
+    }
+}
+
+function parseGitConfig(content) {
+    const lines = content.split(/\r?\n/);
+    let currentSection = null;
+    let sections = {};
+
+    lines.forEach(line => {
+        line = line.trim();
+        if (!line || line.startsWith('#') || line.startsWith(';')) return;
+
+        const sectionMatch = line.match(/^\[(.+)\]$/);
+        if (sectionMatch) {
+            currentSection = sectionMatch[1].trim();
+            if (!sections[currentSection]) sections[currentSection] = [];
+            return;
+        }
+
+        if (currentSection) {
+            const eqIdx = line.indexOf('=');
+            if (eqIdx !== -1) {
+                const key = line.substring(0, eqIdx).trim();
+                const val = line.substring(eqIdx + 1).trim();
+                sections[currentSection].push({ key, val });
+            }
+        }
+    });
+    return sections;
+}
+
+function getGitConfigValue(sections, section, key) {
+    if (!sections[section]) return null;
+    const entry = sections[section].find(e => e.key === key);
+    return entry ? entry.val : null;
+}
+
+async function checkAndOfferFixes(filePath, rawContent, encoding) {
+    if (!filePath || !rawContent || !elements.editorFileInfo) return;
+
+    elements.editorFileInfo.classList.remove('status-red', 'status-green');
+    elements.editorFileInfo.onclick = null;
+    elements.editorFileInfo.title = '';
+
+    const binaryEncodings = ['binary', 'base64', 'hex'];
+    const isUtf8 = encoding === 'UTF-8';
+    const isBinary = binaryEncodings.includes(encoding.toLowerCase());
+
+    // 1. Check Encoding
+    if (!isUtf8 && !isBinary) {
+        elements.editorFileInfo.classList.add('status-red');
+        elements.editorFileInfo.title = `Encoding is ${encoding}. Click to convert to UTF-8.`;
+        elements.editorFileInfo.onclick = async () => {
+            if (await showConfirm(`Convert "${filePath.split(/[\\\/]/).pop()}" to UTF-8?`, "Encoding Conversion")) {
+                await handleConvertFile(filePath, 'utf8');
+            }
+        };
+        return;
+    }
+
+    // 2. Check EOL
+    const hasCRLF = rawContent.includes('\r\n');
+    const hasLF = !hasCRLF && rawContent.includes('\n');
+
+    try {
+        const gitConfigRes = await window.electronAPI.getGitConfig();
+        if (gitConfigRes && gitConfigRes.success) {
+            const config = parseGitConfig(gitConfigRes.content);
+            const autocrlf = getGitConfigValue(config, 'core', 'autocrlf');
+
+            let expected = null;
+            if (autocrlf === 'true') expected = 'crlf';
+            else if (autocrlf === 'input') expected = 'lf';
+
+            let eolMatch = true;
+            let eolMsg = '';
+            let targetEol = '';
+
+            if (expected === 'crlf' && hasLF && !hasCRLF) {
+                eolMatch = false;
+                eolMsg = `File uses LF but git expects CRLF. Click to fix.`;
+                targetEol = 'crlf';
+            } else if (expected === 'lf' && hasCRLF) {
+                eolMatch = false;
+                eolMsg = `File uses CRLF but git expects LF. Click to fix.`;
+                targetEol = 'lf';
+            }
+
+            if (!eolMatch) {
+                elements.editorFileInfo.classList.add('status-red');
+                elements.editorFileInfo.title = eolMsg;
+                elements.editorFileInfo.onclick = () => handleConvertFile(filePath, targetEol);
+            } else {
+                elements.editorFileInfo.classList.add('status-green');
+                elements.editorFileInfo.title = 'File format is correct (UTF-8 + Correct EOL)';
+            }
+        }
+    } catch (e) {
+        console.warn('Could not check git config for EOL suggestion:', e);
+        // Fallback to green if we can't check, as long as it's UTF-8
+        elements.editorFileInfo.classList.add('status-green');
+    }
+}
+
+async function handleConvertFile(filePath, type) {
+    try {
+        const result = await window.electronAPI.readFile(filePath);
+        let content = result.content;
+        let msg = '';
+
+        if (type === 'lf') {
+            content = content.replace(/\r\n/g, '\n');
+            msg = 'Converted to LF (Unix) line endings.';
+        } else if (type === 'crlf') {
+            content = content.replace(/\r\n/g, '\n').replace(/\n/g, '\r\n');
+            msg = 'Converted to CRLF (Windows) line endings.';
+        } else if (type === 'utf8') {
+            msg = 'Converted to UTF-8.';
+        }
+
+        await window.electronAPI.writeFile(filePath, content);
+        logToConsole(`${msg} [${filePath}]`, 'success');
+
+        // If the file is currently open in the editor, reload it
+        if (currentEditingPath === filePath) {
+            await openFileInEditor(filePath);
+        }
+    } catch (e) {
+        logToConsole(`Conversion failed: ${e.message}`, 'error');
+        showError(e.message, 'Conversion Failed');
     }
 }
 

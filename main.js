@@ -568,10 +568,39 @@ ipcMain.handle('search-advanced', async (event, repo, options) => {
 ipcMain.handle('read-file', async (event, filePath) => {
   try {
     const buffer = await fs.readFile(filePath);
-    const utf8 = isUtf8(buffer);
+
+    // Intelligence: Detect encoding and handle BOMs
+    // 1. Check for UTF-16 LE (0xFF 0xFE)
+    if (buffer.length >= 2 && buffer[0] === 0xFF && buffer[1] === 0xFE) {
+      return {
+        content: buffer.toString('utf16le').replace(/^\uFEFF/, ''),
+        encoding: 'UTF-16LE'
+      };
+    }
+    // 2. Check for UTF-16 BE (0xFE 0xFF)
+    if (buffer.length >= 2 && buffer[0] === 0xFE && buffer[1] === 0xFF) {
+      return {
+        content: buffer.swap16().toString('utf16le').replace(/^\uFEFF/, ''),
+        encoding: 'UTF-16BE'
+      };
+    }
+    // 3. Check for UTF-8 BOM (0xEF 0xBB 0xBF)
+    if (buffer.length >= 3 && buffer[0] === 0xEF && buffer[1] === 0xBB && buffer[2] === 0xBF) {
+      return {
+        content: buffer.toString('utf8', 3),
+        encoding: 'UTF-8'
+      };
+    }
+
+    // 4. Check if it's valid UTF-8
+    if (isUtf8(buffer)) {
+      return { content: buffer.toString('utf8'), encoding: 'UTF-8' };
+    }
+
+    // 5. Fallback to Windows-1252 (Latin1)
     return {
-      content: utf8 ? buffer.toString('utf8') : buffer.toString('latin1'),
-      encoding: utf8 ? 'UTF-8' : 'Windows-1252'
+      content: buffer.toString('latin1'),
+      encoding: 'Windows-1252'
     };
   } catch (e) {
     throw e;
@@ -1476,6 +1505,30 @@ ipcMain.handle('show-context-menu', (event, options) => {
           {
             label: 'Execute as Admin',
             click: () => event.sender.send('context-menu-command', { command: 'execute-admin', path: paths[0] })
+          }
+        ]
+      });
+      template.push({ type: 'separator' });
+    }
+
+    // Convert Menu
+    const binaryExts = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'ico', 'svg', 'exe', 'dll', 'zip', 'tar', 'gz', 'pdf'];
+    if (!binaryExts.includes(ext)) {
+      template.push({
+        label: 'Convert',
+        submenu: [
+          {
+            label: 'To LF (Unix)',
+            click: () => event.sender.send('context-menu-command', { command: 'convert-lf', path: paths[0] })
+          },
+          {
+            label: 'To CRLF (Windows)',
+            click: () => event.sender.send('context-menu-command', { command: 'convert-crlf', path: paths[0] })
+          },
+          { type: 'separator' },
+          {
+            label: 'To UTF-8',
+            click: () => event.sender.send('context-menu-command', { command: 'convert-utf8', path: paths[0] })
           }
         ]
       });
