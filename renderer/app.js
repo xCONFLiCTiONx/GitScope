@@ -6338,11 +6338,7 @@ async function checkAndOfferFixes(filePath, rawContent, encoding) {
     if (!isUtf8 && !isBinary) {
         elements.editorFileInfo.classList.add('status-red');
         elements.editorFileInfo.title = `Encoding is ${encoding}. Click to convert to UTF-8.`;
-        elements.editorFileInfo.onclick = async () => {
-            if (await showConfirm(`Convert "${filePath.split(/[\\\/]/).pop()}" to UTF-8?`, "Encoding Conversion")) {
-                await handleConvertFile(filePath, 'utf8');
-            }
-        };
+        elements.editorFileInfo.onclick = () => handleConvertFile(filePath, 'utf8');
         return;
     }
 
@@ -6391,6 +6387,21 @@ async function checkAndOfferFixes(filePath, rawContent, encoding) {
 }
 
 async function handleConvertFile(filePath, type) {
+    const fileName = filePath.split(/[\\\/]/).pop();
+    let title = '';
+    let message = '';
+
+    if (type === 'utf8') {
+        title = 'Encoding Conversion';
+        message = `Convert "${fileName}" to UTF-8?`;
+    } else {
+        title = 'Line Ending Conversion';
+        const eolName = type === 'lf' ? 'LF (Unix)' : 'CRLF (Windows)';
+        message = `Convert "${fileName}" to ${eolName} line endings?`;
+    }
+
+    if (!(await showConfirm(message, title))) return;
+
     try {
         const result = await window.electronAPI.readFile(filePath);
         let content = result.content;
