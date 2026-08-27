@@ -318,6 +318,7 @@ const elements = {
     get privacyResultsSelectAll() { return document.getElementById('privacy-results-select-all'); },
     get privacyAddPattern() { return document.getElementById('privacy-add-pattern'); },
     get privacyExportCsv() { return document.getElementById('privacy-export-csv'); },
+    get privacyExportMd() { return document.getElementById('privacy-export-md'); },
     get privacySearchClose() { return document.getElementById('privacy-search-close'); },
     get statusBackBtn() { return document.getElementById('status-back-btn'); },
     get repoStatusBtn() { return document.getElementById('repo-status-btn'); },
@@ -528,6 +529,7 @@ const elements = {
     get advSearchRegex() { return document.getElementById('adv-search-regex'); },
     get advSearchExecute() { return document.getElementById('adv-search-execute'); },
     get advSearchExport() { return document.getElementById('adv-search-export'); },
+    get advSearchExportMd() { return document.getElementById('adv-search-export-md'); },
     get advSearchResults() { return document.getElementById('adv-search-results'); },
     get advSearchResultsHeader() { return document.getElementById('adv-search-results-header'); }
 };
@@ -960,6 +962,9 @@ function initEventListeners() {
     }
     if (elements.advSearchExport) {
         elements.advSearchExport.onclick = exportAdvancedSearchResults;
+    }
+    if (elements.advSearchExportMd) {
+        elements.advSearchExportMd.onclick = exportAdvancedSearchResultsMarkdown;
     }
     if (elements.advSearchQuery) {
         elements.advSearchQuery.onkeyup = (e) => {
@@ -7619,6 +7624,7 @@ async function executeAdvancedSearch() {
 
     elements.advSearchResults.innerHTML = '<div style="padding: 60px; text-align: center; color: var(--text-muted);"><div class="spinner"></div> Searching...</div>';
     if (elements.advSearchExport) elements.advSearchExport.style.display = 'none';
+    if (elements.advSearchExportMd) elements.advSearchExportMd.style.display = 'none';
     lastAdvancedSearchResults = [];
 
     const projectPath = elements.advSearchProject.value;
@@ -7656,6 +7662,7 @@ async function executeAdvancedSearch() {
             elements.advSearchResults.innerHTML = '<div style="padding: 60px; text-align: center; color: var(--text-muted);">No results found.</div>';
         } else {
             if (elements.advSearchExport) elements.advSearchExport.style.display = 'block';
+            if (elements.advSearchExportMd) elements.advSearchExportMd.style.display = 'block';
             if (stopAdvancedSearchRequested) {
                 const stopMsg = document.createElement('div');
                 stopMsg.style.padding = '15px';
@@ -7798,6 +7805,7 @@ function showPrivacySearchModal(projectPath = null) {
         elements.privacyBulkGitRm.disabled = false;
         elements.privacyBulkIgnore.disabled = false;
         if (elements.privacyExportCsv) elements.privacyExportCsv.style.display = 'block';
+        if (elements.privacyExportMd) elements.privacyExportMd.style.display = 'block';
         filterPrivacyResults();
     } else {
         resultsContainer.innerHTML = '<div style="padding: 60px; text-align: center; color: var(--text-muted);">Configure patterns and click Start Scan to detect sensitive data.</div>';
@@ -7843,6 +7851,9 @@ function showPrivacySearchModal(projectPath = null) {
     elements.privacyBulkIgnore.onclick = handlePrivacyBulkIgnore;
     if (elements.privacyExportCsv) {
         elements.privacyExportCsv.onclick = exportPrivacySearchResults;
+    }
+    if (elements.privacyExportMd) {
+        elements.privacyExportMd.onclick = exportPrivacySearchResultsMarkdown;
     }
 
     elements.privacyResults.onclick = (e) => {
@@ -7932,6 +7943,7 @@ async function startPrivacyScan(rootPath = null) {
     stopPrivacyScanRequested = false;
     lastPrivacyScanResults = []; // Clear previous results
     if (elements.privacyExportCsv) elements.privacyExportCsv.style.display = 'none';
+    if (elements.privacyExportMd) elements.privacyExportMd.style.display = 'none';
 
     const startBtn = elements.privacyScanStart;
     startBtn.textContent = 'Stop Scan';
@@ -8000,6 +8012,9 @@ async function startPrivacyScan(rootPath = null) {
 
         if (matchCount > 0 && elements.privacyExportCsv) {
             elements.privacyExportCsv.style.display = 'block';
+        }
+        if (matchCount > 0 && elements.privacyExportMd) {
+            elements.privacyExportMd.style.display = 'block';
         }
 
         elements.privacyBulkGitRm.disabled = matchCount === 0;
@@ -8268,6 +8283,101 @@ async function exportPrivacySearchResults() {
         }
     } catch (e) {
         logToConsole(`Export failed: ${e.message}`, 'error');
+        showError(e.message, 'Export Failed');
+    }
+}
+
+async function exportAdvancedSearchResultsMarkdown() {
+    if (lastAdvancedSearchResults.length === 0) return;
+
+    try {
+        const query = (elements.advSearchQuery.value || '').trim();
+        const now = new Date().toISOString().split('T')[0];
+
+        let md = `# Search Export Results\n`;
+        md += `* **Query:** \`${query}\`\n`;
+        md += `* **Date:** ${now}\n`;
+        md += `* **Total Matches:** ${lastAdvancedSearchResults.length}\n\n---\n\n`;
+
+        // Group by project
+        const projects = {};
+        lastAdvancedSearchResults.forEach(item => {
+            if (!projects[item.repoName]) projects[item.repoName] = [];
+            projects[item.repoName].push(item);
+        });
+
+        for (const [projectName, items] of Object.entries(projects)) {
+            md += `## Project: ${projectName}\n`;
+            items.forEach(item => {
+                const absPath = `${item.repoPath}/${item.path}`.replace(/\\/g, '/').replace(/\/+/g, '/');
+                const snippet = (item.text || '').trim().substring(0, 200);
+                md += `* [\`${item.path}:${item.line || 0}\`](file:///${absPath}) — \`${snippet}\`\n`;
+            });
+            md += `\n`;
+        }
+
+        const filePath = await window.electronAPI.showSaveDialog({
+            title: 'Export Advanced Search Results (Markdown)',
+            defaultPath: 'search_results.md',
+            filters: [{ name: 'Markdown Files', extensions: ['md'] }]
+        });
+
+        if (filePath) {
+            await window.electronAPI.writeFile(filePath, md);
+            logToConsole(`Markdown results exported to ${filePath}`, 'success');
+            showAlert(`Successfully exported ${lastAdvancedSearchResults.length} results to:\n${filePath}`, 'Export Complete');
+        }
+    } catch (e) {
+        logToConsole(`Markdown export failed: ${e.message}`, 'error');
+        showError(e.message, 'Export Failed');
+    }
+}
+
+async function exportPrivacySearchResultsMarkdown() {
+    if (lastPrivacyScanResults.length === 0) return;
+
+    try {
+        const now = new Date().toISOString().split('T')[0];
+
+        let md = `# Privacy Search Export Results\n`;
+        md += `* **Date:** ${now}\n`;
+        md += `* **Total Matches:** ${lastPrivacyScanResults.length}\n\n---\n\n`;
+
+        // Group by project
+        const projects = {};
+        lastPrivacyScanResults.forEach(item => {
+            if (!projects[item.repoName]) projects[item.repoName] = [];
+            projects[item.repoName].push(item);
+        });
+
+        for (const [projectName, items] of Object.entries(projects)) {
+            md += `## Project: ${projectName}\n`;
+            items.forEach(item => {
+                const repo = findRepoForPath(item.filePath);
+                let relPath = item.filePath;
+                if (repo) {
+                    relPath = item.filePath.substring(repo.path.length).replace(/^[\\\/]/, '').replace(/\\/g, '/');
+                }
+                const absPath = item.filePath.replace(/\\/g, '/');
+                const snippet = (item.lineText || '').trim().substring(0, 200);
+                md += `* [\`${relPath}:${item.lineNumber}\`](file:///${absPath}) — **${item.patternName}** — \`${snippet}\`\n`;
+            });
+            md += `\n`;
+        }
+
+        const filePath = await window.electronAPI.showSaveDialog({
+            title: 'Export Privacy Search Results (Markdown)',
+            defaultPath: 'privacy_matches.md',
+            filters: [{ name: 'Markdown Files', extensions: ['md'] }]
+        });
+
+        if (filePath) {
+            await window.electronAPI.writeFile(filePath, md);
+            logToConsole(`Markdown matches exported to ${filePath}`, 'success');
+            showAlert(`Successfully exported ${lastPrivacyScanResults.length} matches to:\n${filePath}`, 'Export Complete');
+        }
+    } catch (e) {
+        logToConsole(`Markdown export failed: ${e.message}`, 'error');
         showError(e.message, 'Export Failed');
     }
 }

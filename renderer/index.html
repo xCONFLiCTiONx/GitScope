@@ -2154,7 +2154,10 @@
                 <div id="adv-search-results-header" style="font-size: 11px; font-weight: 800; color: var(--text-muted); text-transform: uppercase;">
                     Results
                 </div>
-                <button id="adv-search-export" class="button" style="font-size: 10px; padding: 2px 8px; display: none;">Export CSV</button>
+                <div style="display: flex; gap: 4px;">
+                    <button id="adv-search-export" class="button" style="font-size: 10px; padding: 2px 8px; display: none;">Export CSV</button>
+                    <button id="adv-search-export-md" class="button" style="font-size: 10px; padding: 2px 8px; display: none;">Export Markdown</button>
+                </div>
             </div>
             <div id="adv-search-results" style="flex: 1; overflow-y: auto; border: 1px solid var(--border-color); border-radius: 4px; background: rgba(0,0,0,0.1); font-family: var(--font-mono);">
                 <div style="padding: 60px; text-align: center; color: var(--text-muted); font-family: var(--font-sans);">
@@ -2200,7 +2203,10 @@
                         <div style="display: flex; align-items: center; gap: 10px;">
                             <h4 style="font-size: 11px; text-transform: uppercase; color: var(--text-muted); margin: 0;">Matches</h4>
                             <span id="privacy-results-select-all" style="font-size: 10px; color: var(--accent-blue); cursor: pointer; font-weight: 600;">Select All</span>
-                            <button id="privacy-export-csv" class="button" style="font-size: 10px; padding: 2px 8px; display: none;">Export CSV</button>
+                            <div style="display: flex; gap: 4px;">
+                                <button id="privacy-export-csv" class="button" style="font-size: 10px; padding: 2px 8px; display: none;">Export CSV</button>
+                                <button id="privacy-export-md" class="button" style="font-size: 10px; padding: 2px 8px; display: none;">Export Markdown</button>
+                            </div>
                         </div>
                         <div id="privacy-scan-status" style="font-size: 11px; color: var(--accent-blue);"></div>
                     </div>
