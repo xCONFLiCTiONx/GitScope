@@ -473,7 +473,14 @@ ipcMain.handle('search-files', async (event, repoPath, query) => {
         const allFiles = files.split('\n').filter(f => f.trim() !== '');
 
         const lowerQuery = query.toLowerCase();
-        const matches = allFiles.filter(f => f.toLowerCase().includes(lowerQuery));
+        let matches;
+        if (lowerQuery.includes('*')) {
+            const regexStr = lowerQuery.replace(/[.+^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*');
+            const re = new RegExp(`^${regexStr}$`, 'i');
+            matches = allFiles.filter(f => re.test(f));
+        } else {
+            matches = allFiles.filter(f => f.toLowerCase().includes(lowerQuery));
+        }
 
         // Return max 100 matches per repo for performance
         return matches.slice(0, 100);
@@ -508,7 +515,13 @@ ipcMain.handle('search-advanced', async (event, repo, options) => {
                     }
                 } else {
                     const lowerQuery = query.toLowerCase();
-                    matches = allFiles.filter(f => f.toLowerCase().includes(lowerQuery));
+                    if (lowerQuery.includes('*')) {
+                        const regexStr = lowerQuery.replace(/[.+^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*');
+                        const re = new RegExp(`^${regexStr}$`, 'i');
+                        matches = allFiles.filter(f => re.test(f));
+                    } else {
+                        matches = allFiles.filter(f => f.toLowerCase().includes(lowerQuery));
+                    }
                 }
 
                 matches.slice(0, 1000).forEach(f => {
@@ -527,9 +540,20 @@ ipcMain.handle('search-advanced', async (event, repo, options) => {
 
         if (searchContent) {
             const args = ['grep', '-n', '--column', '--ignore-case'];
-            if (isRegex) args.push('-E');
+            let grepPattern = query;
+
+            if (isRegex) {
+                args.push('-E');
+            } else if (query.includes('*')) {
+                // Support wildcard * in non-regex search by converting to a regex
+                grepPattern = query.replace(/[.+^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*');
+                args.push('-E'); // Use extended regex for the converted pattern
+            } else {
+                args.push('-F'); // Fixed strings for better performance when no wildcard
+            }
+
             args.push('--untracked');
-            args.push('-e', query);
+            args.push('-e', grepPattern);
 
             try {
                 const grepOutput = await git.raw(args);

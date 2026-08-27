@@ -3239,7 +3239,18 @@ async function renderTree(filter = '') {
         let hasDirectMatches = false;
 
         results.forEach(({ repo, fileMatches }, index) => {
-            const nameMatch = repo.name.toLowerCase().includes(search);
+            let nameMatch = false;
+            if (search.includes('*')) {
+                try {
+                    const regexStr = search.replace(/[.+^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*');
+                    const re = new RegExp(`^${regexStr}$`, 'i');
+                    nameMatch = re.test(repo.name);
+                } catch (e) {
+                    nameMatch = false;
+                }
+            } else {
+                nameMatch = repo.name.toLowerCase().includes(search);
+            }
 
             if (!search || nameMatch || fileMatches.length > 0) {
                 hasDirectMatches = true;
