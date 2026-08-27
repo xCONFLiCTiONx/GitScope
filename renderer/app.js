@@ -890,6 +890,7 @@ function initEventListeners() {
     if (elements.advancedSearchClose) {
         elements.advancedSearchClose.onclick = () => {
             elements.advancedSearchModal.style.display = 'none';
+            if (isAdvancedSearching) stopAdvancedSearchRequested = true;
         };
     }
     if (elements.advSearchExecute) {
@@ -5355,7 +5356,7 @@ function insertMarkdownSnippet(type) {
     }
 }
 
-async function openFileInEditor(filePath) {
+async function openFileInEditor(filePath, line = null, col = null, searchQuery = null, isRegex = false) {
     if (!(await setActiveNavItem(null))) return;
 
     if (!monacoEditor) return;
@@ -5451,7 +5452,8 @@ async function openFileInEditor(filePath) {
             monacoEditor.setModel(model);
 
             // Intelligence: Now that the content is loaded into the editor, we can safely trigger the preview
-            if (isRenderable) {
+            // Force standard mode if we're jumping to a specific line (e.g. from search)
+            if (isRenderable && line === null) {
                 setMarkdownViewMode('preview');
             } else {
                 setMarkdownViewMode('standard');
@@ -5478,6 +5480,42 @@ async function openFileInEditor(filePath) {
             updateEditorFileInfo();
 
             monacoEditor.layout();
+
+            // Intelligence: Scroll to specific line if provided (e.g. from Advanced Search)
+            if (line !== null) {
+                setTimeout(() => {
+                    const column = col || 1;
+                    monacoEditor.setPosition({ lineNumber: line, column: column });
+                    monacoEditor.revealLineInCenter(line, 0); // 0 = ScrollType.Immediate (no animation)
+                    monacoEditor.focus();
+
+                    // If a search query is provided, highlight the match
+                    if (searchQuery) {
+                        const model = monacoEditor.getModel();
+                        if (model) {
+                            const lineContent = model.getLineContent(line);
+                            let selectionEndCol = column;
+
+                            if (isRegex) {
+                                try {
+                                    const re = new RegExp(searchQuery, 'i');
+                                    const match = lineContent.substring(column - 1).match(re);
+                                    if (match) selectionEndCol = column + match[0].length;
+                                } catch (e) {}
+                            } else {
+                                selectionEndCol = column + searchQuery.length;
+                            }
+
+                            monacoEditor.setSelection({
+                                startLineNumber: line,
+                                startColumn: column,
+                                endLineNumber: line,
+                                endColumn: selectionEndCol
+                            });
+                        }
+                    }
+                }, 50);
+            }
         }
     } catch (e) { logToConsole(e.message, 'error'); }
 }
@@ -7300,12 +7338,38 @@ function populateAdvSearchProjects() {
         opt.textContent = repo.name;
         elements.advSearchProject.appendChild(opt);
     });
-    elements.advSearchProject.value = currentVal || 'all';
+
+    // Auto-select active project if no selection yet
+    if (activeRepo && (!currentVal || currentVal === 'all')) {
+        elements.advSearchProject.value = activeRepo.path;
+    } else {
+        elements.advSearchProject.value = currentVal || 'all';
+    }
 }
 
+let isAdvancedSearching = false;
+let stopAdvancedSearchRequested = false;
+
 async function executeAdvancedSearch() {
+    if (isAdvancedSearching) {
+        stopAdvancedSearchRequested = true;
+        if (elements.advSearchExecute) {
+            elements.advSearchExecute.textContent = 'Stopping...';
+            elements.advSearchExecute.disabled = true;
+        }
+        return;
+    }
+
     const query = (elements.advSearchQuery.value || '').trim();
     if (!query) return;
+
+    isAdvancedSearching = true;
+    stopAdvancedSearchRequested = false;
+
+    if (elements.advSearchExecute) {
+        elements.advSearchExecute.textContent = 'Stop';
+        elements.advSearchExecute.classList.add('button-danger');
+    }
 
     elements.advSearchResults.innerHTML = '<div style="padding: 60px; text-align: center; color: var(--text-muted);"><div class="spinner"></div> Searching...</div>';
 
@@ -7325,21 +7389,46 @@ async function executeAdvancedSearch() {
         searchFiles: elements.advSearchFiles.checked
     };
 
+    let totalResults = 0;
+    elements.advSearchResults.innerHTML = ''; // Clear spinner
+
     try {
-        const results = await window.electronAPI.searchAdvanced(targetRepos, options);
-        renderAdvancedSearchResults(results);
+        for (const repo of targetRepos) {
+            if (stopAdvancedSearchRequested) break;
+
+            const results = await window.electronAPI.searchAdvanced(repo, options);
+            if (results && results.length > 0) {
+                totalResults += results.length;
+                renderAdvancedSearchResultsIncremental(results, options.query, options.isRegex);
+            }
+        }
+
+        if (totalResults === 0 && !stopAdvancedSearchRequested) {
+            elements.advSearchResults.innerHTML = '<div style="padding: 60px; text-align: center; color: var(--text-muted);">No results found.</div>';
+        } else if (stopAdvancedSearchRequested) {
+            const stopMsg = document.createElement('div');
+            stopMsg.style.padding = '15px';
+            stopMsg.style.textAlign = 'center';
+            stopMsg.style.color = 'var(--accent-yellow)';
+            stopMsg.style.borderTop = '1px solid var(--border-color)';
+            stopMsg.style.background = 'rgba(0,0,0,0.2)';
+            stopMsg.textContent = `Search stopped. Found ${totalResults} matches so far.`;
+            elements.advSearchResults.appendChild(stopMsg);
+        }
     } catch (e) {
         elements.advSearchResults.innerHTML = `<div style="padding: 60px; text-align: center; color: var(--accent-red);">Search failed: ${e.message}</div>`;
+    } finally {
+        isAdvancedSearching = false;
+        stopAdvancedSearchRequested = false;
+        if (elements.advSearchExecute) {
+            elements.advSearchExecute.textContent = 'Search';
+            elements.advSearchExecute.classList.remove('button-danger');
+            elements.advSearchExecute.disabled = false;
+        }
     }
 }
 
-function renderAdvancedSearchResults(results) {
-    if (results.length === 0) {
-        elements.advSearchResults.innerHTML = '<div style="padding: 60px; text-align: center; color: var(--text-muted);">No results found.</div>';
-        return;
-    }
-
-    elements.advSearchResults.innerHTML = '';
+function renderAdvancedSearchResultsIncremental(results, searchQuery = null, isRegex = false) {
     const fragment = document.createDocumentFragment();
 
     results.forEach(res => {
@@ -7392,7 +7481,7 @@ function renderAdvancedSearchResults(results) {
 
         item.onclick = () => {
             const fullPath = `${res.repoPath}/${res.path}`.replace(/\\/g, '/');
-            openFileInEditor(fullPath);
+            openFileInEditor(fullPath, res.line, res.column, searchQuery, isRegex);
             elements.advancedSearchModal.style.display = 'none';
         };
 
@@ -7400,6 +7489,16 @@ function renderAdvancedSearchResults(results) {
     });
 
     elements.advSearchResults.appendChild(fragment);
+}
+
+function renderAdvancedSearchResults(results) {
+    if (results.length === 0) {
+        elements.advSearchResults.innerHTML = '<div style="padding: 60px; text-align: center; color: var(--text-muted);">No results found.</div>';
+        return;
+    }
+
+    elements.advSearchResults.innerHTML = '';
+    renderAdvancedSearchResultsIncremental(results);
 }
 
 console.log('GitScope Professional logic loaded.');
