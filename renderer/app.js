@@ -952,14 +952,15 @@ function initEventListeners() {
 
         elements.repoFilter.onfocus = () => {
             if (elements.sidebar) elements.sidebar.classList.add('search-active');
+            updateSearchViewState();
         };
 
         elements.repoFilter.onblur = () => {
-            // Delay slightly so that clicks on the Advanced Search button still work before it fades out
             setTimeout(() => {
-                if (elements.sidebar && (!elements.repoFilter.value)) {
+                if (elements.sidebar && !elements.repoFilter.value) {
                     elements.sidebar.classList.remove('search-active');
                 }
+                updateSearchViewState();
             }, 200);
         };
     }
@@ -3128,6 +3129,8 @@ async function renderTree(filter = '') {
     try {
         const search = (filter || '').trim().toLowerCase();
         if (!elements.repoTree) return;
+
+        updateSearchViewState();
 
         // Performance: Parallel search across all repositories
         const searchPromises = repositories.map(async repo => {
@@ -7664,6 +7667,20 @@ function renderAdvancedSearchResults(results) {
 
     elements.advSearchResults.innerHTML = '';
     renderAdvancedSearchResultsIncremental(results);
+}
+
+function updateSearchViewState() {
+    if (!elements.sidebar || !elements.repoFilter) return;
+
+    const isFocused = document.activeElement === elements.repoFilter;
+    const hasValue = !!elements.repoFilter.value;
+
+    // "Search View" is active if focused and the user hasn't typed a filter yet
+    if (isFocused && !hasValue) {
+        elements.sidebar.classList.add('search-view-active');
+    } else {
+        elements.sidebar.classList.remove('search-view-active');
+    }
 }
 
 console.log('GitScope Professional logic loaded.');
