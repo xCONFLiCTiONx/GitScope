@@ -2283,7 +2283,7 @@ async function showRevertModal() {
 async function handleRestoreHead() {
     if (!activeRepo) return;
     const warning = `DANGER: WIPE ALL CHANGES?\n\nThis will restore ${activeRepo.name} to HEAD state.\n\nEVERY uncommitted local edit will be PERMANENTLY DELETED.`;
-    if (await showConfirm(warning, "Restore to HEAD")) {
+    if (await showConfirm(warning, "Restore")) {
         setTaskState(true);
         logToConsole(`Restoring ${activeRepo.name} to HEAD...`, 'info');
         try {
