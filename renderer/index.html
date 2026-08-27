@@ -387,44 +387,11 @@
             background: rgba(255,255,255,0.05) !important;
         }
 
-        /* Advanced Search Tree Item */
-        .adv-search-tree-item {
-            padding: 12px 20px;
-            margin-top: 8px;
-            border-top: 1px solid var(--border-color);
-            cursor: pointer;
-            font-size: 11px;
-            text-align: center;
-            background: rgba(255,255,255,0.02);
-            opacity: 0;
-            transform: translateY(5px);
-            transition: all 0.3s ease;
-            pointer-events: none;
-        }
-        .adv-search-tree-item:hover {
-            background: rgba(255,255,255,0.05);
-        }
-
         /* Search View State */
         .search-view-active #repo-tree .tree-node {
             opacity: 0;
             transform: scale(0.98);
             pointer-events: none;
-        }
-        .search-view-active .adv-search-tree-item {
-            opacity: 0.75;
-            transform: translateY(0);
-            pointer-events: auto;
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            width: 80%;
-            border: 1px solid var(--border-color);
-            border-radius: 8px;
-            background: var(--bg-surface);
-            box-shadow: 0 4px 20px rgba(0,0,0,0.4);
-            margin-top: 0;
         }
 
         #repo-tree {

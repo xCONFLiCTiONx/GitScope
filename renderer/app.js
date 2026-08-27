@@ -3307,20 +3307,6 @@ async function renderTree(filter = '') {
             fragment.appendChild(noMatches);
         }
 
-        const advSearchItem = document.createElement('div');
-        advSearchItem.className = 'adv-search-tree-item';
-        advSearchItem.innerHTML = `<span style="color: var(--text-muted);">${search ? 'Not finding it?' : 'Need a deeper search?'}</span><br><span style="color: var(--accent-blue); font-weight: 800;">OPEN ADVANCED SEARCH</span>`;
-
-        advSearchItem.onclick = (e) => {
-            e.stopPropagation();
-            elements.advancedSearchModal.style.display = 'flex';
-            elements.advSearchQuery.value = filter || '';
-            populateAdvSearchProjects();
-            setTimeout(() => elements.advSearchQuery.focus(), 10);
-        };
-
-        fragment.appendChild(advSearchItem);
-
         if (fragment.children.length === 0) {
             elements.repoTree.innerHTML = `<div style="padding:20px; color:var(--text-muted); text-align:center;">No matches for "${filter}"</div>`;
         } else {
