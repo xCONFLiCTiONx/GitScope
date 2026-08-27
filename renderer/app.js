@@ -1054,8 +1054,43 @@ function initEventListeners() {
     if (elements.editorFormatBtn) elements.editorFormatBtn.onclick = () => {
         if (monacoEditor) {
             monacoEditor.focus();
-            monacoEditor.trigger('editor', 'editor.action.formatDocument');
-            logToConsole('Ran code formatter.', 'info');
+
+            const ext = currentEditingPath ? currentEditingPath.split('.').pop().toLowerCase() : '';
+            if (ext === 'md' || ext === 'markdown') {
+                const model = monacoEditor.getModel();
+                if (model) {
+                    const lineCount = model.getLineCount();
+                    const edits = [];
+                    for (let i = 1; i <= lineCount; i++) {
+                        let lineContent = model.getLineContent(i);
+                        const nextLine = i < lineCount ? model.getLineContent(i + 1) : null;
+
+                        // Rule: If current line is not empty, doesn't start with '#' (header),
+                        // and next line is also not empty, ensure current line ends with 2 spaces.
+                        if (lineContent.trim() !== '' && !lineContent.trim().startsWith('#') && nextLine && nextLine.trim() !== '') {
+                            // Clean existing trailing spaces then add 2
+                            const cleaned = lineContent.replace(/\s+$/, '');
+                            if (cleaned + '  ' !== lineContent) {
+                                edits.push({
+                                    range: new monaco.Range(i, 1, i, lineContent.length + 1),
+                                    text: cleaned + '  '
+                                });
+                            }
+                        }
+                    }
+                    if (edits.length > 0) {
+                        model.pushEditOperations([], edits, () => null);
+                        logToConsole(`Markdown Prettify: Added trailing spaces to ${edits.length} lines.`, 'success');
+                    } else {
+                        // Fallback to default if no custom edits needed
+                        monacoEditor.trigger('editor', 'editor.action.formatDocument');
+                        logToConsole('Ran default code formatter.', 'info');
+                    }
+                }
+            } else {
+                monacoEditor.trigger('editor', 'editor.action.formatDocument');
+                logToConsole('Ran code formatter.', 'info');
+            }
         }
     };
     if (elements.editorFindBtn) elements.editorFindBtn.onclick = () => {
