@@ -7760,7 +7760,9 @@ function showPrivacySearchModal(projectPath = null) {
     const modal = elements.privacySearchModal;
     modal.style.display = 'flex';
 
-    activePrivacyPatterns = JSON.parse(JSON.stringify(PRIVACY_PATTERNS));
+    if (!activePrivacyPatterns || activePrivacyPatterns.length === 0) {
+        activePrivacyPatterns = PRIVACY_PATTERNS.map((p, idx) => ({ ...p, id: 'p-' + idx }));
+    }
     renderPrivacyPatterns();
 
     // Populate project dropdown
@@ -7782,6 +7784,7 @@ function showPrivacySearchModal(projectPath = null) {
         elements.privacyScanStatus.textContent = `Last scan: ${lastPrivacyScanResults.length} matches found`;
         elements.privacyBulkGitRm.disabled = false;
         elements.privacyBulkIgnore.disabled = false;
+        filterPrivacyResults();
     } else {
         resultsContainer.innerHTML = '<div style="padding: 60px; text-align: center; color: var(--text-muted);">Configure patterns and click Start Scan to detect sensitive data.</div>';
         elements.privacyScanStatus.textContent = '';
@@ -7802,7 +7805,7 @@ function showPrivacySearchModal(projectPath = null) {
     };
 
     elements.privacyAddPattern.onclick = () => {
-        activePrivacyPatterns.push({ name: 'New Pattern', regex: '', enabled: true });
+        activePrivacyPatterns.push({ id: 'p-' + Date.now(), name: 'New Pattern', regex: '', enabled: true });
         renderPrivacyPatterns();
         elements.privacyPatternsList.scrollTop = elements.privacyPatternsList.scrollHeight;
     };
@@ -7813,6 +7816,7 @@ function showPrivacySearchModal(projectPath = null) {
             const newState = !allEnabled;
             activePrivacyPatterns.forEach(p => p.enabled = newState);
             renderPrivacyPatterns();
+            filterPrivacyResults();
         };
     }
 
@@ -7828,7 +7832,7 @@ function showPrivacySearchModal(projectPath = null) {
 function renderPrivacyPatterns() {
     const list = elements.privacyPatternsList;
     list.innerHTML = activePrivacyPatterns.map((p, index) => `
-        <div class="privacy-pattern-item" style="background: rgba(255,255,255,0.02); padding: 8px; border-radius: 4px; border: 1px solid var(--border-color);">
+        <div class="privacy-pattern-item" data-id="${p.id}" style="background: rgba(255,255,255,0.02); padding: 8px; border-radius: 4px; border: 1px solid var(--border-color);">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
                 <input type="text" class="settings-input pattern-name" data-index="${index}" value="${p.name}" style="font-size: 11px; font-weight: 800; background: transparent; border: none; padding: 0; color: var(--text-main); flex: 1;">
                 <div style="display: flex; gap: 8px; align-items: center;">
@@ -7850,7 +7854,10 @@ function renderPrivacyPatterns() {
         input.onchange = (e) => activePrivacyPatterns[e.target.dataset.index].name = e.target.value;
     });
     list.querySelectorAll('.pattern-enabled').forEach(input => {
-        input.onchange = (e) => activePrivacyPatterns[e.target.dataset.index].enabled = e.target.checked;
+        input.onchange = (e) => {
+            activePrivacyPatterns[e.target.dataset.index].enabled = e.target.checked;
+            filterPrivacyResults();
+        };
     });
     list.querySelectorAll('.pattern-regex').forEach(input => {
         input.onchange = (e) => activePrivacyPatterns[e.target.dataset.index].regex = e.target.value;
@@ -7859,8 +7866,29 @@ function renderPrivacyPatterns() {
         btn.onclick = (e) => {
             activePrivacyPatterns.splice(e.target.dataset.index, 1);
             renderPrivacyPatterns();
+            filterPrivacyResults();
         };
     });
+}
+
+function filterPrivacyResults() {
+    const items = elements.privacyResults.querySelectorAll('.privacy-match-item');
+    items.forEach(item => {
+        const patternId = item.dataset.patternId;
+        const pattern = activePrivacyPatterns.find(p => p.id === patternId);
+        if (pattern && pattern.enabled) {
+            item.style.display = 'flex';
+        } else {
+            item.style.display = 'none';
+        }
+    });
+
+    // Update status based on visible items
+    const visibleCount = Array.from(items).filter(i => i.style.display !== 'none').length;
+    const statusEl = elements.privacyScanStatus;
+    if (statusEl.textContent.includes('Complete') || statusEl.textContent.includes('Last scan')) {
+        statusEl.textContent = `Matches found: ${visibleCount} (Filtered from ${items.length})`;
+    }
 }
 
 async function startPrivacyScan(rootPath = null) {
@@ -7889,7 +7917,7 @@ async function startPrivacyScan(rootPath = null) {
                 regexStr = regexStr.substring(4);
                 flags += 'i';
             }
-            compiledPatterns.push({ name: p.name, re: new RegExp(regexStr, flags) });
+            compiledPatterns.push({ id: p.id, name: p.name, re: new RegExp(regexStr, flags) });
         } catch (e) {
             logToConsole(`Privacy Scan: Failed to compile regex "${p.name}": ${e.message}`, 'error');
         }
@@ -7924,7 +7952,12 @@ async function startPrivacyScan(rootPath = null) {
         startBtn.textContent = 'Start Scan';
         startBtn.classList.remove('button-danger');
         startBtn.disabled = false;
-        statusEl.textContent = stopPrivacyScanRequested ? 'Scan Stopped' : `Scan Complete: ${matchCount} matches found`;
+
+        filterPrivacyResults(); // Ensure final visibility is correct
+
+        if (stopPrivacyScanRequested) {
+            statusEl.textContent = 'Scan Stopped';
+        }
 
         elements.privacyBulkGitRm.disabled = matchCount === 0;
         elements.privacyBulkIgnore.disabled = matchCount === 0;
@@ -7970,6 +8003,7 @@ async function scanFileForPrivacy(filePath, patterns, onMatch) {
                     p.re.lastIndex = 0; // Reset lastIndex for global regex
                     while ((match = p.re.exec(line)) !== null) {
                         onMatch({
+                            patternId: p.id,
                             patternName: p.name,
                             repoName,
                             filePath,
@@ -7993,11 +8027,18 @@ function renderPrivacyMatch(match, skipScroll = false) {
     const container = elements.privacyResults;
     const item = document.createElement('div');
     item.className = 'privacy-match-item';
+    item.dataset.patternId = match.patternId;
     item.style.padding = '10px';
     item.style.borderBottom = '1px solid var(--border-color)';
     item.style.display = 'flex';
     item.style.flexDirection = 'column';
     item.style.gap = '4px';
+
+    // Check if pattern is enabled, if not hide it immediately
+    const pattern = activePrivacyPatterns.find(p => p.id === match.patternId);
+    if (pattern && !pattern.enabled) {
+        item.style.display = 'none';
+    }
 
     const escapedLine = match.lineText
         .replace(/&/g, '&amp;')
@@ -8037,7 +8078,8 @@ function renderPrivacyMatch(match, skipScroll = false) {
 }
 
 async function handlePrivacyBulkGitRm() {
-    const checked = Array.from(elements.privacyResults.querySelectorAll('.match-select:checked'));
+    const checked = Array.from(elements.privacyResults.querySelectorAll('.match-select:checked'))
+        .filter(cb => cb.closest('.privacy-match-item').style.display !== 'none');
     const paths = Array.from(new Set(checked.map(cb => cb.dataset.path)));
 
     if (paths.length === 0) return showAlert('Select at least one file.', 'Selection Required');
@@ -8065,7 +8107,8 @@ async function handlePrivacyBulkGitRm() {
 }
 
 async function handlePrivacyBulkIgnore() {
-    const checked = Array.from(elements.privacyResults.querySelectorAll('.match-select:checked'));
+    const checked = Array.from(elements.privacyResults.querySelectorAll('.match-select:checked'))
+        .filter(cb => cb.closest('.privacy-match-item').style.display !== 'none');
     const paths = Array.from(new Set(checked.map(cb => cb.dataset.path)));
 
     if (paths.length === 0) return showAlert('Select at least one file.', 'Selection Required');
