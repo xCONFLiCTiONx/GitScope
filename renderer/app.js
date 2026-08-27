@@ -402,6 +402,8 @@ const elements = {
     get dashboardRefreshBtn() { return document.getElementById('dashboard-refresh-btn'); },
     get dashboardBulkPullBtn() { return document.getElementById('dashboard-bulk-pull-btn'); },
     get dashboardBulkCommitBtn() { return document.getElementById('dashboard-bulk-commit-btn'); },
+    get dashboardBulkStageBtn() { return document.getElementById('dashboard-bulk-stage-btn'); },
+    get dashboardBulkPushBtn() { return document.getElementById('dashboard-bulk-push-btn'); },
     get dashboardBulkRestoreBtn() { return document.getElementById('dashboard-bulk-restore-btn'); },
     get bulkCommitModal() { return document.getElementById('bulk-commit-modal'); },
     get bulkCommitRepoList() { return document.getElementById('bulk-commit-repo-list'); },
@@ -411,6 +413,16 @@ const elements = {
     get notifRepoChanges() { return document.getElementById('notif-repo-changes'); },
     get bulkCommitConfirm() { return document.getElementById('bulk-commit-confirm'); },
     get bulkCommitCancel() { return document.getElementById('bulk-commit-cancel'); },
+    get bulkPushModal() { return document.getElementById('bulk-push-modal'); },
+    get bulkPushRepoList() { return document.getElementById('bulk-push-repo-list'); },
+    get bulkPushSelectAll() { return document.getElementById('bulk-push-select-all'); },
+    get bulkPushConfirm() { return document.getElementById('bulk-push-confirm'); },
+    get bulkPushCancel() { return document.getElementById('bulk-push-cancel'); },
+    get bulkStageModal() { return document.getElementById('bulk-stage-modal'); },
+    get bulkStageRepoList() { return document.getElementById('bulk-stage-repo-list'); },
+    get bulkStageSelectAll() { return document.getElementById('bulk-stage-select-all'); },
+    get bulkStageConfirm() { return document.getElementById('bulk-stage-confirm'); },
+    get bulkStageCancel() { return document.getElementById('bulk-stage-cancel'); },
     get bulkRestoreModal() { return document.getElementById('bulk-restore-modal'); },
     get bulkRestoreRepoList() { return document.getElementById('bulk-restore-repo-list'); },
     get bulkRestoreSelectAll() { return document.getElementById('bulk-restore-select-all'); },
@@ -980,8 +992,10 @@ function initEventListeners() {
     }
     if (elements.dashboardRefreshBtn) elements.dashboardRefreshBtn.onclick = async () => await showDashboard();
     if (elements.dashboardBulkFetchBtn) elements.dashboardBulkFetchBtn.onclick = () => handleBulkFetch();
-    if (elements.dashboardBulkPullBtn) elements.dashboardBulkPullBtn.onclick = () => handleBulkPull();
+    if (elements.dashboardBulkStageBtn) elements.dashboardBulkStageBtn.onclick = () => handleBulkStage();
     if (elements.dashboardBulkCommitBtn) elements.dashboardBulkCommitBtn.onclick = () => showBulkCommitModal();
+    if (elements.dashboardBulkPullBtn) elements.dashboardBulkPullBtn.onclick = () => handleBulkPull();
+    if (elements.dashboardBulkPushBtn) elements.dashboardBulkPushBtn.onclick = () => handleBulkPush();
     if (elements.dashboardBulkRestoreBtn) elements.dashboardBulkRestoreBtn.onclick = () => handleBulkRestore();
     if (elements.repoRefreshBtn) elements.repoRefreshBtn.onclick = async () => { if (activeRepo) await selectRepo(activeRepo); };
     if (elements.repoStatusBtn) elements.repoStatusBtn.onclick = () => showGitStatus();
@@ -4750,41 +4764,33 @@ function updateDashboardSummary(stats) {
 async function showBulkCommitModal() {
     elements.bulkCommitModal.style.display = 'flex';
     elements.bulkCommitMsg.value = '';
-    elements.bulkCommitRepoList.innerHTML = '<div style="color:var(--text-muted); font-size:11px; padding:10px;">Analyzing workspace...</div>';
+    elements.bulkCommitRepoList.innerHTML = '<div style="color:var(--text-muted); font-size:11px; padding:10px;">Analyzing workspace staged changes...</div>';
 
-    // Fetch fresh status for all projects to see who actually has changes AND remotes
-    const projectsWithChanges = [];
+    // Fetch fresh status for all projects to see who has staged changes
+    const projectsWithStaged = [];
     for (const repo of repositories) {
         try {
-            const [status, remotes] = await Promise.all([
-                window.electronAPI.gitStatus(repo.path),
-                window.electronAPI.getRemotes(repo.path)
-            ]);
-            const hasChanges = (status.modified || 0) + (status.not_added || 0) + (status.deleted || 0) > 0;
-            const hasRemotes = remotes.length > 0;
-            if (hasChanges && hasRemotes) projectsWithChanges.push({ repo, status });
+            const status = await window.electronAPI.gitStatus(repo.path);
+            if (status.staged > 0) {
+                projectsWithStaged.push({ repo, status });
+            }
         } catch(e) {}
     }
 
-    if (projectsWithChanges.length === 0) {
-        elements.bulkCommitRepoList.innerHTML = '<div style="color:var(--accent-green); font-size:11px; padding:10px;">Everything is clean! Nothing to commit.</div>';
+    if (projectsWithStaged.length === 0) {
+        elements.bulkCommitRepoList.innerHTML = '<div style="color:var(--accent-green); font-size:11px; padding:10px;">No staged changes found. Use Stage All first.</div>';
         elements.bulkCommitConfirm.disabled = true;
     } else {
         elements.bulkCommitConfirm.disabled = false;
-        elements.bulkCommitRepoList.innerHTML = projectsWithChanges.map(({ repo, status }) => {
-            const total = (status.modified || 0) + (status.not_added || 0) + (status.deleted || 0);
-            const isBehind = (status.behind || 0) > 0;
-            const behindWarning = isBehind ? `<div style="font-size:10px; color:var(--accent-red); font-weight:700;">⚠️ Needs Pull (${status.behind} commits behind)</div>` : '';
-
+        elements.bulkCommitRepoList.innerHTML = projectsWithStaged.map(({ repo, status }) => {
             return `
-                <label style="display:flex; align-items:center; gap:8px; cursor:pointer; padding:8px; background:rgba(255,255,255,0.02); border-radius:4px; margin-bottom:4px; border: 1px solid ${isBehind ? 'rgba(255, 82, 82, 0.2)' : 'transparent'};">
+                <label style="display:flex; align-items:center; gap:8px; cursor:pointer; padding:8px; background:rgba(255,255,255,0.02); border-radius:4px; margin-bottom:4px; border: 1px solid transparent;">
                     <input type="checkbox" class="bulk-commit-item-cb" value="${repo.path}" data-name="${repo.name}" checked>
                     <div style="flex:1; min-width:0;">
                         <div style="display:flex; justify-content:space-between;">
                             <div style="font-size:12px; font-weight:600; color:#fff; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${repo.name}</div>
-                            <div style="font-size:10px; color:var(--text-muted);">${total} changes</div>
+                            <div style="font-size:10px; color:var(--accent-blue);">${status.staged} staged files</div>
                         </div>
-                        ${behindWarning}
                     </div>
                 </label>
             `;
@@ -4806,7 +4812,7 @@ async function showBulkCommitModal() {
         if (!globalMsg && !useAI) return showAlert('Please enter a message or enable AI.', 'Missing Info');
 
         elements.bulkCommitModal.style.display = 'none';
-        logToConsole(`🚀 Launching Bulk Commit & Push for ${selectedCbs.length} projects...`, 'info');
+        logToConsole(`🚀 Launching Bulk Commit for ${selectedCbs.length} projects...`, 'info');
         setTaskState(true);
 
         let successCount = 0;
@@ -4817,61 +4823,182 @@ async function showBulkCommitModal() {
                 const path = cb.value;
                 const name = cb.dataset.name;
                 try {
-                    // 1. Force Stage Everything (git add .)
-                    await window.electronAPI.gitStageAll(path);
-
-                    logToConsole(`📦 [${name}]: Processing...`, 'info');
+                    logToConsole(`📦 [${name}]: Committing...`, 'info');
 
                     let commitMsg = globalMsg;
                     if (useAI) {
                         try {
-                            const diff = await window.electronAPI.getFullDiff(path);
+                            const diff = await window.electronAPI.getStagedDiff(path);
                             if (diff) commitMsg = await window.electronAPI.generateCommitMsg(diff);
                         } catch(aiErr) {
                             console.warn(`AI failed for ${name}:`, aiErr);
                         }
                     }
 
-                    // 2. Commit
-                    const commitRes = await window.electronAPI.gitCommit(path, commitMsg || 'chore: bulk update');
+                    const commitRes = await window.electronAPI.gitCommit(path, commitMsg || 'chore: bulk commit');
                     if (commitRes.success) {
                         logToConsole(`   ✅ Committed: ${name}`, 'success');
-
-                        // 3. Push
-                        logToConsole(`   ⬆️ Pushing: ${name}...`, 'info');
-                        const repo = repositories.find(r => r.path === path);
-                        const pushRes = await window.electronAPI.gitPush(path, repo ? repo.gitForce : false);
-
-                        if (pushRes.success) {
-                            logToConsole(`   🚀 Pushed: ${name}`, 'success');
-                            successCount++;
-                        } else {
-                            logToConsole(`   ❌ Push Failed [${name}]: ${pushRes.output}`, 'error');
-                            failCount++;
-                        }
+                        successCount++;
                     } else {
                         logToConsole(`   ❌ Commit Failed [${name}]: ${commitRes.output}`, 'error');
                         failCount++;
                     }
-                } catch (repoErr) {
-                    logToConsole(`   ⚠️ Fatal Error [${name}]: ${repoErr.message}`, 'error');
+                } catch (e) {
+                    logToConsole(`   ⚠️ Error [${name}]: ${e.message}`, 'error');
                     failCount++;
                 }
             }
-
-            logToConsole('🏁 Bulk Sequence Finished.', 'info');
-            if (failCount > 0) {
-                showAlert(`Bulk update finished with ${failCount} errors.`, 'Sync Completed with Errors');
-            } else if (successCount > 0) {
-                showAlert(`Successfully updated ${successCount} projects!`, 'Bulk Update Success');
-                await smartRefreshTree();
-                showDashboard();
-            } else {
-                showAlert(`All projects are already up to date.`, 'Nothing to Update');
-            }
+            logToConsole(`Bulk Commit Complete. Success: ${successCount}, Failed: ${failCount}`, 'info');
+            await smartRefreshTree();
+            showDashboard();
         } finally {
             setTaskState(false);
         }
+    };
+}
+
+async function handleBulkStage() {
+    elements.bulkStageModal.style.display = 'flex';
+    elements.bulkStageRepoList.innerHTML = '<div style="color:var(--text-muted); font-size:11px; padding:10px;">Analyzing workspace changes...</div>';
+
+    const projectsWithChanges = [];
+    for (const repo of repositories) {
+        try {
+            const status = await window.electronAPI.gitStatus(repo.path);
+            const hasChanges = (status.modified || 0) + (status.not_added || 0) + (status.deleted || 0) > 0;
+            if (hasChanges) projectsWithChanges.push({ repo, status });
+        } catch(e) {}
+    }
+
+    if (projectsWithChanges.length === 0) {
+        elements.bulkStageRepoList.innerHTML = '<div style="color:var(--accent-green); font-size:11px; padding:10px;">Everything is clean! Nothing to stage.</div>';
+        elements.bulkStageConfirm.disabled = true;
+    } else {
+        elements.bulkStageConfirm.disabled = false;
+        elements.bulkStageRepoList.innerHTML = projectsWithChanges.map(({ repo, status }) => {
+            const total = (status.modified || 0) + (status.not_added || 0) + (status.deleted || 0);
+            return `
+                <label style="display:flex; align-items:center; gap:8px; cursor:pointer; padding:8px; background:rgba(255,255,255,0.02); border-radius:4px; margin-bottom:4px; border: 1px solid transparent;">
+                    <input type="checkbox" class="bulk-stage-item-cb" value="${repo.path}" data-name="${repo.name}" checked>
+                    <div style="flex:1; min-width:0;">
+                        <div style="display:flex; justify-content:space-between;">
+                            <div style="font-size:12px; font-weight:600; color:#fff; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${repo.name}</div>
+                            <div style="font-size:10px; color:var(--text-muted);">${total} changes</div>
+                        </div>
+                    </div>
+                </label>
+            `;
+        }).join('');
+    }
+
+    elements.bulkStageSelectAll.onchange = (e) => {
+        elements.bulkStageRepoList.querySelectorAll('.bulk-stage-item-cb').forEach(cb => cb.checked = e.target.checked);
+    };
+
+    elements.bulkStageCancel.onclick = () => elements.bulkStageModal.style.display = 'none';
+    elements.bulkStageConfirm.onclick = async () => {
+        const selectedCbs = Array.from(elements.bulkStageRepoList.querySelectorAll('.bulk-stage-item-cb:checked'));
+        if (selectedCbs.length === 0) return showAlert('Select at least one project to stage.', 'Selection Required');
+
+        elements.bulkStageModal.style.display = 'none';
+        logToConsole(`🚀 Launching Bulk Stage for ${selectedCbs.length} projects...`, 'info');
+        setTaskState(true);
+
+        let success = 0; let fail = 0;
+        try {
+            for (const cb of selectedCbs) {
+                const path = cb.value;
+                const name = cb.dataset.name;
+                try {
+                    await window.electronAPI.gitStageAll(path);
+                    logToConsole(`   ✅ Staged: ${name}`, 'success');
+                    success++;
+                } catch (e) {
+                    logToConsole(`   ❌ Stage Failed [${name}]: ${e.message}`, 'error');
+                    fail++;
+                }
+            }
+            logToConsole(`Bulk Stage Complete. Success: ${success}, Failed: ${fail}`, 'info');
+            await smartRefreshTree();
+            showDashboard();
+        } finally { setTaskState(false); }
+    };
+}
+
+async function handleBulkPush() {
+    elements.bulkPushModal.style.display = 'flex';
+    elements.bulkPushRepoList.innerHTML = '<div style="color:var(--text-muted); font-size:11px; padding:10px;">Analyzing remote status...</div>';
+
+    const projectsWithAhead = [];
+    for (const repo of repositories) {
+        try {
+            const [status, remotes] = await Promise.all([
+                window.electronAPI.gitStatus(repo.path),
+                window.electronAPI.getRemotes(repo.path)
+            ]);
+            if ((status.ahead || 0) > 0 && remotes.length > 0) {
+                projectsWithAhead.push({ repo, status });
+            }
+        } catch(e) {}
+    }
+
+    if (projectsWithAhead.length === 0) {
+        elements.bulkPushRepoList.innerHTML = '<div style="color:var(--text-muted); font-size:11px; padding:10px;">No projects ahead of remote. Nothing to push.</div>';
+        elements.bulkPushConfirm.disabled = true;
+    } else {
+        elements.bulkPushConfirm.disabled = false;
+        elements.bulkPushRepoList.innerHTML = projectsWithAhead.map(({ repo, status }) => {
+            return `
+                <label style="display:flex; align-items:center; gap:8px; cursor:pointer; padding:8px; background:rgba(255,255,255,0.02); border-radius:4px; margin-bottom:4px; border: 1px solid transparent;">
+                    <input type="checkbox" class="bulk-push-item-cb" value="${repo.path}" data-name="${repo.name}" checked>
+                    <div style="flex:1; min-width:0;">
+                        <div style="display:flex; justify-content:space-between;">
+                            <div style="font-size:12px; font-weight:600; color:#fff; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${repo.name}</div>
+                            <div style="font-size:10px; color:var(--accent-blue);">${status.ahead} commits ahead</div>
+                        </div>
+                    </div>
+                </label>
+            `;
+        }).join('');
+    }
+
+    elements.bulkPushSelectAll.onchange = (e) => {
+        elements.bulkPushRepoList.querySelectorAll('.bulk-push-item-cb').forEach(cb => cb.checked = e.target.checked);
+    };
+
+    elements.bulkPushCancel.onclick = () => elements.bulkPushModal.style.display = 'none';
+    elements.bulkPushConfirm.onclick = async () => {
+        const selectedCbs = Array.from(elements.bulkPushRepoList.querySelectorAll('.bulk-push-item-cb:checked'));
+        if (selectedCbs.length === 0) return showAlert('Select at least one project to push.', 'Selection Required');
+
+        elements.bulkPushModal.style.display = 'none';
+        logToConsole(`🚀 Launching Bulk Push for ${selectedCbs.length} projects...`, 'info');
+        setTaskState(true);
+
+        let success = 0; let fail = 0;
+        try {
+            for (const cb of selectedCbs) {
+                const path = cb.value;
+                const name = cb.dataset.name;
+                try {
+                    logToConsole(`   ⬆️ Pushing: ${name}...`, 'info');
+                    const repo = repositories.find(r => r.path === path);
+                    const pushRes = await window.electronAPI.gitPush(path, repo ? repo.gitForce : false);
+                    if (pushRes.success) {
+                        logToConsole(`   🚀 Pushed: ${name}`, 'success');
+                        success++;
+                    } else {
+                        logToConsole(`   ❌ Push Failed [${name}]: ${pushRes.output}`, 'error');
+                        fail++;
+                    }
+                } catch (e) {
+                    logToConsole(`   ⚠️ Error [${name}]: ${e.message}`, 'error');
+                    fail++;
+                }
+            }
+            logToConsole(`Bulk Push Complete. Success: ${success}, Failed: ${fail}`, 'info');
+            showDashboard();
+        } finally { setTaskState(false); }
     };
 }
 
@@ -4917,10 +5044,10 @@ async function handleBulkRestore() {
         const selectedCbs = Array.from(elements.bulkRestoreRepoList.querySelectorAll('.bulk-restore-item-cb:checked'));
         if (selectedCbs.length === 0) return showAlert('Select at least one project to restore.', 'Selection Required');
 
-        if (!(await showConfirm(`Are you sure you want to wipe all local changes in ${selectedCbs.length} projects?\n\nThis cannot be undone.`, "Confirm Bulk Restore"))) return;
+        if (!(await showConfirm(`Are you sure you want to wipe all local changes in ${selectedCbs.length} projects?\n\nThis cannot be undone.`, "Confirm Restore"))) return;
 
         elements.bulkRestoreModal.style.display = 'none';
-        logToConsole(`Launching Bulk Restore sequence for ${selectedCbs.length} projects...`, 'info');
+        logToConsole(`Launching Restore sequence for ${selectedCbs.length} projects...`, 'info');
         setTaskState(true);
 
         let success = 0; let fail = 0;
@@ -4942,7 +5069,7 @@ async function handleBulkRestore() {
                     fail++;
                 }
             }
-            logToConsole(`Bulk Restore Complete. Success: ${success}, Failed: ${fail}`, 'info');
+            logToConsole(`Restore Complete. Success: ${success}, Failed: ${fail}`, 'info');
             await smartRefreshTree();
             showDashboard();
         } finally { setTaskState(false); }
@@ -4953,7 +5080,7 @@ async function handleBulkFetch() {
     if (repositories.length === 0) return showAlert('No projects found in workspace.', 'Action Blocked');
 
     elements.bulkFetchModal.style.display = 'flex';
-    elements.bulkFetchRepoList.innerHTML = '<div style="color:var(--text-muted); font-size:11px; padding:10px;">Analyzing workspace remotes...</div>';
+    elements.bulkFetchRepoList.innerHTML = '<div style="color:var(--text-muted); font-size:11px; padding:10px;">Analyzing remotes...</div>';
     elements.bulkFetchConfirm.disabled = true;
 
     // Filter for projects with remotes
@@ -4995,7 +5122,7 @@ async function handleBulkFetch() {
         if (selectedCbs.length === 0) return showAlert('Select at least one project to fetch.', 'Selection Required');
 
         elements.bulkFetchModal.style.display = 'none';
-        logToConsole(`🚀 Launching Bulk Fetch sequence for ${selectedCbs.length} projects...`, 'info');
+        logToConsole(`🚀 Launching Fetch sequence for ${selectedCbs.length} projects...`, 'info');
         setTaskState(true);
 
         let success = 0; let fail = 0;
@@ -5018,7 +5145,7 @@ async function handleBulkFetch() {
                     fail++;
                 }
             }
-            logToConsole(`Bulk Fetch Complete. Success: ${success}, Failed: ${fail}`, 'info');
+            logToConsole(`Fetch Complete. Success: ${success}, Failed: ${fail}`, 'info');
             showDashboard();
         } finally { setTaskState(false); }
     };
@@ -5079,7 +5206,7 @@ async function handleBulkPull() {
         if (selectedCbs.length === 0) return showAlert('Select at least one project to pull.', 'Selection Required');
 
         elements.bulkPullModal.style.display = 'none';
-        logToConsole(`🚀 Launching Bulk Pull sequence for ${selectedCbs.length} projects...`, 'info');
+        logToConsole(`🚀 Launching Pull sequence for ${selectedCbs.length} projects...`, 'info');
         setTaskState(true);
 
         let success = 0; let fail = 0;
@@ -5103,7 +5230,7 @@ async function handleBulkPull() {
                     fail++;
                 }
             }
-            logToConsole(`Bulk Pull Complete. Success: ${success}, Failed: ${fail}`, 'info');
+            logToConsole(`Pull Complete. Success: ${success}, Failed: ${fail}`, 'info');
             await smartRefreshTree();
             showDashboard();
         } finally { setTaskState(false); }

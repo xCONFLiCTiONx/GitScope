@@ -1246,10 +1246,12 @@
                         <p style="margin: 4px 0 0 0; color: var(--text-muted); font-size: 13px;">Overview and health of your projects.</p>
                     </div>
                     <div style="display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end;">
-                        <button id="dashboard-bulk-fetch-btn" class="button" title="Fetch updates for all projects">Bulk Fetch</button>
-                        <button id="dashboard-bulk-pull-btn" class="button button-primary" title="Pull latest changes for all projects">Bulk Pull (All)</button>
-                        <button id="dashboard-bulk-commit-btn" class="button button-blue" title="Commit & Push all projects with changes">Bulk Commit & Push</button>
-                        <button id="dashboard-bulk-restore-btn" class="button button-warning" title="Wipe all uncommitted changes in ALL projects">Bulk Restore to HEAD</button>
+                        <button id="dashboard-bulk-fetch-btn" class="button" title="Fetch updates for all projects">Fetch</button>
+                        <button id="dashboard-bulk-stage-btn" class="button button-primary" style="border-color: var(--accent-green); color: var(--accent-green);" title="Stage all changes in selected projects">Stage All</button>
+                        <button id="dashboard-bulk-commit-btn" class="button button-blue" title="Commit staged changes in selected projects">Commit</button>
+                        <button id="dashboard-bulk-pull-btn" class="button button-primary" title="Pull latest changes for all projects">Pull</button>
+                        <button id="dashboard-bulk-push-btn" class="button button-blue" title="Push committed changes to remotes">Push</button>
+                        <button id="dashboard-bulk-restore-btn" class="button button-warning" title="Wipe all uncommitted changes in ALL projects">Restore to HEAD</button>
                         <button id="dashboard-refresh-btn" class="button" title="Refresh Workspace Status">Refresh Dashboard</button>
                     </div>
                 </div>
@@ -1934,8 +1936,8 @@
     <!-- Bulk Commit Modal -->
     <div id="bulk-commit-modal" class="modal">
         <div class="modal-content" style="width: 500px;">
-            <h3>Bulk Commit & Push</h3>
-            <p>Select the repositories you want to stage, commit, and push.</p>
+            <h3>Commit Staged Changes</h3>
+            <p>Select the repositories you want to commit staged changes for.</p>
 
             <div style="margin: 16px 0; max-height: 250px; overflow-y: auto; border: 1px solid var(--border-color); border-radius: 6px; padding: 12px; background: var(--bg-sidebar);">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 1px solid var(--border-color); padding-bottom: 8px;">
@@ -1958,7 +1960,57 @@
             </div>
             <div style="text-align: right; margin-top: 20px; display: flex; justify-content: flex-end; gap: 8px;">
                 <button id="bulk-commit-cancel" class="button">Cancel</button>
-                <button id="bulk-commit-confirm" class="button button-blue">Launch Bulk Update</button>
+                <button id="bulk-commit-confirm" class="button button-blue">Commit Selected</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bulk Push Modal -->
+    <div id="bulk-push-modal" class="modal">
+        <div class="modal-content" style="width: 500px;">
+            <h3>Push to Remote</h3>
+            <p>Select the repositories you want to push to their remotes.</p>
+
+            <div style="margin: 16px 0; max-height: 300px; overflow-y: auto; border: 1px solid var(--border-color); border-radius: 6px; padding: 12px; background: var(--bg-sidebar);">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 1px solid var(--border-color); padding-bottom: 8px;">
+                    <span style="font-size: 11px; font-weight: 800; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px;">Target Repositories</span>
+                    <label style="font-size: 10px; cursor: pointer; color: var(--accent-blue);">
+                        <input type="checkbox" id="bulk-push-select-all" checked> Select All
+                    </label>
+                </div>
+                <div id="bulk-push-repo-list" style="display: flex; flex-direction: column; gap: 8px;">
+                    <!-- Project list with checkboxes injected via JS -->
+                </div>
+            </div>
+
+            <div style="text-align: right; margin-top: 20px; display: flex; justify-content: flex-end; gap: 8px;">
+                <button id="bulk-push-cancel" class="button">Cancel</button>
+                <button id="bulk-push-confirm" class="button button-blue">Push Selected</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bulk Stage Modal -->
+    <div id="bulk-stage-modal" class="modal">
+        <div class="modal-content" style="width: 500px;">
+            <h3>Stage All Changes</h3>
+            <p>Select the repositories where you want to stage all modified and untracked files.</p>
+
+            <div style="margin: 16px 0; max-height: 300px; overflow-y: auto; border: 1px solid var(--border-color); border-radius: 6px; padding: 12px; background: var(--bg-sidebar);">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 1px solid var(--border-color); padding-bottom: 8px;">
+                    <span style="font-size: 11px; font-weight: 800; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px;">Target Repositories</span>
+                    <label style="font-size: 10px; cursor: pointer; color: var(--accent-blue);">
+                        <input type="checkbox" id="bulk-stage-select-all" checked> Select All
+                    </label>
+                </div>
+                <div id="bulk-stage-repo-list" style="display: flex; flex-direction: column; gap: 8px;">
+                    <!-- Project list with checkboxes injected via JS -->
+                </div>
+            </div>
+
+            <div style="text-align: right; margin-top: 20px; display: flex; justify-content: flex-end; gap: 8px;">
+                <button id="bulk-stage-cancel" class="button">Cancel</button>
+                <button id="bulk-stage-confirm" class="button button-primary">Stage All in Selected</button>
             </div>
         </div>
     </div>
