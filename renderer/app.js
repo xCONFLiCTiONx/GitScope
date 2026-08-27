@@ -22,6 +22,24 @@ let feedTimer = null;
 let lastKnownStats = null;
 let repoVisibilityCache = new Map(); // Session-level cache for Public/Private status
 
+const PRIVACY_PATTERNS = [
+    { name: 'Private Keys (PEM)', regex: '-----BEGIN (RSA|EC|DSA|OPENSSH|CERTIFICATE) PRIVATE KEY-----', enabled: true },
+    { name: 'API Keys & Secrets', regex: '(?i)(api[_-]?key|secret[_-]?key|auth[_-]?token|access[_-]?token|client[_-]?secret)\\s*[:=]\\s*[\'"]?[a-zA-Z0-9_\\-\\.]{16,50}[\'"]?', enabled: true },
+    { name: 'JWT Tokens', regex: 'ey[A-Za-z0-9-_=]+\\.[A-Za-z0-9-_=]+\\.?[A-Za-z0-9-_.+/=]*', enabled: true },
+    { name: 'SSN', regex: '\\b(?!000|666|9\\d{2})\\d{3}[- ]?(?!00)\\d{2}[- ]?(?!0000)\\d{4}\\b', enabled: true },
+    { name: 'Email Addresses', regex: '\\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Z|a-z]{2,}\\b', enabled: true },
+    { name: 'Phone Numbers', regex: '\\b(?:\\+?1[-.]?)?\\(?([0-9]{3})\\)?[-. ]?([0-9]{3})[-. ]?([0-9]{4})\\b', enabled: true },
+    { name: 'Credit Card Numbers', regex: '\\b(?:\\d[ -]*?){13,16}\\b', enabled: true },
+    { name: 'Crypto Seeds', regex: '(?i)(seed phrase|recovery phrase|mnemonic|wallet seed)[\\s:=]+', enabled: true },
+    { name: 'Bank Routing/Account', regex: '(?i)(routing|account)[\\s_-]?number[\\s:=]+\\d{8,12}', enabled: true },
+    { name: 'Plaintext Passwords', regex: '(?i)(password|passwd|pwd)[\\s:=]+[\'"]?[^\\s]{8,}[\'"]?', enabled: true },
+    { name: 'Database URIs', regex: '(mongodb(?:\\+srv)?|postgres(?:ql)?|mysql|redis)://[^\\s]+', enabled: true },
+    { name: 'AWS Access Keys', regex: '(?i)\\b(AKIA|A3T|AGPA|AIDA|AROA|AIPA|ANPA|ANVA|ASIA)[A-Z0-9]{16}\\b', enabled: true },
+    { name: 'IPv4 Addresses', regex: '\\b(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\b', enabled: true },
+    { name: 'URLs (HTTP/FTP)', regex: '(?i)\\b(?:https?|ftp)://[^\\s/$.?#].[^\\s]*\\b', enabled: true },
+    { name: 'Localhost Domains', regex: '(?i)\\b(?:https?://)?(?:localhost|127\\.0\\.0\\.1|[\\w-]+\\.local)(?::\\d{1,5})?\\b', enabled: true }
+];
+
 /**
  * INTELLIGENCE: Find which repository a given file or folder path belongs to.
  * Returns the deepest matching repository (longest path) to correctly handle nested repos.
@@ -280,6 +298,15 @@ const elements = {
     get diffBackBtn() { return document.getElementById('diff-back-btn'); },
     get statusView() { return document.getElementById('status-view'); },
     get statusContainer() { return document.getElementById('status-container'); },
+    get privacySearchModal() { return document.getElementById('privacy-search-modal'); },
+    get privacyResults() { return document.getElementById('privacy-results'); },
+    get privacyScanStart() { return document.getElementById('privacy-scan-start'); },
+    get privacyScanStatus() { return document.getElementById('privacy-scan-status'); },
+    get privacyBulkGitRm() { return document.getElementById('privacy-bulk-git-rm'); },
+    get privacyBulkIgnore() { return document.getElementById('privacy-bulk-ignore'); },
+    get privacyPatternsList() { return document.getElementById('privacy-patterns-list'); },
+    get privacyAddPattern() { return document.getElementById('privacy-add-pattern'); },
+    get privacySearchClose() { return document.getElementById('privacy-search-close'); },
     get statusBackBtn() { return document.getElementById('status-back-btn'); },
     get repoStatusBtn() { return document.getElementById('repo-status-btn'); },
     get repoStashBtn() { return document.getElementById('repo-stash-btn'); },
@@ -5953,6 +5980,7 @@ async function handleContextMenuCommand({ command, paths, path, repoPath }) {
         }
     }
     else if (command === 'see-changes') await showFileDiff(targets[0]);
+    else if (command === 'privacy-search') showPrivacySearchModal(targets[0]);
     else if (command === 'create-readme') handleCreateReadme(targets[0]);
     else if (command === 'generate-gitignore') handleGenerateGitignore(targets[0]);
     else if (command === 'add-license') handleAddLicense(targets[0]);
@@ -7729,5 +7757,317 @@ function updateClearButtonVisibility() {
 }
 
 console.log('GitScope Professional logic loaded.');
+
+// --- PRIVACY SEARCH LOGIC ---
+
+let isPrivacyScanning = false;
+let stopPrivacyScanRequested = false;
+let activePrivacyPatterns = [];
+
+function showPrivacySearchModal(projectPath) {
+    const modal = elements.privacySearchModal;
+    modal.style.display = 'flex';
+
+    activePrivacyPatterns = JSON.parse(JSON.stringify(PRIVACY_PATTERNS));
+    renderPrivacyPatterns();
+
+    elements.privacyResults.innerHTML = '<div style="padding: 60px; text-align: center; color: var(--text-muted);">Configure patterns and click Start Scan to detect sensitive data.</div>';
+
+    elements.privacyScanStatus.textContent = '';
+    elements.privacyBulkGitRm.disabled = true;
+    elements.privacyBulkIgnore.disabled = true;
+
+    elements.privacyScanStart.onclick = () => {
+        if (isPrivacyScanning) {
+            stopPrivacyScanRequested = true;
+            elements.privacyScanStart.textContent = 'Stopping...';
+            elements.privacyScanStart.disabled = true;
+        } else {
+            startPrivacyScan(projectPath);
+        }
+    };
+
+    elements.privacyAddPattern.onclick = () => {
+        activePrivacyPatterns.push({ name: 'New Pattern', regex: '', enabled: true });
+        renderPrivacyPatterns();
+        elements.privacyPatternsList.scrollTop = elements.privacyPatternsList.scrollHeight;
+    };
+
+    elements.privacySearchClose.onclick = () => {
+        modal.style.display = 'none';
+        stopPrivacyScanRequested = true;
+    };
+
+    elements.privacyBulkGitRm.onclick = handlePrivacyBulkGitRm;
+    elements.privacyBulkIgnore.onclick = handlePrivacyBulkIgnore;
+}
+
+function renderPrivacyPatterns() {
+    const list = elements.privacyPatternsList;
+    list.innerHTML = activePrivacyPatterns.map((p, index) => `
+        <div class="privacy-pattern-item" style="background: rgba(255,255,255,0.02); padding: 8px; border-radius: 4px; border: 1px solid var(--border-color);">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                <input type="text" class="settings-input pattern-name" data-index="${index}" value="${p.name}" style="font-size: 11px; font-weight: 800; background: transparent; border: none; padding: 0; color: var(--text-main); flex: 1;">
+                <div style="display: flex; gap: 8px; align-items: center;">
+                    <input type="checkbox" class="pattern-enabled" data-index="${index}" ${p.enabled ? 'checked' : ''} title="Enable/Disable Pattern">
+                    <button class="button pattern-remove" data-index="${index}" style="padding: 0 4px; height: 18px; font-size: 10px; color: var(--accent-red); border-color: var(--accent-red); background: transparent;">×</button>
+                </div>
+            </div>
+            <textarea class="settings-input pattern-regex" data-index="${index}" style="width: 100%; font-size: 10px; font-family: var(--font-mono); height: 40px; margin-top: 4px; resize: vertical; border-color: rgba(255,255,255,0.05);">${p.regex}</textarea>
+        </div>
+    `).join('');
+
+    list.querySelectorAll('.pattern-name').forEach(input => {
+        input.onchange = (e) => activePrivacyPatterns[e.target.dataset.index].name = e.target.value;
+    });
+    list.querySelectorAll('.pattern-enabled').forEach(input => {
+        input.onchange = (e) => activePrivacyPatterns[e.target.dataset.index].enabled = e.target.checked;
+    });
+    list.querySelectorAll('.pattern-regex').forEach(input => {
+        input.onchange = (e) => activePrivacyPatterns[e.target.dataset.index].regex = e.target.value;
+    });
+    list.querySelectorAll('.pattern-remove').forEach(btn => {
+        btn.onclick = (e) => {
+            activePrivacyPatterns.splice(e.target.dataset.index, 1);
+            renderPrivacyPatterns();
+        };
+    });
+}
+
+async function startPrivacyScan(rootPath) {
+    isPrivacyScanning = true;
+    stopPrivacyScanRequested = false;
+
+    const startBtn = elements.privacyScanStart;
+    startBtn.textContent = 'Stop Scan';
+    startBtn.classList.add('button-danger');
+    startBtn.disabled = false;
+
+    elements.privacyResults.innerHTML = '';
+
+    const statusEl = elements.privacyScanStatus;
+    statusEl.textContent = 'Initializing...';
+
+    const enabledPatterns = activePrivacyPatterns.filter(p => p.enabled && p.regex);
+    const compiledPatterns = [];
+
+    enabledPatterns.forEach(p => {
+        try {
+            // Handle (?i) by converting it to 'i' flag if it's at the start
+            let regexStr = p.regex;
+            let flags = 'g';
+            if (regexStr.startsWith('(?i)')) {
+                regexStr = regexStr.substring(4);
+                flags += 'i';
+            }
+            compiledPatterns.push({ name: p.name, re: new RegExp(regexStr, flags) });
+        } catch (e) {
+            logToConsole(`Privacy Scan: Failed to compile regex "${p.name}": ${e.message}`, 'error');
+        }
+    });
+
+    if (compiledPatterns.length === 0) {
+        statusEl.textContent = 'No active patterns.';
+        isPrivacyScanning = false;
+        startBtn.textContent = 'Start Scan';
+        startBtn.classList.remove('button-danger');
+        return;
+    }
+
+    statusEl.textContent = 'Scanning files...';
+    let matchCount = 0;
+
+    try {
+        await scanRecursive(rootPath, compiledPatterns, (match) => {
+            matchCount++;
+            renderPrivacyMatch(match);
+        });
+    } catch (e) {
+        logToConsole(`Privacy Scan: Scan failed: ${e.message}`, 'error');
+    } finally {
+        isPrivacyScanning = false;
+        startBtn.textContent = 'Start Scan';
+        startBtn.classList.remove('button-danger');
+        startBtn.disabled = false;
+        statusEl.textContent = stopPrivacyScanRequested ? 'Scan Stopped' : `Scan Complete: ${matchCount} matches found`;
+
+        elements.privacyBulkGitRm.disabled = matchCount === 0;
+        elements.privacyBulkIgnore.disabled = matchCount === 0;
+    }
+}
+
+async function scanRecursive(dir, patterns, onMatch) {
+    if (stopPrivacyScanRequested) return;
+
+    try {
+        const items = await window.electronAPI.listDirectory(dir, false);
+        for (const item of items) {
+            if (stopPrivacyScanRequested) return;
+
+            if (item.isDirectory) {
+                await scanRecursive(item.path, patterns, onMatch);
+            } else {
+                await scanFileForPrivacy(item.path, patterns, onMatch);
+            }
+        }
+    } catch (e) {
+        console.error(`Privacy Scan: Error reading directory ${dir}:`, e);
+    }
+}
+
+async function scanFileForPrivacy(filePath, patterns, onMatch) {
+    try {
+        const ext = filePath.split('.').pop().toLowerCase();
+        const binaryExts = ['png', 'jpg', 'jpeg', 'gif', 'pdf', 'exe', 'dll', 'zip', 'tar', 'gz', 'ico', 'woff', 'woff2', 'ttf', 'eot', 'mp3', 'mp4', 'wav'];
+        if (binaryExts.includes(ext)) return;
+
+        const result = await window.electronAPI.readFile(filePath);
+        const content = result.content;
+        const lines = content.split(/\r?\n/);
+
+        const repo = findRepoForPath(filePath);
+        const repoName = repo ? repo.name : 'Unknown';
+
+        lines.forEach((line, index) => {
+            patterns.forEach(p => {
+                try {
+                    let match;
+                    p.re.lastIndex = 0; // Reset lastIndex for global regex
+                    while ((match = p.re.exec(line)) !== null) {
+                        onMatch({
+                            patternName: p.name,
+                            repoName,
+                            filePath,
+                            lineText: line.trim(),
+                            lineNumber: index + 1,
+                            matchedText: match[0]
+                        });
+                        if (!p.re.global) break;
+                    }
+                } catch (e) {
+                    // Ignore execution errors for specific regex
+                }
+            });
+        });
+    } catch (e) {
+        // Skip files that can't be read (binary, permissions, etc.)
+    }
+}
+
+function renderPrivacyMatch(match) {
+    const container = elements.privacyResults;
+    const item = document.createElement('div');
+    item.className = 'privacy-match-item';
+    item.style.padding = '10px';
+    item.style.borderBottom = '1px solid var(--border-color)';
+    item.style.display = 'flex';
+    item.style.flexDirection = 'column';
+    item.style.gap = '4px';
+
+    const escapedLine = match.lineText
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+
+    const escapedMatch = match.matchedText
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+
+    item.innerHTML = `
+        <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+            <div style="display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0;">
+                <div style="display: flex; align-items: center; gap: 6px;">
+                    <input type="checkbox" class="match-select" data-path="${match.filePath}">
+                    <span style="font-weight: 800; color: var(--accent-red); font-size: 10px; text-transform: uppercase;">${match.patternName}</span>
+                    <span style="color: var(--text-muted); font-size: 10px;">${match.repoName}</span>
+                </div>
+                <div style="font-weight: 600; color: #fff; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px;">${match.filePath}</div>
+            </div>
+            <button class="button privacy-edit-btn" style="padding: 2px 8px; font-size: 10px;">Edit</button>
+        </div>
+        <div style="background: rgba(0,0,0,0.3); padding: 6px 10px; border-radius: 4px; color: var(--accent-yellow); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--font-mono); font-size: 11px; margin-top: 4px; border: 1px solid rgba(255,255,255,0.05);">
+            <span style="color: var(--text-muted); margin-right: 8px;">Line ${match.lineNumber}:</span>
+            ${escapedLine.replace(escapedMatch, `<mark style="background: var(--accent-red); color: #fff; border-radius: 2px; padding: 0 2px;">${escapedMatch}</mark>`)}
+        </div>
+    `;
+
+    item.querySelector('.privacy-edit-btn').onclick = () => {
+        openFileInEditor(match.filePath, match.lineNumber, 1, match.matchedText);
+        elements.privacySearchModal.style.display = 'none';
+    };
+
+    container.appendChild(item);
+    container.scrollTop = container.scrollHeight;
+}
+
+async function handlePrivacyBulkGitRm() {
+    const checked = Array.from(elements.privacyResults.querySelectorAll('.match-select:checked'));
+    const paths = Array.from(new Set(checked.map(cb => cb.dataset.path)));
+
+    if (paths.length === 0) return showAlert('Select at least one file.', 'Selection Required');
+
+    if (await showConfirm(`Run "git rm --cached" on ${paths.length} files?\n\nThis will stop Git from tracking them but keep the local files on disk.`, "Confirm Git Action")) {
+        setTaskState(true);
+        try {
+            for (const fullPath of paths) {
+                const repo = findRepoForPath(fullPath);
+                if (repo) {
+                    const relPath = fullPath.substring(repo.path.length).replace(/^[\\\/]/, '').replace(/\\/g, '/');
+                    await window.electronAPI.gitStopTracking(repo.path, relPath);
+                }
+            }
+            logToConsole(`Privacy: Removed ${paths.length} files from Git cache.`, 'success');
+            showAlert(`Successfully removed ${paths.length} files from Git tracking.`, 'Success');
+            await smartRefreshTree();
+        } catch (e) {
+            logToConsole(`Privacy Action Failed: ${e.message}`, 'error');
+            showError(e.message, 'Action Failed');
+        } finally {
+            setTaskState(false);
+        }
+    }
+}
+
+async function handlePrivacyBulkIgnore() {
+    const checked = Array.from(elements.privacyResults.querySelectorAll('.match-select:checked'));
+    const paths = Array.from(new Set(checked.map(cb => cb.dataset.path)));
+
+    if (paths.length === 0) return showAlert('Select at least one file.', 'Selection Required');
+
+    if (await showConfirm(`Add ${paths.length} files to their respective .gitignore files?`, "Confirm Ignore")) {
+        setTaskState(true);
+        try {
+            for (const fullPath of paths) {
+                const repo = findRepoForPath(fullPath);
+                if (repo) {
+                    const relPath = fullPath.substring(repo.path.length).replace(/^[\\\/]/, '').replace(/\\/g, '/');
+                    const gitignorePath = `${repo.path}/.gitignore`.replace(/\\/g, '/');
+
+                    let content = '';
+                    const exists = await window.electronAPI.pathExists(gitignorePath);
+                    if (exists) {
+                        const result = await window.electronAPI.readFile(gitignorePath);
+                        content = result.content;
+                        if (content && !content.endsWith('\n')) content += '\n';
+                    }
+
+                    if (!content.includes(relPath)) {
+                        content += `${relPath}\n`;
+                        await window.electronAPI.writeFile(gitignorePath, content);
+                    }
+                }
+            }
+            logToConsole(`Privacy: Added ${paths.length} files to .gitignore.`, 'success');
+            showAlert(`Successfully added ${paths.length} files to .gitignore.`, 'Success');
+            await smartRefreshTree();
+        } catch (e) {
+            logToConsole(`Privacy Action Failed: ${e.message}`, 'error');
+            showError(e.message, 'Action Failed');
+        } finally {
+            setTaskState(false);
+        }
+    }
+}
 
 

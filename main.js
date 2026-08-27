@@ -1436,6 +1436,11 @@ ipcMain.handle('show-context-menu', (event, options) => {
 
   if (options.isDirectory || options.isRepoRoot) {
     template.push({
+      label: 'Privacy Search',
+      click: () => event.sender.send('context-menu-command', { command: 'privacy-search', path: paths[0] })
+    });
+    template.push({ type: 'separator' });
+    template.push({
       label: 'New',
       submenu: [
         {

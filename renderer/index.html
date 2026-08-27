@@ -2152,6 +2152,46 @@
         </div>
     </div>
 
+    <div id="privacy-search-modal" class="modal">
+        <div class="modal-content" style="width: 900px; max-width: 95vw; height: 85vh; display: flex; flex-direction: column; background: var(--bg-main); border-color: var(--accent-red);">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h3 style="margin: 0; color: var(--accent-red);">Privacy Search</h3>
+                <span class="modal-close" id="privacy-search-close" style="cursor: pointer; font-size: 24px;">&times;</span>
+            </div>
+
+            <div style="display: flex; gap: 20px; flex: 1; min-height: 0;">
+                <!-- Left: Configuration -->
+                <div style="width: 320px; display: flex; flex-direction: column; border-right: 1px solid var(--border-color); padding-right: 20px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                        <h4 style="font-size: 11px; text-transform: uppercase; color: var(--text-muted); margin: 0;">Search Patterns</h4>
+                        <button id="privacy-add-pattern" class="button" style="padding: 2px 6px; font-size: 10px;">+ Add</button>
+                    </div>
+                    <div id="privacy-patterns-list" style="flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; margin-bottom: 16px; padding-right: 5px;">
+                        <!-- Pattern items injected via JS -->
+                    </div>
+                    <button id="privacy-scan-start" class="button button-primary" style="width: 100%;">Start Scan</button>
+                </div>
+
+                <!-- Right: Results -->
+                <div style="flex: 1; display: flex; flex-direction: column; min-width: 0;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                        <h4 style="font-size: 11px; text-transform: uppercase; color: var(--text-muted); margin: 0;">Matches</h4>
+                        <div id="privacy-scan-status" style="font-size: 11px; color: var(--accent-blue);"></div>
+                    </div>
+                    <div id="privacy-results" style="flex: 1; overflow-y: auto; border: 1px solid var(--border-color); border-radius: 4px; background: rgba(0,0,0,0.1); font-family: var(--font-mono); font-size: 11px;">
+                        <div style="padding: 60px; text-align: center; color: var(--text-muted); font-family: var(--font-sans);">
+                            Configure patterns and click Start Scan to detect sensitive data.
+                        </div>
+                    </div>
+                    <div style="margin-top: 12px; display: flex; justify-content: flex-end; gap: 8px;">
+                        <button id="privacy-bulk-git-rm" class="button button-danger" disabled>git rm --cached Selected</button>
+                        <button id="privacy-bulk-ignore" class="button" disabled>Add to .gitignore</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <div id="confirm-modal" class="modal" style="z-index: 9999;">
         <div class="modal-content" style="box-shadow: 0 0 30px rgba(0,0,0,0.5); border-color: var(--accent-blue);">
             <h3 id="confirm-title">Confirm Action</h3>
