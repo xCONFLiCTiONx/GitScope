@@ -848,7 +848,7 @@ function initEventListeners() {
     // Markdown Configuration
     if (typeof marked !== 'undefined') {
         marked.use({
-            breaks: true,
+            breaks: false,
             gfm: true
         });
     }

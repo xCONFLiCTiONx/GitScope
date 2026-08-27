@@ -1042,8 +1042,17 @@
             word-wrap: break-word;
             word-break: break-word;
             overflow-x: hidden !important;
+            line-height: 1.5;
         }
-        #markdown-preview p, #markdown-preview li {
+        #markdown-preview p {
+            margin-top: 0;
+            margin-bottom: 0.6em;
+            white-space: normal !important;
+        }
+        #markdown-preview p:last-child {
+            margin-bottom: 0;
+        }
+        #markdown-preview li {
             white-space: normal !important;
         }
         #markdown-preview pre {
