@@ -3206,41 +3206,39 @@ async function renderTree(filter = '') {
             }
         });
 
-        if (search) {
-            if (!hasDirectMatches) {
-                const noMatches = document.createElement('div');
-                noMatches.style.padding = '20px';
-                noMatches.style.color = 'var(--text-muted)';
-                noMatches.style.textAlign = 'center';
-                noMatches.style.fontSize = '11px';
-                noMatches.textContent = `No direct matches for "${filter}"`;
-                fragment.appendChild(noMatches);
-            }
-
-            const advSearchItem = document.createElement('div');
-            advSearchItem.className = 'adv-search-tree-item';
-            advSearchItem.style.padding = '12px 20px';
-            advSearchItem.style.marginTop = '8px';
-            advSearchItem.style.borderTop = '1px solid var(--border-color)';
-            advSearchItem.style.cursor = 'pointer';
-            advSearchItem.style.fontSize = '11px';
-            advSearchItem.style.textAlign = 'center';
-            advSearchItem.style.background = 'rgba(255,255,255,0.02)';
-            advSearchItem.innerHTML = `<span style="color: var(--text-muted);">Not finding it?</span><br><span style="color: var(--accent-blue); font-weight: 800;">OPEN ADVANCED SEARCH</span>`;
-
-            advSearchItem.onclick = (e) => {
-                e.stopPropagation();
-                elements.advancedSearchModal.style.display = 'flex';
-                elements.advSearchQuery.value = filter;
-                populateAdvSearchProjects();
-                setTimeout(() => elements.advSearchQuery.focus(), 10);
-            };
-
-            advSearchItem.onmouseover = () => advSearchItem.style.background = 'rgba(255,255,255,0.05)';
-            advSearchItem.onmouseout = () => advSearchItem.style.background = 'rgba(255,255,255,0.02)';
-
-            fragment.appendChild(advSearchItem);
+        if (search && !hasDirectMatches) {
+            const noMatches = document.createElement('div');
+            noMatches.style.padding = '20px';
+            noMatches.style.color = 'var(--text-muted)';
+            noMatches.style.textAlign = 'center';
+            noMatches.style.fontSize = '11px';
+            noMatches.textContent = `No direct matches for "${filter}"`;
+            fragment.appendChild(noMatches);
         }
+
+        const advSearchItem = document.createElement('div');
+        advSearchItem.className = 'adv-search-tree-item';
+        advSearchItem.style.padding = '12px 20px';
+        advSearchItem.style.marginTop = '8px';
+        advSearchItem.style.borderTop = '1px solid var(--border-color)';
+        advSearchItem.style.cursor = 'pointer';
+        advSearchItem.style.fontSize = '11px';
+        advSearchItem.style.textAlign = 'center';
+        advSearchItem.style.background = 'rgba(255,255,255,0.02)';
+        advSearchItem.innerHTML = `<span style="color: var(--text-muted);">${search ? 'Not finding it?' : 'Need a deeper search?'}</span><br><span style="color: var(--accent-blue); font-weight: 800;">OPEN ADVANCED SEARCH</span>`;
+
+        advSearchItem.onclick = (e) => {
+            e.stopPropagation();
+            elements.advancedSearchModal.style.display = 'flex';
+            elements.advSearchQuery.value = filter || '';
+            populateAdvSearchProjects();
+            setTimeout(() => elements.advSearchQuery.focus(), 10);
+        };
+
+        advSearchItem.onmouseover = () => advSearchItem.style.background = 'rgba(255,255,255,0.05)';
+        advSearchItem.onmouseout = () => advSearchItem.style.background = 'rgba(255,255,255,0.02)';
+
+        fragment.appendChild(advSearchItem);
 
         if (fragment.children.length === 0) {
             elements.repoTree.innerHTML = `<div style="padding:20px; color:var(--text-muted); text-align:center;">No matches for "${filter}"</div>`;
