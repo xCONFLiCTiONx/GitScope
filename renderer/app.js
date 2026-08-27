@@ -7536,10 +7536,24 @@ function getPreviewContentArea() {
         content.id = 'content';
         content.contentEditable = 'true';
 
-        // Sync back on input
-        content.oninput = () => {
-            if (isSyncingFromPreview) return;
-            syncPreviewToEditor();
+        let previewSyncTimeout = null;
+        let lastSyncTime = 0;
+        content.oninput = (e) => {
+            if (previewSyncTimeout) clearTimeout(previewSyncTimeout);
+            const now = Date.now();
+
+            // Intelligence: Force immediate sync on space/enter to create undo "stages"
+            const isBoundary = e.inputType === 'insertLineBreak' || e.inputType === 'insertParagraph' || (e.data === ' ');
+
+            if (isBoundary || now - lastSyncTime > 1000) {
+                syncPreviewToEditor();
+                lastSyncTime = now;
+            } else {
+                previewSyncTimeout = setTimeout(() => {
+                    syncPreviewToEditor();
+                    lastSyncTime = Date.now();
+                }, 200);
+            }
         };
 
         // Tab and Shortcut handling
@@ -7740,17 +7754,24 @@ function syncPreviewToEditor() {
 
         const model = monacoEditor.getModel();
         if (model) {
+            // Force a new undo point before applying the preview sync
+            monacoEditor.pushUndoStop();
+
             // Apply as a single edit to preserve undo stack as much as possible
             model.pushEditOperations([], [{
                 range: model.getFullModelRange(),
                 text: finalValue
             }], () => null);
+
+            // Push another stop after to ensure the next typing starts a new element
+            monacoEditor.pushUndoStop();
         }
     } catch (e) {
         console.error('Preview sync failed:', e);
     } finally {
-        // Delay resetting the flag to ensure Monaco's onDidChangeContent is ignored
-        setTimeout(() => { isSyncingFromPreview = false; }, 100);
+        // Intelligence: Shorter delay and check if we actually need it
+        // 50ms is usually enough to let Monaco events settle
+        setTimeout(() => { isSyncingFromPreview = false; }, 50);
     }
 }
 
