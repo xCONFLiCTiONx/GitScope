@@ -2194,7 +2194,10 @@
                 <!-- Right: Results -->
                 <div style="flex: 1; display: flex; flex-direction: column; min-width: 0;">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                        <h4 style="font-size: 11px; text-transform: uppercase; color: var(--text-muted); margin: 0;">Matches</h4>
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <h4 style="font-size: 11px; text-transform: uppercase; color: var(--text-muted); margin: 0;">Matches</h4>
+                            <span id="privacy-results-select-all" style="font-size: 10px; color: var(--accent-blue); cursor: pointer; font-weight: 600;">Select All</span>
+                        </div>
                         <div id="privacy-scan-status" style="font-size: 11px; color: var(--accent-blue);"></div>
                     </div>
                     <div id="privacy-results" style="flex: 1; overflow-y: auto; border: 1px solid var(--border-color); border-radius: 4px; background: rgba(0,0,0,0.1); font-family: var(--font-mono); font-size: 11px;">

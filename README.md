@@ -1,60 +1,60 @@
+<p align="center">
+  <img src="ICON.png" width="128" alt="GitScope Logo">
+</p>
+
 # GitScope
 
-GitScope is a high-performance, local-first Git management suite designed for professional developers handling complex, multi-repository workspaces. **Note: This application is specifically optimized and designed for Windows.**
+GitScope is a high-performance, local-first Git management suite designed for professional developers handling complex, multi-repository workspaces. **Engineered specifically for peak performance on Windows.**
 
-![GitScope Banner](ICON.png)
+## 🛡️ Security First: Privacy Search
+GitScope includes a powerful, built-in **Privacy Search** engine designed to prevent accidental data leaks.
+- **Deep Scanning:** Recursively scans your project files for sensitive data using advanced regex patterns.
+- **Pre-configured Patterns:** Detects API Keys, PEM Private Keys, JWTs, SSNs, Credit Cards, Database URIs, and more.
+- **Customizable:** Add your own search terms and toggle specific patterns on/off for targeted scans.
+- **Git-Aware:** Automatically respects your `.gitignore` rules to avoid scanning ignored directories.
+- **Real-time Remediation:** Instantly run `git rm --cached` or append sensitive files to `.gitignore` directly from the results view.
 
 ## 🪟 Windows Optimization
-GitScope leverages specific Windows-native components for peak performance:
-- **Windows Terminal Integration:** Uses `wt.exe` for high-performance external terminal sessions.
-- **PowerShell Mastery:** Built-in support for standard Windows system paths and environment configurations.
-- **Explorer Sync:** Direct integration with Windows File Explorer for project management.
-- **Atomic Operations:** High-reliability write-and-swap logic to bypass Windows file locks on sensitive files like `.gitconfig`.
-
+GitScope leverages native Windows components for a seamless professional experience:
+- **Integrated PTY:** High-performance built-in terminal powered by `node-pty` for real-time shell interaction.
+- **Explorer Integration:** Right-click context menus and direct "Show in Folder" navigation.
+- **Atomic File Operations:** Robust write-and-swap logic to handle Windows file locks on critical configurations.
+- **System Theme Sync:** Deeply integrated dark theme that feels native to modern Windows environments.
 
 ## 🚀 Key Features
 
-### 📊 Workspace Overview
-A real-time command center showing the state of all your projects. Instantly filter by:
-- **Attention:** Projects with uncommitted work.
-- **Sync:** Repositories ahead or behind their remotes.
-- **Local Only:** Projects not yet published to GitHub.
-- **Missing:** Detects projects that were moved or deleted from your disk.
+### 📊 Workspace Command Center
+A real-time dashboard providing total visibility into your local development environment.
+- **Intelligent Filtering:** One-click views for projects needing attention, out-of-sync repos, or local-only work.
+- **Project Health:** Automatically detects missing folders, unborn repositories, and upstream drift.
 
-### 📜 Global Git Config Editor
-A built-in management suite for your global `.gitconfig`.
-- **Best-Practice Engine:** Automatically scans your config and recommends professional optimizations (Histogram diff, zdiff3 merging, auto-upstream tracking, etc.).
+### 📜 Global Git Config Management
+- **Audit Engine:** Scans your global `.gitconfig` and recommends optimizations like Histogram diffing and zdiff3 merge styles.
+- **Direct Editing:** Safe, validated editing of your global Git settings without leaving the app.
 
-### 🌿 Intelligent Branching & Commits
-- **Amend Support:** Instantly amend your last commit with a single toggle. GitScope automatically pre-fills your last message for quick tweaks.
-- **Auto-Sync Creation:** Creating a new branch automatically stages all changes and creates an "Initial commit" to preserve your state.
-- **Cloud Rename:** Rename branches both locally and on GitHub simultaneously, with automatic upstream re-tracking.
+### 🌿 Advanced Branching & Commits
+- **Smart Amending:** Amend last commits with preserved messages for rapid micro-adjustments.
+- **Multi-Cloud Sync:** Rename branches locally and on remotes simultaneously with automatic tracking updates.
+- **AI-Ready Commits:** Generate descriptive commit messages based on staged changes (feature-ready).
 
-### 🔍 Advanced Diff Viewer
-- **Live File Diffs:** Quick-view uncommitted changes with syntax-highlighted diffs.
-- **Commit History Diffs:** Browse your entire commit history and view the exact patch for any previous commit with a single click.
-- **Surgical Transitions:** "Edit" button directly in the diff view jumps you straight to that file in the editor and reveals it in your folder tree.
+### 🔍 Advanced Diff & History
+- **Interactive Patching:** View surgical diffs for uncommitted changes or any point in your commit history.
+- **Seamless Navigation:** Jump from a diff line directly to the editor at that exact position.
 
-### 📦 Surgical Stash Management
-A dedicated interface to manage your work-in-progress. Save, List, Pop, Apply, and Drop stashes with descriptive labels and real-time UI updates.
-
-### 💻 Professional Editor Environment
-- **Monaco Engine:** A full-featured code editor (the same engine powering VS Code) integrated for quick edits.
-- **Smart Encoding:** Real-time detection of UTF-8 vs ANSI (Windows-1252). Convert line endings to CRLF or ensure UTF-8 encoding with one click.
-- **Navigation Guard:** Never lose work again. GitScope monitors your editor state and prompts you to save changes if you attempt to navigate away while the file is "dirty".
-- **Editable Markdown Preview:** Real-time side-by-side or full-screen Markdown preview. Edit the preview directly and GitScope syncs it back to your source file with optimized spacing and formatting normalization.
+### 📦 Professional Editor & Markdown
+- **Monaco Engine:** The same high-performance editor powering VS Code, integrated for lighting-fast edits.
+- **Real-time Preview:** Professional Markdown environment with side-by-side preview and formatting normalization.
+- **Encoding Mastery:** Switch between UTF-8 and legacy Windows encodings with automated line-ending conversion.
 
 ## 🛠️ Technology Stack
-
-- **Core:** Electron & Node.js
+- **Framework:** Electron & Node.js
 - **Git Engine:** simple-git
-- **Interface:** HTML5/CSS3 (Modern Dark Theme)
 - **Editor:** Monaco Editor
-- **Terminal:** xterm.js
+- **UI:** Modern HTML5/CSS3 with xterm.js integration
 
-## 📦 Installation
+## 📦 Getting Started
 
-1. **Clone the repo:**
+1. **Clone the repository:**
    ```bash
    git clone https://github.com/xCONFLiCTiONx/GitScope.git
    ```
@@ -62,26 +62,21 @@ A dedicated interface to manage your work-in-progress. Save, List, Pop, Apply, a
    ```bash
    npm install
    ```
-3. **Launch the app:**
+3. **Launch the suite:**
    ```bash
    npm start
    ```
 
-## 🏗️ Building for Production (.exe)
-To package GitScope as a standalone, portable Windows executable:
-
-1. **Generate the binary**:
-   Run the high-speed build script (skipping unnecessary native rebuilds):
-   ```bash
-   npx electron-builder -c.npmRebuild=false
-   ```
-2. **Locate your App**:
-   The standalone binary will be generated in the `/dist` directory.
+## 🏗️ Production Build
+To package GitScope as a standalone Windows executable:
+```bash
+npm run build
+```
+The portable binary will be generated in the `/dist` directory.
 
 ## 📋 System Requirements
 - **OS:** Windows 10 or 11
-- **Terminal:** [Windows Terminal](https://apps.microsoft.com/store/detail/windows-terminal/9N0DX20HK701) (Required for the `wt.exe` feature)
 - **Git:** Git for Windows installed and added to PATH.
 
 ---
-*Created for developers who need more power than a simple Git GUI.*
+*Created for developers who demand more than a basic Git GUI.*

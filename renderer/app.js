@@ -314,6 +314,7 @@ const elements = {
     get privacyBulkIgnore() { return document.getElementById('privacy-bulk-ignore'); },
     get privacyPatternsList() { return document.getElementById('privacy-patterns-list'); },
     get privacyPatternsSelectAll() { return document.getElementById('privacy-patterns-select-all'); },
+    get privacyResultsSelectAll() { return document.getElementById('privacy-results-select-all'); },
     get privacyAddPattern() { return document.getElementById('privacy-add-pattern'); },
     get privacySearchClose() { return document.getElementById('privacy-search-close'); },
     get statusBackBtn() { return document.getElementById('status-back-btn'); },
@@ -7827,6 +7828,23 @@ function showPrivacySearchModal(projectPath = null) {
 
     elements.privacyBulkGitRm.onclick = handlePrivacyBulkGitRm;
     elements.privacyBulkIgnore.onclick = handlePrivacyBulkIgnore;
+
+    elements.privacyResults.onclick = (e) => {
+        if (e.target.classList.contains('match-select')) {
+            updateResultsSelectAllToggle();
+        }
+    };
+
+    if (elements.privacyResultsSelectAll) {
+        elements.privacyResultsSelectAll.onclick = () => {
+            const items = Array.from(elements.privacyResults.querySelectorAll('.privacy-match-item'))
+                .filter(i => i.style.display !== 'none');
+            const allChecked = items.every(i => i.querySelector('.match-select').checked);
+            const newState = !allChecked;
+            items.forEach(i => i.querySelector('.match-select').checked = newState);
+            updateResultsSelectAllToggle();
+        };
+    }
 }
 
 function renderPrivacyPatterns() {
@@ -7889,6 +7907,8 @@ function filterPrivacyResults() {
     if (statusEl.textContent.includes('Complete') || statusEl.textContent.includes('Last scan')) {
         statusEl.textContent = `Matches found: ${visibleCount} (Filtered from ${items.length})`;
     }
+
+    updateResultsSelectAllToggle();
 }
 
 async function startPrivacyScan(rootPath = null) {
@@ -7957,6 +7977,8 @@ async function startPrivacyScan(rootPath = null) {
 
         if (stopPrivacyScanRequested) {
             statusEl.textContent = 'Scan Stopped';
+        } else {
+            statusEl.textContent = `Scan Complete: ${matchCount} matches found`;
         }
 
         elements.privacyBulkGitRm.disabled = matchCount === 0;
@@ -8060,7 +8082,12 @@ function renderPrivacyMatch(match, skipScroll = false) {
                 </div>
                 <div style="font-weight: 600; color: #fff; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px;">${match.filePath}</div>
             </div>
-            <button class="button privacy-edit-btn" style="padding: 2px 8px; font-size: 10px;">Edit</button>
+            <div style="display: flex; gap: 4px;">
+                <button class="button privacy-edit-btn" style="padding: 2px 6px; font-size: 10px;" title="Open in Editor">Edit</button>
+                <button class="button privacy-tree-btn" style="padding: 2px 6px; font-size: 10px;" title="Reveal in Project Tree">Tree</button>
+                <button class="button privacy-reveal-btn" style="padding: 2px 6px; font-size: 10px;" title="Show in Explorer">Reveal</button>
+                <button class="button button-danger privacy-delete-btn" style="padding: 2px 6px; font-size: 10px;" title="Delete to Recycle Bin">Delete</button>
+            </div>
         </div>
         <div style="background: rgba(0,0,0,0.3); padding: 6px 10px; border-radius: 4px; color: var(--accent-yellow); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--font-mono); font-size: 11px; margin-top: 4px; border: 1px solid rgba(255,255,255,0.05);">
             <span style="color: var(--text-muted); margin-right: 8px;">Line ${match.lineNumber}:</span>
@@ -8073,8 +8100,47 @@ function renderPrivacyMatch(match, skipScroll = false) {
         elements.privacySearchModal.style.display = 'none';
     };
 
+    item.querySelector('.privacy-tree-btn').onclick = async () => {
+        elements.privacySearchModal.style.display = 'none';
+        await revealFileInSidebar(match.filePath);
+    };
+
+    item.querySelector('.privacy-reveal-btn').onclick = () => {
+        window.electronAPI.revealInExplorer(match.filePath);
+    };
+
+    item.querySelector('.privacy-delete-btn').onclick = async () => {
+        const fileName = match.filePath.split(/[\\\/]/).pop();
+        if (await showConfirm(`Delete ${fileName} to Recycle Bin?`, "Confirm Delete")) {
+            const res = await window.electronAPI.trashItem(match.filePath);
+            if (res.success) {
+                logToConsole(`Deleted ${match.filePath}`, 'info');
+                // Remove all matches for this file from the results
+                const allMatchesForFile = elements.privacyResults.querySelectorAll(`.privacy-match-item [data-path="${match.filePath}"]`);
+                allMatchesForFile.forEach(el => el.closest('.privacy-match-item').remove());
+                filterPrivacyResults();
+            } else {
+                showError(res.error, "Delete Failed");
+            }
+        }
+    };
+
     container.appendChild(item);
     if (!skipScroll) container.scrollTop = container.scrollHeight;
+
+    updateResultsSelectAllToggle();
+}
+
+function updateResultsSelectAllToggle() {
+    if (!elements.privacyResultsSelectAll) return;
+    const items = Array.from(elements.privacyResults.querySelectorAll('.privacy-match-item')).filter(i => i.style.display !== 'none');
+    if (items.length === 0) {
+        elements.privacyResultsSelectAll.style.display = 'none';
+        return;
+    }
+    elements.privacyResultsSelectAll.style.display = 'inline';
+    const allChecked = items.every(i => i.querySelector('.match-select').checked);
+    elements.privacyResultsSelectAll.textContent = allChecked ? 'Deselect All' : 'Select All';
 }
 
 async function handlePrivacyBulkGitRm() {
