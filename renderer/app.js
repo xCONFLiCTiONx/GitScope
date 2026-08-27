@@ -933,6 +933,30 @@ function initEventListeners() {
         elements.statusView.style.display = 'none';
         elements.messageView.style.display = 'flex';
     };
+    if (elements.markdownPreview) {
+        elements.markdownPreview.oncontextmenu = (e) => {
+            e.preventDefault();
+            window.electronAPI.showContextMenu({ type: 'preview' });
+        };
+    }
+
+    if (elements.htmlPreview) {
+        elements.htmlPreview.onload = () => {
+            try {
+                const doc = elements.htmlPreview.contentDocument || elements.htmlPreview.contentWindow.document;
+                if (doc) {
+                    doc.oncontextmenu = (e) => {
+                        e.preventDefault();
+                        window.electronAPI.showContextMenu({ type: 'preview-readonly' });
+                    };
+                }
+            } catch (err) {
+                // cross-origin iframes might fail, but srcdoc is usually same-origin
+                console.warn('Could not attach context menu to HTML preview iframe:', err);
+            }
+        };
+    }
+
     if (elements.sidebarCollapse) elements.sidebarCollapse.onclick = () => {
         const containers = elements.repoTree.querySelectorAll('.children-container');
         containers.forEach(c => c.remove());
@@ -7231,6 +7255,19 @@ function updateMarkdownPreviewContent() {
         }
 
         elements.htmlPreview.srcdoc = fullHtml;
+
+        // Intelligence: Immediately try to attach context menu for Copy/Paste in HTML preview
+        // This is a backup for the onload listener
+        try {
+            const doc = elements.htmlPreview.contentDocument || elements.htmlPreview.contentWindow.document;
+            if (doc) {
+                doc.oncontextmenu = (e) => {
+                    e.preventDefault();
+                    window.electronAPI.showContextMenu({ type: 'preview-readonly' });
+                };
+            }
+        } catch(e) {}
+
         return;
     }
 

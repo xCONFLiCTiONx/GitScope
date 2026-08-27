@@ -1398,6 +1398,29 @@ ipcMain.handle('show-context-menu', (event, options) => {
     return;
   }
 
+  if (options.type === 'preview') {
+    const template = [
+      { role: 'copy' },
+      { role: 'paste' },
+      { type: 'separator' },
+      { role: 'selectAll' }
+    ];
+    const menu = Menu.buildFromTemplate(template);
+    menu.popup(BrowserWindow.fromWebContents(event.sender));
+    return;
+  }
+
+  if (options.type === 'preview-readonly') {
+    const template = [
+      { role: 'copy' },
+      { type: 'separator' },
+      { role: 'selectAll' }
+    ];
+    const menu = Menu.buildFromTemplate(template);
+    menu.popup(BrowserWindow.fromWebContents(event.sender));
+    return;
+  }
+
   const paths = options.paths || [options.path];
 
   // Intelligence: Categorize the selection to provide accurate labels
