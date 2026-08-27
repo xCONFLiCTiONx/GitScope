@@ -634,6 +634,72 @@ ipcMain.handle('write-file', async (event, filePath, content) => {
   }
 });
 
+ipcMain.handle('fix-line-endings', async (event, targetPath, type) => {
+  const binaryExts = new Set(['png', 'jpg', 'jpeg', 'gif', 'webp', 'ico', 'svg', 'exe', 'dll', 'zip', 'tar', 'gz', 'pdf', 'mp4', 'mp3', 'wav', 'woff', 'woff2', 'ttf', 'eot', 'jar', 'iso', 'bin']);
+
+  async function processDir(dir) {
+    const items = await fs.readdir(dir);
+    for (const item of items) {
+      if (item === '.git' || item === 'node_modules' || item === 'dist' || item === 'build' || item === '.gradle' || item === '.idea') continue;
+      const fullPath = path.join(dir, item);
+      const stats = await fs.stat(fullPath);
+      if (stats.isDirectory()) {
+        await processDir(fullPath);
+      } else {
+        await processFile(fullPath);
+      }
+    }
+  }
+
+  async function processFile(filePath) {
+    const ext = filePath.split('.').pop().toLowerCase();
+    if (binaryExts.has(ext)) return;
+
+    try {
+      const buffer = await fs.readFile(filePath);
+      // Heuristic for binary files: check for null byte in first 8KB
+      const checkRange = Math.min(buffer.length, 8192);
+      for (let i = 0; i < checkRange; i++) {
+        if (buffer[i] === 0) return;
+      }
+
+      let content = buffer.toString('utf8');
+      let changed = false;
+      if (type === 'lf') {
+        if (content.includes('\r\n')) {
+          content = content.replace(/\r\n/g, '\n');
+          changed = true;
+        }
+      } else if (type === 'crlf') {
+        const normalized = content.replace(/\r\n/g, '\n');
+        const newContent = normalized.replace(/\n/g, '\r\n');
+        if (newContent !== content) {
+          content = newContent;
+          changed = true;
+        }
+      }
+
+      if (changed) {
+        await fs.writeFile(filePath, content, 'utf8');
+      }
+    } catch (e) {
+      console.error(`Failed to fix line endings in ${filePath}:`, e);
+    }
+  }
+
+  try {
+    const stats = await fs.stat(targetPath);
+    if (stats.isDirectory()) {
+      await processDir(targetPath);
+    } else {
+      await processFile(targetPath);
+    }
+    return { success: true };
+  } catch (e) {
+    return { success: false, error: e.message };
+  }
+});
+
 ipcMain.handle('move-file', async (event, src, dest) => {
   try {
     await fs.move(src, dest, { overwrite: false });
@@ -1484,6 +1550,20 @@ ipcMain.handle('show-context-menu', (event, options) => {
         {
           label: 'Folder',
           click: () => event.sender.send('context-menu-command', { command: 'new-folder', path: paths[0] })
+        }
+      ]
+    });
+    template.push({ type: 'separator' });
+    template.push({
+      label: 'Convert',
+      submenu: [
+        {
+          label: 'Fix All Line Endings (LF)',
+          click: () => event.sender.send('context-menu-command', { command: 'convert-project-lf', path: paths[0] })
+        },
+        {
+          label: 'Fix All Line Endings (CRLF)',
+          click: () => event.sender.send('context-menu-command', { command: 'convert-project-crlf', path: paths[0] })
         }
       ]
     });

@@ -5610,6 +5610,7 @@ async function openFileInEditor(filePath, line = null, col = null, searchQuery =
 
             // Store for change detection (Normalize line endings to LF)
             originalFileContent = content ? content.replace(/\r\n/g, '\n') : '';
+            const hasCRLF = content && content.includes('\r\n');
 
             const langMap = {
                 'js': 'javascript',
@@ -5642,11 +5643,15 @@ async function openFileInEditor(filePath, line = null, col = null, searchQuery =
             if (elements.mdViewControls) elements.mdViewControls.style.display = isRenderable ? 'flex' : 'none';
             elements.gitignoreScanBtn.style.display = (filePath.endsWith('.gitignore')) ? 'block' : 'none';
 
-            // Memory Management: Dispose of the old model if it exists
             const oldModel = monacoEditor.getModel();
             if (oldModel) oldModel.dispose();
 
             const model = monaco.editor.createModel(originalFileContent, langMap[ext] || 'plaintext');
+            if (hasCRLF) {
+                model.setEOL(1); // 1 = CRLF
+            } else {
+                model.setEOL(0); // 0 = LF
+            }
             monacoEditor.setModel(model);
 
             // Re-capture from Monaco to handle any internal normalization (BOM stripping, etc)
@@ -5966,6 +5971,8 @@ async function handleContextMenuCommand({ command, paths, path, repoPath }) {
     else if (command === 'convert-lf') await handleConvertFile(targets[0], 'lf');
     else if (command === 'convert-crlf') await handleConvertFile(targets[0], 'crlf');
     else if (command === 'convert-utf8') await handleConvertFile(targets[0], 'utf8');
+    else if (command === 'convert-project-lf') await handleConvertProject(targets[0], 'lf');
+    else if (command === 'convert-project-crlf') await handleConvertProject(targets[0], 'crlf');
     else if (command === 'manage-subtrees') {
         const repo = repositories.find(r => targets[0].toLowerCase().startsWith(r.path.toLowerCase()));
         if (repo) activeRepo = repo;
@@ -6402,6 +6409,7 @@ async function handleConvertFile(filePath, type) {
 
     if (!(await showConfirm(message, title))) return;
 
+    setTaskState(true);
     try {
         const result = await window.electronAPI.readFile(filePath);
         let content = result.content;
@@ -6427,6 +6435,38 @@ async function handleConvertFile(filePath, type) {
     } catch (e) {
         logToConsole(`Conversion failed: ${e.message}`, 'error');
         showError(e.message, 'Conversion Failed');
+    } finally {
+        setTaskState(false);
+    }
+}
+
+async function handleConvertProject(dirPath, type) {
+    const dirName = dirPath.split(/[\\\/]/).pop() || dirPath;
+    const eolName = type === 'lf' ? 'LF (Unix)' : 'CRLF (Windows)';
+    const message = `This will recursively convert ALL text files in "${dirName}" to ${eolName} line endings. This may take a moment. Proceed?`;
+
+    if (!(await showConfirm(message, "Bulk EOL Conversion"))) return;
+
+    setTaskState(true);
+    try {
+        logToConsole(`Starting bulk EOL conversion for ${dirPath}...`, 'info');
+        const res = await window.electronAPI.fixLineEndings(dirPath, type);
+
+        if (res.success) {
+            logToConsole(`Successfully converted files in ${dirName} to ${eolName}.`, 'success');
+            // If a file from this project is open, we might want to reload it,
+            // but for simplicity we'll just log success.
+            if (currentEditingPath && currentEditingPath.startsWith(dirPath)) {
+                await openFileInEditor(currentEditingPath);
+            }
+        } else {
+            throw new Error(res.error);
+        }
+    } catch (e) {
+        logToConsole(`Bulk conversion failed: ${e.message}`, 'error');
+        showError(e.message, 'Bulk Conversion Failed');
+    } finally {
+        setTaskState(false);
     }
 }
 
