@@ -845,6 +845,14 @@ function initResizers() {
 }
 
 function initEventListeners() {
+    // Markdown Configuration
+    if (typeof marked !== 'undefined') {
+        marked.use({
+            breaks: true,
+            gfm: true
+        });
+    }
+
     // Navigation Rail
     if (elements.navHome) elements.navHome.onclick = async () => {
         currentDashboardFilter = 'all'; // Reset filter when coming from nav
@@ -3340,6 +3348,71 @@ async function toggleFolder(container, dirPath, depth, repo) {
     } catch (e) { logToConsole(e.message, 'error'); }
 }
 
+async function revealFileInSidebar(filePath) {
+    if (!elements.repoTree) return;
+    const repo = findRepoForPath(filePath);
+    if (!repo) return;
+
+    // 1. Locate Repo Root in tree
+    const normRepoPath = repo.path.replace(/\\/g, '/').toLowerCase();
+    let currentContainer = Array.from(elements.repoTree.querySelectorAll(':scope > div')).find(div => {
+        const node = div.querySelector('.tree-node');
+        return node && node.dataset.path.replace(/\\/g, '/').toLowerCase() === normRepoPath;
+    });
+
+    if (!currentContainer) return;
+
+    // 2. Resolve relative path parts
+    const relPath = filePath.substring(repo.path.length).replace(/^[\\\/]/, '').replace(/\\/g, '/');
+    if (!relPath) {
+        const node = currentContainer.querySelector('.tree-node');
+        if (node) {
+            selectedNodes.clear(); selectedNodes.add(node.dataset.path); updateTreeSelectionUI();
+            node.scrollIntoView({ behavior: 'auto', block: 'nearest' });
+        }
+        return;
+    }
+
+    const parts = relPath.split('/');
+    let builtPath = repo.path.replace(/\\/g, '/');
+
+    for (let i = 0; i < parts.length; i++) {
+        const isLast = i === parts.length - 1;
+        const part = parts[i];
+        builtPath = `${builtPath}/${part}`.replace(/\/+/g, '/');
+
+        // Expand if needed
+        let children = currentContainer.querySelector('.children-container');
+        if (!children) {
+            const node = currentContainer.querySelector('.tree-node');
+            if (node && node.dataset.isDirectory === 'true') {
+                await toggleFolder(currentContainer, node.dataset.path, i, repo);
+                children = currentContainer.querySelector('.children-container');
+            }
+        }
+
+        if (!children) break;
+
+        // Find child node
+        const normBuilt = builtPath.toLowerCase();
+        const nextDiv = Array.from(children.querySelectorAll(':scope > div')).find(div => {
+            const node = div.querySelector('.tree-node');
+            return node && node.dataset.path.replace(/\\/g, '/').toLowerCase() === normBuilt;
+        });
+
+        if (!nextDiv) break;
+        currentContainer = nextDiv;
+
+        if (isLast) {
+            const node = currentContainer.querySelector('.tree-node');
+            if (node) {
+                selectedNodes.clear(); selectedNodes.add(node.dataset.path); updateTreeSelectionUI();
+                node.scrollIntoView({ behavior: 'auto', block: 'nearest' });
+            }
+        }
+    }
+}
+
 async function restoreAllExpansions() {
     const rootNodes = Array.from(elements.repoTree.querySelectorAll(':scope > div'));
     const tasks = rootNodes.map(root => {
@@ -5361,6 +5434,13 @@ async function openFileInEditor(filePath, line = null, col = null, searchQuery =
 
     if (!monacoEditor) return;
 
+    // Intelligence: If we opened this from a search, clear the search to restore the full tree
+    if (elements.repoFilter && elements.repoFilter.value) {
+        elements.repoFilter.value = '';
+        if (elements.repoFilterClear) elements.repoFilterClear.style.display = 'none';
+        await renderTree(''); // Restore full tree
+    }
+
     // INTELLIGENCE: Sync active repository context so that closing the file returns us to the correct project
     const repo = findRepoForPath(filePath);
     if (repo && activeRepo !== repo) {
@@ -5372,6 +5452,9 @@ async function openFileInEditor(filePath, line = null, col = null, searchQuery =
         if (elements.commitAmendToggle) elements.commitAmendToggle.checked = false;
         refreshActiveRepoUI(true); // Hydrate in background
     }
+
+    // Reveal the file in the sidebar tree
+    setTimeout(() => revealFileInSidebar(filePath), 100);
 
     try {
         const ext = filePath.split('.').pop().toLowerCase();
