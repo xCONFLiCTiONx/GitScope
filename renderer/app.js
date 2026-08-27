@@ -5806,7 +5806,8 @@ async function openFileInEditor(filePath, line = null, col = null, searchQuery =
             // Intelligence: Track changes to enable/disable buttons
             model.onDidChangeContent(() => {
                 const hasChanges = hasUnsavedChanges();
-                updateEditorButtonStates(hasChanges);
+                // Delay slightly to ensure Monaco's internal undo stack is updated
+                setTimeout(() => updateEditorButtonStates(hasChanges), 10);
 
                 // Real-time Markdown/HTML Preview
                 if (isRenderable && elements.editorContainerWrapper) {
@@ -5874,6 +5875,10 @@ function updateEditorButtonStates(hasChanges) {
 
     const canRestore = hasChanges || isFileChangedInGit;
 
+    const model = monacoEditor ? monacoEditor.getModel() : null;
+    const canUndo = (model && typeof model.canUndo === 'function') ? model.canUndo() : hasChanges;
+    const canRedo = (model && typeof model.canRedo === 'function') ? model.canRedo() : hasChanges;
+
     if (elements.editorSaveBtn) {
         elements.editorSaveBtn.disabled = !hasChanges;
         elements.editorSaveBtn.style.opacity = hasChanges ? '1' : '0.5';
@@ -5883,12 +5888,12 @@ function updateEditorButtonStates(hasChanges) {
         elements.editorRestoreBtn.style.opacity = canRestore ? '1' : '0.5';
     }
     if (elements.editorUndoBtn) {
-        elements.editorUndoBtn.disabled = !hasChanges;
-        elements.editorUndoBtn.style.opacity = hasChanges ? '1' : '0.5';
+        elements.editorUndoBtn.disabled = !canUndo;
+        elements.editorUndoBtn.style.opacity = canUndo ? '1' : '0.5';
     }
     if (elements.editorRedoBtn) {
-        elements.editorRedoBtn.disabled = !hasChanges;
-        elements.editorRedoBtn.style.opacity = hasChanges ? '1' : '0.5';
+        elements.editorRedoBtn.disabled = !canRedo;
+        elements.editorRedoBtn.style.opacity = canRedo ? '1' : '0.5';
     }
 }
 
