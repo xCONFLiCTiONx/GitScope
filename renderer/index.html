@@ -276,6 +276,48 @@
         .nav-item.active { color: #fff; border-left: 2px solid var(--accent-blue); border-radius: 0; }
         .nav-item-bottom { margin-top: auto; margin-bottom: 10px; }
 
+        /* Nav Popout */
+        .nav-popout {
+            position: absolute;
+            left: 52px;
+            top: 175px;
+            background: var(--bg-surface);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 6px;
+            display: none;
+            flex-direction: column;
+            gap: 2px;
+            z-index: 1000;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.6);
+            min-width: 180px;
+            animation: fadeIn 0.2s ease-out;
+        }
+        .nav-popout::before {
+            content: '';
+            position: absolute;
+            left: -6px;
+            top: 12px;
+            width: 10px;
+            height: 10px;
+            background: var(--bg-surface);
+            border-left: 1px solid var(--border-color);
+            border-bottom: 1px solid var(--border-color);
+            transform: rotate(45deg);
+        }
+        .popout-item {
+            padding: 8px 12px;
+            font-size: 12px;
+            color: var(--text-main);
+            cursor: pointer;
+            border-radius: 4px;
+            transition: background 0.2s;
+        }
+        .popout-item:hover {
+            background: var(--hover-bg);
+            color: #fff;
+        }
+
         /* Sidebar */
         #sidebar {
             width: 260px;
@@ -1136,6 +1178,10 @@
     </div>
     <div id="top-container">
         <div id="nav-rail">
+            <div id="search-popout" class="nav-popout">
+                <div class="popout-item" id="popout-adv-search">Advanced Search</div>
+                <div class="popout-item" id="popout-privacy-search">Privacy Search</div>
+            </div>
             <div id="nav-home" class="nav-item active" title="Dashboard">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
             </div>
@@ -1147,6 +1193,9 @@
             </div>
             <div id="nav-add" class="nav-item" title="Add Existing Local Repository">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
+            </div>
+            <div id="nav-search" class="nav-item" title="Search Operations">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
             </div>
             <div id="nav-git-config" class="nav-item" title="Global Git Configuration" style="margin-top: auto;">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
@@ -2162,8 +2211,18 @@
             <div style="display: flex; gap: 20px; flex: 1; min-height: 0;">
                 <!-- Left: Configuration -->
                 <div style="width: 320px; display: flex; flex-direction: column; border-right: 1px solid var(--border-color); padding-right: 20px;">
+                    <div style="margin-bottom: 20px;">
+                        <label style="display: block; font-size: 11px; margin-bottom: 4px; color: var(--text-muted); text-transform: uppercase; font-weight: 800;">Target Project</label>
+                        <select id="privacy-search-project" class="settings-input" style="width: 100%; height: 32px; padding: 0 8px;">
+                            <option value="all">All Projects</option>
+                        </select>
+                    </div>
+
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-                        <h4 style="font-size: 11px; text-transform: uppercase; color: var(--text-muted); margin: 0;">Search Patterns</h4>
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <h4 style="font-size: 11px; text-transform: uppercase; color: var(--text-muted); margin: 0;">Search Patterns</h4>
+                            <span id="privacy-patterns-select-all" style="font-size: 10px; color: var(--accent-blue); cursor: pointer; font-weight: 600;">Select All</span>
+                        </div>
                         <button id="privacy-add-pattern" class="button" style="padding: 2px 6px; font-size: 10px;">+ Add</button>
                     </div>
                     <div id="privacy-patterns-list" style="flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; margin-bottom: 16px; padding-right: 5px;">

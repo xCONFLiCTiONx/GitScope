@@ -22,6 +22,9 @@ let feedTimer = null;
 let lastKnownStats = null;
 let repoVisibilityCache = new Map(); // Session-level cache for Public/Private status
 
+let lastPrivacyScanResults = [];
+let lastPrivacyScanProject = 'all';
+
 const PRIVACY_PATTERNS = [
     { name: 'Private Keys (PEM)', regex: '-----BEGIN (RSA|EC|DSA|OPENSSH|CERTIFICATE) PRIVATE KEY-----', enabled: true },
     { name: 'API Keys & Secrets', regex: '(?i)(api[_-]?key|secret[_-]?key|auth[_-]?token|access[_-]?token|client[_-]?secret)\\s*[:=]\\s*[\'"]?[a-zA-Z0-9_\\-\\.]{16,50}[\'"]?', enabled: true },
@@ -273,6 +276,10 @@ const elements = {
     get navGithub() { return document.getElementById('nav-github'); },
     get navNew() { return document.getElementById('nav-new'); },
     get navAdd() { return document.getElementById('nav-add'); },
+    get navSearch() { return document.getElementById('nav-search'); },
+    get searchPopout() { return document.getElementById('search-popout'); },
+    get popoutAdvSearch() { return document.getElementById('popout-adv-search'); },
+    get popoutPrivacySearch() { return document.getElementById('popout-privacy-search'); },
     get navGitConfig() { return document.getElementById('nav-git-config'); },
     get navTheme() { return document.getElementById('nav-theme'); },
     get navSettings() { return document.getElementById('nav-settings'); },
@@ -300,11 +307,13 @@ const elements = {
     get statusContainer() { return document.getElementById('status-container'); },
     get privacySearchModal() { return document.getElementById('privacy-search-modal'); },
     get privacyResults() { return document.getElementById('privacy-results'); },
+    get privacySearchProject() { return document.getElementById('privacy-search-project'); },
     get privacyScanStart() { return document.getElementById('privacy-scan-start'); },
     get privacyScanStatus() { return document.getElementById('privacy-scan-status'); },
     get privacyBulkGitRm() { return document.getElementById('privacy-bulk-git-rm'); },
     get privacyBulkIgnore() { return document.getElementById('privacy-bulk-ignore'); },
     get privacyPatternsList() { return document.getElementById('privacy-patterns-list'); },
+    get privacyPatternsSelectAll() { return document.getElementById('privacy-patterns-select-all'); },
     get privacyAddPattern() { return document.getElementById('privacy-add-pattern'); },
     get privacySearchClose() { return document.getElementById('privacy-search-close'); },
     get statusBackBtn() { return document.getElementById('status-back-btn'); },
@@ -892,6 +901,20 @@ function initEventListeners() {
     if (elements.navGithub) elements.navGithub.onclick = () => showGitHubImportModal();
     if (elements.navNew) elements.navNew.onclick = () => showCreateRepoModal();
     if (elements.navAdd) elements.navAdd.onclick = () => handleAddRepo();
+    if (elements.navSearch) elements.navSearch.onclick = (e) => {
+        e.stopPropagation();
+        const popout = elements.searchPopout;
+        popout.style.display = popout.style.display === 'flex' ? 'none' : 'flex';
+    };
+    if (elements.popoutAdvSearch) elements.popoutAdvSearch.onclick = () => {
+        elements.searchPopout.style.display = 'none';
+        elements.advancedSearchModal.style.display = 'flex';
+        populateAdvSearchProjects();
+    };
+    if (elements.popoutPrivacySearch) elements.popoutPrivacySearch.onclick = () => {
+        elements.searchPopout.style.display = 'none';
+        showPrivacySearchModal();
+    };
     if (elements.navSettings) elements.navSettings.onclick = async () => await showSettings();
     if (elements.navGitConfig) elements.navGitConfig.onclick = async () => {
         if (!(await setActiveNavItem(elements.navGitConfig))) return;
@@ -1207,6 +1230,7 @@ function initEventListeners() {
     });
     document.addEventListener('click', () => {
         if (elements.transformMenu) elements.transformMenu.style.display = 'none';
+        if (elements.searchPopout) elements.searchPopout.style.display = 'none';
     });
     if (elements.editorCloseBtn) elements.editorCloseBtn.onclick = async () => await closeEditor();
     if (elements.mdViewCodeBtn) elements.mdViewCodeBtn.onclick = () => setMarkdownViewMode('code');
@@ -7764,18 +7788,38 @@ let isPrivacyScanning = false;
 let stopPrivacyScanRequested = false;
 let activePrivacyPatterns = [];
 
-function showPrivacySearchModal(projectPath) {
+function showPrivacySearchModal(projectPath = null) {
     const modal = elements.privacySearchModal;
     modal.style.display = 'flex';
 
     activePrivacyPatterns = JSON.parse(JSON.stringify(PRIVACY_PATTERNS));
     renderPrivacyPatterns();
 
-    elements.privacyResults.innerHTML = '<div style="padding: 60px; text-align: center; color: var(--text-muted);">Configure patterns and click Start Scan to detect sensitive data.</div>';
+    // Populate project dropdown
+    const projectSelect = elements.privacySearchProject;
+    projectSelect.innerHTML = '<option value="all">All Projects</option>' +
+        repositories.map(r => `<option value="${r.path}">${r.name}</option>`).join('');
 
-    elements.privacyScanStatus.textContent = '';
-    elements.privacyBulkGitRm.disabled = true;
-    elements.privacyBulkIgnore.disabled = true;
+    if (projectPath) {
+        projectSelect.value = projectPath;
+    } else {
+        projectSelect.value = lastPrivacyScanProject;
+    }
+
+    // Restore results
+    const resultsContainer = elements.privacyResults;
+    if (lastPrivacyScanResults.length > 0) {
+        resultsContainer.innerHTML = '';
+        lastPrivacyScanResults.forEach(match => renderPrivacyMatch(match, true));
+        elements.privacyScanStatus.textContent = `Last scan: ${lastPrivacyScanResults.length} matches found`;
+        elements.privacyBulkGitRm.disabled = false;
+        elements.privacyBulkIgnore.disabled = false;
+    } else {
+        resultsContainer.innerHTML = '<div style="padding: 60px; text-align: center; color: var(--text-muted);">Configure patterns and click Start Scan to detect sensitive data.</div>';
+        elements.privacyScanStatus.textContent = '';
+        elements.privacyBulkGitRm.disabled = true;
+        elements.privacyBulkIgnore.disabled = true;
+    }
 
     elements.privacyScanStart.onclick = () => {
         if (isPrivacyScanning) {
@@ -7783,7 +7827,9 @@ function showPrivacySearchModal(projectPath) {
             elements.privacyScanStart.textContent = 'Stopping...';
             elements.privacyScanStart.disabled = true;
         } else {
-            startPrivacyScan(projectPath);
+            const selectedPath = elements.privacySearchProject.value;
+            lastPrivacyScanProject = selectedPath;
+            startPrivacyScan(selectedPath === 'all' ? null : selectedPath);
         }
     };
 
@@ -7792,6 +7838,15 @@ function showPrivacySearchModal(projectPath) {
         renderPrivacyPatterns();
         elements.privacyPatternsList.scrollTop = elements.privacyPatternsList.scrollHeight;
     };
+
+    if (elements.privacyPatternsSelectAll) {
+        elements.privacyPatternsSelectAll.onclick = () => {
+            const allEnabled = activePrivacyPatterns.every(p => p.enabled);
+            const newState = !allEnabled;
+            activePrivacyPatterns.forEach(p => p.enabled = newState);
+            renderPrivacyPatterns();
+        };
+    }
 
     elements.privacySearchClose.onclick = () => {
         modal.style.display = 'none';
@@ -7817,6 +7872,12 @@ function renderPrivacyPatterns() {
         </div>
     `).join('');
 
+    // Update Select All toggle text
+    if (elements.privacyPatternsSelectAll) {
+        const allEnabled = activePrivacyPatterns.every(p => p.enabled);
+        elements.privacyPatternsSelectAll.textContent = allEnabled ? 'Deselect All' : 'Select All';
+    }
+
     list.querySelectorAll('.pattern-name').forEach(input => {
         input.onchange = (e) => activePrivacyPatterns[e.target.dataset.index].name = e.target.value;
     });
@@ -7834,9 +7895,10 @@ function renderPrivacyPatterns() {
     });
 }
 
-async function startPrivacyScan(rootPath) {
+async function startPrivacyScan(rootPath = null) {
     isPrivacyScanning = true;
     stopPrivacyScanRequested = false;
+    lastPrivacyScanResults = []; // Clear previous results
 
     const startBtn = elements.privacyScanStart;
     startBtn.textContent = 'Stop Scan';
@@ -7844,7 +7906,6 @@ async function startPrivacyScan(rootPath) {
     startBtn.disabled = false;
 
     elements.privacyResults.innerHTML = '';
-
     const statusEl = elements.privacyScanStatus;
     statusEl.textContent = 'Initializing...';
 
@@ -7878,10 +7939,16 @@ async function startPrivacyScan(rootPath) {
     let matchCount = 0;
 
     try {
-        await scanRecursive(rootPath, compiledPatterns, (match) => {
-            matchCount++;
-            renderPrivacyMatch(match);
-        });
+        const targets = rootPath ? [rootPath] : repositories.map(r => r.path);
+
+        for (const target of targets) {
+            if (stopPrivacyScanRequested) break;
+            await scanRecursive(target, compiledPatterns, (match) => {
+                matchCount++;
+                lastPrivacyScanResults.push(match);
+                renderPrivacyMatch(match);
+            });
+        }
     } catch (e) {
         logToConsole(`Privacy Scan: Scan failed: ${e.message}`, 'error');
     } finally {
@@ -7954,7 +8021,7 @@ async function scanFileForPrivacy(filePath, patterns, onMatch) {
     }
 }
 
-function renderPrivacyMatch(match) {
+function renderPrivacyMatch(match, skipScroll = false) {
     const container = elements.privacyResults;
     const item = document.createElement('div');
     item.className = 'privacy-match-item';
@@ -7998,7 +8065,7 @@ function renderPrivacyMatch(match) {
     };
 
     container.appendChild(item);
-    container.scrollTop = container.scrollHeight;
+    if (!skipScroll) container.scrollTop = container.scrollHeight;
 }
 
 async function handlePrivacyBulkGitRm() {
