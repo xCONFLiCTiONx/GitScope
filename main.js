@@ -1459,10 +1459,19 @@ ipcMain.handle('open-path', async (event, filePath) => {
 ipcMain.handle('open-path-admin', async (event, filePath) => {
   const { exec } = require('child_process');
   const nativePath = path.win32.normalize(filePath);
+  const isPs1 = nativePath.toLowerCase().endsWith('.ps1');
 
   // Intelligence: Use -EncodedCommand to avoid all quoting and escaping issues
   // between Node.js, cmd.exe, and PowerShell.
-  const psCommand = `Start-Process -FilePath '${nativePath.replace(/'/g, "''")}' -Verb RunAs`;
+  // For .ps1 files, we must explicitly call powershell.exe because scripts often don't have a direct "RunAs" association.
+  let psCommand;
+  if (isPs1) {
+    const escapedPath = nativePath.replace(/'/g, "''");
+    psCommand = `Start-Process -FilePath 'powershell.exe' -ArgumentList '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', '${escapedPath}' -Verb RunAs`;
+  } else {
+    psCommand = `Start-Process -FilePath '${nativePath.replace(/'/g, "''")}' -Verb RunAs`;
+  }
+
   const encodedCommand = Buffer.from(psCommand, 'utf16le').toString('base64');
 
   exec(`powershell.exe -NoProfile -ExecutionPolicy Bypass -EncodedCommand ${encodedCommand}`, (error, stdout, stderr) => {
