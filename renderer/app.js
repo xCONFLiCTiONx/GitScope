@@ -819,15 +819,17 @@ function parseObsidianIni(ini) {
         { token: 'string.value.json', foreground: syntax['string'] || '#ce9178' },
         { token: 'number', foreground: syntax['integer'] || syntax['number'] || '#b5cea8' },
         { token: 'keyword', foreground: syntax['keyword'] || '#569cd6' },
+        { token: 'keyword.directive', foreground: syntax['preprocessor'] || '#c586c0' },
         { token: 'constant', foreground: syntax['keyword'] || '#569cd6' },
         { token: 'operator', foreground: syntax['operator'] || '#d4d4d4' },
-        { token: 'identifier', foreground: theme['foreground'] || '#d4d4d4' },
-        { token: 'type', foreground: theme['foreground'] || '#d4d4d4' },
-        { token: 'class', foreground: theme['foreground'] || '#d4d4d4' },
+        { token: 'identifier', foreground: syntax['identifier'] || theme['foreground'] || '#d4d4d4' },
+        { token: 'type', foreground: syntax['identifier'] || theme['foreground'] || '#d4d4d4' },
+        { token: 'class', foreground: syntax['identifier'] || theme['foreground'] || '#d4d4d4' },
         { token: 'namespace', foreground: syntax['keyword'] || '#569cd6' },
         { token: 'metatag', foreground: syntax['preprocessor'] || '#c586c0' },
+        { token: 'preprocessor', foreground: syntax['preprocessor'] || '#c586c0' },
         { token: 'tag', foreground: syntax['tag'] || '#569cd6' },
-        { token: 'attribute.name', foreground: theme['foreground'] || '#d4d4d4' },
+        { token: 'attribute.name', foreground: syntax['attribute'] || theme['foreground'] || '#d4d4d4' },
         { token: 'attribute.value', foreground: syntax['string'] || '#ce9178' },
         { token: 'delimiter', foreground: syntax['operator'] || '#d4d4d4' },
         // INI specific tokens
@@ -5818,7 +5820,14 @@ async function openFileInEditor(filePath, line = null, col = null, searchQuery =
                 'cmd': 'bat',
                 'ps1': 'powershell',
                 'psm1': 'powershell',
-                'psd1': 'powershell'
+                'psd1': 'powershell',
+                'cpp': 'cpp',
+                'cxx': 'cpp',
+                'cc': 'cpp',
+                'h': 'cpp',
+                'hpp': 'cpp',
+                'hxx': 'cpp',
+                'c': 'cpp'
             };
 
             const isMarkdown = ext === 'md' || ext === 'markdown' || langMap[ext] === 'markdown';
