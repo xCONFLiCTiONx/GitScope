@@ -2218,11 +2218,15 @@
             <!-- Advanced Search Tab Content -->
             <div id="content-advanced" class="tab-content active">
                 <div style="display: flex; gap: 10px; margin-bottom: 15px; flex-wrap: wrap;">
-                    <div style="flex: 1; min-width: 250px;">
+                    <div style="flex: 1; min-width: 200px;">
                         <label style="display: block; font-size: 11px; margin-bottom: 4px; color: var(--text-muted); text-transform: uppercase; font-weight: 800;">Search Query</label>
                         <input type="text" id="adv-search-query" class="settings-input" placeholder="Search text or file name..." style="width: 100%;">
                     </div>
-                    <div style="width: 250px;">
+                    <div style="flex: 1; min-width: 200px;">
+                        <label style="display: block; font-size: 11px; margin-bottom: 4px; color: var(--text-muted); text-transform: uppercase; font-weight: 800;">Replace With</label>
+                        <input type="text" id="adv-search-replace" class="settings-input" placeholder="Text to replace with..." style="width: 100%;">
+                    </div>
+                    <div style="width: 200px;">
                         <label style="display: block; font-size: 11px; margin-bottom: 4px; color: var(--text-muted); text-transform: uppercase; font-weight: 800;">In Project</label>
                         <select id="adv-search-project" class="settings-input" style="width: 100%; height: 32px; padding: 0 8px;">
                             <option value="all">All Projects</option>
@@ -2240,12 +2244,19 @@
                     <label class="checkbox-container" style="font-size: 11px; margin: 0;">
                         <input type="checkbox" id="adv-search-regex"> Use Regex
                     </label>
-                    <button id="adv-search-execute" class="button button-primary" style="margin-left: auto; height: 32px; padding: 0 25px;">Search</button>
+                    <div style="margin-left: auto; display: flex; gap: 10px;">
+                        <button id="adv-search-replace-btn" class="button" style="height: 32px; padding: 0 20px; display: none;">Replace</button>
+                        <button id="adv-search-execute" class="button button-primary" style="height: 32px; padding: 0 25px;">Search</button>
+                    </div>
                 </div>
 
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                    <div id="adv-search-results-header" style="font-size: 11px; font-weight: 800; color: var(--text-muted); text-transform: uppercase;">
-                        Results
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <div id="adv-search-results-header" style="font-size: 11px; font-weight: 800; color: var(--text-muted); text-transform: uppercase;">
+                            Results
+                        </div>
+                        <span id="adv-search-select-all" style="font-size: 10px; color: var(--accent-blue); cursor: pointer; font-weight: 600; display: none;">Select All</span>
+                        <span id="adv-search-deselect-all" style="font-size: 10px; color: var(--accent-blue); cursor: pointer; font-weight: 600; display: none;">Deselect All</span>
                     </div>
                     <div style="display: flex; gap: 4px;">
                         <button id="adv-search-export" class="button" style="font-size: 10px; padding: 2px 8px; display: none;">Export CSV</button>

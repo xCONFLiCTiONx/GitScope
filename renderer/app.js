@@ -24,6 +24,7 @@ let repoVisibilityCache = new Map(); // Session-level cache for Public/Private s
 
 let lastPrivacyScanResults = [];
 let lastAdvancedSearchResults = [];
+let lastAdvancedSearchOptions = null;
 let lastPrivacyScanProject = 'all';
 
 const PRIVACY_PATTERNS = [
@@ -545,6 +546,10 @@ const elements = {
     get advSearchFiles() { return document.getElementById('adv-search-files'); },
     get advSearchRegex() { return document.getElementById('adv-search-regex'); },
     get advSearchExecute() { return document.getElementById('adv-search-execute'); },
+    get advSearchReplace() { return document.getElementById('adv-search-replace'); },
+    get advSearchReplaceBtn() { return document.getElementById('adv-search-replace-btn'); },
+    get advSearchSelectAll() { return document.getElementById('adv-search-select-all'); },
+    get advSearchDeselectAll() { return document.getElementById('adv-search-deselect-all'); },
     get advSearchExport() { return document.getElementById('adv-search-export'); },
     get advSearchExportMd() { return document.getElementById('adv-search-export-md'); },
     get advSearchResults() { return document.getElementById('adv-search-results'); },
@@ -967,6 +972,21 @@ function initEventListeners() {
 
     if (elements.advSearchExecute) {
         elements.advSearchExecute.onclick = executeAdvancedSearch;
+    }
+    if (elements.advSearchReplaceBtn) {
+        elements.advSearchReplaceBtn.onclick = handleAdvancedReplace;
+    }
+    if (elements.advSearchSelectAll) {
+        elements.advSearchSelectAll.onclick = () => {
+            const checkboxes = elements.advSearchResults.querySelectorAll('.adv-res-checkbox');
+            checkboxes.forEach(cb => cb.checked = true);
+        };
+    }
+    if (elements.advSearchDeselectAll) {
+        elements.advSearchDeselectAll.onclick = () => {
+            const checkboxes = elements.advSearchResults.querySelectorAll('.adv-res-checkbox');
+            checkboxes.forEach(cb => cb.checked = false);
+        };
     }
     if (elements.advSearchExport) {
         elements.advSearchExport.onclick = exportAdvancedSearchResults;
@@ -8002,6 +8022,9 @@ async function executeAdvancedSearch() {
     elements.advSearchResults.innerHTML = '<div style="padding: 60px; text-align: center; color: var(--text-muted);"><div class="spinner"></div> Searching...</div>';
     if (elements.advSearchExport) elements.advSearchExport.style.display = 'none';
     if (elements.advSearchExportMd) elements.advSearchExportMd.style.display = 'none';
+    if (elements.advSearchReplaceBtn) elements.advSearchReplaceBtn.style.display = 'none';
+    if (elements.advSearchSelectAll) elements.advSearchSelectAll.style.display = 'none';
+    if (elements.advSearchDeselectAll) elements.advSearchDeselectAll.style.display = 'none';
     lastAdvancedSearchResults = [];
 
     const projectPath = elements.advSearchProject.value;
@@ -8019,6 +8042,7 @@ async function executeAdvancedSearch() {
         searchContent: elements.advSearchContent.checked,
         searchFiles: elements.advSearchFiles.checked
     };
+    lastAdvancedSearchOptions = options;
 
     let totalResults = 0;
     elements.advSearchResults.innerHTML = ''; // Clear spinner
@@ -8040,6 +8064,9 @@ async function executeAdvancedSearch() {
         } else {
             if (elements.advSearchExport) elements.advSearchExport.style.display = 'block';
             if (elements.advSearchExportMd) elements.advSearchExportMd.style.display = 'block';
+            if (elements.advSearchReplaceBtn) elements.advSearchReplaceBtn.style.display = 'block';
+            if (elements.advSearchSelectAll) elements.advSearchSelectAll.style.display = 'inline';
+            if (elements.advSearchDeselectAll) elements.advSearchDeselectAll.style.display = 'inline';
             if (stopAdvancedSearchRequested) {
                 const stopMsg = document.createElement('div');
                 stopMsg.style.padding = '15px';
@@ -8067,7 +8094,7 @@ async function executeAdvancedSearch() {
 function renderAdvancedSearchResultsIncremental(results, searchQuery = null, isRegex = false) {
     const fragment = document.createDocumentFragment();
 
-    results.forEach(res => {
+    results.forEach((res, index) => {
         const item = document.createElement('div');
         item.className = 'search-result-item';
         item.style.padding = '10px 15px';
@@ -8075,6 +8102,28 @@ function renderAdvancedSearchResultsIncremental(results, searchQuery = null, isR
         item.style.cursor = 'pointer';
         item.style.fontSize = '12px';
         item.style.transition = 'background 0.2s';
+        item.style.display = 'flex';
+        item.style.gap = '12px';
+
+        // Checkbox for selection
+        const checkContainer = document.createElement('div');
+        checkContainer.style.display = 'flex';
+        checkContainer.style.alignItems = 'flex-start';
+        checkContainer.style.paddingTop = '2px';
+        checkContainer.onclick = (e) => e.stopPropagation();
+
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.className = 'adv-res-checkbox';
+        checkbox.checked = true;
+        // The index in lastAdvancedSearchResults is (total - results.length + current_index)
+        checkbox.dataset.index = lastAdvancedSearchResults.length - results.length + index;
+        checkContainer.appendChild(checkbox);
+        item.appendChild(checkContainer);
+
+        const contentWrapper = document.createElement('div');
+        contentWrapper.style.flex = '1';
+        contentWrapper.style.minWidth = '0';
 
         const header = document.createElement('div');
         header.style.display = 'flex';
@@ -8098,7 +8147,7 @@ function renderAdvancedSearchResultsIncremental(results, searchQuery = null, isR
             header.appendChild(lineEl);
         }
 
-        item.appendChild(header);
+        contentWrapper.appendChild(header);
 
         if (res.text) {
             const textEl = document.createElement('div');
@@ -8112,8 +8161,10 @@ function renderAdvancedSearchResultsIncremental(results, searchQuery = null, isR
             textEl.style.borderRadius = '3px';
             textEl.style.borderLeft = '2px solid var(--accent-blue)';
             textEl.textContent = res.text;
-            item.appendChild(textEl);
+            contentWrapper.appendChild(textEl);
         }
+
+        item.appendChild(contentWrapper);
 
         item.onclick = () => {
             const fullPath = `${res.repoPath}/${res.path}`.replace(/\\/g, '/');
@@ -8135,6 +8186,142 @@ function renderAdvancedSearchResults(results) {
 
     elements.advSearchResults.innerHTML = '';
     renderAdvancedSearchResultsIncremental(results);
+}
+
+async function handleAdvancedReplace() {
+    if (!lastAdvancedSearchOptions) return;
+
+    const replaceText = elements.advSearchReplace.value;
+    const query = lastAdvancedSearchOptions.query;
+    const isRegex = lastAdvancedSearchOptions.isRegex;
+
+    const checkboxes = Array.from(elements.advSearchResults.querySelectorAll('.adv-res-checkbox:checked'));
+    if (checkboxes.length === 0) {
+        logToConsole('No results selected for replacement.', 'warn');
+        return;
+    }
+
+    const selectedIndices = checkboxes.map(cb => parseInt(cb.dataset.index));
+    const selectedResults = selectedIndices.map(idx => lastAdvancedSearchResults[idx]);
+
+    // Group by file
+    const fileGroups = new Map();
+    selectedResults.forEach(res => {
+        if (res.type !== 'content') return;
+        const fullPath = `${res.repoPath}/${res.path}`.replace(/\\/g, '/');
+        if (!fileGroups.has(fullPath)) fileGroups.set(fullPath, []);
+        fileGroups.get(fullPath).push(res);
+    });
+
+    if (fileGroups.size === 0) {
+        logToConsole('No content matches selected for replacement.', 'warn');
+        return;
+    }
+
+    const confirmMsg = `Replace selected occurrences of "${query}" with "${replaceText}" in ${selectedResults.length} locations across ${fileGroups.size} files?`;
+    if (!(await showConfirm(confirmMsg, 'Confirm Bulk Replace'))) return;
+
+    elements.advSearchReplaceBtn.disabled = true;
+    elements.advSearchReplaceBtn.textContent = 'Replacing...';
+
+    let successCount = 0;
+    let errorCount = 0;
+
+    try {
+        for (const [fullPath, matches] of fileGroups.entries()) {
+            try {
+                const fileData = await window.electronAPI.readFile(fullPath);
+                if (!fileData || fileData.content === undefined) {
+                    console.error(`Could not read file for replacement: ${fullPath}`);
+                    errorCount++;
+                    continue;
+                }
+
+                let lines = fileData.content.split(/\r?\n/);
+
+                // Sort matches by line descending, then column descending
+                matches.sort((a, b) => {
+                    if (a.line !== b.line) return b.line - a.line;
+                    return b.column - a.column;
+                });
+
+                matches.forEach(match => {
+                    const lineIndex = match.line - 1;
+                    if (lineIndex < 0 || lineIndex >= lines.length) return;
+
+                    const originalLine = lines[lineIndex];
+                    const col = match.column - 1;
+                    let newLine = originalLine;
+
+                    if (isRegex) {
+                        try {
+                            const re = new RegExp(query, 'gi');
+                            let m;
+                            let found = false;
+                            while ((m = re.exec(originalLine)) !== null) {
+                                if (m.index <= col && m.index + m[0].length >= col) {
+                                    newLine = originalLine.substring(0, m.index) + replaceText + originalLine.substring(m.index + m[0].length);
+                                    found = true;
+                                    break;
+                                }
+                            }
+                            if (!found) {
+                                newLine = originalLine.replace(new RegExp(query, 'i'), replaceText);
+                            }
+                        } catch(e) {
+                            newLine = originalLine.replace(query, replaceText);
+                        }
+                    } else {
+                        const lowerQuery = query.toLowerCase();
+                        const lowerLine = originalLine.toLowerCase();
+
+                        let searchPattern = lowerQuery;
+                        let isWildcard = false;
+                        if (lowerQuery.includes('*')) {
+                            searchPattern = lowerQuery.replace(/[.+^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*');
+                            isWildcard = true;
+                        }
+
+                        if (isWildcard) {
+                            const re = new RegExp(searchPattern, 'gi');
+                            let m;
+                            let found = false;
+                            while ((m = re.exec(originalLine)) !== null) {
+                                if (m.index <= col && m.index + m[0].length >= col) {
+                                    newLine = originalLine.substring(0, m.index) + replaceText + originalLine.substring(m.index + m[0].length);
+                                    found = true;
+                                    break;
+                                }
+                            }
+                        } else {
+                            const index = lowerLine.indexOf(lowerQuery, col);
+                            if (index !== -1) {
+                                newLine = originalLine.substring(0, index) + replaceText + originalLine.substring(index + query.length);
+                            }
+                        }
+                    }
+                    lines[lineIndex] = newLine;
+                });
+
+                const separator = fileData.content.includes('\r\n') ? '\r\n' : '\n';
+                await window.electronAPI.writeFile(fullPath, lines.join(separator));
+                successCount += matches.length;
+            } catch (err) {
+                console.error(`Failed to replace in ${fullPath}:`, err);
+                errorCount++;
+            }
+        }
+
+        logToConsole(`Replacement complete: ${successCount} matches replaced.`, errorCount > 0 ? 'error' : 'success');
+
+        // Refresh search to show updated content
+        executeAdvancedSearch();
+    } catch (globalErr) {
+        logToConsole(`Replacement failed: ${globalErr.message}`, 'error');
+    } finally {
+        elements.advSearchReplaceBtn.disabled = false;
+        elements.advSearchReplaceBtn.textContent = 'Replace';
+    }
 }
 
 function updateClearButtonVisibility() {
