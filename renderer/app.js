@@ -7938,6 +7938,17 @@ function showDeleteModal(paths) {
 // INTELLIGENCE: Force Tab key indentation/outdent for ALL editors
 // We use the Capture Phase (true) to intercept the event before the browser steals it for focus cycling
 window.addEventListener('keydown', (e) => {
+    // Ctrl+Shift+F: Open Advanced Search Hub
+    if (e.ctrlKey && e.shiftKey && (e.key === 'F' || e.key === 'f')) {
+        e.preventDefault();
+        showSearchHub('advanced');
+        if (elements.advSearchQuery) {
+            elements.advSearchQuery.focus();
+            elements.advSearchQuery.select();
+        }
+        return;
+    }
+
     if (e.key === 'Control') {
         const preview = elements.markdownPreview;
         if (preview) preview.classList.add('ctrl-active');
@@ -8247,6 +8258,7 @@ async function handleAdvancedReplace() {
                 }
 
                 let lines = fileData.content.split(/\r?\n/);
+                const linesToRemove = new Set();
 
                 // Sort matches by line descending, then column descending
                 matches.sort((a, b) => {
@@ -8268,14 +8280,25 @@ async function handleAdvancedReplace() {
                             let m;
                             let found = false;
                             while ((m = re.exec(originalLine)) !== null) {
-                                if (m.index <= col && m.index + m[0].length >= col) {
-                                    newLine = originalLine.substring(0, m.index) + replaceText + originalLine.substring(m.index + m[0].length);
-                                    found = true;
+                                if (m.index <= col && (m.index + m[0].length) >= col) {
+                                    // If we are replacing the entire line with nothing, mark for removal
+                                    if (replaceText === "" && m.index === 0 && m[0].length === originalLine.length) {
+                                        linesToRemove.add(lineIndex);
+                                        found = true;
+                                    } else {
+                                        newLine = originalLine.substring(0, m.index) + replaceText + originalLine.substring(m.index + m[0].length);
+                                        found = true;
+                                    }
                                     break;
                                 }
                             }
                             if (!found) {
-                                newLine = originalLine.replace(new RegExp(query, 'i'), replaceText);
+                                // Fallback: literal or simple replace if col match failed
+                                if (replaceText === "" && new RegExp(`^${query}$`, 'i').test(originalLine)) {
+                                    linesToRemove.add(lineIndex);
+                                } else {
+                                    newLine = originalLine.replace(new RegExp(query, 'i'), replaceText);
+                                }
                             }
                         } catch(e) {
                             newLine = originalLine.replace(query, replaceText);
@@ -8296,20 +8319,35 @@ async function handleAdvancedReplace() {
                             let m;
                             let found = false;
                             while ((m = re.exec(originalLine)) !== null) {
-                                if (m.index <= col && m.index + m[0].length >= col) {
-                                    newLine = originalLine.substring(0, m.index) + replaceText + originalLine.substring(m.index + m[0].length);
-                                    found = true;
+                                if (m.index <= col && (m.index + m[0].length) >= col) {
+                                    if (replaceText === "" && m.index === 0 && m[0].length === originalLine.length) {
+                                        linesToRemove.add(lineIndex);
+                                        found = true;
+                                    } else {
+                                        newLine = originalLine.substring(0, m.index) + replaceText + originalLine.substring(m.index + m[0].length);
+                                        found = true;
+                                    }
                                     break;
                                 }
                             }
                         } else {
                             const index = lowerLine.indexOf(lowerQuery, col);
                             if (index !== -1) {
-                                newLine = originalLine.substring(0, index) + replaceText + originalLine.substring(index + query.length);
+                                if (replaceText === "" && index === 0 && query.length === originalLine.length) {
+                                    linesToRemove.add(lineIndex);
+                                } else {
+                                    newLine = originalLine.substring(0, index) + replaceText + originalLine.substring(index + query.length);
+                                }
                             }
                         }
                     }
                     lines[lineIndex] = newLine;
+                });
+
+                // Remove lines that were marked for removal (bottom-to-top to maintain indices)
+                const sortedToRemove = Array.from(linesToRemove).sort((a, b) => b - a);
+                sortedToRemove.forEach(idx => {
+                    lines.splice(idx, 1);
                 });
 
                 const separator = fileData.content.includes('\r\n') ? '\r\n' : '\n';
@@ -8321,12 +8359,16 @@ async function handleAdvancedReplace() {
             }
         }
 
-        logToConsole(`Replacement complete: ${successCount} matches replaced.`, errorCount > 0 ? 'error' : 'success');
+        logToConsole(`Replacement complete: ${successCount} matches processed.`, errorCount > 0 ? 'error' : 'success');
+        if (successCount > 0) {
+            showAlert(`Successfully replaced ${successCount} occurrences.`, 'Bulk Replace Success');
+        }
 
         // Refresh search to show updated content
         executeAdvancedSearch();
     } catch (globalErr) {
         logToConsole(`Replacement failed: ${globalErr.message}`, 'error');
+        showError(`Bulk replace failed: ${globalErr.message}`, 'Replace Error');
     } finally {
         elements.advSearchReplaceBtn.disabled = false;
         elements.advSearchReplaceBtn.textContent = 'Replace';
