@@ -556,10 +556,7 @@ const elements = {
     get advSearchExport() { return document.getElementById('adv-search-export'); },
     get advSearchExportMd() { return document.getElementById('adv-search-export-md'); },
     get advSearchResults() { return document.getElementById('adv-search-results'); },
-    get advSearchResultsHeader() { return document.getElementById('adv-search-results-header'); },
-    get checkUpdatesBtn() { return document.getElementById('check-updates-btn'); },
-    get applyUpdatesBtn() { return document.getElementById('apply-updates-btn'); },
-    get updateStatusText() { return document.getElementById('update-status-text'); }
+    get advSearchResultsHeader() { return document.getElementById('adv-search-results-header'); }
 };
 
 // Initialize app
@@ -1363,14 +1360,6 @@ function initEventListeners() {
         });
     });
 
-    if (elements.checkUpdatesBtn) {
-        elements.checkUpdatesBtn.onclick = () => checkForUpdates();
-    }
-
-    if (elements.applyUpdatesBtn) {
-        elements.applyUpdatesBtn.onclick = () => applyUpdates();
-    }
-
     if (elements.syncTokenToGitBtn) {
         elements.syncTokenToGitBtn.onclick = async () => {
             const token = elements.githubPatInput.value.trim();
@@ -2147,66 +2136,6 @@ async function saveGlobalSettings() {
         applyObsidianTheme(settings.obsidianIni);
         renderTree();
     } catch (e) { logToConsole(e.message, 'error'); }
-}
-
-async function checkForUpdates() {
-    if (!elements.checkUpdatesBtn || !elements.updateStatusText) return;
-
-    elements.checkUpdatesBtn.disabled = true;
-    elements.checkUpdatesBtn.textContent = 'Checking...';
-    elements.updateStatusText.textContent = 'Contacting GitHub...';
-    elements.updateStatusText.style.color = 'var(--text-muted)';
-    elements.applyUpdatesBtn.style.display = 'none';
-
-    try {
-        const res = await window.electronAPI.checkAppUpdates();
-        if (res.success) {
-            if (res.updateAvailable) {
-                const versionMsg = res.remoteVersion !== res.localVersion
-                    ? ` (v${res.localVersion} -> v${res.remoteVersion})`
-                    : ` (Build: ${res.localSha} -> ${res.remoteSha})`;
-
-                elements.updateStatusText.textContent = `Update available!${versionMsg}`;
-                elements.updateStatusText.style.color = 'var(--accent-blue)';
-                elements.applyUpdatesBtn.style.display = 'inline-block';
-            } else {
-                elements.updateStatusText.textContent = `GitScope is up to date. (v${res.localVersion} - ${res.localSha})`;
-                elements.updateStatusText.style.color = 'var(--accent-green)';
-            }
-        } else {
-            elements.updateStatusText.textContent = `Check failed: ${res.error}`;
-            elements.updateStatusText.style.color = 'var(--accent-red)';
-        }
-    } catch (err) {
-        elements.updateStatusText.textContent = `Error: ${err.message}`;
-        elements.updateStatusText.style.color = 'var(--accent-red)';
-    } finally {
-        elements.checkUpdatesBtn.disabled = false;
-        elements.checkUpdatesBtn.textContent = 'Check for Updates';
-    }
-}
-
-async function applyUpdates() {
-    if (!(await showConfirm('GitScope will pull updates and restart. Unsaved changes to repositories will not be affected, but the app itself will close and reopen. Proceed?', 'Confirm Update'))) return;
-
-    elements.applyUpdatesBtn.disabled = true;
-    elements.applyUpdatesBtn.textContent = 'Updating...';
-    elements.updateStatusText.textContent = 'Pulling changes and restarting...';
-
-    try {
-        const res = await window.electronAPI.applyAppUpdates();
-        if (!res.success) {
-            elements.updateStatusText.textContent = `Update failed: ${res.error}`;
-            elements.updateStatusText.style.color = 'var(--accent-red)';
-            elements.applyUpdatesBtn.disabled = false;
-            elements.applyUpdatesBtn.textContent = 'Update & Restart';
-        }
-    } catch (err) {
-        elements.updateStatusText.textContent = `System Error: ${err.message}`;
-        elements.updateStatusText.style.color = 'var(--accent-red)';
-        elements.applyUpdatesBtn.disabled = false;
-        elements.applyUpdatesBtn.textContent = 'Update & Restart';
-    }
 }
 
 async function loadThemePresets() {
