@@ -1438,13 +1438,18 @@ ipcMain.handle('check-app-updates', async () => {
     const versionPath = path.join(__dirname, '.gitscope_version');
     let localSha = '';
 
+    // INTELLIGENCE: Prioritize our manual version file, then fallback to Git
     if (fs.existsSync(versionPath)) {
       localSha = fs.readFileSync(versionPath, 'utf8').trim();
-    } else if (fs.existsSync(path.join(__dirname, '.git'))) {
+    }
+
+    if (!localSha && fs.existsSync(path.join(__dirname, '.git'))) {
       try {
         const { execSync } = require('child_process');
         localSha = execSync('git rev-parse HEAD', { cwd: __dirname, encoding: 'utf8' }).trim();
-      } catch (e) {}
+      } catch (e) {
+        console.error('Git SHA check failed:', e.message);
+      }
     }
 
     const remoteSha = remoteCommit.sha;
@@ -1498,24 +1503,34 @@ ipcMain.handle('apply-app-updates', async () => {
     execSync(`powershell -Command "Expand-Archive -Path '${zipPath}' -DestinationPath '${extractPath}' -Force"`);
 
     // 3. Move files
-    // The zip extracts to a subfolder named 'GitScope-main'
-    const sourceDir = path.join(extractPath, 'GitScope-main');
-    if (fs.existsSync(sourceDir)) {
+    // Find the first directory in extractPath (GitHub zips have a single root folder)
+    const dirs = fs.readdirSync(extractPath).filter(f => fs.statSync(path.join(extractPath, f)).isDirectory());
+    if (dirs.length > 0) {
+      const sourceDir = path.join(extractPath, dirs[0]);
+
       // Copy everything back to app root
-      await fs.copy(sourceDir, __dirname, { overwrite: true });
+      // CRITICAL: We skip node_modules to avoid breaking the current environment
+      await fs.copy(sourceDir, __dirname, {
+        overwrite: true,
+        filter: (src) => !src.includes('node_modules')
+      });
 
       // 4. Update local SHA record
       const remoteCommit = await new Promise((resolve, reject) => {
         https.get('https://api.github.com/repos/xCONFLiCTiONx/GitScope/commits/main', { headers: { 'User-Agent': 'GitScope-Updater' } }, (res) => {
           let data = '';
           res.on('data', (chunk) => data += chunk);
-          res.on('end', () => resolve(JSON.parse(data)));
-        }).on('error', reject);
+          res.on('end', () => {
+             try { resolve(JSON.parse(data)); } catch(e) { resolve(null); }
+          });
+        }).on('error', () => resolve(null));
       });
 
       if (remoteCommit && remoteCommit.sha) {
         fs.writeFileSync(path.join(__dirname, '.gitscope_version'), remoteCommit.sha, 'utf8');
       }
+    } else {
+       throw new Error("Failed to locate extracted files. The ZIP might be empty or malformed.");
     }
 
     // Cleanup
