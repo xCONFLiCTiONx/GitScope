@@ -1471,7 +1471,20 @@
             </div>
 
             <!-- Settings View -->
-            <div id="settings-view" style="display: none;">
+            <div id="settings-view" style="display: none; flex-direction: column; overflow-y: auto;">
+                <div id="settings-banner" style="display: none; background: var(--accent-blue); color: #fff; padding: 12px 24px; position: sticky; top: 0; z-index: 100; align-items: center; justify-content: space-between; box-shadow: 0 4px 12px rgba(0,0,0,0.3); border-bottom: 1px solid rgba(255,255,255,0.1);">
+                    <div style="display: flex; align-items: center; gap: 12px;">
+                        <span style="font-size: 18px;">⚙️</span>
+                        <div>
+                            <div style="font-weight: 700; font-size: 13px;">Unsaved Changes Detected</div>
+                            <div style="font-size: 11px; opacity: 0.9;">You have modified settings that haven't been applied yet.</div>
+                        </div>
+                    </div>
+                    <div style="display: flex; gap: 8px;">
+                        <button id="settings-banner-apply" class="button" style="background: #fff; color: var(--accent-blue); border: none; font-weight: 700; padding: 6px 16px;">Apply Changes</button>
+                        <button id="settings-banner-dismiss" class="button" style="background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.3); color: #fff; padding: 6px 12px;">Dismiss</button>
+                    </div>
+                </div>
                 <div class="settings-container">
                     <h1>Settings</h1>
                     <div class="settings-section">
@@ -1548,9 +1561,7 @@
                             <button id="reset-app-btn" class="button button-danger" style="width: 100%; padding: 10px; font-weight: 700;">RESET APPLICATION TO DEFAULTS</button>
                         </div>
                     </div>
-                    <div style="margin-top: 20px;">
-                        <button id="save-settings-btn" class="button button-primary">Apply & Save All</button>
-                    </div>
+
                 </div>
             </div>
 

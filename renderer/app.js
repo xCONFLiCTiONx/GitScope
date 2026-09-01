@@ -476,6 +476,9 @@ const elements = {
     get clearGitCredsBtn() { return document.getElementById('clear-git-creds-btn'); },
     get shellSelect() { return document.getElementById('shell-select'); },
     get saveSettingsBtn() { return document.getElementById('save-settings-btn'); },
+    get settingsBanner() { return document.getElementById('settings-banner'); },
+    get settingsBannerApply() { return document.getElementById('settings-banner-apply'); },
+    get settingsBannerDismiss() { return document.getElementById('settings-banner-dismiss'); },
     get resetAppBtn() { return document.getElementById('reset-app-btn'); },
     get newItemModal() { return document.getElementById('new-item-modal'); },
     get newItemName() { return document.getElementById('new-item-name'); },
@@ -1344,6 +1347,22 @@ function initEventListeners() {
     // Settings Panel
     if (elements.saveSettingsBtn) elements.saveSettingsBtn.onclick = () => saveGlobalSettings();
 
+    if (elements.settingsBannerApply) elements.settingsBannerApply.onclick = () => saveGlobalSettings();
+    if (elements.settingsBannerDismiss) {
+        elements.settingsBannerDismiss.onclick = () => {
+            elements.settingsBanner.style.display = 'none';
+        };
+    }
+
+    // Monitor settings changes
+    [elements.rootRepoDirInput, elements.githubPatInput, elements.shellSelect, elements.notifRepoChanges].forEach(el => {
+        if (!el) return;
+        const eventType = el.tagName === 'SELECT' || el.type === 'checkbox' ? 'change' : 'input';
+        el.addEventListener(eventType, () => {
+            if (elements.settingsBanner) elements.settingsBanner.style.display = 'flex';
+        });
+    });
+
     if (elements.checkUpdatesBtn) {
         elements.checkUpdatesBtn.onclick = () => checkForUpdates();
     }
@@ -1419,13 +1438,17 @@ function initEventListeners() {
             customOpt.textContent = 'Custom: ' + path.split(/[\\\/]/).pop();
             customOpt.selected = true;
             elements.shellSelect.appendChild(customOpt);
+            if (elements.settingsBanner) elements.settingsBanner.style.display = 'flex';
         }
     };
 
     const browseBtn = document.getElementById('browse-root-dir');
     if (browseBtn) browseBtn.onclick = async () => {
         const path = await window.electronAPI.openDirectory();
-        if (path) elements.rootRepoDirInput.value = path;
+        if (path) {
+            elements.rootRepoDirInput.value = path;
+            if (elements.settingsBanner) elements.settingsBanner.style.display = 'flex';
+        }
     };
 
     // Global click listener for deselection & Markdown Link Interception
@@ -2118,6 +2141,7 @@ async function saveGlobalSettings() {
     try {
         await window.electronAPI.saveSettings(settings);
         logToConsole('Settings saved.', 'success');
+        if (elements.settingsBanner) elements.settingsBanner.style.display = 'none';
         if (settings.githubToken) checkGitHubTokenLife();
         if (settings.rootRepoDir) await autoImportFromRoot(settings.rootRepoDir);
         applyObsidianTheme(settings.obsidianIni);
