@@ -96,6 +96,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   pathExists: (path) => ipcRenderer.invoke('path-exists', path),
   fixLineEndings: (path, type) => ipcRenderer.invoke('fix-line-endings', path, type),
   resetApp: () => ipcRenderer.invoke('reset-app'),
+  checkAppUpdates: () => ipcRenderer.invoke('check-app-updates'),
+  applyAppUpdates: () => ipcRenderer.invoke('apply-app-updates'),
   sendNotification: (options) => ipcRenderer.invoke('send-notification', options),
   reportError: (title, message) => ipcRenderer.invoke('report-error', { title, message }),
   isWindows: process.platform === 'win32',

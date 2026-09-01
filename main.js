@@ -1413,6 +1413,123 @@ ipcMain.handle('open-in-vscode', async (event, filePath) => {
   });
 });
 
+ipcMain.handle('check-app-updates', async () => {
+  const https = require('https');
+
+  const getJson = (url) => new Promise((resolve, reject) => {
+    const options = {
+      headers: { 'User-Agent': 'GitScope-Updater' }
+    };
+    https.get(url, options, (res) => {
+      let data = '';
+      res.on('data', (chunk) => data += chunk);
+      res.on('end', () => {
+        try { resolve(JSON.parse(data)); }
+        catch (e) { reject(e); }
+      });
+    }).on('error', reject);
+  });
+
+  try {
+    const remotePackage = await getJson('https://raw.githubusercontent.com/xCONFLiCTiONx/GitScope/main/package.json');
+    const remoteCommit = await getJson('https://api.github.com/repos/xCONFLiCTiONx/GitScope/commits/main');
+
+    const localPackage = require('./package.json');
+    const versionPath = path.join(__dirname, '.gitscope_version');
+    let localSha = '';
+
+    if (fs.existsSync(versionPath)) {
+      localSha = fs.readFileSync(versionPath, 'utf8').trim();
+    } else if (fs.existsSync(path.join(__dirname, '.git'))) {
+      try {
+        const { execSync } = require('child_process');
+        localSha = execSync('git rev-parse HEAD', { cwd: __dirname, encoding: 'utf8' }).trim();
+      } catch (e) {}
+    }
+
+    const remoteSha = remoteCommit.sha;
+    const updateAvailable = (remotePackage.version !== localPackage.version) || (localSha !== remoteSha);
+
+    return {
+      success: true,
+      updateAvailable,
+      remoteVersion: remotePackage.version,
+      localVersion: localPackage.version,
+      remoteSha: remoteSha.substring(0, 7),
+      localSha: localSha ? localSha.substring(0, 7) : 'unknown',
+      newCommits: updateAvailable ? 1 : 0 // Simplified for non-git
+    };
+  } catch (e) {
+    return { success: false, error: e.message };
+  }
+});
+
+ipcMain.handle('apply-app-updates', async () => {
+  const https = require('https');
+  const { execSync } = require('child_process');
+  const zipPath = path.join(os.tmpdir(), 'gitscope-update.zip');
+  const extractPath = path.join(os.tmpdir(), 'gitscope-extract');
+
+  const downloadFile = (url, dest) => new Promise((resolve, reject) => {
+    const file = fs.createWriteStream(dest);
+    https.get(url, (res) => {
+      if (res.statusCode === 302 || res.statusCode === 301) {
+        return downloadFile(res.headers.location, dest).then(resolve).catch(reject);
+      }
+      res.pipe(file);
+      file.on('finish', () => {
+        file.close();
+        resolve();
+      });
+    }).on('error', (err) => {
+      fs.unlink(dest, () => reject(err));
+    });
+  });
+
+  try {
+    // 1. Download
+    await downloadFile('https://github.com/xCONFLiCTiONx/GitScope/archive/refs/heads/main.zip', zipPath);
+
+    // 2. Extract
+    if (fs.existsSync(extractPath)) fs.removeSync(extractPath);
+    fs.ensureDirSync(extractPath);
+
+    // Use PowerShell to unzip on Windows
+    execSync(`powershell -Command "Expand-Archive -Path '${zipPath}' -DestinationPath '${extractPath}' -Force"`);
+
+    // 3. Move files
+    // The zip extracts to a subfolder named 'GitScope-main'
+    const sourceDir = path.join(extractPath, 'GitScope-main');
+    if (fs.existsSync(sourceDir)) {
+      // Copy everything back to app root
+      await fs.copy(sourceDir, __dirname, { overwrite: true });
+
+      // 4. Update local SHA record
+      const remoteCommit = await new Promise((resolve, reject) => {
+        https.get('https://api.github.com/repos/xCONFLiCTiONx/GitScope/commits/main', { headers: { 'User-Agent': 'GitScope-Updater' } }, (res) => {
+          let data = '';
+          res.on('data', (chunk) => data += chunk);
+          res.on('end', () => resolve(JSON.parse(data)));
+        }).on('error', reject);
+      });
+
+      if (remoteCommit && remoteCommit.sha) {
+        fs.writeFileSync(path.join(__dirname, '.gitscope_version'), remoteCommit.sha, 'utf8');
+      }
+    }
+
+    // Cleanup
+    fs.removeSync(zipPath);
+    fs.removeSync(extractPath);
+
+    app.relaunch();
+    app.exit(0);
+    return { success: true };
+  } catch (e) {
+    return { success: false, error: e.message };
+  }
+});
+
 ipcMain.handle('open-in-android-studio', async (event, filePath) => {
   const { exec } = require('child_process');
   const nativePath = path.win32.normalize(filePath);
