@@ -1060,6 +1060,14 @@ function initEventListeners() {
         expandedNodes.clear();
     };
 
+    if (elements.sidebarRefresh) {
+        elements.sidebarRefresh.onclick = async () => {
+            elements.sidebarRefresh.classList.add('spin');
+            await smartRefreshTree();
+            setTimeout(() => elements.sidebarRefresh.classList.remove('spin'), 600);
+        };
+    }
+
     let filterTimeout;
     if (elements.repoFilter) {
         elements.repoFilter.oninput = () => {
@@ -1598,16 +1606,34 @@ function switchConsoleTab(tab) {
 
 async function autoImportFromRoot(rootPath) {
     try {
-        // CLEANUP: Deduplicate existing list first to handle any prior bugs
+        // INTELLIGENCE: Helper to identify system folders
+        const isSystemFolder = (name) => {
+            const n = name.toUpperCase();
+            return ['$RECYCLE.BIN', 'SYSTEM VOLUME INFORMATION', 'RECOVERY', 'CONFIG.MSI', 'MSDOWNLD.TMP'].some(p => n === p || n.startsWith(p));
+        };
+
+        // CLEANUP: Deduplicate existing list and REMOVE system folders that might have been added
         const unique = [];
         const seen = new Set();
+        let removedSystemFolders = false;
+
         repositories.forEach(r => {
             const norm = r.path.replace(/\\/g, '/').toLowerCase();
+            const name = r.name || '';
             if (!seen.has(norm)) {
+                if (isSystemFolder(name) || isSystemFolder(r.path.split(/[\\\/]/).pop())) {
+                    removedSystemFolders = true;
+                    return; // Skip this one
+                }
                 seen.add(norm);
                 unique.push(r);
             }
         });
+
+        if (removedSystemFolders) {
+            logToConsole('Cleaned up system folders from workspace.', 'info');
+        }
+
         repositories = unique;
 
         const children = await window.electronAPI.listDirectory(rootPath, true); // Always show all for auto-import
@@ -6167,9 +6193,37 @@ async function updateTreeHighlights(specificRepoPath = null) {
 
 async function smartRefreshTree() {
     logToConsole('Syncing tree structure...', 'info');
+
+    // 1. Re-scan root directory if configured to catch new folders/repos
+    if (settings.rootRepoDir) {
+        await autoImportFromRoot(settings.rootRepoDir);
+    }
+
     const savedSelection = Array.from(selectedNodes);
+    const savedExpansion = Array.from(expandedNodes);
+
+    // 2. Full re-render of root nodes
     await renderTree(elements.repoFilter ? elements.repoFilter.value : '');
 
+    // 3. Restore Expansion
+    // We sort by depth (number of slashes) to expand parents before children
+    const sortedExpansion = savedExpansion.sort((a, b) => a.length - b.length);
+    for (const path of sortedExpansion) {
+        try {
+            const node = Array.from(document.querySelectorAll('.tree-node')).find(n => n.dataset.path.replace(/\\/g, '/').toLowerCase() === path);
+            if (node && node.dataset.isDirectory === 'true') {
+                const container = node.parentElement;
+                const existing = container.querySelector('.children-container');
+                if (!existing) {
+                    const depth = parseInt(node.style.paddingLeft) / 12 - 1.33;
+                    const repo = findRepoForPath(path);
+                    await toggleFolder(container, path, isNaN(depth) ? 0 : depth, repo);
+                }
+            }
+        } catch (e) {}
+    }
+
+    // 4. Restore Selection
     for (const path of savedSelection) {
         try {
             const exists = await window.electronAPI.pathExists(path);
