@@ -668,20 +668,37 @@ function initEditor() {
             // 2. Create the editor with the 'obsidian' theme already active
             monacoEditor = monaco.editor.create(elements.monacoContainer, {
                 theme: settings.obsidianIni ? 'obsidian' : 'vs-dark',
-                automaticLayout: false, // Turned off to prevent ResizeObserver loop errors
+                automaticLayout: true,
                 bracketPairColorization: { enabled: true },
                 tabSize: 4,
                 insertSpaces: true,
                 formatOnPaste: true,
                 formatOnType: true,
-                minimap: { enabled: false },
+                minimap: { enabled: true, side: 'right' },
                 wordWrap: 'on',
                 fontFamily: initialFont,
                 fontWeight: initialTheme.fontWeight || 'normal',
                 fontLigatures: true,
                 fontSize: 13,
                 detectIndentation: true,
-                tabFocusMode: false // INTELLIGENCE: Explicitly disable tab focus cycling to keep Tab in editor
+                tabFocusMode: false,
+                // UPGRADE: VS Code-like Smoothness & Intelligence
+                cursorBlinking: 'smooth',
+                cursorSmoothCaretAnimation: 'on',
+                smoothScrolling: true,
+                mouseWheelZoom: true,
+                colorDecorators: true,
+                renderLineHighlight: 'all',
+                symbolAutoLink: true,
+                definitionLink: true,
+                links: true,
+                contextmenu: true,
+                mouseWheelScrollSensitivity: 1,
+                fastScrollSensitivity: 5,
+                scrollBeyondLastLine: true,
+                padding: { top: 10, bottom: 10 },
+                fixedOverflowWidgets: true, // Ensures tooltips don't get cut off by container
+                stickyScroll: { enabled: true } // UPGRADE: Keep function headers/classes visible while scrolling
             });
 
             // PRO FEATURE: Save with Ctrl+S
@@ -1252,13 +1269,17 @@ function initEventListeners() {
                         model.pushEditOperations([], edits, () => null);
                         logToConsole(`Markdown Prettify: Fixed ${edits.length} line formatting issues.`, 'success');
                     } else {
-                        monacoEditor.trigger('editor', 'editor.action.formatDocument');
-                        logToConsole('Ran default code formatter.', 'info');
+                        // Fallback to Monaco's built-in formatter if my custom one has nothing to do
+                        monacoEditor.getAction('editor.action.formatDocument').run()
+                            .then(() => logToConsole('Document formatted.', 'success'))
+                            .catch(() => {});
                     }
                 }
             } else {
-                monacoEditor.trigger('editor', 'editor.action.formatDocument');
-                logToConsole('Ran code formatter.', 'info');
+                // High-performance formatting for JS, TS, CSS, HTML, JSON, etc.
+                monacoEditor.getAction('editor.action.formatDocument').run()
+                    .then(() => logToConsole('Document formatted.', 'success'))
+                    .catch(err => logToConsole('Formatting failed or not supported for this language.', 'warn'));
             }
         }
     };
