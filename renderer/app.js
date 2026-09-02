@@ -343,6 +343,11 @@ const elements = {
     get editorFolderBtn() { return document.getElementById('editor-folder-btn'); },
     get editorFormatBtn() { return document.getElementById('editor-format-btn'); },
     get editorFindBtn() { return document.getElementById('editor-find-btn'); },
+    get previewFindWidget() { return document.getElementById('preview-find-widget'); },
+    get previewFindInput() { return document.getElementById('preview-find-input'); },
+    get previewFindPrev() { return document.getElementById('preview-find-prev'); },
+    get previewFindNext() { return document.getElementById('preview-find-next'); },
+    get previewFindClose() { return document.getElementById('preview-find-close'); },
     get editorTransformBtn() { return document.getElementById('editor-transform-btn'); },
     get transformMenu() { return document.getElementById('transform-menu'); },
     get editorCloseBtn() { return document.getElementById('editor-close-btn'); },
@@ -565,6 +570,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         // 1. Setup UI Mechanics (Instant - No async work here)
         initResizers();
         initEventListeners();
+        initPreviewFind();
     } catch (e) {
         console.error("CRITICAL UI INIT FAILURE:", e);
     }
@@ -1284,7 +1290,12 @@ function initEventListeners() {
         }
     };
     if (elements.editorFindBtn) elements.editorFindBtn.onclick = () => {
-        if (monacoEditor) {
+        const isPreview = elements.editorContainerWrapper.classList.contains('editor-mode-preview') ||
+                         elements.editorContainerWrapper.classList.contains('editor-mode-split');
+
+        if (isPreview) {
+            showPreviewFind();
+        } else if (monacoEditor) {
             monacoEditor.focus();
             monacoEditor.trigger('editor', 'actions.find');
         }
@@ -7603,7 +7614,7 @@ function setMarkdownViewMode(mode) {
         'mdTaskBtn': !isPreview,
         'mdImageBtn': !isPreview,
         'editorFormatBtn': !isPreview,
-        'editorFindBtn': !isPreview,
+        'editorFindBtn': true, // INTELLIGENCE: Keep find enabled to support preview search
         'editorTransformBtn': !isPreview
     };
 
@@ -7616,6 +7627,11 @@ function setMarkdownViewMode(mode) {
         }
     });
 
+    // If we closed preview, close the preview find widget too
+    if (mode === 'code' || mode === 'standard') {
+        closePreviewFind();
+    }
+
     if (mode === 'split' || mode === 'preview') {
         updateMarkdownPreviewContent();
     }
@@ -7625,6 +7641,61 @@ function setMarkdownViewMode(mode) {
         // We handle this manually now to avoid ResizeObserver loops
         setTimeout(() => monacoEditor.layout(), 10);
     }
+}
+
+// PREVIEW FIND LOGIC
+function showPreviewFind() {
+    if (!elements.previewFindWidget) return;
+    elements.previewFindWidget.style.display = 'flex';
+    elements.previewFindInput.focus();
+    elements.previewFindInput.select();
+}
+
+function closePreviewFind() {
+    if (!elements.previewFindWidget) return;
+    elements.previewFindWidget.style.display = 'none';
+    // Clear selection when closing
+    if (window.getSelection) {
+        window.getSelection().removeAllRanges();
+    }
+}
+
+function performPreviewFind(backwards = false) {
+    const text = elements.previewFindInput.value;
+    if (!text) return;
+
+    const ext = currentEditingPath ? currentEditingPath.split('.').pop().toLowerCase() : '';
+    const isHTML = ext === 'html' || ext === 'htm';
+
+    try {
+        if (isHTML && elements.htmlPreview) {
+            elements.htmlPreview.contentWindow.find(text, false, backwards, true);
+        } else {
+            // Search in the main window (markdown-preview div)
+            window.find(text, false, backwards, true);
+        }
+    } catch (e) {
+        console.warn('Find failed:', e);
+    }
+}
+
+// Initialize Preview Find Widget Listeners
+function initPreviewFind() {
+    if (!elements.previewFindInput) return;
+
+    elements.previewFindInput.onkeydown = (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            performPreviewFind(e.shiftKey);
+        } else if (e.key === 'Escape') {
+            e.preventDefault();
+            closePreviewFind();
+        }
+    };
+
+    if (elements.previewFindNext) elements.previewFindNext.onclick = () => performPreviewFind(false);
+    if (elements.previewFindPrev) elements.previewFindPrev.onclick = () => performPreviewFind(true);
+    if (elements.previewFindClose) elements.previewFindClose.onclick = () => closePreviewFind();
 }
 
 const PREVIEW_STYLES = `
@@ -8052,6 +8123,19 @@ window.addEventListener('keydown', (e) => {
             elements.advSearchQuery.select();
         }
         return;
+    }
+
+    // Ctrl+F: Find (Monaco or Preview)
+    if (e.ctrlKey && !e.shiftKey && (e.key === 'F' || e.key === 'f')) {
+        const isPreview = elements.editorContainerWrapper.classList.contains('editor-mode-preview') ||
+                         elements.editorContainerWrapper.classList.contains('editor-mode-split');
+
+        if (isPreview && !document.activeElement.closest('.monaco-editor')) {
+            e.preventDefault();
+            showPreviewFind();
+            return;
+        }
+        // Monaco handles its own Ctrl+F if focused
     }
 
     if (e.key === 'Control') {
