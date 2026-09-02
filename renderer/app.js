@@ -855,9 +855,17 @@ function parseObsidianIni(ini) {
         { token: 'metatag', foreground: syntax['preprocessor'] || '#c586c0' },
         { token: 'preprocessor', foreground: syntax['preprocessor'] || '#c586c0' },
         { token: 'tag', foreground: syntax['tag'] || '#569cd6' },
+        { token: 'tag.xml', foreground: syntax['tag'] || '#569cd6' },
+        { token: 'tag.html', foreground: syntax['tag'] || '#569cd6' },
         { token: 'attribute.name', foreground: syntax['attribute'] || theme['foreground'] || '#d4d4d4' },
+        { token: 'attribute.name.xml', foreground: syntax['attribute'] || theme['foreground'] || '#d4d4d4' },
+        { token: 'attribute.name.html', foreground: syntax['attribute'] || theme['foreground'] || '#d4d4d4' },
         { token: 'attribute.value', foreground: syntax['string'] || '#ce9178' },
+        { token: 'attribute.value.xml', foreground: syntax['string'] || '#ce9178' },
+        { token: 'attribute.value.html', foreground: syntax['string'] || '#ce9178' },
         { token: 'delimiter', foreground: syntax['operator'] || '#d4d4d4' },
+        { token: 'delimiter.xml', foreground: syntax['operator'] || '#d4d4d4' },
+        { token: 'delimiter.html', foreground: syntax['operator'] || '#d4d4d4' },
         // INI specific tokens
         { token: 'header', foreground: syntax['keyword'] || '#569cd6' },
         { token: 'key', foreground: theme['foreground'] || '#d4d4d4' },
@@ -5887,39 +5895,26 @@ async function openFileInEditor(filePath, line = null, col = null, searchQuery =
             originalFileContent = content ? content.replace(/\r\n/g, '\n') : '';
             const hasCRLF = content && content.includes('\r\n');
 
-            const langMap = {
-                'js': 'javascript',
-                'ts': 'typescript',
-                'html': 'html',
-                'css': 'css',
-                'md': 'markdown',
-                'json': 'json',
-                'txt': 'plaintext',
-                'cs': 'csharp',
-                'kt': 'kotlin',
-                'py': 'python',
-                'xml': 'xml',
-                'yaml': 'yaml',
-                'yml': 'yaml',
-                'php': 'php',
-                'ini': 'green-latern',
-                'inf': 'green-latern',
-                'bat': 'bat',
-                'cmd': 'bat',
-                'ps1': 'powershell',
-                'psm1': 'powershell',
-                'psd1': 'powershell',
-                'cpp': 'cpp',
-                'cxx': 'cpp',
-                'cc': 'cpp',
-                'h': 'cpp',
-                'hpp': 'cpp',
-                'hxx': 'cpp',
-                'c': 'cpp'
-            };
+            // Intelligence: Automatically detect language using Monaco's internal registry
+            // This handles hundreds of extensions and complex cases (e.g. MSBuild variants)
+            let detectedLanguage = 'plaintext';
+            if (typeof monaco !== 'undefined') {
+                const extension = '.' + ext;
+                const languages = monaco.languages.getLanguages();
+                const matchedLang = languages.find(lang =>
+                    (lang.extensions && lang.extensions.includes(extension)) ||
+                    (lang.filenames && lang.filenames.includes(filePath.split(/[\\\/]/).pop()))
+                );
 
-            const isMarkdown = ext === 'md' || ext === 'markdown' || langMap[ext] === 'markdown';
-            const isHTML = ext === 'html' || ext === 'htm';
+                if (matchedLang) {
+                    detectedLanguage = matchedLang.id;
+                } else if (ext === 'ini' || ext === 'inf') {
+                    detectedLanguage = 'green-latern';
+                }
+            }
+
+            const isMarkdown = detectedLanguage === 'markdown';
+            const isHTML = detectedLanguage === 'html';
             const isRenderable = isMarkdown || isHTML;
 
             if (elements.mdViewControls) elements.mdViewControls.style.display = isRenderable ? 'flex' : 'none';
@@ -5928,7 +5923,7 @@ async function openFileInEditor(filePath, line = null, col = null, searchQuery =
             const oldModel = monacoEditor.getModel();
             if (oldModel) oldModel.dispose();
 
-            const model = monaco.editor.createModel(originalFileContent, langMap[ext] || 'plaintext');
+            const model = monaco.editor.createModel(originalFileContent, detectedLanguage);
             if (hasCRLF) {
                 model.setEOL(1); // 1 = CRLF
             } else {
