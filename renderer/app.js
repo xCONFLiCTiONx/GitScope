@@ -5848,6 +5848,11 @@ async function openFileInEditor(filePath, line = null, col = null, searchQuery =
             elements.editorContainerWrapper.classList.remove('editor-mode-code', 'editor-mode-split', 'editor-mode-preview', 'editor-mode-standard');
         }
 
+        // UPGRADE: Ensure Monaco recalculates its layout once it becomes visible
+        if (monacoEditor) {
+            setTimeout(() => monacoEditor.layout(), 10);
+        }
+
         // INTELLIGENCE: Reset scroll positions for the new file
         if (elements.markdownPreview) elements.markdownPreview.scrollTop = 0;
 
