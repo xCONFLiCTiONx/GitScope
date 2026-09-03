@@ -3880,8 +3880,8 @@ async function showDashboard(forceRefresh = true) {
                     </div>
 
                     <div class="quick-actions" style="display:flex; gap:6px; margin-top:16px; padding-top:12px; border-top:1px solid var(--border-color);">
-                        <button class="button quick-btn pull-btn" title="Pull" style="flex:1; padding:4px; font-size:11px;">PULL</button>
                         <button class="button quick-btn restore-btn" title="Wipe all changes to HEAD" style="flex:1; padding:4px; font-size:11px; color:var(--accent-red); border-color:var(--accent-red);">RESTORE</button>
+                        <button class="button quick-btn pull-btn" title="Pull" style="flex:1; padding:4px; font-size:11px;">PULL</button>
                         <button class="button quick-btn commit-btn" title="Quick Commit (Stages all)" style="flex:1; padding:4px; font-size:11px;">COMMIT</button>
                         <button class="button quick-btn button-primary push-btn" title="Push" style="flex:1; padding:4px; font-size:11px;">PUSH</button>
                     </div>`;
