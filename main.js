@@ -467,18 +467,36 @@ ipcMain.handle('search-files', async (event, repoPath, query) => {
     try {
         const simpleGit = require('simple-git');
         const git = simpleGit(repoPath);
-        // Use ls-files for speed (tracked files)
-        // Also use --others --exclude-standard to get untracked but non-ignored files
-        const files = await git.raw(['ls-files', '-c', '-o', '--exclude-standard']);
-        const allFiles = files.split('\n').filter(f => f.trim() !== '');
+
+        // INTELLIGENCE: Include ignored files (like .exe) but skip huge junk directories
+        // -c: cached (tracked)
+        // -o: others (untracked)
+        // -i: ignored
+        // --exclude-standard: use .gitignore rules (required for -i to know what is ignored)
+        const files = await git.raw(['ls-files', '-c', '-o', '-i', '--exclude-standard']);
+
+        const allFiles = files.split('\n')
+            .filter(f => {
+                const trimmed = f.trim();
+                if (!trimmed) return false;
+                // HARD FILTER: Never show results from internal junk
+                if (trimmed.includes('node_modules') || trimmed.includes('.git/') || trimmed.startsWith('.git/')) return false;
+                return true;
+            });
 
         const lowerQuery = query.toLowerCase();
         let matches;
+
         if (lowerQuery.includes('*')) {
-            const regexStr = lowerQuery.replace(/[.+^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*');
-            const re = new RegExp(`^${regexStr}$`, 'i');
+            // GLOB SEARCH: Convert * to regex .* and escape other special chars
+            const escaped = lowerQuery.replace(/[.+^${}()|[\]\\]/g, '\\$&').replace(/\\\*/g, '.*');
+            const re = new RegExp(`^${escaped}$`, 'i');
             matches = allFiles.filter(f => re.test(f));
+        } else if (lowerQuery.startsWith('.')) {
+            // EXTENSION SEARCH: Match suffix
+            matches = allFiles.filter(f => f.toLowerCase().endsWith(lowerQuery));
         } else {
+            // CONTAIN SEARCH
             matches = allFiles.filter(f => f.toLowerCase().includes(lowerQuery));
         }
 
@@ -502,8 +520,15 @@ ipcMain.handle('search-advanced', async (event, repo, options) => {
 
         if (searchFiles) {
             try {
-                const files = await git.raw(['ls-files', '-c', '-o', '--exclude-standard']);
-                const allFiles = files.split('\n').filter(f => f.trim() !== '');
+                // INTELLIGENCE: Include ignored files (like .exe) but skip huge junk directories
+                const files = await git.raw(['ls-files', '-c', '-o', '-i', '--exclude-standard']);
+                const allFiles = files.split('\n')
+                    .filter(f => {
+                        const trimmed = f.trim();
+                        if (!trimmed) return false;
+                        if (trimmed.includes('node_modules') || trimmed.includes('.git/') || trimmed.startsWith('.git/')) return false;
+                        return true;
+                    });
 
                 let matches;
                 if (isRegex) {
@@ -516,10 +541,15 @@ ipcMain.handle('search-advanced', async (event, repo, options) => {
                 } else {
                     const lowerQuery = query.toLowerCase();
                     if (lowerQuery.includes('*')) {
-                        const regexStr = lowerQuery.replace(/[.+^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*');
-                        const re = new RegExp(`^${regexStr}$`, 'i');
+                        // GLOB SEARCH
+                        const escaped = lowerQuery.replace(/[.+^${}()|[\]\\]/g, '\\$&').replace(/\\\*/g, '.*');
+                        const re = new RegExp(`^${escaped}$`, 'i');
                         matches = allFiles.filter(f => re.test(f));
+                    } else if (lowerQuery.startsWith('.')) {
+                        // EXTENSION SEARCH
+                        matches = allFiles.filter(f => f.toLowerCase().endsWith(lowerQuery));
                     } else {
+                        // CONTAIN SEARCH
                         matches = allFiles.filter(f => f.toLowerCase().includes(lowerQuery));
                     }
                 }
@@ -546,8 +576,9 @@ ipcMain.handle('search-advanced', async (event, repo, options) => {
                 args.push('-E');
             } else if (query.includes('*')) {
                 // Support wildcard * in non-regex search by converting to a regex
-                grepPattern = query.replace(/[.+^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*');
-                args.push('-E'); // Use extended regex for the converted pattern
+                // Correctly escape other regex chars first
+                grepPattern = query.replace(/[.+^${}()|[\]\\]/g, '\\$&').replace(/\\\*/g, '.*');
+                args.push('-E');
             } else {
                 args.push('-F'); // Fixed strings for better performance when no wildcard
             }
