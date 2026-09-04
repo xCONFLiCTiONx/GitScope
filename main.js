@@ -38,7 +38,6 @@ function reportError(title, error) {
 
 // Global state
 let mainWindow;
-let tray = null;
 let watcher;
 let ptyProcess;
 let cachedSettings = null;
@@ -64,7 +63,6 @@ if (!gotTheLock) {
   // App initialization
   app.whenReady().then(() => {
     createWindow();
-    createTray();
   });
 
   app.on('activate', () => {
@@ -82,10 +80,6 @@ if (!gotTheLock) {
   });
 
   app.on('will-quit', () => {
-    if (tray) {
-      tray.destroy();
-      tray = null;
-    }
   });
 
 
@@ -261,8 +255,6 @@ function createWindow() {
 
   mainWindow.on('minimize', (event) => {
     saveWindowState(); // Ensure state is saved before hiding
-    event.preventDefault();
-    mainWindow.hide();
   });
   mainWindow.on('resize', saveWindowState);
   mainWindow.on('move', saveWindowState);
@@ -407,26 +399,6 @@ function setupPTY() {
       mainWindow.webContents.send('terminal-data', `\r\n\x1b[31m[ERROR] Failed to start terminal: ${err.message}\x1b[0m\r\n`);
     }
   }
-}
-
-function createTray() {
-  tray = new Tray(path.join(__dirname, 'ICON.png'));
-  const contextMenu = Menu.buildFromTemplate([
-    { label: 'Show GitScope', click: () => {
-      restoreWindow();
-    } },
-    { type: 'separator' },
-    { label: 'Quit', click: () => {
-      app.isQuitting = true;
-      app.quit();
-    } }
-  ]);
-  tray.setToolTip('GitScope');
-  tray.setContextMenu(contextMenu);
-
-  tray.on('double-click', () => {
-    restoreWindow();
-  });
 }
 
 // IPC Handlers
