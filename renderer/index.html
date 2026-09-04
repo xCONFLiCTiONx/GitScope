@@ -441,7 +441,7 @@
         }
         .tree-node {
             cursor: pointer;
-            padding: 4px 16px;
+            padding: 4px 8px; /* Balanced padding */
             display: flex;
             align-items: center;
             gap: 6px;
@@ -450,6 +450,7 @@
             border: 1px solid transparent;
             position: relative;
             user-select: none;
+            overflow: hidden; /* Prevent content from leaking out when sidebar is small */
         }
         .tree-node:hover { background-color: var(--hover-bg); }
         .tree-node.active { background-color: #1f6feb22; color: #fff; border-left: 2px solid var(--accent-blue); border-radius: 0; }
@@ -500,7 +501,21 @@
         .sidebar-action-icon:hover { color: #fff; background: var(--hover-bg); }
 
         .repo-root { font-weight: 600; font-size: 12px; color: #fff; margin-top: 4px; }
-        .chevron { font-size: 10px; width: 12px; color: var(--text-muted); }
+        .chevron {
+            font-size: 10px;
+            width: 12px;
+            color: var(--text-muted);
+            flex-shrink: 0; /* Never squash the chevron */
+            display: inline-block;
+            text-align: center;
+        }
+        .node-name {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            flex: 1;
+            min-width: 0; /* REQUIRED for ellipsis to work in flexbox */
+        }
 
         /* Main Content Area */
         #main-content {
