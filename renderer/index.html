@@ -532,7 +532,7 @@
         }
 
         /* Views common padding */
-        #dashboard-view, #repo-view, #settings-view, #editor-view, #git-config-view, #theme-editor-view {
+        #dashboard-view, #repo-view, #settings-view, #custom-commands-view, #editor-view, #git-config-view, #theme-editor-view {
             padding: 20px 24px 0 24px; /* Removed bottom padding to attach to console */
             flex: 1;
             min-height: 0;
@@ -556,7 +556,7 @@
             flex-direction: column;
         }
 
-        #dashboard-view, #settings-view, #git-config-view {
+        #dashboard-view, #settings-view, #custom-commands-view, #git-config-view {
             overflow-y: auto;
         }
 
@@ -1664,7 +1664,8 @@
                         <h1 style="margin: 0;">Custom Commands</h1>
                     </div>
                     <p style="color: var(--text-muted); font-size: 13px; margin-bottom: 24px;">
-                        Configure custom shell commands to run from the repository or file right-click context menu. Use %REPO_PATH% for the active repository path, and %FILE_PATH% for the specific clicked item path.
+                        Configure custom shell commands to run from the repository or file right-click context menu. Use %REPO_PATH% for the active repository path, and %FILE_PATH% for the specific clicked item path.<br><br>
+                        <span style="color: var(--accent-blue); font-weight: 600;">Pro Tip for Windows Terminal (wt.exe):</span> Modern Windows apps like <code>wt.exe</code> ignore standard working directories unless explicitly commanded. To make it open to your repository path, provide the argument: <code>-d "%REPO_PATH%"</code>
                     </p>
 
                     <div class="settings-section" style="padding-bottom: 20px; border-bottom: none;">
