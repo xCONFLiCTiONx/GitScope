@@ -1746,21 +1746,8 @@ ipcMain.handle('show-context-menu', async (event, options) => {
     for (const cmd of customCommands) {
       if (!cmd.name || !cmd.path) continue;
 
-      let iconImage = null;
-      if (cmd.icon) {
-        try {
-          const { nativeImage } = require('electron');
-          iconImage = nativeImage.createFromPath(cmd.icon);
-        } catch (e) {}
-      } else {
-        try {
-          iconImage = await app.getFileIcon(cmd.path);
-        } catch (e) {}
-      }
-
       menuItems.push({
         label: cmd.name,
-        icon: iconImage || undefined,
         click: () => {
           const { exec, spawn } = require('child_process');
           const clickedPath = paths[0] || '';

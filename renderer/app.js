@@ -368,13 +368,11 @@ const elements = {
     get customCommandPath() { return document.getElementById('custom-command-path'); },
     get customCommandArgs() { return document.getElementById('custom-command-args'); },
     get customCommandCwd() { return document.getElementById('custom-command-cwd'); },
-    get customCommandIcon() { return document.getElementById('custom-command-icon'); },
     get customCommandAdmin() { return document.getElementById('custom-command-admin'); },
     get saveCustomCommandBtn() { return document.getElementById('save-custom-command-btn'); },
     get deleteCustomCommandBtn() { return document.getElementById('delete-custom-command-btn'); },
     get browseCustomCommandPath() { return document.getElementById('browse-custom-command-path'); },
     get browseCustomCommandCwd() { return document.getElementById('browse-custom-command-cwd'); },
-    get browseCustomCommandIcon() { return document.getElementById('browse-custom-command-icon'); },
     get gitConfigView() { return document.getElementById('git-config-view'); },
     get themeEditorView() { return document.getElementById('theme-editor-view'); },
     get themeVisualControls() { return document.getElementById('theme-visual-controls'); },
@@ -1477,10 +1475,6 @@ function initEventListeners() {
         const path = await window.electronAPI.openDirectory();
         if (path) elements.customCommandCwd.value = path;
     };
-    if (elements.browseCustomCommandIcon) elements.browseCustomCommandIcon.onclick = async () => {
-        const path = await window.electronAPI.openFile();
-        if (path) elements.customCommandIcon.value = path;
-    };
     if (elements.customCommandSelect) elements.customCommandSelect.onchange = async () => {
         const val = elements.customCommandSelect.value;
         if (val === 'new') {
@@ -1488,7 +1482,6 @@ function initEventListeners() {
             elements.customCommandPath.value = '';
             elements.customCommandArgs.value = '';
             elements.customCommandCwd.value = '';
-            elements.customCommandIcon.value = '';
             elements.customCommandAdmin.checked = false;
             elements.deleteCustomCommandBtn.style.display = 'none';
         } else {
@@ -1499,7 +1492,6 @@ function initEventListeners() {
                 elements.customCommandPath.value = cmd.path || '';
                 elements.customCommandArgs.value = cmd.args || '';
                 elements.customCommandCwd.value = cmd.cwd || '';
-                elements.customCommandIcon.value = cmd.icon || '';
                 elements.customCommandAdmin.checked = !!cmd.runAsAdmin;
                 elements.deleteCustomCommandBtn.style.display = 'inline-block';
             }
@@ -1523,7 +1515,6 @@ function initEventListeners() {
                 path,
                 args: elements.customCommandArgs.value.trim(),
                 cwd: elements.customCommandCwd.value.trim(),
-                icon: elements.customCommandIcon.value.trim(),
                 runAsAdmin: elements.customCommandAdmin.checked
             };
             settings.customCommands.push(newCmd);
@@ -1534,7 +1525,6 @@ function initEventListeners() {
                 cmd.path = path;
                 cmd.args = elements.customCommandArgs.value.trim();
                 cmd.cwd = elements.customCommandCwd.value.trim();
-                cmd.icon = elements.customCommandIcon.value.trim();
                 cmd.runAsAdmin = elements.customCommandAdmin.checked;
             }
         }
@@ -4585,7 +4575,6 @@ async function showCustomCommandsView() {
         elements.customCommandPath.value = '';
         elements.customCommandArgs.value = '';
         elements.customCommandCwd.value = '';
-        elements.customCommandIcon.value = '';
         elements.customCommandAdmin.checked = false;
         elements.deleteCustomCommandBtn.style.display = 'none';
     }
