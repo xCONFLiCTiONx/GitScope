@@ -1779,13 +1779,19 @@ ipcMain.handle('show-context-menu', async (event, options) => {
               if (error) console.error('Admin execution error:', error);
             });
           } else {
-            const pOpts = {
-              detached: true,
-              stdio: 'ignore',
-              shell: true
-            };
-            if (resolvedCwd) pOpts.cwd = resolvedCwd;
-            spawn(`"${cmd.path}" ${resolvedArgs}`, [], pOpts).unref();
+            // Using powershell to explicitly invoke the command with focus to avoid background state constraints
+            const escapedPath = cmd.path.replace(/'/g, "''");
+            const escapedArgs = resolvedArgs.replace(/'/g, "''");
+            const escapedCwd = resolvedCwd.replace(/'/g, "''");
+
+            let psCommand = `Start-Process -FilePath '${escapedPath}'`;
+            if (escapedArgs) psCommand += ` -ArgumentList '${escapedArgs}'`;
+            if (escapedCwd) psCommand += ` -WorkingDirectory '${escapedCwd}'`;
+
+            const encodedCommand = Buffer.from(psCommand, 'utf16le').toString('base64');
+            exec(`powershell.exe -NoProfile -ExecutionPolicy Bypass -EncodedCommand ${encodedCommand}`, (error) => {
+              if (error) console.error('Execution error:', error);
+            });
           }
         }
       });
