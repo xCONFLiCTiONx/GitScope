@@ -286,6 +286,7 @@ const elements = {
     get navNew() { return document.getElementById('nav-new'); },
     get navAdd() { return document.getElementById('nav-add'); },
     get navSearch() { return document.getElementById('nav-search'); },
+    get navCustomCommands() { return document.getElementById('nav-custom-commands'); },
     get navGitConfig() { return document.getElementById('nav-git-config'); },
     get navTheme() { return document.getElementById('nav-theme'); },
     get navSettings() { return document.getElementById('nav-settings'); },
@@ -360,6 +361,20 @@ const elements = {
     get previewImg() { return document.getElementById('preview-img'); },
     get monacoContainer() { return document.getElementById('monaco-container'); },
     get settingsView() { return document.getElementById('settings-view'); },
+    get customCommandsView() { return document.getElementById('custom-commands-view'); },
+    get customCommandSelect() { return document.getElementById('custom-command-select'); },
+    get customCommandForm() { return document.getElementById('custom-command-form'); },
+    get customCommandName() { return document.getElementById('custom-command-name'); },
+    get customCommandPath() { return document.getElementById('custom-command-path'); },
+    get customCommandArgs() { return document.getElementById('custom-command-args'); },
+    get customCommandCwd() { return document.getElementById('custom-command-cwd'); },
+    get customCommandIcon() { return document.getElementById('custom-command-icon'); },
+    get customCommandAdmin() { return document.getElementById('custom-command-admin'); },
+    get saveCustomCommandBtn() { return document.getElementById('save-custom-command-btn'); },
+    get deleteCustomCommandBtn() { return document.getElementById('delete-custom-command-btn'); },
+    get browseCustomCommandPath() { return document.getElementById('browse-custom-command-path'); },
+    get browseCustomCommandCwd() { return document.getElementById('browse-custom-command-cwd'); },
+    get browseCustomCommandIcon() { return document.getElementById('browse-custom-command-icon'); },
     get gitConfigView() { return document.getElementById('git-config-view'); },
     get themeEditorView() { return document.getElementById('theme-editor-view'); },
     get themeVisualControls() { return document.getElementById('theme-visual-controls'); },
@@ -970,6 +985,10 @@ function initEventListeners() {
         showSearchHub('advanced');
     };
     if (elements.navSettings) elements.navSettings.onclick = async () => await showSettings();
+    if (elements.navCustomCommands) elements.navCustomCommands.onclick = async () => {
+        if (!(await setActiveNavItem(elements.navCustomCommands))) return;
+        await showCustomCommandsView();
+    };
     if (elements.navGitConfig) elements.navGitConfig.onclick = async () => {
         if (!(await setActiveNavItem(elements.navGitConfig))) return;
         await showGitConfigView();
@@ -1450,6 +1469,90 @@ function initEventListeners() {
     if (elements.exportSettingsBtn) elements.exportSettingsBtn.onclick = () => handleExportSettings();
     if (elements.importSettingsBtn) elements.importSettingsBtn.onclick = () => handleImportSettings();
 
+    if (elements.browseCustomCommandPath) elements.browseCustomCommandPath.onclick = async () => {
+        const path = await window.electronAPI.openFile();
+        if (path) elements.customCommandPath.value = path;
+    };
+    if (elements.browseCustomCommandCwd) elements.browseCustomCommandCwd.onclick = async () => {
+        const path = await window.electronAPI.openDirectory();
+        if (path) elements.customCommandCwd.value = path;
+    };
+    if (elements.browseCustomCommandIcon) elements.browseCustomCommandIcon.onclick = async () => {
+        const path = await window.electronAPI.openFile();
+        if (path) elements.customCommandIcon.value = path;
+    };
+    if (elements.customCommandSelect) elements.customCommandSelect.onchange = async () => {
+        const val = elements.customCommandSelect.value;
+        if (val === 'new') {
+            elements.customCommandName.value = '';
+            elements.customCommandPath.value = '';
+            elements.customCommandArgs.value = '';
+            elements.customCommandCwd.value = '';
+            elements.customCommandIcon.value = '';
+            elements.customCommandAdmin.checked = false;
+            elements.deleteCustomCommandBtn.style.display = 'none';
+        } else {
+            const settings = await window.electronAPI.getSettings();
+            const cmd = (settings.customCommands || []).find(c => c.id === val);
+            if (cmd) {
+                elements.customCommandName.value = cmd.name || '';
+                elements.customCommandPath.value = cmd.path || '';
+                elements.customCommandArgs.value = cmd.args || '';
+                elements.customCommandCwd.value = cmd.cwd || '';
+                elements.customCommandIcon.value = cmd.icon || '';
+                elements.customCommandAdmin.checked = !!cmd.runAsAdmin;
+                elements.deleteCustomCommandBtn.style.display = 'inline-block';
+            }
+        }
+    };
+    if (elements.saveCustomCommandBtn) elements.saveCustomCommandBtn.onclick = async () => {
+        const name = elements.customCommandName.value.trim();
+        const path = elements.customCommandPath.value.trim();
+        if (!name || !path) {
+            showAlert('Display Name and Executable Path are required.', 'Error');
+            return;
+        }
+        const settings = await window.electronAPI.getSettings();
+        if (!settings.customCommands) settings.customCommands = [];
+
+        const val = elements.customCommandSelect.value;
+        if (val === 'new') {
+            const newCmd = {
+                id: 'cmd_' + Date.now(),
+                name,
+                path,
+                args: elements.customCommandArgs.value.trim(),
+                cwd: elements.customCommandCwd.value.trim(),
+                icon: elements.customCommandIcon.value.trim(),
+                runAsAdmin: elements.customCommandAdmin.checked
+            };
+            settings.customCommands.push(newCmd);
+        } else {
+            const cmd = settings.customCommands.find(c => c.id === val);
+            if (cmd) {
+                cmd.name = name;
+                cmd.path = path;
+                cmd.args = elements.customCommandArgs.value.trim();
+                cmd.cwd = elements.customCommandCwd.value.trim();
+                cmd.icon = elements.customCommandIcon.value.trim();
+                cmd.runAsAdmin = elements.customCommandAdmin.checked;
+            }
+        }
+        await window.electronAPI.saveSettings(settings);
+        showAlert('Custom command saved successfully.', 'Success');
+        await showCustomCommandsView();
+    };
+    if (elements.deleteCustomCommandBtn) elements.deleteCustomCommandBtn.onclick = async () => {
+        const val = elements.customCommandSelect.value;
+        if (val !== 'new' && (await showConfirm('Are you sure you want to delete this custom command?', 'Delete Command'))) {
+            const settings = await window.electronAPI.getSettings();
+            settings.customCommands = (settings.customCommands || []).filter(c => c.id !== val);
+            await window.electronAPI.saveSettings(settings);
+            showAlert('Custom command deleted.', 'Success');
+            await showCustomCommandsView();
+        }
+    };
+
     if (document.getElementById('commit-diff-close')) {
         document.getElementById('commit-diff-close').onclick = () => {
             document.getElementById('commit-diff-modal').style.display = 'none';
@@ -1599,6 +1702,7 @@ async function setActiveNavItem(item) {
     const scrollableViews = [
         elements.dashboardView,
         elements.settingsView,
+        elements.customCommandsView,
         elements.gitConfigView,
         elements.themeEditorView,
         elements.mainContent
@@ -1611,6 +1715,7 @@ async function setActiveNavItem(item) {
     elements.repoView.style.display = 'none';
     elements.editorView.style.display = 'none';
     elements.settingsView.style.display = 'none';
+    elements.customCommandsView.style.display = 'none';
     elements.gitConfigView.style.display = 'none';
     elements.themeEditorView.style.display = 'none';
     elements.statusView.style.display = 'none';
@@ -4453,6 +4558,36 @@ async function importThemeFromIni() {
                 logToConsole(`Theme imported from ${filePath}`, 'success');
             }
         } catch (e) { logToConsole(`Import failed: ${e.message}`, 'error'); }
+    }
+}
+
+async function showCustomCommandsView() {
+    elements.customCommandsView.style.display = 'flex';
+
+    if (elements.customCommandSelect) {
+        elements.customCommandSelect.innerHTML = '<option value="new">-- Add New Command --</option>';
+
+        try {
+            const settings = await window.electronAPI.getSettings();
+            const commands = settings.customCommands || [];
+            commands.forEach(cmd => {
+                const opt = document.createElement('option');
+                opt.value = cmd.id;
+                opt.textContent = cmd.name;
+                elements.customCommandSelect.appendChild(opt);
+            });
+        } catch (e) {
+            console.error('Failed to load custom commands:', e);
+        }
+
+        elements.customCommandSelect.value = 'new';
+        elements.customCommandName.value = '';
+        elements.customCommandPath.value = '';
+        elements.customCommandArgs.value = '';
+        elements.customCommandCwd.value = '';
+        elements.customCommandIcon.value = '';
+        elements.customCommandAdmin.checked = false;
+        elements.deleteCustomCommandBtn.style.display = 'none';
     }
 }
 

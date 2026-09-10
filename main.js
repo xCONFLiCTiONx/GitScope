@@ -1511,7 +1511,7 @@ ipcMain.handle('trash-item', async (event, filePath) => {
   }
 });
 
-ipcMain.handle('show-context-menu', (event, options) => {
+ipcMain.handle('show-context-menu', async (event, options) => {
   if (options.type === 'terminal') {
     const template = [
       { label: 'Copy', click: () => event.sender.send('terminal-command', 'copy') },
@@ -1734,6 +1734,84 @@ ipcMain.handle('show-context-menu', (event, options) => {
       label: repoCount > 1 ? `Remove ${repoCount} projects from Workspace` : 'Remove from Workspace',
       click: () => event.sender.send('context-menu-command', { command: 'remove', paths: repoPaths })
     });
+  }
+
+  const settings = getSettings();
+  const customCommands = settings.customCommands || [];
+
+  if (customCommands.length > 0) {
+    template.push({ type: 'separator' });
+
+    const menuItems = [];
+    for (const cmd of customCommands) {
+      if (!cmd.name || !cmd.path) continue;
+
+      let iconImage = null;
+      if (cmd.icon) {
+        try {
+          const { nativeImage } = require('electron');
+          iconImage = nativeImage.createFromPath(cmd.icon);
+        } catch (e) {}
+      } else {
+        try {
+          iconImage = await app.getFileIcon(cmd.path);
+        } catch (e) {}
+      }
+
+      menuItems.push({
+        label: cmd.name,
+        icon: iconImage || undefined,
+        click: () => {
+          const { exec, spawn } = require('child_process');
+          const clickedPath = paths[0] || '';
+          const repoPathStr = options.repoPath || '';
+
+          let resolvedArgs = cmd.args || '';
+          resolvedArgs = resolvedArgs.replace(/%REPO_PATH%/g, repoPathStr);
+          resolvedArgs = resolvedArgs.replace(/%FILE_PATH%/g, clickedPath);
+
+          let resolvedCwd = cmd.cwd || '';
+          resolvedCwd = resolvedCwd.replace(/%REPO_PATH%/g, repoPathStr);
+          resolvedCwd = resolvedCwd.replace(/%FILE_PATH%/g, clickedPath);
+          if (!resolvedCwd) {
+            resolvedCwd = repoPathStr || require('path').dirname(clickedPath);
+          }
+
+          if (cmd.runAsAdmin) {
+            const escapedPath = cmd.path.replace(/'/g, "''");
+            const escapedArgs = resolvedArgs.replace(/'/g, "''");
+            const escapedCwd = resolvedCwd.replace(/'/g, "''");
+
+            let psCommand = `Start-Process -FilePath '${escapedPath}'`;
+            if (escapedArgs) psCommand += ` -ArgumentList '${escapedArgs}'`;
+            if (escapedCwd) psCommand += ` -WorkingDirectory '${escapedCwd}'`;
+            psCommand += ` -Verb RunAs`;
+
+            const encodedCommand = Buffer.from(psCommand, 'utf16le').toString('base64');
+            exec(`powershell.exe -NoProfile -ExecutionPolicy Bypass -EncodedCommand ${encodedCommand}`, (error) => {
+              if (error) console.error('Admin execution error:', error);
+            });
+          } else {
+            const pOpts = {
+              detached: true,
+              stdio: 'ignore',
+              shell: true
+            };
+            if (resolvedCwd) pOpts.cwd = resolvedCwd;
+            spawn(`"${cmd.path}" ${resolvedArgs}`, [], pOpts).unref();
+          }
+        }
+      });
+    }
+
+    if (menuItems.length === 1) {
+      template.push(menuItems[0]);
+    } else if (menuItems.length > 1) {
+      template.push({
+        label: 'Custom commands',
+        submenu: menuItems
+      });
+    }
   }
 
   const menu = Menu.buildFromTemplate(template);
