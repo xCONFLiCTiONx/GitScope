@@ -1656,6 +1656,10 @@ ipcMain.handle('show-context-menu', async (event, options) => {
     }
   }
 
+  const isFolder = options.isDirectory || options.isRepoRoot;
+  const targetPath = paths[0] || '';
+  const terminalCwd = isFolder ? targetPath : require('path').dirname(targetPath);
+
   template.push(
     {
       label: 'Open',
@@ -1671,6 +1675,27 @@ ipcMain.handle('show-context-menu', async (event, options) => {
         {
           label: isMulti ? `Show in Folder (${totalCount})` : 'Show in Folder',
           click: () => event.sender.send('context-menu-command', { command: 'reveal-in-explorer', paths })
+        },
+        { type: 'separator' },
+        {
+          label: 'Terminal',
+          click: () => {
+            const { exec } = require('child_process');
+            const psCommand = `Start-Process -FilePath 'powershell.exe' -WorkingDirectory '${terminalCwd.replace(/'/g, "''")}'`;
+            const encodedCommand = Buffer.from(psCommand, 'utf16le').toString('base64');
+            exec(`powershell.exe -NoProfile -ExecutionPolicy Bypass -EncodedCommand ${encodedCommand}`);
+          }
+        },
+        {
+          label: 'Terminal (admin)',
+          click: () => {
+            const { exec } = require('child_process');
+            const targetDir = terminalCwd.replace(/'/g, "''");
+            // Launch PowerShell as admin, which then safely spawns Windows Terminal in the target directory
+            const psCommand = `Start-Process powershell.exe -ArgumentList '-NoExit', '-Command', "wt.exe -d '${targetDir}'" -Verb RunAs`;
+            const encodedCommand = Buffer.from(psCommand, 'utf16le').toString('base64');
+            exec(`powershell.exe -NoProfile -ExecutionPolicy Bypass -EncodedCommand ${encodedCommand}`);
+          }
         }
       ]
     }
