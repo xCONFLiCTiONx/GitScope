@@ -42,6 +42,11 @@ let watcher;
 let ptyProcess;
 let cachedSettings = null;
 let cachedRepos = null;
+let installedEditors = {
+  vscode: false,
+  androidStudio: false,
+  visualStudio: false
+};
 const configPath = path.join(app.getPath('userData'), 'config.json');
 const settingsPath = path.join(app.getPath('userData'), 'settings.json');
 const windowStatePath = path.join(app.getPath('userData'), 'window-state.json');
@@ -61,7 +66,8 @@ if (!gotTheLock) {
   });
 
   // App initialization
-  app.whenReady().then(() => {
+  app.whenReady().then(async () => {
+    await detectInstalledEditors();
     createWindow();
   });
 
@@ -97,6 +103,45 @@ function getThemes() {
 
 function saveThemes(themes) {
   fs.writeJsonSync(themesPath, themes);
+}
+
+async function detectInstalledEditors() {
+  const { execSync } = require('child_process');
+
+  // VS Code
+  try {
+    execSync('code --version', { stdio: 'ignore' });
+    installedEditors.vscode = true;
+  } catch (e) {
+    const commonPaths = [
+      path.join(process.env.LOCALAPPDATA || '', 'Programs', 'Microsoft VS Code', 'bin', 'code.cmd'),
+      'C:\\Program Files\\Microsoft VS Code\\bin\\code.cmd'
+    ];
+    installedEditors.vscode = commonPaths.some(p => p && fs.existsSync(p));
+  }
+
+  // Android Studio
+  const asPaths = [
+    'C:\\Program Files\\Android\\Android Studio\\bin\\studio64.exe',
+    path.join(process.env.LOCALAPPDATA || '', 'Android', 'Android Studio', 'bin', 'studio64.exe')
+  ];
+  try {
+    execSync('where studio64', { stdio: 'ignore' });
+    installedEditors.androidStudio = true;
+  } catch (e) {
+    installedEditors.androidStudio = asPaths.some(p => p && fs.existsSync(p));
+  }
+
+  // Visual Studio
+  try {
+    const vswhere = 'C:\\Program Files (x86)\\Microsoft Visual Studio\\Installer\\vswhere.exe';
+    if (fs.existsSync(vswhere)) {
+      const output = execSync(`"${vswhere}" -latest -property productPath`, { encoding: 'utf8' }).trim();
+      if (output) installedEditors.visualStudio = true;
+    }
+  } catch (e) {
+    console.error('Visual Studio detection failed:', e);
+  }
 }
 
 function getSettings() {
@@ -1416,6 +1461,22 @@ ipcMain.handle('open-in-vscode', async (event, filePath) => {
   });
 });
 
+ipcMain.handle('open-in-visual-studio', async (event, filePath) => {
+  const { exec } = require('child_process');
+  const vswhere = 'C:\\Program Files (x86)\\Microsoft Visual Studio\\Installer\\vswhere.exe';
+  if (fs.existsSync(vswhere)) {
+    try {
+      const installPath = require('child_process').execSync(`"${vswhere}" -latest -property installationPath`, { encoding: 'utf8' }).trim();
+      const devenv = path.join(installPath, 'Common7', 'IDE', 'devenv.exe');
+      exec(`"${devenv}" "${filePath}"`, (error) => {
+        if (error) console.error('Visual Studio launch failed:', error);
+      });
+    } catch (e) {
+      console.error('Visual Studio launch failed:', e);
+    }
+  }
+});
+
 ipcMain.handle('open-in-android-studio', async (event, filePath) => {
   const { exec } = require('child_process');
   const nativePath = path.win32.normalize(filePath);
@@ -1660,44 +1721,55 @@ ipcMain.handle('show-context-menu', async (event, options) => {
   const targetPath = paths[0] || '';
   const terminalCwd = isFolder ? targetPath : require('path').dirname(targetPath);
 
+  const openSubmenu = [];
+  if (installedEditors.androidStudio) {
+    openSubmenu.push({
+      label: isMulti ? `In Android Studio (${totalCount})` : 'In Android Studio',
+      click: () => event.sender.send('context-menu-command', { command: 'open-android-studio', paths })
+    });
+  }
+  if (installedEditors.vscode) {
+    openSubmenu.push({
+      label: isMulti ? `In VS Code (${totalCount})` : 'In VS Code',
+      click: () => event.sender.send('context-menu-command', { command: 'open-vscode', paths })
+    });
+  }
+  if (installedEditors.visualStudio) {
+    openSubmenu.push({
+      label: isMulti ? `In Visual Studio (${totalCount})` : 'In Visual Studio',
+      click: () => event.sender.send('context-menu-command', { command: 'open-visual-studio', paths })
+    });
+  }
+  openSubmenu.push({
+    label: isMulti ? `Show in Folder (${totalCount})` : 'Show in Folder',
+    click: () => event.sender.send('context-menu-command', { command: 'reveal-in-explorer', paths })
+  });
+  openSubmenu.push({ type: 'separator' });
+  openSubmenu.push({
+    label: 'Terminal',
+    click: () => {
+      const { exec } = require('child_process');
+      const psCommand = `Start-Process -FilePath 'powershell.exe' -WorkingDirectory '${terminalCwd.replace(/'/g, "''")}'`;
+      const encodedCommand = Buffer.from(psCommand, 'utf16le').toString('base64');
+      exec(`powershell.exe -NoProfile -ExecutionPolicy Bypass -EncodedCommand ${encodedCommand}`);
+    }
+  });
+  openSubmenu.push({
+    label: 'Terminal (admin)',
+    click: () => {
+      const { exec } = require('child_process');
+      const targetDir = terminalCwd.replace(/'/g, "''");
+      // Launch PowerShell as admin, which then safely spawns Windows Terminal in the target directory
+      const psCommand = `Start-Process powershell.exe -ArgumentList '-NoExit', '-Command', "wt.exe -d '${targetDir}'" -Verb RunAs`;
+      const encodedCommand = Buffer.from(psCommand, 'utf16le').toString('base64');
+      exec(`powershell.exe -NoProfile -ExecutionPolicy Bypass -EncodedCommand ${encodedCommand}`);
+    }
+  });
+
   template.push(
     {
       label: 'Open',
-      submenu: [
-        {
-          label: isMulti ? `In Android Studio (${totalCount})` : 'In Android Studio',
-          click: () => event.sender.send('context-menu-command', { command: 'open-android-studio', paths })
-        },
-        {
-          label: isMulti ? `In VS Code (${totalCount})` : 'In VS Code',
-          click: () => event.sender.send('context-menu-command', { command: 'open-vscode', paths })
-        },
-        {
-          label: isMulti ? `Show in Folder (${totalCount})` : 'Show in Folder',
-          click: () => event.sender.send('context-menu-command', { command: 'reveal-in-explorer', paths })
-        },
-        { type: 'separator' },
-        {
-          label: 'Terminal',
-          click: () => {
-            const { exec } = require('child_process');
-            const psCommand = `Start-Process -FilePath 'powershell.exe' -WorkingDirectory '${terminalCwd.replace(/'/g, "''")}'`;
-            const encodedCommand = Buffer.from(psCommand, 'utf16le').toString('base64');
-            exec(`powershell.exe -NoProfile -ExecutionPolicy Bypass -EncodedCommand ${encodedCommand}`);
-          }
-        },
-        {
-          label: 'Terminal (admin)',
-          click: () => {
-            const { exec } = require('child_process');
-            const targetDir = terminalCwd.replace(/'/g, "''");
-            // Launch PowerShell as admin, which then safely spawns Windows Terminal in the target directory
-            const psCommand = `Start-Process powershell.exe -ArgumentList '-NoExit', '-Command', "wt.exe -d '${targetDir}'" -Verb RunAs`;
-            const encodedCommand = Buffer.from(psCommand, 'utf16le').toString('base64');
-            exec(`powershell.exe -NoProfile -ExecutionPolicy Bypass -EncodedCommand ${encodedCommand}`);
-          }
-        }
-      ]
+      submenu: openSubmenu
     }
   );
 
