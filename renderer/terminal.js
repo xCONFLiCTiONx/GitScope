@@ -71,6 +71,17 @@ terminalContainer.addEventListener('contextmenu', (e) => {
     window.electronAPI.showContextMenu({ type: 'terminal' });
 });
 
+// High-Precision Terminal Scrolling (Fix for full page scrolling, scroll one line at a time)
+terminalContainer.addEventListener('wheel', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.deltaY > 0) {
+        term.scrollLines(1);
+    } else if (e.deltaY < 0) {
+        term.scrollLines(-1);
+    }
+}, { passive: false, capture: true });
+
 window.electronAPI.onTerminalCommand((command) => {
     if (command === 'copy') {
         const selection = term.getSelection();
