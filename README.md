@@ -1,4 +1,4 @@
-<p align="center">
+<p align="left">
   <img src="ICON.png" width="128" alt="GitScope Logo">
 </p>
 
