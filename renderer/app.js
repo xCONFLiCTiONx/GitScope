@@ -3678,6 +3678,17 @@ function createTreeNode(name, fullPath, isDirectory, depth, repo) {
     const ext = name.split('.').pop().toLowerCase();
     const fileClass = !isDirectory ? `file-type-${ext.replace(/[^a-z0-9]/g, '-')}` : '';
     item.innerHTML = `<span class="chevron">${isDirectory ? '▸' : ''}</span><span class="node-name ${fileClass}">${name}</span>`;
+
+    // Separate click handler for the expansion arrow (chevron)
+    // This allows toggling expansion without selecting the item or opening the view.
+    const chevron = item.querySelector('.chevron');
+    if (chevron && isDirectory) {
+        chevron.onclick = (e) => {
+            e.stopPropagation();
+            toggleFolder(container, fullPath, depth, repo);
+        };
+    }
+
     item.dataset.path = fullPath;
     item.dataset.isDirectory = isDirectory;
     item.oncontextmenu = async (e) => {
@@ -3741,8 +3752,18 @@ function createTreeNode(name, fullPath, isDirectory, depth, repo) {
 
         selectedNodes.clear(); selectedNodes.add(fullPath); updateTreeSelectionUI();
         if (isDirectory) {
-            if (depth === 0) await selectRepo(repo, false);
-            toggleFolder(container, fullPath, depth, repo);
+            if (depth === 0) {
+                // For project roots, ensure it stays expanded if the repo view isn't showing
+                const repoViewShowing = elements.repoView.style.display === 'flex' && activeRepo && activeRepo.path === repo.path;
+                if (!repoViewShowing) {
+                    await toggleFolder(container, fullPath, depth, repo, true);
+                } else {
+                    await toggleFolder(container, fullPath, depth, repo);
+                }
+                await selectRepo(repo, false);
+            } else {
+                toggleFolder(container, fullPath, depth, repo);
+            }
         } else {
             await openFileInEditor(fullPath);
         }
@@ -3767,13 +3788,14 @@ function createTreeNode(name, fullPath, isDirectory, depth, repo) {
     container.appendChild(item); return container;
 }
 
-async function toggleFolder(container, dirPath, depth, repo) {
+async function toggleFolder(container, dirPath, depth, repo, forceExpand = false) {
     const item = container.querySelector('.tree-node');
     const chevron = item.querySelector('.chevron');
     const existing = container.querySelector('.children-container');
     const normPath = dirPath.replace(/\\/g, '/').toLowerCase();
 
     if (existing) {
+        if (forceExpand) return; // Stay expanded
         existing.remove();
         if (chevron) chevron.textContent = '▸';
         expandedNodes.delete(normPath);
