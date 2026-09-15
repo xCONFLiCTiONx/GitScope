@@ -1289,6 +1289,22 @@ ipcMain.handle('github-update-repo-visibility', async (event, token, owner, repo
   return await githubApi.updateRepoVisibility(token, owner, repo, isPrivate);
 });
 
+ipcMain.handle('github-fetch-gists', async (event, token) => {
+  return await githubApi.fetchUserGists(token);
+});
+
+ipcMain.handle('github-create-gist', async (event, token, description, files, isPublic) => {
+  return await githubApi.createGist(token, description, files, isPublic);
+});
+
+ipcMain.handle('github-update-gist', async (event, token, id, description, files) => {
+  return await githubApi.updateGist(token, id, description, files);
+});
+
+ipcMain.handle('github-delete-gist', async (event, token, id) => {
+  return await githubApi.deleteGist(token, id);
+});
+
 ipcMain.handle('get-git-config', async () => {
   const gitconfigPath = path.join(os.homedir(), '.gitconfig');
   try {

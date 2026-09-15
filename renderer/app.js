@@ -282,6 +282,7 @@ function hasUnsavedChanges() {
 // DOM Elements Mapping (Getter-based for total resilience)
 const elements = {
     get navHome() { return document.getElementById('nav-home'); },
+    get navGist() { return document.getElementById('nav-gist'); },
     get navImport() { return document.getElementById('nav-import'); },
     get navNew() { return document.getElementById('nav-new'); },
     get navSearch() { return document.getElementById('nav-search'); },
@@ -297,6 +298,22 @@ const elements = {
     get dashboardView() { return document.getElementById('dashboard-view'); },
     get dashboardSummary() { return document.getElementById('dashboard-summary'); },
     get dashboardGrid() { return document.getElementById('dashboard-grid'); },
+    get gistView() { return document.getElementById('gist-view'); },
+    get gistList() { return document.getElementById('gist-list'); },
+    get gistRefreshBtn() { return document.getElementById('gist-refresh-btn'); },
+    get gistNewBtn() { return document.getElementById('gist-new-btn'); },
+    get gistCreateModal() { return document.getElementById('gist-create-modal'); },
+    get gistCreateDescription() { return document.getElementById('gist-create-description'); },
+    get gistCreateFilename() { return document.getElementById('gist-create-filename'); },
+    get gistCreatePublic() { return document.getElementById('gist-create-public'); },
+    get gistCreateContent() { return document.getElementById('gist-create-content'); },
+    get gistCreateConfirm() { return document.getElementById('gist-create-confirm'); },
+    get gistCreateCancel() { return document.getElementById('gist-create-cancel'); },
+    get gistEditModal() { return document.getElementById('gist-edit-modal'); },
+    get gistEditDescription() { return document.getElementById('gist-edit-description'); },
+    get gistEditFilesContainer() { return document.getElementById('gist-edit-files-container'); },
+    get gistEditConfirm() { return document.getElementById('gist-edit-confirm'); },
+    get gistEditCancel() { return document.getElementById('gist-edit-cancel'); },
     get repoView() { return document.getElementById('repo-view'); },
     get repoLeftPanel() { return document.getElementById('repo-left-panel'); },
     get repoRightPanel() { return document.getElementById('repo-right-panel'); },
@@ -336,6 +353,7 @@ const elements = {
     get editorFileName() { return document.getElementById('editor-file-name'); },
     get editorFileInfo() { return document.getElementById('editor-file-info'); },
     get editorSaveBtn() { return document.getElementById('editor-save-btn'); },
+    get editorGistBtn() { return document.getElementById('editor-gist-btn'); },
     get editorRestoreBtn() { return document.getElementById('editor-restore-btn'); },
     get editorUndoBtn() { return document.getElementById('editor-undo-btn'); },
     get editorRedoBtn() { return document.getElementById('editor-redo-btn'); },
@@ -979,6 +997,9 @@ function initEventListeners() {
         currentDashboardFilter = 'all'; // Reset filter when coming from nav
         await showDashboard(true);
     };
+    if (elements.navGist) elements.navGist.onclick = async () => {
+        await showGistView();
+    };
     if (elements.appLogoBox) elements.appLogoBox.onclick = async () => {
         currentDashboardFilter = 'all'; // Reset filter when coming from logo
         await showDashboard(true);
@@ -1238,6 +1259,7 @@ function initEventListeners() {
     if (elements.mdImageBtn) elements.mdImageBtn.onclick = () => insertMarkdownSnippet('image');
 
     if (elements.editorSaveBtn) elements.editorSaveBtn.onclick = () => saveCurrentFile();
+    if (elements.editorGistBtn) elements.editorGistBtn.onclick = () => publishCurrentFileToGist();
     if (elements.editorRestoreBtn) elements.editorRestoreBtn.onclick = () => handleRestoreFile();
     if (elements.editorUndoBtn) elements.editorUndoBtn.onclick = () => {
         if (monacoEditor) {
@@ -1724,6 +1746,7 @@ async function setActiveNavItem(item) {
     // Reset all scrollable view containers to top
     const scrollableViews = [
         elements.dashboardView,
+        elements.gistView,
         elements.settingsView,
         elements.customCommandsView,
         elements.gitConfigView,
@@ -1735,6 +1758,7 @@ async function setActiveNavItem(item) {
     });
 
     elements.dashboardView.style.display = 'none';
+    elements.gistView.style.display = 'none';
     elements.repoView.style.display = 'none';
     elements.editorView.style.display = 'none';
     elements.settingsView.style.display = 'none';
@@ -9431,3 +9455,247 @@ function convertToCSV(data, headers) {
 }
 
 
+
+// --- GIST MANAGEMENT LOGIC ---
+
+async function showGistView() {
+    if (!(await setActiveNavItem(elements.navGist))) return;
+    elements.gistView.style.display = 'flex';
+
+    if (!settings.githubToken) {
+        elements.gistList.innerHTML = `
+            <div style="grid-column: 1 / -1; padding: 60px; text-align: center; color: var(--text-muted);">
+                <div style="font-size: 40px; margin-bottom: 20px; opacity: 0.3;">🔑</div>
+                <h3>GitHub Token Required</h3>
+                <p>Please set your GitHub Personal Access Token in Settings to manage Gists.</p>
+                <button class="button button-primary" onclick="showSettings()">Go to Settings</button>
+            </div>
+        `;
+        return;
+    }
+
+    await refreshGists();
+}
+
+async function refreshGists() {
+    if (!settings.githubToken) return;
+
+    elements.gistList.innerHTML = '<div style="grid-column: 1 / -1; padding: 60px; text-align: center; color: var(--text-muted);"><div class="spinner"></div> Loading your Gists...</div>';
+
+    try {
+        setTaskState(true);
+        const res = await window.electronAPI.fetchGitHubGists(settings.githubToken);
+        if (res.expiration) updateTokenExpirationUI(res.expiration);
+        renderGistList(res.gists);
+    } catch (err) {
+        logToConsole(`Gist Error: ${err.message}`, 'error');
+        elements.gistList.innerHTML = `<div style="grid-column: 1 / -1; padding: 60px; text-align: center; color: var(--accent-red);">Failed to load Gists: ${err.message}</div>`;
+    } finally {
+        setTaskState(false);
+    }
+}
+
+function renderGistList(gists) {
+    if (!gists || gists.length === 0) {
+        elements.gistList.innerHTML = '<div style="grid-column: 1 / -1; padding: 60px; text-align: center; color: var(--text-muted);">No Gists found.</div>';
+        return;
+    }
+
+    elements.gistList.innerHTML = '';
+    const fragment = document.createDocumentFragment();
+
+    gists.forEach(gist => {
+        const card = document.createElement('div');
+        card.className = 'dashboard-card';
+        card.style.cursor = 'default';
+
+        const files = Object.keys(gist.files);
+        const date = new Date(gist.updated_at).toLocaleDateString();
+
+        card.innerHTML = `
+            <div class="card-header">
+                <div class="card-title" style="display: flex; align-items: center; gap: 8px;">
+                    <span style="color: var(--accent-blue); font-size: 16px;">${gist.public ? '🌐' : '🔒'}</span>
+                    ${gist.description || 'No description'}
+                </div>
+                <div class="card-branch">${date}</div>
+            </div>
+            <div style="flex: 1; display: flex; flex-direction: column; gap: 4px; margin-top: 8px;">
+                ${files.slice(0, 5).map(f => `<div style="font-size: 12px; font-family: monospace; color: var(--text-muted); display: flex; align-items: center; gap: 6px;">
+                    <span style="color: var(--accent-green);">📄</span> ${f}
+                </div>`).join('')}
+                ${files.length > 5 ? `<div style="font-size: 11px; color: var(--text-muted); padding-left: 20px;">+ ${files.length - 5} more files</div>` : ''}
+            </div>
+            <div class="quick-actions" style="opacity: 1; margin-top: 16px;">
+                <button class="button gist-view-btn" data-url="${gist.html_url}" title="View on GitHub">↗</button>
+                <button class="button gist-edit-btn" data-id="${gist.id}" title="Edit Gist">✎</button>
+                <button class="button button-danger gist-delete-btn" data-id="${gist.id}" title="Delete Gist">×</button>
+            </div>
+        `;
+
+        card.querySelector('.gist-view-btn').onclick = () => window.electronAPI.openExternal(gist.html_url);
+        card.querySelector('.gist-edit-btn').onclick = () => showGistEditModal(gist);
+        card.querySelector('.gist-delete-btn').onclick = () => handleDeleteGist(gist.id);
+
+        fragment.appendChild(card);
+    });
+
+    elements.gistList.appendChild(fragment);
+}
+
+// Gist Creation
+if (elements.gistNewBtn) elements.gistNewBtn.onclick = () => {
+    elements.gistCreateModal.style.display = 'flex';
+    elements.gistCreateDescription.value = '';
+    elements.gistCreateFilename.value = '';
+    elements.gistCreateContent.value = '';
+    elements.gistCreatePublic.checked = false;
+};
+
+if (elements.gistCreateCancel) elements.gistCreateCancel.onclick = () => elements.gistCreateModal.style.display = 'none';
+
+if (elements.gistCreateConfirm) elements.gistCreateConfirm.onclick = async () => {
+    const description = elements.gistCreateDescription.value;
+    const filename = elements.gistCreateFilename.value || 'snippet.txt';
+    const content = elements.gistCreateContent.value;
+    const isPublic = elements.gistCreatePublic.checked;
+
+    if (!content) return showAlert('Gist content cannot be empty.', 'Empty Content');
+
+    elements.gistCreateModal.style.display = 'none';
+    setTaskState(true);
+    logToConsole(`Creating new ${isPublic ? 'public' : 'private'} Gist...`, 'info');
+
+    try {
+        const files = { [filename]: { content } };
+        const res = await window.electronAPI.createGitHubGist(settings.githubToken, description, files, isPublic);
+        if (res.expiration) updateTokenExpirationUI(res.expiration);
+        logToConsole(`Gist created successfully: ${res.gist.html_url}`, 'success');
+        await refreshGists();
+    } catch (err) {
+        logToConsole(`Gist Creation Failed: ${err.message}`, 'error');
+        showError(err.message, 'Gist Error');
+    } finally {
+        setTaskState(false);
+    }
+};
+
+// Gist Editing
+let activeEditGist = null;
+
+function showGistEditModal(gist) {
+    activeEditGist = gist;
+    elements.gistEditModal.style.display = 'flex';
+    elements.gistEditDescription.value = gist.description || '';
+
+    const container = elements.gistEditFilesContainer;
+    container.innerHTML = '';
+
+    Object.keys(gist.files).forEach(filename => {
+        const row = document.createElement('div');
+        row.style.display = 'flex';
+        row.style.flexDirection = 'column';
+        row.style.gap = '4px';
+        row.style.marginBottom = '12px';
+
+        row.innerHTML = `
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <label style="font-size: 11px; font-weight: 700; color: var(--text-muted);">${filename}</label>
+                <input type="text" class="settings-input new-filename" value="${filename}" style="width: 150px; height: 24px; font-size: 10px;" placeholder="Rename to...">
+            </div>
+            <textarea class="settings-input file-content" style="height: 120px; resize: vertical; font-family: monospace; font-size: 12px;"></textarea>
+        `;
+
+        const textArea = row.querySelector('.file-content');
+        textArea.value = gist.files[filename].content || 'Loading...';
+
+        container.appendChild(row);
+
+        if (!gist.files[filename].content) {
+            fetch(gist.files[filename].raw_url)
+                .then(r => r.text())
+                .then(text => {
+                    gist.files[filename].content = text;
+                    textArea.value = text;
+                });
+        }
+    });
+}
+
+if (elements.gistEditCancel) elements.gistEditCancel.onclick = () => elements.gistEditModal.style.display = 'none';
+
+if (elements.gistEditConfirm) elements.gistEditConfirm.onclick = async () => {
+    if (!activeEditGist) return;
+
+    const description = elements.gistEditDescription.value;
+    const fileRows = Array.from(elements.gistEditFilesContainer.children);
+    const files = {};
+
+    let index = 0;
+    for (const originalFilename in activeEditGist.files) {
+        const row = fileRows[index++];
+        const newFilename = row.querySelector('.new-filename').value;
+        const newContent = row.querySelector('.file-content').value;
+
+        if (newFilename !== originalFilename) {
+            files[originalFilename] = null;
+            files[newFilename] = { content: newContent };
+        } else {
+            files[originalFilename] = { content: newContent };
+        }
+    }
+
+    elements.gistEditModal.style.display = 'none';
+    setTaskState(true);
+    logToConsole(`Updating Gist: ${activeEditGist.id}...`, 'info');
+
+    try {
+        const res = await window.electronAPI.updateGitHubGist(settings.githubToken, activeEditGist.id, description, files);
+        if (res.expiration) updateTokenExpirationUI(res.expiration);
+        logToConsole(`Gist updated successfully.`, 'success');
+        await refreshGists();
+    } catch (err) {
+        logToConsole(`Gist Update Failed: ${err.message}`, 'error');
+        showError(err.message, 'Gist Error');
+    } finally {
+        setTaskState(false);
+    }
+};
+
+async function handleDeleteGist(id) {
+    if (!(await showConfirm('Are you sure you want to delete this Gist? This cannot be undone.', 'Delete Gist'))) return;
+
+    setTaskState(true);
+    logToConsole(`Deleting Gist: ${id}...`, 'info');
+
+    try {
+        const res = await window.electronAPI.deleteGitHubGist(settings.githubToken, id);
+        if (res.expiration) updateTokenExpirationUI(res.expiration);
+        logToConsole(`Gist deleted successfully.`, 'success');
+        await refreshGists();
+    } catch (err) {
+        logToConsole(`Gist Deletion Failed: ${err.message}`, 'error');
+        showError(err.message, 'Gist Error');
+    } finally {
+        setTaskState(false);
+    }
+}
+
+async function publishCurrentFileToGist() {
+    if (!monacoEditor || !currentEditingPath) return;
+    if (!settings.githubToken) {
+        showAlert('Please set your GitHub Personal Access Token in Settings to publish Gists.', 'Token Required');
+        return;
+    }
+
+    const filename = currentEditingPath.split(/[\\\/]/).pop();
+    const content = monacoEditor.getValue();
+
+    elements.gistCreateModal.style.display = 'flex';
+    elements.gistCreateDescription.value = `Published from GitScope: ${filename}`;
+    elements.gistCreateFilename.value = filename;
+    elements.gistCreateContent.value = content;
+    elements.gistCreatePublic.checked = false;
+}
+
+if (elements.gistRefreshBtn) elements.gistRefreshBtn.onclick = () => refreshGists();
