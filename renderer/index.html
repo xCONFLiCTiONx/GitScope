@@ -1227,14 +1227,11 @@
             <div id="nav-home" class="nav-item active" title="Dashboard">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
             </div>
-            <div id="nav-github" class="nav-item" title="Import from GitHub">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"></path></svg>
+            <div id="nav-import" class="nav-item" title="Import Repository">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
             </div>
             <div id="nav-new" class="nav-item" title="Create New Repository">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"></path></svg>
-            </div>
-            <div id="nav-add" class="nav-item" title="Add Existing Local Repository">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
             </div>
             <div id="nav-search" class="nav-item" title="Search Operations">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
@@ -1935,6 +1932,34 @@
             <div style="text-align: right; margin-top: 20px; display: flex; justify-content: flex-end; gap: 8px;">
                 <button id="new-remote-cancel" class="button">Cancel</button>
                 <button id="new-remote-confirm" class="button button-primary">Add Remote</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="import-choice-modal" class="modal">
+        <div class="modal-content">
+            <h3>Import Repository</h3>
+            <p>Choose where you want to import your project from:</p>
+            <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 20px;">
+                <button id="import-choice-local" class="button">Local Folder</button>
+                <button id="import-choice-github" class="button button-primary">GitHub</button>
+                <button id="import-choice-server" class="button">Another Server (Git URL)</button>
+                <button id="import-choice-cancel" class="button">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="server-import-modal" class="modal">
+        <div class="modal-content">
+            <h3>Import from Git URL</h3>
+            <p>Enter the clone URL for the repository:</p>
+            <div style="display: flex; flex-direction: column; gap: 12px; margin-top: 16px;">
+                <input type="text" id="server-import-url" class="settings-input" placeholder="https://gitlab.com/user/repo.git">
+                <p style="font-size: 11px; color: var(--text-muted);">Repository will be cloned into your Root Repository Folder.</p>
+            </div>
+            <div style="text-align: right; margin-top: 20px; display: flex; justify-content: flex-end; gap: 8px;">
+                <button id="server-import-cancel" class="button">Cancel</button>
+                <button id="server-import-confirm" class="button button-primary">Clone</button>
             </div>
         </div>
     </div>

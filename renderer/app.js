@@ -282,9 +282,8 @@ function hasUnsavedChanges() {
 // DOM Elements Mapping (Getter-based for total resilience)
 const elements = {
     get navHome() { return document.getElementById('nav-home'); },
-    get navGithub() { return document.getElementById('nav-github'); },
+    get navImport() { return document.getElementById('nav-import'); },
     get navNew() { return document.getElementById('nav-new'); },
-    get navAdd() { return document.getElementById('nav-add'); },
     get navSearch() { return document.getElementById('nav-search'); },
     get navCustomCommands() { return document.getElementById('nav-custom-commands'); },
     get navGitConfig() { return document.getElementById('nav-git-config'); },
@@ -574,7 +573,16 @@ const elements = {
     get advSearchExport() { return document.getElementById('adv-search-export'); },
     get advSearchExportMd() { return document.getElementById('adv-search-export-md'); },
     get advSearchResults() { return document.getElementById('adv-search-results'); },
-    get advSearchResultsHeader() { return document.getElementById('adv-search-results-header'); }
+    get advSearchResultsHeader() { return document.getElementById('adv-search-results-header'); },
+    get importChoiceModal() { return document.getElementById('import-choice-modal'); },
+    get importChoiceLocal() { return document.getElementById('import-choice-local'); },
+    get importChoiceGitHub() { return document.getElementById('import-choice-github'); },
+    get importChoiceServer() { return document.getElementById('import-choice-server'); },
+    get importChoiceCancel() { return document.getElementById('import-choice-cancel'); },
+    get serverImportModal() { return document.getElementById('server-import-modal'); },
+    get serverImportUrl() { return document.getElementById('server-import-url'); },
+    get serverImportConfirm() { return document.getElementById('server-import-confirm'); },
+    get serverImportCancel() { return document.getElementById('server-import-cancel'); }
 };
 
 // Initialize app
@@ -975,14 +983,39 @@ function initEventListeners() {
         currentDashboardFilter = 'all'; // Reset filter when coming from logo
         await showDashboard(true);
     };
-    if (elements.navGithub) elements.navGithub.onclick = () => showGitHubImportModal();
+    if (elements.navImport) elements.navImport.onclick = () => showImportChoiceModal();
     if (elements.navNew) elements.navNew.onclick = () => showCreateRepoModal();
-    if (elements.navAdd) elements.navAdd.onclick = () => handleAddRepo();
     if (elements.navSearch) elements.navSearch.onclick = (e) => {
         e.stopPropagation();
         showSearchHub('advanced');
     };
     if (elements.navSettings) elements.navSettings.onclick = async () => await showSettings();
+
+    // Import Choice Modal
+    if (elements.importChoiceLocal) elements.importChoiceLocal.onclick = () => {
+        elements.importChoiceModal.style.display = 'none';
+        handleAddRepo();
+    };
+    if (elements.importChoiceGitHub) elements.importChoiceGitHub.onclick = () => {
+        elements.importChoiceModal.style.display = 'none';
+        showGitHubImportModal();
+    };
+    if (elements.importChoiceServer) elements.importChoiceServer.onclick = () => {
+        elements.importChoiceModal.style.display = 'none';
+        showServerImportModal();
+    };
+    if (elements.importChoiceCancel) elements.importChoiceCancel.onclick = () => elements.importChoiceModal.style.display = 'none';
+
+    // Server Import Modal
+    if (elements.serverImportConfirm) elements.serverImportConfirm.onclick = () => executeServerImport();
+    if (elements.serverImportCancel) elements.serverImportCancel.onclick = () => elements.serverImportModal.style.display = 'none';
+    if (elements.serverImportUrl) {
+        elements.serverImportUrl.onkeydown = (e) => {
+            if (e.key === 'Enter') executeServerImport();
+            if (e.key === 'Escape') elements.serverImportModal.style.display = 'none';
+        };
+    }
+
     if (elements.navCustomCommands) elements.navCustomCommands.onclick = async () => {
         if (!(await setActiveNavItem(elements.navCustomCommands))) return;
         await showCustomCommandsView();
@@ -7423,6 +7456,48 @@ async function handleNewItem(type, parentPath) {
         if (e.key === 'Enter') execute();
         if (e.key === 'Escape') elements.newItemModal.style.display = 'none';
     };
+}
+
+function showImportChoiceModal() {
+    elements.importChoiceModal.style.display = 'flex';
+}
+
+function showServerImportModal() {
+    elements.serverImportUrl.value = '';
+    elements.serverImportModal.style.display = 'flex';
+    setTimeout(() => elements.serverImportUrl.focus(), 10);
+}
+
+async function executeServerImport() {
+    const url = elements.serverImportUrl.value.trim();
+    if (!url) return showAlert('Please enter a valid Git URL.', 'Missing URL');
+    if (!settings.rootRepoDir) return showAlert('Set a Root Repository Folder in Settings.', 'Config Missing');
+
+    // Extract repo name from URL
+    let name = url.split('/').pop().replace(/\.git$/, '') || 'imported-repo';
+
+    elements.serverImportModal.style.display = 'none';
+    const dest = `${settings.rootRepoDir}/${name}`.replace(/\\/g, '/');
+
+    logToConsole(`Cloning from ${url}...`, 'info');
+    setTaskState(true);
+
+    try {
+        const res = await window.electronAPI.gitClone(url, dest);
+        if (res.success) {
+            logToConsole(`Successfully cloned ${name}`, 'success');
+            addRepository({ type: 'single', path: dest, name: name });
+            sortRepositories();
+            window.electronAPI.saveRepositories(repositories);
+            renderTree();
+        } else {
+            showError(res.output || 'Failed to clone repository.', 'Clone Error');
+        }
+    } catch (e) {
+        showError(e.message, 'System Error');
+    } finally {
+        setTaskState(false);
+    }
 }
 
 async function handleAddRepo() {
