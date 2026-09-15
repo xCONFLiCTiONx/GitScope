@@ -1038,15 +1038,12 @@ function initEventListeners() {
     }
 
     if (elements.navCustomCommands) elements.navCustomCommands.onclick = async () => {
-        if (!(await setActiveNavItem(elements.navCustomCommands))) return;
         await showCustomCommandsView();
     };
     if (elements.navGitConfig) elements.navGitConfig.onclick = async () => {
-        if (!(await setActiveNavItem(elements.navGitConfig))) return;
         await showGitConfigView();
     };
     if (elements.navTheme) elements.navTheme.onclick = async () => {
-        if (!(await setActiveNavItem(elements.navTheme))) return;
         await showThemeEditor();
     };
     if (elements.themeSaveBtn) elements.themeSaveBtn.onclick = () => saveThemeFromEditor();
@@ -4155,7 +4152,7 @@ function createUnbornCard(folder) {
 }
 
 async function showThemeEditor() {
-    if (!(await setActiveNavItem(null))) return;
+    if (!(await setActiveNavItem(elements.navTheme))) return;
     elements.themeEditorView.style.display = 'flex';
 
     // Intelligence: If the current theme is in the old massive format, offer to clean it
@@ -4609,6 +4606,7 @@ async function importThemeFromIni() {
 }
 
 async function showCustomCommandsView() {
+    if (!(await setActiveNavItem(elements.navCustomCommands))) return;
     elements.customCommandsView.style.display = 'flex';
 
     if (elements.customCommandSelect) {
@@ -4638,6 +4636,7 @@ async function showCustomCommandsView() {
 }
 
 async function showGitConfigView() {
+    if (!(await setActiveNavItem(elements.navGitConfig))) return;
     elements.gitConfigView.style.display = 'flex';
     elements.gitConfigSections.innerHTML = '<div style="color: var(--text-muted); padding: 20px;">Loading configuration...</div>';
 
