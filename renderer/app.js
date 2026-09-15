@@ -9487,8 +9487,12 @@ async function refreshGists() {
         if (res.expiration) updateTokenExpirationUI(res.expiration);
         renderGistList(res.gists);
     } catch (err) {
-        logToConsole(`Gist Error: ${err.message}`, 'error');
-        elements.gistList.innerHTML = `<div style="grid-column: 1 / -1; padding: 60px; text-align: center; color: var(--accent-red);">Failed to load Gists: ${err.message}</div>`;
+        let msg = err.message;
+        if (err.message.includes('403')) {
+            msg = "GitHub API Error 403: Permission Denied. Ensure your PAT has the 'gist' scope.";
+        }
+        logToConsole(`Gist Error: ${msg}`, 'error');
+        elements.gistList.innerHTML = `<div style="grid-column: 1 / -1; padding: 60px; text-align: center; color: var(--accent-red);">Failed to load Gists: ${msg}</div>`;
     } finally {
         setTaskState(false);
     }
@@ -9572,8 +9576,12 @@ if (elements.gistCreateConfirm) elements.gistCreateConfirm.onclick = async () =>
         logToConsole(`Gist created successfully: ${res.gist.html_url}`, 'success');
         await refreshGists();
     } catch (err) {
-        logToConsole(`Gist Creation Failed: ${err.message}`, 'error');
-        showError(err.message, 'Gist Error');
+        let msg = err.message;
+        if (err.message.includes('403')) {
+            msg = "GitHub API Error 403: Permission Denied.\n\nThis usually means your Personal Access Token (PAT) is missing the 'gist' scope.";
+        }
+        logToConsole(`Gist Creation Failed: ${msg}`, 'error');
+        showError(msg, 'Gist Error');
     } finally {
         setTaskState(false);
     }
@@ -9654,8 +9662,12 @@ if (elements.gistEditConfirm) elements.gistEditConfirm.onclick = async () => {
         logToConsole(`Gist updated successfully.`, 'success');
         await refreshGists();
     } catch (err) {
-        logToConsole(`Gist Update Failed: ${err.message}`, 'error');
-        showError(err.message, 'Gist Error');
+        let msg = err.message;
+        if (err.message.includes('403')) {
+            msg = "GitHub API Error 403: Permission Denied.\n\nThis usually means your Personal Access Token (PAT) is missing the 'gist' scope.";
+        }
+        logToConsole(`Gist Update Failed: ${msg}`, 'error');
+        showError(msg, 'Gist Error');
     } finally {
         setTaskState(false);
     }
@@ -9673,8 +9685,12 @@ async function handleDeleteGist(id) {
         logToConsole(`Gist deleted successfully.`, 'success');
         await refreshGists();
     } catch (err) {
-        logToConsole(`Gist Deletion Failed: ${err.message}`, 'error');
-        showError(err.message, 'Gist Error');
+        let msg = err.message;
+        if (err.message.includes('403')) {
+            msg = "GitHub API Error 403: Permission Denied.\n\nThis usually means your Personal Access Token (PAT) is missing the 'gist' scope.";
+        }
+        logToConsole(`Gist Deletion Failed: ${msg}`, 'error');
+        showError(msg, 'Gist Error');
     } finally {
         setTaskState(false);
     }
