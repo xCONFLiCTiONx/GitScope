@@ -6310,24 +6310,52 @@ async function saveCurrentFile() {
     if (!currentEditingPath || !monacoEditor) return;
     try {
         const newContent = monacoEditor.getValue();
-        await window.electronAPI.writeFile(currentEditingPath, newContent);
-        logToConsole('Saved.', 'success');
+
+        if (currentEditingPath.startsWith('gist://')) {
+            const parts = currentEditingPath.replace('gist://', '').split('/');
+            const gistId = parts[0];
+            const filename = parts.slice(1).join('/');
+
+            setTaskState(true);
+            logToConsole(`Updating Gist file: ${filename}...`, 'info');
+
+            const files = {};
+            files[filename] = { content: newContent };
+
+            const res = await window.electronAPI.updateGitHubGist(settings.githubToken, gistId, null, files);
+            if (res.expiration) updateTokenExpirationUI(res.expiration);
+            logToConsole(`Gist file saved successfully.`, 'success');
+        } else {
+            await window.electronAPI.writeFile(currentEditingPath, newContent);
+            logToConsole('Saved.', 'success');
+        }
 
         // Reset original content to new saved state
         originalFileContent = newContent;
         updateEditorButtonStates(false);
 
-        updateTreeHighlights();
+        if (!currentEditingPath.startsWith('gist://')) {
+            updateTreeHighlights();
+        }
     } catch (e) {
         logToConsole(e.message, 'error');
         showError(e.message, 'Save Failed');
+    } finally {
+        if (currentEditingPath.startsWith('gist://')) setTaskState(false);
     }
 }
 
 async function closeEditor() {
+    const wasGist = currentEditingPath && currentEditingPath.startsWith('gist://');
     if (!(await setActiveNavItem(null))) return;
-    if (activeRepo) elements.repoView.style.display = 'flex';
-    else await showDashboard();
+
+    if (wasGist) {
+        await showGistView();
+    } else if (activeRepo) {
+        elements.repoView.style.display = 'flex';
+    } else {
+        await showDashboard();
+    }
 }
 
 function logToConsole(msg, type = 'info') {
@@ -9657,13 +9685,18 @@ function showGistEditModal(gist) {
         row.innerHTML = `
             <div style="display: flex; justify-content: space-between; align-items: center;">
                 <label style="font-size: 11px; font-weight: 700; color: var(--text-muted);">${filename}</label>
-                <input type="text" class="settings-input new-filename" value="${filename}" style="width: 150px; height: 24px; font-size: 10px;" placeholder="Rename to...">
+                <div style="display: flex; gap: 8px; align-items: center;">
+                    <button class="button gist-open-editor-btn" style="padding: 2px 6px; font-size: 10px;" title="Open in Full Editor">Open in Editor</button>
+                    <input type="text" class="settings-input new-filename" value="${filename}" style="width: 150px; height: 24px; font-size: 10px;" placeholder="Rename to...">
+                </div>
             </div>
             <textarea class="settings-input file-content" style="height: 120px; resize: vertical; font-family: monospace; font-size: 12px;"></textarea>
         `;
 
         const textArea = row.querySelector('.file-content');
         textArea.value = gist.files[filename].content || 'Loading...';
+
+        row.querySelector('.gist-open-editor-btn').onclick = () => openGistFileInEditor(gist, filename);
 
         container.appendChild(row);
 
@@ -9742,6 +9775,99 @@ async function handleDeleteGist(id) {
         showError(msg, 'Gist Error');
     } finally {
         setTaskState(false);
+    }
+}
+
+async function openGistFileInEditor(gist, filename) {
+    elements.gistEditModal.style.display = 'none';
+    if (!(await setActiveNavItem(null))) return;
+
+    if (!monacoEditor) return;
+
+    try {
+        currentEditingPath = `gist://${gist.id}/${filename}`;
+        elements.editorView.style.display = 'flex';
+        elements.editorFileName.textContent = `Gist: ${filename}`;
+
+        // Reset UI States
+        if (elements.mdViewControls) elements.mdViewControls.style.display = 'none';
+        elements.gitignoreScanBtn.style.display = 'none';
+        elements.editorSaveBtn.style.display = 'block';
+
+        // Essential: Clear inline display styles so CSS classes can take over
+        if (elements.monacoContainer) elements.monacoContainer.style.display = '';
+        if (elements.markdownPreview) elements.markdownPreview.style.display = '';
+        if (elements.htmlPreview) elements.htmlPreview.style.display = 'none';
+        if (elements.imagePreview) elements.imagePreview.style.display = 'none';
+
+        let content = gist.files[filename].content;
+        if (!content) {
+            setTaskState(true);
+            const res = await fetch(gist.files[filename].raw_url);
+            content = await res.text();
+            gist.files[filename].content = content;
+            setTaskState(false);
+        }
+
+        originalFileContent = content ? content.replace(/\r\n/g, '\n') : '';
+
+        // Intelligence: Automatically detect language using Monaco's internal registry
+        let detectedLanguage = 'plaintext';
+        const ext = filename.split('.').pop().toLowerCase();
+        if (typeof monaco !== 'undefined') {
+            const extension = '.' + ext;
+            const languages = monaco.languages.getLanguages();
+            const matchedLang = languages.find(lang =>
+                (lang.extensions && lang.extensions.includes(extension))
+            );
+            if (matchedLang) {
+                detectedLanguage = matchedLang.id;
+            }
+        }
+
+        const isMarkdown = detectedLanguage === 'markdown';
+        const isHTML = detectedLanguage === 'html';
+        const isRenderable = isMarkdown || isHTML;
+
+        if (elements.mdViewControls) elements.mdViewControls.style.display = isRenderable ? 'flex' : 'none';
+
+        const oldModel = monacoEditor.getModel();
+        if (oldModel) oldModel.dispose();
+
+        const model = monaco.editor.createModel(originalFileContent, detectedLanguage);
+        monacoEditor.setModel(model);
+
+        // Track changes
+        model.onDidChangeContent(() => {
+            const hasChanges = hasUnsavedChanges();
+            setTimeout(() => updateEditorButtonStates(hasChanges), 10);
+            if (isRenderable) {
+                const isShowingPreview = elements.editorContainerWrapper.classList.contains('editor-mode-split') ||
+                                       elements.editorContainerWrapper.classList.contains('editor-mode-preview');
+                if (isShowingPreview) {
+                    updateMarkdownPreviewContent();
+                }
+            }
+        });
+
+        if (isRenderable) {
+            setMarkdownViewMode('preview');
+        } else {
+            setMarkdownViewMode('standard');
+        }
+
+        updateEditorButtonStates(false);
+        updateEditorFileInfo();
+
+        setTimeout(() => {
+            monacoEditor.layout();
+            monacoEditor.focus();
+        }, 50);
+
+    } catch (e) {
+        if (currentEditingPath.startsWith('gist://')) setTaskState(false);
+        logToConsole(e.message, 'error');
+        showError(e.message, 'Open Gist Failed');
     }
 }
 

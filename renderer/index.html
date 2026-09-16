@@ -535,7 +535,7 @@
         }
 
         /* Views common padding */
-        #dashboard-view, #repo-view, #settings-view, #custom-commands-view, #editor-view, #git-config-view, #theme-editor-view {
+        #dashboard-view, #repo-view, #settings-view, #custom-commands-view, #editor-view, #git-config-view, #theme-editor-view, #gist-view {
             padding: 20px 24px 0 24px; /* Removed bottom padding to attach to console */
             flex: 1;
             min-height: 0;
@@ -559,7 +559,7 @@
             flex-direction: column;
         }
 
-        #dashboard-view, #settings-view, #custom-commands-view, #git-config-view {
+        #dashboard-view, #settings-view, #custom-commands-view, #git-config-view, #gist-view {
             overflow-y: auto;
         }
 
@@ -1320,7 +1320,7 @@
             </div>
 
             <!-- Gist View -->
-            <div id="gist-view" style="display: none; flex-direction: column; overflow-y: auto;">
+            <div id="gist-view">
                 <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 24px; border-bottom: 1px solid var(--border-color); padding-bottom: 16px;">
                     <div>
                         <h1 style="margin: 0; font-size: 28px; font-weight: 700;">GitHub Gists</h1>
