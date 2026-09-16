@@ -305,6 +305,7 @@ const elements = {
     get gistCreateModal() { return document.getElementById('gist-create-modal'); },
     get gistCreateDescription() { return document.getElementById('gist-create-description'); },
     get gistCreateFilename() { return document.getElementById('gist-create-filename'); },
+    get gistCreateBrowse() { return document.getElementById('gist-create-browse'); },
     get gistCreatePublic() { return document.getElementById('gist-create-public'); },
     get gistCreateContent() { return document.getElementById('gist-create-content'); },
     get gistCreateConfirm() { return document.getElementById('gist-create-confirm'); },
@@ -9575,6 +9576,32 @@ if (elements.gistNewBtn) elements.gistNewBtn.onclick = () => {
     elements.gistCreateFilename.value = '';
     elements.gistCreateContent.value = '';
     elements.gistCreatePublic.checked = false;
+};
+
+if (elements.gistCreateBrowse) elements.gistCreateBrowse.onclick = async () => {
+    const filePath = await window.electronAPI.showOpenDialog({
+        properties: ['openFile'],
+        title: 'Select file for Gist',
+        buttonLabel: 'Select File'
+    });
+
+    if (filePath) {
+        // In Node.js, path.basename(filePath) would work, but here we are in renderer.
+        // We can split by / or \.
+        const fileName = filePath.split(/[\\/]/).pop();
+
+        try {
+            const res = await window.electronAPI.readFile(filePath);
+            elements.gistCreateFilename.value = fileName;
+            elements.gistCreateContent.value = res.content;
+            if (!elements.gistCreateDescription.value) {
+                elements.gistCreateDescription.value = fileName;
+            }
+        } catch (err) {
+            logToConsole(`Failed to read file: ${err.message}`, 'error');
+            showError(`Could not read file: ${err.message}`, 'File Error');
+        }
+    }
 };
 
 if (elements.gistCreateCancel) elements.gistCreateCancel.onclick = () => elements.gistCreateModal.style.display = 'none';

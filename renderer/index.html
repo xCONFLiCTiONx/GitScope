@@ -2077,7 +2077,10 @@
             <h3>Create New Gist</h3>
             <div style="display: flex; flex-direction: column; gap: 12px; margin-top: 16px;">
                 <input type="text" id="gist-create-description" class="settings-input" placeholder="Description (e.g. Utility script)">
-                <input type="text" id="gist-create-filename" class="settings-input" placeholder="Filename (e.g. utils.js)">
+                <div style="display: flex; gap: 8px;">
+                    <input type="text" id="gist-create-filename" class="settings-input" style="flex: 1;" placeholder="Filename (e.g. utils.js)">
+                    <button id="gist-create-browse" class="button" style="padding: 0 12px;" title="Browse file...">📂</button>
+                </div>
                 <label style="display: flex; align-items: center; gap: 8px; font-size: 13px; color: #fff;">
                     <input type="checkbox" id="gist-create-public">
                     <span>Public Gist</span>
