@@ -752,6 +752,31 @@ function initEditor() {
                 saveCurrentFile();
             });
 
+            // INTELLIGENCE: Add Chrome integration to editor context menu
+            monacoEditor.addAction({
+                id: 'open-in-chrome-source',
+                label: 'Open in Chrome (Source)',
+                contextMenuGroupId: 'navigation',
+                contextMenuOrder: 1,
+                run: () => {
+                    if (currentEditingPath && !currentEditingPath.startsWith('gist://')) {
+                        window.electronAPI.openInChromeSource(currentEditingPath);
+                    }
+                }
+            });
+
+            monacoEditor.addAction({
+                id: 'open-in-chrome-normal',
+                label: 'Open in Chrome (Normal)',
+                contextMenuGroupId: 'navigation',
+                contextMenuOrder: 2,
+                run: () => {
+                    if (currentEditingPath && !currentEditingPath.startsWith('gist://')) {
+                        window.electronAPI.openFileInChrome(currentEditingPath);
+                    }
+                }
+            });
+
             logToConsole('Code Editor ready.', 'info');
         });
     }
@@ -1132,7 +1157,7 @@ function initEventListeners() {
     if (elements.markdownPreview) {
         elements.markdownPreview.oncontextmenu = (e) => {
             e.preventDefault();
-            window.electronAPI.showContextMenu({ type: 'preview' });
+            window.electronAPI.showContextMenu({ type: 'preview', path: currentEditingPath });
         };
     }
 
@@ -1143,7 +1168,7 @@ function initEventListeners() {
                 if (doc) {
                     doc.oncontextmenu = (e) => {
                         e.preventDefault();
-                        window.electronAPI.showContextMenu({ type: 'preview-readonly' });
+                        window.electronAPI.showContextMenu({ type: 'preview-readonly', path: currentEditingPath });
                     };
                 }
             } catch (err) {
@@ -8131,7 +8156,7 @@ function updateMarkdownPreviewContent() {
             if (doc) {
                 doc.oncontextmenu = (e) => {
                     e.preventDefault();
-                    window.electronAPI.showContextMenu({ type: 'preview-readonly' });
+                    window.electronAPI.showContextMenu({ type: 'preview-readonly', path: currentEditingPath });
                 };
             }
         } catch(e) {}

@@ -1685,6 +1685,28 @@ ipcMain.handle('show-context-menu', async (event, options) => {
       { type: 'separator' },
       { role: 'selectAll' }
     ];
+
+    if (options.path && !options.path.startsWith('gist://')) {
+      template.push({ type: 'separator' });
+      template.push({
+        label: 'Open in Chrome (Source)',
+        click: () => openInChromeSource(options.path)
+      });
+      template.push({
+        label: 'Open in Chrome (Normal)',
+        click: () => {
+          const absolutePath = path.resolve(options.path);
+          const chromePath = findChrome();
+          if (chromePath) {
+            const { spawn } = require('child_process');
+            spawn(chromePath, ['--new-window', absolutePath], { detached: true, stdio: 'ignore' }).unref();
+          } else {
+            shell.openExternal(`file:///${absolutePath.replace(/\\/g, '/')}`);
+          }
+        }
+      });
+    }
+
     const menu = Menu.buildFromTemplate(template);
     menu.popup(BrowserWindow.fromWebContents(event.sender));
     return;
@@ -1696,6 +1718,28 @@ ipcMain.handle('show-context-menu', async (event, options) => {
       { type: 'separator' },
       { role: 'selectAll' }
     ];
+
+    if (options.path && !options.path.startsWith('gist://')) {
+      template.push({ type: 'separator' });
+      template.push({
+        label: 'Open in Chrome (Source)',
+        click: () => openInChromeSource(options.path)
+      });
+      template.push({
+        label: 'Open in Chrome (Normal)',
+        click: () => {
+          const absolutePath = path.resolve(options.path);
+          const chromePath = findChrome();
+          if (chromePath) {
+            const { spawn } = require('child_process');
+            spawn(chromePath, ['--new-window', absolutePath], { detached: true, stdio: 'ignore' }).unref();
+          } else {
+            shell.openExternal(`file:///${absolutePath.replace(/\\/g, '/')}`);
+          }
+        }
+      });
+    }
+
     const menu = Menu.buildFromTemplate(template);
     menu.popup(BrowserWindow.fromWebContents(event.sender));
     return;
@@ -1765,24 +1809,6 @@ ipcMain.handle('show-context-menu', async (event, options) => {
           {
             label: 'Execute as Admin',
             click: () => event.sender.send('context-menu-command', { command: 'execute-admin', path: paths[0] })
-          },
-          { type: 'separator' },
-          {
-            label: 'Open in Chrome (Source)',
-            click: () => openInChromeSource(paths[0])
-          },
-          {
-            label: 'Open in Chrome (Normal)',
-            click: () => {
-              const absolutePath = path.resolve(paths[0]);
-              const chromePath = findChrome();
-              if (chromePath) {
-                const { spawn } = require('child_process');
-                spawn(chromePath, ['--new-window', absolutePath], { detached: true, stdio: 'ignore' }).unref();
-              } else {
-                shell.openExternal(`file:///${absolutePath.replace(/\\/g, '/')}`);
-              }
-            }
           }
         ]
       });
@@ -1792,6 +1818,25 @@ ipcMain.handle('show-context-menu', async (event, options) => {
     // Convert Menu
     const binaryExts = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'ico', 'svg', 'exe', 'dll', 'zip', 'tar', 'gz', 'pdf'];
     if (!binaryExts.includes(ext)) {
+      template.push({
+        label: 'Open in Chrome (Source)',
+        click: () => openInChromeSource(paths[0])
+      });
+      template.push({
+        label: 'Open in Chrome (Normal)',
+        click: () => {
+          const absolutePath = path.resolve(paths[0]);
+          const chromePath = findChrome();
+          if (chromePath) {
+            const { spawn } = require('child_process');
+            spawn(chromePath, ['--new-window', absolutePath], { detached: true, stdio: 'ignore' }).unref();
+          } else {
+            shell.openExternal(`file:///${absolutePath.replace(/\\/g, '/')}`);
+          }
+        }
+      });
+      template.push({ type: 'separator' });
+
       template.push({
         label: 'Convert',
         submenu: [
