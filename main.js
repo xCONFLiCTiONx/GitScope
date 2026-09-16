@@ -1521,6 +1521,41 @@ ipcMain.handle('open-in-android-studio', async (event, filePath) => {
   tryNext(0);
 });
 
+async function openInChromeSource(filePath) {
+  try {
+    const absolutePath = path.resolve(filePath);
+    const chromeFriendlyPath = `view-source:file:///${absolutePath.replace(/\\/g, '/')}`;
+
+    // Intelligence: Try to force the actual Chrome browser if on Windows
+    if (process.platform === 'win32') {
+      const { exec } = require('child_process');
+      const chromePaths = [
+        'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
+        'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
+        path.join(process.env.LOCALAPPDATA || '', 'Google', 'Chrome', 'Application', 'chrome.exe')
+      ];
+
+      for (const p of chromePaths) {
+        if (fs.existsSync(p)) {
+          exec(`"${p}" "${chromeFriendlyPath}"`);
+          return { success: true, forced: true };
+        }
+      }
+    }
+
+    // Fallback: Open in the default system browser
+    shell.openExternal(chromeFriendlyPath);
+    return { success: true, forced: false };
+  } catch (e) {
+    console.error('Failed to open in Chrome (Source):', e);
+    return { success: false, error: e.message };
+  }
+}
+
+ipcMain.handle('open-in-chrome-source', async (event, filePath) => {
+  return await openInChromeSource(filePath);
+});
+
 ipcMain.handle('open-external-terminal', async (event, repoPath) => {
   const { spawn } = require('child_process');
   // -d sets the starting directory to the repository path
@@ -1702,6 +1737,13 @@ ipcMain.handle('show-context-menu', async (event, options) => {
           {
             label: 'Execute as Admin',
             click: () => event.sender.send('context-menu-command', { command: 'execute-admin', path: paths[0] })
+          },
+          { type: 'separator' },
+          {
+            label: 'Open in Chrome (Source)',
+            click: () => {
+              openInChromeSource(paths[0]);
+            }
           }
         ]
       });
