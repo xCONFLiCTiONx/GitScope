@@ -1537,11 +1537,13 @@ async function openInChromeSource(filePath) {
     const absolutePath = path.resolve(filePath);
     const chromePath = findChrome();
 
+    // Format the path correctly for Chrome's URL handling
+    const fileUrl = `file:///${absolutePath.replace(/\\/g, '/')}`;
+    const chromeFriendlyPath = `view-source:${fileUrl}`;
+
     if (chromePath) {
-      // Using view-source: with the raw absolute path is the most reliable way
-      // to force plain-text mode when spawning the process directly.
-      const arg = `view-source:${absolutePath}`;
-      spawn(chromePath, ['--new-window', arg], {
+      // Launching Chrome directly with the formatted URL
+      spawn(chromePath, ['--new-window', chromeFriendlyPath], {
         detached: true,
         stdio: 'ignore'
       }).unref();
@@ -1549,7 +1551,6 @@ async function openInChromeSource(filePath) {
     }
 
     // Fallback: Use the system default browser with the protocol
-    const chromeFriendlyPath = `view-source:file:///${absolutePath.replace(/\\/g, '/')}`;
     shell.openExternal(chromeFriendlyPath);
     return { success: true, forced: false };
   } catch (e) {
@@ -1768,19 +1769,18 @@ ipcMain.handle('show-context-menu', async (event, options) => {
           { type: 'separator' },
           {
             label: 'Open in Chrome (Source)',
-            click: () => {
-              openInChromeSource(paths[0]);
-            }
+            click: () => openInChromeSource(paths[0])
           },
           {
             label: 'Open in Chrome (Normal)',
             click: () => {
-              const { spawn } = require('child_process');
+              const absolutePath = path.resolve(paths[0]);
               const chromePath = findChrome();
               if (chromePath) {
-                spawn(chromePath, ['--new-window', path.resolve(paths[0])], { detached: true, stdio: 'ignore' }).unref();
+                const { spawn } = require('child_process');
+                spawn(chromePath, ['--new-window', absolutePath], { detached: true, stdio: 'ignore' }).unref();
               } else {
-                shell.openExternal(`file:///${path.resolve(paths[0]).replace(/\\/g, '/')}`);
+                shell.openExternal(`file:///${absolutePath.replace(/\\/g, '/')}`);
               }
             }
           }
