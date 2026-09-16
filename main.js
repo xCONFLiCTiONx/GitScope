@@ -1521,29 +1521,35 @@ ipcMain.handle('open-in-android-studio', async (event, filePath) => {
   tryNext(0);
 });
 
+function findChrome() {
+  if (process.platform !== 'win32') return null;
+  const locations = [
+      path.join(process.env.PROGRAMFILES || '', 'Google', 'Chrome', 'Application', 'chrome.exe'),
+      path.join(process.env['PROGRAMFILES(X86)'] || '', 'Google', 'Chrome', 'Application', 'chrome.exe'),
+      path.join(process.env.LOCALAPPDATA || '', 'Google', 'Chrome', 'Application', 'chrome.exe')
+  ];
+  return locations.find(p => p && fs.existsSync(p));
+}
+
 async function openInChromeSource(filePath) {
   try {
+    const { spawn } = require('child_process');
     const absolutePath = path.resolve(filePath);
-    const chromeFriendlyPath = `view-source:file:///${absolutePath.replace(/\\/g, '/')}`;
+    const chromePath = findChrome();
 
-    // Intelligence: Try to force the actual Chrome browser if on Windows
-    if (process.platform === 'win32') {
-      const { exec } = require('child_process');
-      const chromePaths = [
-        'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
-        'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
-        path.join(process.env.LOCALAPPDATA || '', 'Google', 'Chrome', 'Application', 'chrome.exe')
-      ];
-
-      for (const p of chromePaths) {
-        if (fs.existsSync(p)) {
-          exec(`"${p}" "${chromeFriendlyPath}"`);
-          return { success: true, forced: true };
-        }
-      }
+    if (chromePath) {
+      // Using view-source: with the raw absolute path is the most reliable way
+      // to force plain-text mode when spawning the process directly.
+      const arg = `view-source:${absolutePath}`;
+      spawn(chromePath, ['--new-window', arg], {
+        detached: true,
+        stdio: 'ignore'
+      }).unref();
+      return { success: true, forced: true };
     }
 
-    // Fallback: Open in the default system browser
+    // Fallback: Use the system default browser with the protocol
+    const chromeFriendlyPath = `view-source:file:///${absolutePath.replace(/\\/g, '/')}`;
     shell.openExternal(chromeFriendlyPath);
     return { success: true, forced: false };
   } catch (e) {
@@ -1554,6 +1560,27 @@ async function openInChromeSource(filePath) {
 
 ipcMain.handle('open-in-chrome-source', async (event, filePath) => {
   return await openInChromeSource(filePath);
+});
+
+ipcMain.handle('open-file-in-chrome', async (event, filePath) => {
+  try {
+    const { spawn } = require('child_process');
+    const chromePath = findChrome();
+    if (!chromePath) throw new Error('Google Chrome is not installed.');
+
+    const absolutePath = path.resolve(filePath);
+    if (!fs.existsSync(absolutePath)) throw new Error(`File does not exist: ${absolutePath}`);
+
+    spawn(chromePath, ['--new-window', absolutePath], {
+        detached: true,
+        stdio: 'ignore'
+    }).unref();
+
+    return { success: true };
+  } catch (e) {
+    console.error('Failed to open in Chrome:', e);
+    return { success: false, error: e.message };
+  }
 });
 
 ipcMain.handle('open-external-terminal', async (event, repoPath) => {
@@ -1743,6 +1770,18 @@ ipcMain.handle('show-context-menu', async (event, options) => {
             label: 'Open in Chrome (Source)',
             click: () => {
               openInChromeSource(paths[0]);
+            }
+          },
+          {
+            label: 'Open in Chrome (Normal)',
+            click: () => {
+              const { spawn } = require('child_process');
+              const chromePath = findChrome();
+              if (chromePath) {
+                spawn(chromePath, ['--new-window', path.resolve(paths[0])], { detached: true, stdio: 'ignore' }).unref();
+              } else {
+                shell.openExternal(`file:///${path.resolve(paths[0]).replace(/\\/g, '/')}`);
+              }
             }
           }
         ]
