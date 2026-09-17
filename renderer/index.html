@@ -2,7 +2,6 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>GitScope</title>
     <link rel="stylesheet" href="../node_modules/xterm/css/xterm.css" />
     <style>
         /* Local Font Support */
@@ -253,36 +252,6 @@
             overflow: hidden;
         }
 
-        /* App Header */
-        #app-header {
-            height: 40px;
-            background-color: var(--bg-sidebar);
-            border-bottom: 1px solid var(--border-color);
-            display: flex;
-            align-items: center;
-            padding: 0 16px;
-            -webkit-app-region: drag;
-        }
-        #app-logo-box {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            cursor: pointer;
-            -webkit-app-region: no-drag;
-            transition: transform 0.2s ease;
-        }
-        #app-logo-box:hover { transform: scale(1.02); }
-        #app-logo {
-            width: 28px;
-            height: 28px;
-            object-fit: contain;
-            background: transparent;
-            display: block;
-            -webkit-mask-image: radial-gradient(circle, black 35%, transparent 75%);
-            mask-image: radial-gradient(circle, black 35%, transparent 75%);
-            filter: brightness(1.4) contrast(2) drop-shadow(0 0 3px rgba(35, 134, 54, 0.6));
-        }
-        #app-name { font-size: 12px; font-weight: 600; color: #fff; letter-spacing: 0.5px; }
 
         /* Activity Bar (Nav Rail) */
         #nav-rail {
@@ -1219,12 +1188,6 @@
 </head>
 <body>
     <div id="global-progress-container"><div id="global-progress-bar"></div></div>
-    <div id="app-header">
-        <div id="app-logo-box" title="Return to Dashboard">
-            <img src="../ICON.png" id="app-logo" alt="GitScope Logo">
-            <span id="app-name">GITSCOPE</span>
-        </div>
-    </div>
     <div id="top-container">
         <div id="nav-rail">
             <div id="nav-home" class="nav-item active" title="Dashboard">
