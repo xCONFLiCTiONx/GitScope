@@ -1558,6 +1558,49 @@ ipcMain.handle('open-file-in-chrome', async (event, filePath) => {
   return await openFileInChrome(filePath);
 });
 
+ipcMain.handle('open-content-in-chrome', async (event, { content, filename, identifier, skipOpen }) => {
+  try {
+    const tempDir = app.getPath('temp');
+    let tempPath;
+
+    if (identifier) {
+      // Use a deterministic filename for Gists/Gists identifier so refresh works in Chrome
+      const safeId = String(identifier).replace(/[:\/\\?%*|"<> ]/g, '_');
+      tempPath = path.join(tempDir, `gs_gist_${safeId}_${filename}`);
+    } else {
+      tempPath = path.join(tempDir, `gitscope_preview_${Date.now()}_${filename}`);
+    }
+
+    await fs.writeFile(tempPath, content, 'utf8');
+
+    if (skipOpen) {
+      return { success: true, path: tempPath };
+    }
+
+    // Automatically cleanup old generic temp files from previous sessions
+    setTimeout(async () => {
+      try {
+        const files = await fs.readdir(tempDir);
+        for (const f of files) {
+          if (f.startsWith('gitscope_preview_') || f.startsWith('gs_gist_')) {
+            const oldPath = path.join(tempDir, f);
+            const stats = await fs.stat(oldPath);
+            // Delete if older than 4 hours
+            if (Date.now() - stats.mtimeMs > 14400000) {
+              await fs.remove(oldPath);
+            }
+          }
+        }
+      } catch(e) {}
+    }, 5000);
+
+    return await openFileInChrome(tempPath);
+  } catch (e) {
+    console.error('Failed to open content in Chrome:', e);
+    return { success: false, error: e.message };
+  }
+});
+
 ipcMain.handle('open-external-terminal', async (event, repoPath) => {
   const { spawn } = require('child_process');
   // -d sets the starting directory to the repository path

@@ -1291,7 +1291,19 @@ function initEventListeners() {
         logToConsole(`Word wrap: ${next.toUpperCase()}`, 'info');
     };
     if (elements.editorChromeBtn) elements.editorChromeBtn.onclick = () => {
-        if (currentEditingPath && !currentEditingPath.startsWith('gist://')) {
+        if (!currentEditingPath) return;
+
+        if (currentEditingPath.startsWith('gist://')) {
+            // Handle Gists by saving to a deterministic temp file
+            const content = monacoEditor.getValue();
+            const filename = currentEditingPath.split('/').pop() || 'gist_file.txt';
+            window.electronAPI.openContentInChrome({
+                content,
+                filename,
+                identifier: currentEditingPath
+            });
+        } else {
+            // Handle regular files
             window.electronAPI.openFileInChrome(currentEditingPath);
         }
     };
@@ -6330,6 +6342,16 @@ async function saveCurrentFile() {
 
             const res = await window.electronAPI.updateGitHubGist(settings.githubToken, gistId, null, files);
             if (res.expiration) updateTokenExpirationUI(res.expiration);
+
+            // Intelligence: Sync the temp file if it was previously opened in Chrome
+            // This allows the user to refresh the Chrome tab and see the latest saved changes
+            await window.electronAPI.openContentInChrome({
+                content: newContent,
+                filename: filename,
+                identifier: currentEditingPath,
+                skipOpen: true
+            });
+
             logToConsole(`Gist file saved successfully.`, 'success');
         } else {
             await window.electronAPI.writeFile(currentEditingPath, newContent);
