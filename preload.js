@@ -114,7 +114,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
   openVSCode: (path) => ipcRenderer.invoke('open-in-vscode', path),
   openAndroidStudio: (path) => ipcRenderer.invoke('open-in-android-studio', path),
   openVisualStudio: (path) => ipcRenderer.invoke('open-in-visual-studio', path),
-  openInChromeSource: (path) => ipcRenderer.invoke('open-in-chrome-source', path),
   openFileInChrome: (path) => ipcRenderer.invoke('open-file-in-chrome', path),
   openExternalTerminal: (path) => ipcRenderer.invoke('open-external-terminal', path),
   openPath: (path) => ipcRenderer.invoke('open-path', path),

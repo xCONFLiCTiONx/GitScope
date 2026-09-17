@@ -1531,57 +1531,31 @@ function findChrome() {
   return locations.find(p => p && fs.existsSync(p));
 }
 
-async function openInChromeSource(filePath) {
+async function openFileInChrome(filePath) {
   try {
     const { spawn } = require('child_process');
-    const absolutePath = path.resolve(filePath);
     const chromePath = findChrome();
-
-    // Format the path correctly for Chrome's URL handling
-    const fileUrl = `file:///${absolutePath.replace(/\\/g, '/')}`;
-    const chromeFriendlyPath = `view-source:${fileUrl}`;
+    const absolutePath = path.resolve(filePath);
 
     if (chromePath) {
-      // Launching Chrome directly with the formatted URL
-      spawn(chromePath, ['--new-window', chromeFriendlyPath], {
+      spawn(chromePath, ['--new-window', absolutePath], {
         detached: true,
         stdio: 'ignore'
       }).unref();
       return { success: true, forced: true };
     }
 
-    // Fallback: Use the system default browser with the protocol
-    shell.openExternal(chromeFriendlyPath);
+    // Fallback: Use the system default browser
+    shell.openExternal(`file:///${absolutePath.replace(/\\/g, '/')}`);
     return { success: true, forced: false };
-  } catch (e) {
-    console.error('Failed to open in Chrome (Source):', e);
-    return { success: false, error: e.message };
-  }
-}
-
-ipcMain.handle('open-in-chrome-source', async (event, filePath) => {
-  return await openInChromeSource(filePath);
-});
-
-ipcMain.handle('open-file-in-chrome', async (event, filePath) => {
-  try {
-    const { spawn } = require('child_process');
-    const chromePath = findChrome();
-    if (!chromePath) throw new Error('Google Chrome is not installed.');
-
-    const absolutePath = path.resolve(filePath);
-    if (!fs.existsSync(absolutePath)) throw new Error(`File does not exist: ${absolutePath}`);
-
-    spawn(chromePath, ['--new-window', absolutePath], {
-        detached: true,
-        stdio: 'ignore'
-    }).unref();
-
-    return { success: true };
   } catch (e) {
     console.error('Failed to open in Chrome:', e);
     return { success: false, error: e.message };
   }
+}
+
+ipcMain.handle('open-file-in-chrome', async (event, filePath) => {
+  return await openFileInChrome(filePath);
 });
 
 ipcMain.handle('open-external-terminal', async (event, repoPath) => {
@@ -1689,21 +1663,8 @@ ipcMain.handle('show-context-menu', async (event, options) => {
     if (options.path && !options.path.startsWith('gist://')) {
       template.push({ type: 'separator' });
       template.push({
-        label: 'Open in Chrome (Source)',
-        click: () => openInChromeSource(options.path)
-      });
-      template.push({
-        label: 'Open in Chrome (Normal)',
-        click: () => {
-          const absolutePath = path.resolve(options.path);
-          const chromePath = findChrome();
-          if (chromePath) {
-            const { spawn } = require('child_process');
-            spawn(chromePath, ['--new-window', absolutePath], { detached: true, stdio: 'ignore' }).unref();
-          } else {
-            shell.openExternal(`file:///${absolutePath.replace(/\\/g, '/')}`);
-          }
-        }
+        label: 'Open in Chrome',
+        click: () => openFileInChrome(options.path)
       });
     }
 
@@ -1722,21 +1683,8 @@ ipcMain.handle('show-context-menu', async (event, options) => {
     if (options.path && !options.path.startsWith('gist://')) {
       template.push({ type: 'separator' });
       template.push({
-        label: 'Open in Chrome (Source)',
-        click: () => openInChromeSource(options.path)
-      });
-      template.push({
-        label: 'Open in Chrome (Normal)',
-        click: () => {
-          const absolutePath = path.resolve(options.path);
-          const chromePath = findChrome();
-          if (chromePath) {
-            const { spawn } = require('child_process');
-            spawn(chromePath, ['--new-window', absolutePath], { detached: true, stdio: 'ignore' }).unref();
-          } else {
-            shell.openExternal(`file:///${absolutePath.replace(/\\/g, '/')}`);
-          }
-        }
+        label: 'Open in Chrome',
+        click: () => openFileInChrome(options.path)
       });
     }
 
@@ -1819,25 +1767,6 @@ ipcMain.handle('show-context-menu', async (event, options) => {
     const binaryExts = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'ico', 'svg', 'exe', 'dll', 'zip', 'tar', 'gz', 'pdf'];
     if (!binaryExts.includes(ext)) {
       template.push({
-        label: 'Open in Chrome (Source)',
-        click: () => openInChromeSource(paths[0])
-      });
-      template.push({
-        label: 'Open in Chrome (Normal)',
-        click: () => {
-          const absolutePath = path.resolve(paths[0]);
-          const chromePath = findChrome();
-          if (chromePath) {
-            const { spawn } = require('child_process');
-            spawn(chromePath, ['--new-window', absolutePath], { detached: true, stdio: 'ignore' }).unref();
-          } else {
-            shell.openExternal(`file:///${absolutePath.replace(/\\/g, '/')}`);
-          }
-        }
-      });
-      template.push({ type: 'separator' });
-
-      template.push({
         label: 'Convert',
         submenu: [
           {
@@ -1881,6 +1810,18 @@ ipcMain.handle('show-context-menu', async (event, options) => {
       label: isMulti ? `In Visual Studio (${totalCount})` : 'In Visual Studio',
       click: () => event.sender.send('context-menu-command', { command: 'open-visual-studio', paths })
     });
+  }
+
+  // Intelligence: Add Open in Chrome to the Open submenu
+  if (!isFolder && totalCount === 1) {
+    const ext = paths[0].split('.').pop().toLowerCase();
+    const binaryExts = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'ico', 'svg', 'exe', 'dll', 'zip', 'tar', 'gz', 'pdf'];
+    if (!binaryExts.includes(ext)) {
+      openSubmenu.push({
+        label: 'Open in Chrome',
+        click: () => openFileInChrome(paths[0])
+      });
+    }
   }
   openSubmenu.push({
     label: isMulti ? `Show in Folder (${totalCount})` : 'Show in Folder',

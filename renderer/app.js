@@ -301,6 +301,7 @@ const elements = {
     get gistView() { return document.getElementById('gist-view'); },
     get gistList() { return document.getElementById('gist-list'); },
     get gistRefreshBtn() { return document.getElementById('gist-refresh-btn'); },
+    get editorChromeBtn() { return document.getElementById('editor-chrome-btn'); },
     get gistNewBtn() { return document.getElementById('gist-new-btn'); },
     get gistCreateModal() { return document.getElementById('gist-create-modal'); },
     get gistCreateDescription() { return document.getElementById('gist-create-description'); },
@@ -750,31 +751,6 @@ function initEditor() {
             // PRO FEATURE: Save with Ctrl+S
             monacoEditor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => {
                 saveCurrentFile();
-            });
-
-            // INTELLIGENCE: Add Chrome integration to editor context menu
-            monacoEditor.addAction({
-                id: 'open-in-chrome-source',
-                label: 'Open in Chrome (Source)',
-                contextMenuGroupId: 'navigation',
-                contextMenuOrder: 1,
-                run: () => {
-                    if (currentEditingPath && !currentEditingPath.startsWith('gist://')) {
-                        window.electronAPI.openInChromeSource(currentEditingPath);
-                    }
-                }
-            });
-
-            monacoEditor.addAction({
-                id: 'open-in-chrome-normal',
-                label: 'Open in Chrome (Normal)',
-                contextMenuGroupId: 'navigation',
-                contextMenuOrder: 2,
-                run: () => {
-                    if (currentEditingPath && !currentEditingPath.startsWith('gist://')) {
-                        window.electronAPI.openFileInChrome(currentEditingPath);
-                    }
-                }
             });
 
             logToConsole('Code Editor ready.', 'info');
@@ -1313,6 +1289,11 @@ function initEventListeners() {
         monacoEditor.updateOptions({ wordWrap: next });
         elements.editorWrapBtn.classList.toggle('button-blue', next === 'on');
         logToConsole(`Word wrap: ${next.toUpperCase()}`, 'info');
+    };
+    if (elements.editorChromeBtn) elements.editorChromeBtn.onclick = () => {
+        if (currentEditingPath && !currentEditingPath.startsWith('gist://')) {
+            window.electronAPI.openFileInChrome(currentEditingPath);
+        }
     };
     if (elements.editorFolderBtn) elements.editorFolderBtn.onclick = () => {
         if (currentEditingPath) window.electronAPI.revealInExplorer(currentEditingPath);
