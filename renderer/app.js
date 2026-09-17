@@ -290,7 +290,6 @@ const elements = {
     get navGitConfig() { return document.getElementById('nav-git-config'); },
     get navTheme() { return document.getElementById('nav-theme'); },
     get navSettings() { return document.getElementById('nav-settings'); },
-    get appLogoBox() { return document.getElementById('app-logo-box'); },
     get repoTree() { return document.getElementById('repo-tree'); },
     get repoFilter() { return document.getElementById('repo-filter'); },
     get repoFilterClear() { return document.getElementById('repo-filter-clear'); },
@@ -1001,10 +1000,6 @@ function initEventListeners() {
     };
     if (elements.navGist) elements.navGist.onclick = async () => {
         await showGistView();
-    };
-    if (elements.appLogoBox) elements.appLogoBox.onclick = async () => {
-        currentDashboardFilter = 'all'; // Reset filter when coming from logo
-        await showDashboard(true);
     };
     if (elements.navImport) elements.navImport.onclick = () => showImportChoiceModal();
     if (elements.navNew) elements.navNew.onclick = () => showCreateRepoModal();
