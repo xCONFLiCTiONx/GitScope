@@ -5871,7 +5871,7 @@ async function showUnbornFoldersModal(unbornList) {
 
         item.innerHTML = `
             <div>
-                <div style="font-weight: 600; color: #fff;">${folder.name}</div>
+                <div style="font-weight: 600; color: var(--text-main);">${folder.name}</div>
                 <div style="font-size: 11px; color: var(--text-muted);">${folder.reason}</div>
             </div>
             <button class="button ${isRepo ? 'button-secondary' : 'button-primary'}" style="font-size: 10px; padding: 4px 8px;">${btnText}</button>
@@ -7752,7 +7752,7 @@ async function showGitHubImportModal() {
         const repos = res.repos || [];
         if (res.expiration) updateTokenExpirationUI(res.expiration);
 
-        list.innerHTML = ''; repos.forEach(r => { const div = document.createElement('div'); div.style.padding = '8px'; div.style.borderBottom = '1px solid var(--border-color)'; div.innerHTML = `<label style="display: flex; justify-content: space-between; align-items: center; cursor: pointer;"><div><div style="font-weight: 600; color: #fff;">${r.full_name}</div><div style="font-size: 11px; color: var(--text-muted);">${r.description || 'No description'}</div></div><input type="checkbox" name="github-repo" value="${r.clone_url}" data-name="${r.name}"></label>`; list.appendChild(div); });
+        list.innerHTML = ''; repos.forEach(r => { const div = document.createElement('div'); div.style.padding = '8px'; div.style.borderBottom = '1px solid var(--border-color)'; div.innerHTML = `<label style="display: flex; justify-content: space-between; align-items: center; cursor: pointer;"><div><div style="font-weight: 600; color: var(--text-main);">${r.full_name}</div><div style="font-size: 11px; color: var(--text-muted);">${r.description || 'No description'}</div></div><input type="checkbox" name="github-repo" value="${r.clone_url}" data-name="${r.name}"></label>`; list.appendChild(div); });
         document.getElementById('import-confirm').disabled = false;
         document.getElementById('import-confirm').onclick = async () => {
             const selected = Array.from(list.querySelectorAll('input:checked'));
@@ -9304,7 +9304,7 @@ function renderPrivacyMatch(match, skipScroll = false) {
                     <span style="font-weight: 800; color: var(--accent-red); font-size: 10px; text-transform: uppercase;">${match.patternName}</span>
                     <span style="color: var(--text-muted); font-size: 10px;">${match.repoName}</span>
                 </div>
-                <div style="font-weight: 600; color: #fff; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px;">${match.filePath}</div>
+                <div style="font-weight: 600; color: var(--text-main); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px;">${match.filePath}</div>
             </div>
             <div style="display: flex; gap: 4px;">
                 <button class="button privacy-edit-btn" style="padding: 2px 6px; font-size: 10px;" title="Open in Editor">Edit</button>
