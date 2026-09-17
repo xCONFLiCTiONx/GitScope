@@ -163,19 +163,39 @@
         }
 
         :root {
-            --bg-main: #0d1117;
-            --bg-surface: #161b22;
-            --bg-sidebar: #010409;
-            --border-color: #30363d;
-            --text-main: #c9d1d9;
-            --text-muted: #8b949e;
-            --accent-green: #238636;
-            --accent-yellow: #e3b341;
-            --accent-red: #da3633;
-            --accent-blue: #1f6feb;
-            --hover-bg: #21262d;
-            --active-bg: #1f6feb;
-            --nav-rail-bg: #010409;
+            /* Default to Deeply Integrated Modern Windows Dark Theme */
+            --bg-main: #202020;
+            --bg-surface: #2d2d2d;
+            --bg-sidebar: #1a1a1a;
+            --border-color: #333333;
+            --text-main: #ffffff;
+            --text-muted: #a0a0a0;
+            --accent-green: #2bc265;
+            --accent-yellow: #ffd333;
+            --accent-red: #ff4d4d;
+            --accent-blue: #0078d4;
+            --hover-bg: #333333;
+            --active-bg: #0078d4;
+            --nav-rail-bg: #141414;
+        }
+
+        @media (prefers-color-scheme: light) {
+            :root {
+                /* Deeply Integrated Modern Windows Light Theme */
+                --bg-main: #f3f3f3;
+                --bg-surface: #ffffff;
+                --bg-sidebar: #f3f3f3;
+                --border-color: #e5e5e5;
+                --text-main: #000000;
+                --text-muted: #5f5f5f;
+                --accent-green: #107c41;
+                --accent-yellow: #ffb900;
+                --accent-red: #e81123;
+                --accent-blue: #0078d4;
+                --hover-bg: #e5e5e5;
+                --active-bg: #0078d4;
+                --nav-rail-bg: #eeeeee;
+            }
         }
 
         /* Tabs UI */
@@ -197,7 +217,7 @@
         }
         .tab-item:hover {
             color: var(--text-main);
-            background: rgba(255,255,255,0.05);
+            background: var(--hover-bg);
         }
         .tab-item.active {
             color: var(--accent-blue);
@@ -240,10 +260,10 @@
         }
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb {
-            background: #30363d;
+            background: var(--border-color);
             border-radius: 10px;
         }
-        ::-webkit-scrollbar-thumb:hover { background: #484f58; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
 
         #top-container {
             display: flex;
@@ -274,12 +294,12 @@
             justify-content: center;
             cursor: pointer;
             border-radius: 6px;
-            color: rgba(255, 255, 255, 0.7);
+            color: var(--text-muted);
             font-size: 16px;
             transition: all 0.2s ease;
         }
-        .nav-item:hover { color: #fff; background-color: var(--hover-bg); }
-        .nav-item.active { color: #fff; border-left: 2px solid var(--accent-blue); border-radius: 0; }
+        .nav-item:hover { color: var(--text-main); background-color: var(--hover-bg); }
+        .nav-item.active { color: var(--accent-blue); border-left: 2px solid var(--accent-blue); border-radius: 0; }
         .nav-item-bottom { margin-top: auto; margin-bottom: 10px; }
 
         /* Nav Popout */
@@ -321,7 +341,7 @@
         }
         .popout-item:hover {
             background: var(--hover-bg);
-            color: #fff;
+            color: var(--text-main);
         }
 
         /* Sidebar */
@@ -421,7 +441,7 @@
             overflow: hidden; /* Prevent content from leaking out when sidebar is small */
         }
         .tree-node:hover { background-color: var(--hover-bg); }
-        .tree-node.active { background-color: #1f6feb22; color: #fff; border-left: 2px solid var(--accent-blue); border-radius: 0; }
+        .tree-node.active { background-color: rgba(0, 120, 212, 0.15); color: var(--accent-blue); border-left: 2px solid var(--accent-blue); border-radius: 0; }
         .tree-node.changed-file, .tree-node.changed-file .node-name { color: var(--accent-red) !important; font-weight: 500; }
 
         .git-btn.highlight-pull, .pull-btn.highlight-pull, #dashboard-bulk-pull-btn.highlight-pull {
@@ -440,23 +460,49 @@
         }
 
         .children-container {
-            border-left: 1px solid rgba(255, 255, 255, 0.1);
+            border-left: 1px solid var(--border-color);
             margin-left: 12px;
             padding-left: 0;
         }
 
-        /* File Type Colors (Visual Studio Dark) */
-        .file-type-js { color: #DCDCAA; }
-        .file-type-ts { color: #4EC9B0; }
-        .file-type-html, .file-type-xml { color: #CE9178; }
-        .file-type-css { color: #CE9178; }
-        .file-type-md, .file-type-json { color: #9CDCFE; }
-        .file-type-gitignore { color: #808080; opacity: 0.6; font-style: italic; }
-        .file-type-png, .file-type-jpg, .file-type-ico, .file-type-svg { color: #D7BA7D; }
-        .file-type-kt, .file-type-kts { color: #569CD6; }
-        .file-type-cs { color: #569CD6; }
-        .file-type-py { color: #3572A5; }
-        .file-type-py { color: #3572a5; }
+        /* File Type Colors (Optimized with higher contrast for both Dark & Light Themes) */
+        .file-type-js { color: #b58900; }
+        .file-type-ts { color: #2aa198; }
+        .file-type-html, .file-type-xml { color: #cb4b16; }
+        .file-type-css { color: #d33682; }
+        .file-type-md, .file-type-json { color: #0078d4; }
+        .file-type-gitignore { color: #657b83; opacity: 0.8; font-style: italic; }
+        .file-type-png, .file-type-jpg, .file-type-ico, .file-type-svg { color: #b58900; }
+        .file-type-kt, .file-type-kts { color: #852600; }
+        .file-type-cs { color: #3b5998; }
+        .file-type-py { color: #268bd2; }
+
+        .theme-dark .file-type-js { color: #DCDCAA; }
+        .theme-dark .file-type-ts { color: #4EC9B0; }
+        .theme-dark .file-type-html, .theme-dark .file-type-xml { color: #CE9178; }
+        .theme-dark .file-type-css { color: #CE9178; }
+        .theme-dark .file-type-md, .theme-dark .file-type-json { color: #9CDCFE; }
+        .theme-dark .file-type-gitignore { color: #808080; opacity: 0.6; }
+        .theme-dark .file-type-png, .theme-dark .file-type-jpg, .theme-dark .file-type-ico, .theme-dark .file-type-svg { color: #D7BA7D; }
+        .theme-dark .file-type-kt, .theme-dark .file-type-kts { color: #569CD6; }
+        .theme-dark .file-type-cs { color: #569CD6; }
+        .theme-dark .file-type-py { color: #3572A5; }
+
+        :root:not(.theme-light) {
+            /* If no theme class or if system matches dark, use dark tokens */
+            @media (prefers-color-scheme: dark) {
+                .file-type-js { color: #DCDCAA; }
+                .file-type-ts { color: #4EC9B0; }
+                .file-type-html, .file-type-xml { color: #CE9178; }
+                .file-type-css { color: #CE9178; }
+                .file-type-md, .file-type-json { color: #9CDCFE; }
+                .file-type-gitignore { color: #808080; opacity: 0.6; }
+                .file-type-png, .file-type-jpg, .file-type-ico, .file-type-svg { color: #D7BA7D; }
+                .file-type-kt, .file-type-kts { color: #569CD6; }
+                .file-type-cs { color: #569CD6; }
+                .file-type-py { color: #3572A5; }
+            }
+        }
 
         .sidebar-action-icon {
             font-size: 14px;
@@ -466,9 +512,9 @@
             border-radius: 3px;
             transition: all 0.2s;
         }
-        .sidebar-action-icon:hover { color: #fff; background: var(--hover-bg); }
+        .sidebar-action-icon:hover { color: var(--text-main); background: var(--hover-bg); }
 
-        .repo-root { font-weight: 600; font-size: 12px; color: #fff; margin-top: 4px; }
+        .repo-root { font-weight: 600; font-size: 12px; color: var(--text-main); margin-top: 4px; }
         .chevron {
             font-size: 10px;
             width: 18px; /* Increased from 12px for better clickability */
@@ -531,8 +577,8 @@
             overflow-y: auto;
         }
 
-        h1 { font-size: 24px; font-weight: 400; margin: 0 0 24px 0; color: #fff; }
-        h2 { font-size: 18px; font-weight: 500; margin: 0 0 16px 0; color: #fff; }
+        h1 { font-size: 24px; font-weight: 400; margin: 0 0 24px 0; color: var(--text-main); }
+        h2 { font-size: 18px; font-weight: 500; margin: 0 0 16px 0; color: var(--text-main); }
 
         /* Dashboard */
         #dashboard-view { display: flex; flex-direction: column; flex: 1; }
@@ -581,8 +627,8 @@
         }
 
         .card-header { display: flex; justify-content: space-between; align-items: start; margin-bottom: 12px; }
-        .card-title { font-weight: 600; color: #fff; }
-        .card-branch { font-size: 11px; background: #21262d; padding: 2px 6px; border-radius: 10px; color: var(--text-muted); }
+        .card-title { font-weight: 600; color: var(--text-main); }
+        .card-branch { font-size: 11px; background: var(--bg-main); border: 1px solid var(--border-color); padding: 2px 6px; border-radius: 10px; color: var(--text-muted); }
 
         .stat-row { display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 6px; }
         .stat-label { color: var(--text-muted); }
@@ -603,7 +649,7 @@
             border-bottom: 1px solid var(--border-color);
             padding-bottom: 24px;
         }
-        .settings-section h3 { margin-bottom: 8px; font-size: 14px; color: #fff; }
+        .settings-section h3 { margin-bottom: 8px; font-size: 14px; color: var(--text-main); }
         .settings-section p { font-size: 13px; color: var(--text-muted); margin: 0; }
         .settings-control { display: flex; gap: 12px; align-items: center; margin-top: 12px; }
         .settings-input {
@@ -612,7 +658,7 @@
             border: 1px solid var(--border-color);
             border-radius: 4px;
             padding: 8px 12px;
-            color: #fff;
+            color: var(--text-main);
             font-size: 13px;
             outline: none;
         }
@@ -949,10 +995,10 @@
             border-bottom: 2px solid transparent;
             transition: all 0.2s;
         }
-        .console-tab:hover { color: #fff; }
-        .console-tab.active { color: #fff; border-bottom-color: var(--accent-blue); }
+        .console-tab:hover { color: var(--text-main); }
+        .console-tab.active { color: var(--accent-blue); border-bottom-color: var(--accent-blue); }
 
-        #console-body { flex-grow: 1; position: relative; overflow: hidden; background: #000; }
+        #console-body { flex-grow: 1; position: relative; overflow: hidden; background: var(--bg-surface); }
         #console-output, #terminal-container {
             position: absolute; top: 0; left: 0; right: 0; bottom: 0;
             overflow: hidden; display: none;
@@ -968,7 +1014,7 @@
             font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
             font-size: 12px;
             line-height: 1.4;
-            color: #d1d5db;
+            color: var(--text-main);
             scrollbar-gutter: stable;
             user-select: text;
         }
@@ -1558,6 +1604,18 @@
                             Token Expiration: <a href="https://github.com/settings/tokens" id="token-expiry-link-settings" style="color: var(--accent-blue); text-decoration: none; font-weight: 600;"></a>
                         </div>
                         <p style="font-size: 11px; margin-top: 8px;">Need a token? <a href="https://github.com/settings/tokens" style="color: var(--accent-blue);">Create one here</a> with 'repo' and 'gist' scopes.</p>
+                    </div>
+                    <div class="settings-section">
+                        <h3>Appearance</h3>
+                        <p>Choose your preferred application theme mode.</p>
+                        <div class="settings-control">
+                            <label for="theme-mode-select">Theme Mode:</label>
+                            <select id="theme-mode-select" class="settings-input" style="flex-grow: 0; width: 150px;">
+                                <option value="system">System</option>
+                                <option value="dark">Dark</option>
+                                <option value="light">Light</option>
+                            </select>
+                        </div>
                     </div>
                     <div class="settings-section">
                         <h3>Terminal</h3>

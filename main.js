@@ -23,8 +23,8 @@ process.on('unhandledRejection', (reason, promise) => {
 // Ensure Git credential manager popups are allowed
 process.env.GIT_TERMINAL_PROMPT = '1';
 
-// Force Dark Theme for native dialogs
-nativeTheme.themeSource = 'dark';
+// Enable System Theme Synchronization
+nativeTheme.themeSource = 'system';
 
 function reportError(title, error) {
   const message = (error && error.stack) || (error && error.message) || String(error);
@@ -149,6 +149,9 @@ function getSettings() {
   try {
     if (fs.existsSync(settingsPath)) {
       cachedSettings = fs.readJsonSync(settingsPath);
+      if (cachedSettings && cachedSettings.themeMode) {
+        nativeTheme.themeSource = cachedSettings.themeMode;
+      }
       return cachedSettings;
     }
   } catch (e) {
@@ -157,7 +160,8 @@ function getSettings() {
   cachedSettings = {
     shell: process.platform === 'win32' ? 'C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe' : '/bin/bash',
     rootRepoDir: '',
-    githubToken: ''
+    githubToken: '',
+    themeMode: 'system'
   };
   return cachedSettings;
 }
@@ -239,7 +243,7 @@ function createWindow() {
     width: state.width,
     height: state.height,
     show: false, // Don't show until content is ready to prevent white flash
-    backgroundColor: '#0d1117', // Match app's dark theme
+    backgroundColor: nativeTheme.shouldUseDarkColors ? '#202020' : '#f3f3f3', // Match Windows native theme background
     icon: path.join(__dirname, 'ICON.png'),
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
@@ -1244,6 +1248,10 @@ ipcMain.handle('get-settings', async () => {
 ipcMain.handle('save-settings', async (event, settings) => {
   const oldSettings = getSettings();
   saveSettings(settings);
+
+  if (settings && settings.themeMode) {
+    nativeTheme.themeSource = settings.themeMode;
+  }
 
   // If shell changed, restart PTY
   if (oldSettings.shell !== settings.shell) {

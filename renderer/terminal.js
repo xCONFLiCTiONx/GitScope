@@ -1,19 +1,62 @@
 // Initialize Terminal with ResizeObserver for Native-Grade stability
 const terminalContainer = document.getElementById('terminal-container');
 
+function getTerminalTheme() {
+    const root = document.documentElement;
+    let dark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    if (root.classList.contains('theme-dark')) dark = true;
+    if (root.classList.contains('theme-light')) dark = false;
+
+    return dark ? {
+        background: '#1a1a1a', // Windows Native Dark Background
+        foreground: '#ffffff',
+        cursor: '#0078d4',
+        selectionBackground: 'rgba(0, 120, 212, 0.3)'
+    } : {
+        background: '#ffffff', // Windows Native Light Background
+        foreground: '#000000', // Rich contrast black text for terminal stability
+        cursor: '#0078d4',
+        selectionBackground: 'rgba(0, 120, 212, 0.25)',
+        // Deepen ANSI escape colors for extreme clarity on light canvas backgrounds
+        black: '#000000',
+        red: '#cd2026',
+        green: '#00a600',
+        yellow: '#947100', // Deepened from light yellow to rich high-contrast amber/brown
+        blue: '#0451a5',
+        magenta: '#bc05bc',
+        cyan: '#0598bc',
+        white: '#555555',
+        brightBlack: '#666666',
+        brightRed: '#d74348',
+        brightGreen: '#14ca14',
+        brightYellow: '#b58900', // Boosted contrast amber for clear readability
+        brightBlue: '#2379de',
+        brightMagenta: '#d833d8',
+        brightCyan: '#12b5e1',
+        brightWhite: '#333333'
+    };
+}
+
 const term = new Terminal({
     cursorBlink: true,
     fontSize: 12,
+    fontWeight: '500', // Boost base font weight for clean line rendering
+    drawBoldTextInBrightColors: false, // Prevent washing out bold text variants into high-brightness scales
     fontFamily: 'Consolas, "Courier New", monospace',
     allowProposedApi: true,
     windowsMode: window.electronAPI.isWindows,
-    theme: {
-        background: '#000000',
-        foreground: '#cccccc',
-        cursor: '#1f6feb',
-        selectionBackground: 'rgba(31, 111, 235, 0.3)'
-    }
+    theme: getTerminalTheme()
 });
+
+// Sync terminal theme dynamically on system theme changes or custom theme overrides
+window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
+    term.options.theme = getTerminalTheme();
+});
+
+const themeMutationObserver = new MutationObserver(() => {
+    term.options.theme = getTerminalTheme();
+});
+themeMutationObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
 
 const fitAddon = new FitAddon.FitAddon();
 term.loadAddon(fitAddon);

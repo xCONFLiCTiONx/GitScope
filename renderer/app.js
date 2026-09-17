@@ -1,3 +1,20 @@
+// Intelligence: Universal Error Catching to prevent "Empty Shell" syndromes
+window.onerror = function(message, source, lineno, colno, error) {
+    // Ignore harmless ResizeObserver loop limit errors
+    if (message.includes('ResizeObserver loop limit exceeded')) return;
+
+    const errText = `[CRITICAL UI ERROR] ${message}\nAt: ${source}:${lineno}:${colno}`;
+    console.error(errText, error);
+    // Fallback alert if our custom UI hasn't loaded yet
+    alert(errText + (error && error.stack ? "\n\nStack: " + error.stack : ""));
+};
+
+window.onunhandledrejection = function(event) {
+    const errText = `[UNHANDLED PROMISE REJECTION] ${event.reason}`;
+    console.error(errText);
+    alert(errText + (event.reason && event.reason.stack ? "\n\nStack: " + event.reason.stack : ""));
+};
+
 // State management
 let repositories = [];
 let activeRepo = null;
@@ -45,10 +62,7 @@ const PRIVACY_PATTERNS = [
     { name: 'Localhost Domains', regex: '\\b(?:https?://)?(?:localhost|127\\.0\\.0\\.1|[\\w-]+\\.local)(?::\\d{1,5})?\\b', flags: 'gi', enabled: true }
 ];
 
-/**
- * INTELLIGENCE: Find which repository a given file or folder path belongs to.
- * Returns the deepest matching repository (longest path) to correctly handle nested repos.
- */
+// Intelligence: Repository Ownership Resolution Logic
 function findRepoForPath(filePath) {
     if (!filePath) return null;
     const normPath = filePath.replace(/\\/g, '/').toLowerCase();
@@ -58,31 +72,6 @@ function findRepoForPath(filePath) {
     });
     return matches.sort((a, b) => b.path.length - a.path.length)[0] || null;
 }
-
-// Global Error Handling for Total Visibility
-window.onerror = function(message, source, lineno, colno, error) {
-    // Ignore harmless ResizeObserver loop limit errors which are common with Monaco/Flexbox
-    if (message.includes('ResizeObserver loop limit exceeded')) return;
-
-    const errorMsg = `[Global Error] ${message}\nAt: ${source}:${lineno}:${colno}`;
-    console.error(errorMsg, error);
-    if (typeof showError === 'function') {
-        showError(errorMsg, 'Unhandled Application Error');
-    } else {
-        alert(errorMsg);
-    }
-    return false;
-};
-
-window.onunhandledrejection = function(event) {
-    const errorMsg = `[Unhandled Promise Rejection] ${event.reason}`;
-    console.error(errorMsg);
-    if (typeof showError === 'function') {
-        showError(errorMsg, 'Async Logic Error');
-    } else {
-        alert(errorMsg);
-    }
-};
 
 function setTaskState(running) {
     activeTasks = running ? activeTasks + 1 : Math.max(0, activeTasks - 1);
@@ -511,6 +500,7 @@ const elements = {
     get syncTokenToGitBtn() { return document.getElementById('sync-token-to-git-btn'); },
     get clearGitCredsBtn() { return document.getElementById('clear-git-creds-btn'); },
     get shellSelect() { return document.getElementById('shell-select'); },
+    get themeModeSelect() { return document.getElementById('theme-mode-select'); },
     get saveSettingsBtn() { return document.getElementById('save-settings-btn'); },
     get settingsBanner() { return document.getElementById('settings-banner'); },
     get settingsBannerApply() { return document.getElementById('settings-banner-apply'); },
@@ -629,8 +619,17 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (elements.rootRepoDirInput) elements.rootRepoDirInput.value = settings.rootRepoDir || '';
         if (elements.githubPatInput) elements.githubPatInput.value = settings.githubToken || '';
         if (elements.notifRepoChanges) elements.notifRepoChanges.checked = !!settings.notifRepoChanges;
+        if (elements.themeModeSelect) elements.themeModeSelect.value = settings.themeMode || 'system';
+        updateApplicationThemeMode();
 
         // Note: Project-specific toggles (Force/AutoFetch) are hydrated in selectRepo()
+
+        // Intelligence: Self-healing for corrupted themes from previous sessions
+        if (settings.obsidianIni && settings.obsidianIni.includes('`;')) {
+            console.warn("Corrupted theme detected. Resetting to default.");
+            settings.obsidianIni = DEFAULT_THEME_INI;
+            window.electronAPI.saveSettings(settings);
+        }
 
         // Intelligence: If Obsidian theme is empty, use the new simplified default
         if (!settings.obsidianIni) {
@@ -651,10 +650,15 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         // 6. Initial Render (Deferred to next tick to let browser finish loading script)
         setTimeout(() => {
-            renderTree();
-            showDashboard();
-            initEditor();
-            console.log("Initial render complete.");
+            try {
+                renderTree();
+                showDashboard();
+                initEditor();
+                console.log("Initial render complete.");
+            } catch (e) {
+                console.error("INITIAL RENDER FAILURE:", e);
+                showError(e.message, 'Initial Render Error');
+            }
         }, 0);
 
         // 7. Non-critical Background tasks (Deferred for speed)
@@ -706,7 +710,11 @@ function initEditor() {
             });
 
             // Resolve initial font stack
-            const initialTheme = parseObsidianIni(settings.obsidianIni || DEFAULT_THEME_INI);
+            let initialTheme = { rules: [], colors: {}, fontFamily: 'JetBrains Mono', fontWeight: 'normal', fontLigatures: true };
+            try {
+                initialTheme = parseObsidianIni(settings.obsidianIni || DEFAULT_THEME_INI);
+            } catch (e) { console.error('Failed parsing theme:', e); }
+
             const initialFont = (initialTheme.fontFamily && !initialTheme.fontFamily.includes(','))
                 ? `"${initialTheme.fontFamily}", JetBrains Mono, Cascadia Mono, Consolas, monospace`
                 : (initialTheme.fontFamily || 'JetBrains Mono, Cascadia Mono, Consolas, monospace');
@@ -757,14 +765,52 @@ function initEditor() {
     }
 }
 
+function isThemeDark() {
+    const mode = (settings && settings.themeMode) || 'system';
+    if (mode === 'dark') return true;
+    if (mode === 'light') return false;
+    return window.matchMedia('(prefers-color-scheme: dark)').matches;
+}
+
+function updateApplicationThemeMode() {
+    const mode = (settings && settings.themeMode) || 'system';
+    const root = document.documentElement;
+    root.classList.remove('theme-dark', 'theme-light');
+    if (mode === 'dark') {
+        root.classList.add('theme-dark');
+    } else if (mode === 'light') {
+        root.classList.add('theme-light');
+    }
+
+    if (settings && settings.obsidianIni) {
+        applyObsidianTheme(settings.obsidianIni);
+    }
+}
+
 function applyObsidianTheme(iniContent) {
     if (!iniContent || typeof monaco === 'undefined') return;
     try {
         const themeData = parseObsidianIni(iniContent);
+        const isSystemDark = isThemeDark();
+
+        // Dynamically adjust default theme colors to match system theme sync perfectly
+        if (iniContent === DEFAULT_THEME_INI && !isSystemDark) {
+            themeData.colors['editor.background'] = '#ffffff';
+            themeData.colors['editor.foreground'] = '#000000';
+            themeData.rules = themeData.rules.map(r => {
+                if (r.foreground === '#D4D8E2') return { ...r, foreground: '#000000' };
+                if (r.foreground === '#75C9FF') return { ...r, foreground: '#0056b3' };
+                if (r.foreground === '#2299FF') return { ...r, foreground: '#0066cc' };
+                return r;
+            });
+        } else if (iniContent === DEFAULT_THEME_INI && isSystemDark) {
+            // Match our deeply integrated Windows dark theme background
+            themeData.colors['editor.background'] = '#1a1a1a';
+        }
 
         // Define or Update the 'obsidian' theme
         monaco.editor.defineTheme('obsidian', {
-            base: 'vs-dark',
+            base: isSystemDark ? 'vs-dark' : 'vs',
             inherit: true,
             rules: themeData.rules,
             colors: themeData.colors
@@ -799,18 +845,31 @@ function applyObsidianTheme(iniContent) {
             });
         }
 
-        // Intelligence: Update the Dashboard/UI to match the theme background for a unified feel
+        // Intelligence: Update the Dashboard/UI background for a unified feel
         const bg = themeData.colors['editor.background'];
         if (bg) {
-            document.body.style.backgroundColor = bg;
+            // Check if theme supports dual configurations split by a delimiter marker
+            if (iniContent.includes('[Light-Theme]')) {
+                // Dual layout is explicitly managed inside parseObsidianIni block
+                document.body.style.backgroundColor = '';
+            } else if (iniContent !== DEFAULT_THEME_INI) {
+                document.body.style.backgroundColor = bg;
+            } else {
+                document.body.style.backgroundColor = ''; // Use responsive CSS variables
+            }
             document.querySelectorAll('.dashboard-card, .summary-card, .settings-card').forEach(el => {
-                el.style.backgroundColor = 'rgba(255,255,255,0.02)';
+                el.style.backgroundColor = '';
             });
         }
     } catch (e) {
         console.error('Failed to apply theme:', e);
     }
 }
+
+// Global listener to keep application components perfectly synced on theme changes
+window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
+    updateApplicationThemeMode();
+});
 
 const DEFAULT_THEME_INI = `[Theme]
 ; Global Workspace Colors
@@ -836,10 +895,35 @@ Tag=#2288FF
 Attribute=#4DBBFF
 Bracket1=#9DC9DD
 Bracket2=#66FFF5
-Bracket3=#0096E1`;
+Bracket3=#0096E1
+
+[Light-Theme]
+[Theme]
+Font=JetBrains Mono
+FontWeight=normal
+Ligatures=true
+Background=#ffffff
+Foreground=#000000
+LineNumbers=#a0a0a0
+Selection=#add6ff
+Cursor=#0078d4
+
+[Syntax]
+Comment=#008000
+String=#a31515
+Integer=#098658
+Keyword=#0000ff
+Operator=#000000
+Identifier=#001080
+Preprocessor=#af00db
+Tag=#800000
+Attribute=#e50000
+Bracket1=#0451a5
+Bracket2=#000000
+Bracket3=#bc05bc`;
 
 const BUILTIN_THEMES = {
-    "Blue Lantern": "[Theme]\n; Global Workspace Colors\nFont=JetBrains Mono\nFontWeight=normal\nLigatures=true\nBackground=#0B0E14\nForeground=#D4D8E2\nLineNumbers=#5A6B82\nSelection=#1D3B59\nCursor=#3388FF\n\n[Syntax]\n; Code Element Colors\nComment=#4A7090\nString=#36BCDD\nInteger=#70FFE2\nKeyword=#2299FF\nOperator=#D4D8E2\nIdentifier=#75C9FF\nPreprocessor=#52B0EF\nTag=#2288FF\nAttribute=#4DBBFF\nBracket1=#9DC9DD\nBracket2=#66FFF5\nBracket3=#0096E1",
+    "Blue Lantern": "[Theme]\n; Global Workspace Colors\nFont=JetBrains Mono\nFontWeight=normal\nLigatures=true\nBackground=#0B0E14\nForeground=#D4D8E2\nLineNumbers=#5A6B82\nSelection=#1D3B59\nCursor=#3388FF\n\n[Syntax]\n; Code Element Colors\nComment=#4A7090\nString=#36BCDD\nInteger=#70FFE2\nKeyword=#2299FF\nOperator=#D4D8E2\nIdentifier=#75C9FF\nPreprocessor=#52B0EF\nTag=#2288FF\nAttribute=#4DBBFF\nBracket1=#9DC9DD\nBracket2=#66FFF5\nBracket3=#0096E1\n\n[Light-Theme]\n[Theme]\nFont=JetBrains Mono\nFontWeight=normal\nLigatures=true\nBackground=#f0f4f8\nForeground=#102a43\nLineNumbers=#627d98\nSelection=#bcccdc\nCursor=#0078d4\n\n[Syntax]\nComment=#486581\nString=#1982c4\nInteger=#243b53\nKeyword=#0078d4\nOperator=#102a43\nIdentifier=#334e68\nPreprocessor=#627d98\nTag=#0078d4\nAttribute=#ff006e\nBracket1=#0078d4\nBracket2=#ff006e\nBracket3=#8338ec",
     "Green lantern": "[Theme]\n; Global Workspace Colors\nFont=JetBrains Mono\nFontWeight=normal\nLigatures=true\nBackground=#141513\nForeground=#D4D4D4\nLineNumbers=#858585\nSelection=#264F78\nCursor=#569CD6\n\n[Syntax]\n; Code Element Colors\nComment=#008000\nString=#3ADB00\nInteger=#AFE1A2\nKeyword=#46AFAD\nOperator=#D4D4D4\nIdentifier=#9CDCFE\nPreprocessor=#8EC587\nTag=#569CD6\nAttribute=#9CDCFE\nBracket1=#FFD700\nBracket2=#71DA94\nBracket3=#179FFF",
     "Red Lantern": "[Theme]\n; Global Workspace Colors\nFont=JetBrains Mono\nFontWeight=normal\nLigatures=true\nBackground=#0E0A0B\nForeground=#E0E0E0\nLineNumbers=#7A5C5C\nSelection=#541212\nCursor=#FF3333\n\n[Syntax]\n; Code Element Colors\nComment=#803B3B\nString=#FF5555\nInteger=#FF8866\nKeyword=#FF2222\nOperator=#E0E0E0\nIdentifier=#FF9999\nPreprocessor=#CC4444\nTag=#FF4444\nAttribute=#FF9999\nBracket1=#FFCC00\nBracket2=#FF6600\nBracket3=#FF1A1A",
     "Yellow Lantern": "[Theme]\n; Global Workspace Colors\nFont=JetBrains Mono\nFontWeight=normal\nLigatures=true\nBackground=#0F0E0B\nForeground=#E0E0DC\nLineNumbers=#7A725C\nSelection=#544412\nCursor=#FFCC00\n\n[Syntax]\n; Code Element Colors\nComment=#80733B\nString=#FFEA55\nInteger=#FFFAA2\nKeyword=#FFB700\nOperator=#E0E0DC\nIdentifier=#FFE175\nPreprocessor=#D4A337\nTag=#FFC400\nAttribute=#FFE175\nBracket1=#FF5555\nBracket2=#71DA94\nBracket3=#FF9900",
@@ -853,7 +937,22 @@ const BUILTIN_THEMES = {
 };
 
 function parseObsidianIni(ini) {
-    const lines = ini.split('\n');
+    if (!ini) return { rules: [], colors: {}, fontFamily: 'JetBrains Mono', fontWeight: 'normal', fontLigatures: true };
+    let finalIni = ini;
+
+    // Support dual configuration themes split via [Light-Theme] structural boundaries
+    if (ini.includes('[Light-Theme]')) {
+        const isSystemDark = isThemeDark();
+        const segments = ini.split('[Light-Theme]');
+        if (!isSystemDark) {
+            // Reparse using light layout structure
+            finalIni = segments[1] || segments[0];
+        } else {
+            finalIni = segments[0];
+        }
+    }
+
+    const lines = finalIni.split('\n');
     const sections = {};
     let currentSection = null;
 
@@ -1483,7 +1582,7 @@ function initEventListeners() {
     }
 
     // Monitor settings changes
-    [elements.rootRepoDirInput, elements.githubPatInput, elements.shellSelect, elements.notifRepoChanges].forEach(el => {
+    [elements.rootRepoDirInput, elements.githubPatInput, elements.shellSelect, elements.notifRepoChanges, elements.themeModeSelect].forEach(el => {
         if (!el) return;
         const eventType = el.tagName === 'SELECT' || el.type === 'checkbox' ? 'change' : 'input';
         el.addEventListener(eventType, () => {
@@ -2353,6 +2452,9 @@ async function saveGlobalSettings() {
     settings.githubToken = elements.githubPatInput.value;
     settings.shell = customPath || selectedPath;
     settings.notifRepoChanges = elements.notifRepoChanges ? elements.notifRepoChanges.checked : false;
+    if (elements.themeModeSelect) {
+        settings.themeMode = elements.themeModeSelect.value;
+    }
 
     try {
         await window.electronAPI.saveSettings(settings);
@@ -2360,7 +2462,7 @@ async function saveGlobalSettings() {
         if (elements.settingsBanner) elements.settingsBanner.style.display = 'none';
         if (settings.githubToken) checkGitHubTokenLife();
         if (settings.rootRepoDir) await autoImportFromRoot(settings.rootRepoDir);
-        applyObsidianTheme(settings.obsidianIni);
+        updateApplicationThemeMode();
         renderTree();
     } catch (e) { logToConsole(e.message, 'error'); }
 }
@@ -7994,7 +8096,7 @@ const PREVIEW_STYLES = `
         height: 100%;
         overflow: auto;
         background: transparent;
-        color: var(--text-main, #c9d1d9);
+        color: var(--text-main, #ffffff);
         font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
         font-size: 14px;
         line-height: 1.6;
@@ -8025,29 +8127,29 @@ const PREVIEW_STYLES = `
     #content pre {
         white-space: pre-wrap !important;
         word-wrap: break-word !important;
-        background: rgba(255,255,255,0.05);
+        background: var(--bg-main);
         padding: 12px;
         border-radius: 4px;
-        border: 1px solid var(--border-color, #30363d);
+        border: 1px solid var(--border-color);
         overflow-x: auto;
     }
     #content code {
         white-space: pre-wrap !important;
         word-wrap: break-word !important;
-        background: rgba(255,255,255,0.08);
+        background: var(--hover-bg);
         padding: 2px 4px;
         border-radius: 3px;
         font-family: 'JetBrains Mono', 'JetBrains Mono', monospace;
     }
     #content blockquote {
-        border-left: 4px solid #1f6feb;
+        border-left: 4px solid var(--accent-blue);
         margin-left: 0;
         padding-left: 16px;
-        color: #8b949e;
+        color: var(--text-muted);
     }
     #content img { max-width: 100%; height: auto; }
-    #content h1, #content h2, #content h3 { color: #fff; margin-top: 24px; margin-bottom: 16px; font-weight: 600; }
-    #content a { color: #58a6ff; text-decoration: none; cursor: text; }
+    #content h1, #content h2, #content h3 { color: var(--text-main); margin-top: 24px; margin-bottom: 16px; font-weight: 600; }
+    #content a { color: var(--accent-blue); text-decoration: none; cursor: text; }
     :host(.ctrl-active) #content a { cursor: pointer; }
     #content a:hover { text-decoration: underline; }
 `;
