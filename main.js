@@ -1208,15 +1208,20 @@ function setupWatcher(repos) {
     depth: 10 // Increase depth to catch changes in subfolders
   });
 
+  let pendingPaths = new Set();
   let changeTimeout;
   const handleChange = (p) => {
+    if (p) pendingPaths.add(p);
     // Debounce to prevent flooding the renderer during bulk operations (like folder deletions)
     clearTimeout(changeTimeout);
     changeTimeout = setTimeout(() => {
         if (mainWindow) {
-            mainWindow.webContents.send('external-change', p);
+            const paths = Array.from(pendingPaths);
+            pendingPaths.clear();
+            // Send the first path as a hint, or null if many/none
+            mainWindow.webContents.send('external-change', paths.length === 1 ? paths[0] : null);
         }
-    }, 200);
+    }, 250);
   };
 
   watcher

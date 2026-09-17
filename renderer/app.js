@@ -1677,26 +1677,24 @@ function initEventListeners() {
     });
 
     // Background System Listeners
+    let externalChangeDebounce;
     window.electronAPI.onExternalChange((changedPath) => {
-        if (changedPath) {
-            // Find which repo this change belongs to
-            const repo = findRepoForPath(changedPath);
-            if (repo) {
-                console.log(`External change detected in ${repo.name}: ${changedPath}`);
-                updateTreeHighlights(repo.path);
-
-                // Intelligence: Notify user if settings enabled and window is backgrounded
-                if (settings.notifRepoChanges) {
-                    triggerRepoChangeNotification(repo);
+        clearTimeout(externalChangeDebounce);
+        externalChangeDebounce = setTimeout(() => {
+            if (changedPath) {
+                const repo = findRepoForPath(changedPath);
+                if (repo) {
+                    console.log(`External change detected in ${repo.name}, refreshing...`);
+                    updateTreeHighlights(repo.path);
+                    if (settings.notifRepoChanges) triggerRepoChangeNotification(repo);
+                    if (activeRepo && activeRepo.path === repo.path) refreshActiveRepoUI(true);
                 }
-
-                if (activeRepo && activeRepo.path === repo.path) {
-                    refreshActiveRepoUI(true); // Silent refresh
-                }
+            } else {
+                console.log('Multiple external changes detected, refreshing all highlights...');
+                updateTreeHighlights(); // Refresh all
+                if (activeRepo) refreshActiveRepoUI(true);
             }
-        } else {
-            updateTreeHighlights();
-        }
+        }, 100); // Small additional debounce to let FS settle
     });
 
     const pendingNotifications = new Map();
