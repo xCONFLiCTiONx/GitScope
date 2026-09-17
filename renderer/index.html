@@ -1878,9 +1878,11 @@
     </div>
 
     <div id="github-import-modal" class="modal">
-        <div class="modal-content" style="width: 600px;">
-            <h3>Import from GitHub</h3>
-            <div id="github-repo-list" style="max-height: 300px; overflow-y: auto; margin: 16px 0; border: 1px solid var(--border-color); padding: 8px;">
+        <div class="modal-content"
+            style="width: 600px; background-color: var(--modal-bg, var(--bg-color, #fff)); color: var(--text-color, #333);">
+            <h3 style="color: var(--text-color, #111);">Import from GitHub</h3>
+            <div id="github-repo-list"
+                style="max-height: 300px; overflow-y: auto; margin: 16px 0; border: 1px solid var(--border-color); padding: 8px; background-color: var(--list-bg, var(--bg-color, #fff)); color: var(--text-color, #333);">
                 <p style="color: var(--text-muted); font-size: 12px;">Connecting to GitHub...</p>
             </div>
             <div style="text-align: right; display: flex; justify-content: flex-end; gap: 8px;">
