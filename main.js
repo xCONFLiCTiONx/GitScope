@@ -1208,11 +1208,24 @@ function setupWatcher(repos) {
     depth: 10 // Increase depth to catch changes in subfolders
   });
 
+  let changeTimeout;
   const handleChange = (p) => {
-    if (mainWindow) mainWindow.webContents.send('external-change', p);
+    // Debounce to prevent flooding the renderer during bulk operations (like folder deletions)
+    clearTimeout(changeTimeout);
+    changeTimeout = setTimeout(() => {
+        if (mainWindow) {
+            mainWindow.webContents.send('external-change', p);
+        }
+    }, 200);
   };
 
-  watcher.on('add', handleChange).on('change', handleChange).on('unlink', handleChange);
+  watcher
+    .on('add', handleChange)
+    .on('change', handleChange)
+    .on('unlink', handleChange)
+    .on('addDir', handleChange)
+    .on('unlinkDir', handleChange)
+    .on('error', error => console.error(`Watcher error: ${error}`));
 }
 
 ipcMain.handle('path-exists', async (event, path) => {
