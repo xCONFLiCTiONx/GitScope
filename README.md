@@ -1,6 +1,4 @@
-<p align="left">
-  <img src="ICON.png" width="128" alt="GitScope Logo">
-</p>
+<img src="ICON.png" alt="Weather Watcher Logo" width="64" align="left" style="margin-right: 20px; border-radius: 10px;">
 
 # GitScope
 
