@@ -1,4 +1,4 @@
-<img src="icon.png"  width="64" align="left" style="margin-right: 20px; border-radius: 10px;">
+<img src="icon.ico"  width="64" align="left" style="margin-right: 20px; border-radius: 10px;">
 
 # GitScope
 
