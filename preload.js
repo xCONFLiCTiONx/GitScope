@@ -108,6 +108,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   syncTokenToGit: (token) => ipcRenderer.invoke('git-sync-token', token),
   clearGitCreds: () => ipcRenderer.invoke('git-clear-creds'),
   pathExists: (path) => ipcRenderer.invoke('path-exists', path),
+  formatCode: (options) => ipcRenderer.invoke('format-code', options),
   fixLineEndings: (path, type) => ipcRenderer.invoke('fix-line-endings', path, type),
   resetApp: () => ipcRenderer.invoke('reset-app'),
   sendNotification: (options) => ipcRenderer.invoke('send-notification', options),

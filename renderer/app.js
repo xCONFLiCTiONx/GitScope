@@ -2225,89 +2225,41 @@ function initEventListeners() {
       if (currentEditingPath) window.electronAPI.revealInExplorer(currentEditingPath);
     };
   if (elements.editorFormatBtn)
-    elements.editorFormatBtn.onclick = () => {
+    elements.editorFormatBtn.onclick = async () => {
       if (monacoEditor) {
         monacoEditor.focus();
+        const code = monacoEditor.getValue();
+        const filePath = currentEditingPath || 'temp.js';
 
-        const ext = currentEditingPath ? currentEditingPath.split('.').pop().toLowerCase() : '';
-        if (ext === 'md' || ext === 'markdown') {
-          const model = monacoEditor.getModel();
-          if (model) {
-            const lineCount = model.getLineCount();
-            const edits = [];
-            let inCodeBlock = false;
+        try {
+          const result = await window.electronAPI.formatCode({ code, filePath });
+          if (result.success) {
+            const model = monacoEditor.getModel();
+            if (!model) return;
 
-            for (let i = 1; i <= lineCount; i++) {
-              let lineContent = model.getLineContent(i);
-              const trimmed = lineContent.trim();
-              const nextLine = i < lineCount ? model.getLineContent(i + 1) : null;
-
-              // Toggle code block state
-              if (trimmed.startsWith('```')) {
-                inCodeBlock = !inCodeBlock;
-                continue;
-              }
-
-              if (inCodeBlock) continue;
-
-              let newLineContent = lineContent;
-
-              // 1. Fix Header Spacing: #Header -> # Header
-              if (/^#+[^#\s]/.test(trimmed)) {
-                newLineContent = newLineContent.replace(/^(#+)([^#\s])/, '$1 $2');
-              }
-
-              // 2. Fix List Spacing: *Item -> * Item
-              if (/^([\*\-\+]|\d+\.)[^\s]/.test(trimmed)) {
-                newLineContent = newLineContent.replace(/^([\*\-\+]|\d+\.)([^\s])/, '$1 $2');
-              }
-
-              // 3. Add 2 spaces for hard breaks
-              // Rule: Non-empty, not a header, not a HR (---), next line is also non-empty
-              if (
-                trimmed !== '' &&
-                !trimmed.startsWith('#') &&
-                !/^[\-\*_]{3,}$/.test(trimmed) &&
-                nextLine &&
-                nextLine.trim() !== ''
-              ) {
-                // Clean existing trailing spaces then add 2
-                const cleaned = newLineContent.replace(/\s+$/, '');
-                newLineContent = cleaned + '  ';
-              }
-
-              if (newLineContent !== lineContent) {
-                edits.push({
-                  range: new monaco.Range(i, 1, i, lineContent.length + 1),
-                  text: newLineContent,
-                });
-              }
-            }
-
-            if (edits.length > 0) {
-              model.pushEditOperations([], edits, () => null);
-              logToConsole(
-                `Markdown Prettify: Fixed ${edits.length} line formatting issues.`,
-                'success',
-              );
-            } else {
-              // Fallback to Monaco's built-in formatter if my custom one has nothing to do
-              monacoEditor
-                .getAction('editor.action.formatDocument')
-                .run()
-                .then(() => logToConsole('Document formatted.', 'success'))
-                .catch(() => {});
-            }
-          }
-        } else {
-          // High-performance formatting for JS, TS, CSS, HTML, JSON, etc.
-          monacoEditor
-            .getAction('editor.action.formatDocument')
-            .run()
-            .then(() => logToConsole('Document formatted.', 'success'))
-            .catch((err) =>
-              logToConsole('Formatting failed or not supported for this language.', 'warn'),
+            const viewState = monacoEditor.saveViewState();
+            model.pushEditOperations(
+              [],
+              [
+                {
+                  range: model.getFullModelRange(),
+                  text: result.formatted,
+                },
+              ],
+              () => null,
             );
+            monacoEditor.restoreViewState(viewState);
+            logToConsole('Document prettified successfully.', 'success');
+          } else {
+            // Fallback to Monaco's built-in formatter
+            monacoEditor
+              .getAction('editor.action.formatDocument')
+              .run()
+              .then(() => logToConsole('Document formatted (Monaco fallback).', 'success'))
+              .catch(() => logToConsole('Formatting not supported for this language.', 'warn'));
+          }
+        } catch (err) {
+          logToConsole('Prettify failed: ' + err.message, 'error');
         }
       }
     };

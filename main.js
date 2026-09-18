@@ -16,6 +16,7 @@ const gitActions = require('./lib/git-actions');
 const githubApi = require('./lib/github-api');
 const chokidar = require('chokidar');
 const pty = require('node-pty');
+const prettier = require('prettier');
 const os = require('os');
 const { isUtf8 } = require('buffer');
 
@@ -751,6 +752,19 @@ if (!gotTheLock) {
       return { success: true };
     } catch (e) {
       throw e;
+    }
+  });
+
+  ipcMain.handle('format-code', async (event, { code, filePath }) => {
+    try {
+      const options = await prettier.resolveConfig(filePath);
+      const formatted = await prettier.format(code, {
+        ...options,
+        filepath: filePath,
+      });
+      return { success: true, formatted };
+    } catch (error) {
+      return { success: false, error: error.message };
     }
   });
 
@@ -1688,7 +1702,7 @@ if (!gotTheLock) {
       const absolutePath = path.resolve(filePath);
 
       if (chromePath) {
-        spawn(chromePath, ['--new-window', absolutePath], {
+        spawn(chromePath, [absolutePath], {
           detached: true,
           stdio: 'ignore',
         }).unref();
