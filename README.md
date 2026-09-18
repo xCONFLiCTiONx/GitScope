@@ -1,6 +1,5 @@
 <img src="icon.png" width="64" align="left" style="margin-right: 20px; border-radius: 10px;">
 
-
 # GitScope
 
 GitScope is a high-performance, local-first Git management suite designed for professional developers handling complex, multi-repository workspaces. **Engineered specifically for peak performance on Windows.**
@@ -65,16 +64,19 @@ A real-time dashboard providing total visibility into your local development env
 ## 📦 Getting Started
 
 1. **Clone the repository:**```
-`git clone https://github.com/xCONFLiCTiONx/GitScope.git
+   `git clone https://github.com/xCONFLiCTiONx/GitScope.git
 `
-```
+
+````
 2. **Install dependencies:**```
 `npm install
 `
-```
+````
+
 3. **Launch the suite:**```
-`npm start
+   `npm start
 `
+
 ```
 
 ## 🏗️ Production Build
@@ -82,8 +84,10 @@ A real-time dashboard providing total visibility into your local development env
 To package GitScope as a standalone Windows executable:
 
 ```
+
 `npm run build
 `
+
 ```
 
 The portable binary will be generated in the `/dist` directory.
@@ -98,3 +102,4 @@ User Ctrl+Shift+I to open the developer console.
 - **Git:** Git for Windows installed and added to PATH.
 
 *Created for developers who demand more than a basic Git GUI.*
+```

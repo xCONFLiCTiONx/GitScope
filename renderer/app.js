@@ -1,18 +1,18 @@
 // Intelligence: Universal Error Catching to prevent "Empty Shell" syndromes
-window.onerror = function(message, source, lineno, colno, error) {
-    // Ignore harmless ResizeObserver loop limit errors
-    if (message.includes('ResizeObserver loop limit exceeded')) return;
+window.onerror = function (message, source, lineno, colno, error) {
+  // Ignore harmless ResizeObserver loop limit errors
+  if (message.includes('ResizeObserver loop limit exceeded')) return;
 
-    const errText = `[CRITICAL UI ERROR] ${message}\nAt: ${source}:${lineno}:${colno}`;
-    console.error(errText, error);
-    // Fallback alert if our custom UI hasn't loaded yet
-    alert(errText + (error && error.stack ? "\n\nStack: " + error.stack : ""));
+  const errText = `[CRITICAL UI ERROR] ${message}\nAt: ${source}:${lineno}:${colno}`;
+  console.error(errText, error);
+  // Fallback alert if our custom UI hasn't loaded yet
+  alert(errText + (error && error.stack ? '\n\nStack: ' + error.stack : ''));
 };
 
-window.onunhandledrejection = function(event) {
-    const errText = `[UNHANDLED PROMISE REJECTION] ${event.reason}`;
-    console.error(errText);
-    alert(errText + (event.reason && event.reason.stack ? "\n\nStack: " + event.reason.stack : ""));
+window.onunhandledrejection = function (event) {
+  const errText = `[UNHANDLED PROMISE REJECTION] ${event.reason}`;
+  console.error(errText);
+  alert(errText + (event.reason && event.reason.stack ? '\n\nStack: ' + event.reason.stack : ''));
 };
 
 // State management
@@ -45,830 +45,1573 @@ let lastAdvancedSearchOptions = null;
 let lastPrivacyScanProject = 'all';
 
 const PRIVACY_PATTERNS = [
-    { name: 'Private Keys (PEM)', regex: '-----BEGIN (?:RSA|EC|DSA|OPENSSH|CERTIFICATE) PRIVATE KEY-----', flags: 'g', enabled: true },
-    { name: 'API Keys & Secrets', regex: '(?:api[_-]?key|secret[_-]?key|auth[_-]?token|access[_-]?token|client[_-]?secret)\\s*[:=]\\s*(["\']?)[a-zA-Z0-9_\\-\\.\\+\\/=]{16,50}\\1', flags: 'gi', enabled: true },
-    { name: 'JWT Tokens', regex: '\\beyJ[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+\\b', flags: 'g', enabled: true },
-    { name: 'SSN', regex: '\\b(?!000|666|9\\d{2})\\d{3}[- ]?(?!00)\\d{2}[- ]?(?!0000)\\d{4}\\b', flags: 'g', enabled: true },
-    { name: 'Email Addresses', regex: '\\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[a-zA-Z]{2,}\\b', flags: 'gi', enabled: true },
-    { name: 'Phone Numbers', regex: '\\b(?:\\+?1[-.]?)?\\(?[0-9]{3}\\)?[-. ]?[0-9]{3}[-. ]?[0-9]{4}\\b', flags: 'g', enabled: true },
-    { name: 'Credit Card Numbers', regex: '\\b(?:\\d[ -]?){13,16}\\b', flags: 'g', enabled: true },
-    { name: 'Crypto Seeds', regex: '(?:seed phrase|recovery phrase|mnemonic|wallet seed)[\\s:=]+[a-z\\s]{20,}', flags: 'gi', enabled: true },
-    { name: 'Bank Routing/Account', regex: '(?:routing|account)[\\s_-]?number[\\s:=]+\\d{8,12}', flags: 'gi', enabled: true },
-    { name: 'Plaintext Passwords', regex: '(?:password|passwd|pwd)\\s*[:=]\\s*(["\']?)[^\\s"\'\`]{8,}\\1', flags: 'gi', enabled: true },
-    { name: 'Database URIs', regex: '(?:mongodb(?:\\+srv)?|postgres(?:ql)?|mysql|redis)://[^\\s]+', flags: 'gi', enabled: true },
-    { name: 'AWS Access Keys', regex: '\\b(?:AKIA|A3T|AGPA|AIDA|AROA|AIPA|ANPA|ANVA|ASIA)[A-Z0-9]{16}\\b', flags: 'g', enabled: true },
-    { name: 'IPv4 Addresses', regex: '\\b(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\b', flags: 'g', enabled: true },
-    { name: 'URLs (HTTP/FTP)', regex: '\\b(?:https?|ftp)://[^\\s/$.?#].[^\\s]*\\b', flags: 'gi', enabled: true },
-    { name: 'Localhost Domains', regex: '\\b(?:https?://)?(?:localhost|127\\.0\\.0\\.1|[\\w-]+\\.local)(?::\\d{1,5})?\\b', flags: 'gi', enabled: true }
+  {
+    name: 'Private Keys (PEM)',
+    regex: '-----BEGIN (?:RSA|EC|DSA|OPENSSH|CERTIFICATE) PRIVATE KEY-----',
+    flags: 'g',
+    enabled: true,
+  },
+  {
+    name: 'API Keys & Secrets',
+    regex:
+      '(?:api[_-]?key|secret[_-]?key|auth[_-]?token|access[_-]?token|client[_-]?secret)\\s*[:=]\\s*(["\']?)[a-zA-Z0-9_\\-\\.\\+\\/=]{16,50}\\1',
+    flags: 'gi',
+    enabled: true,
+  },
+  {
+    name: 'JWT Tokens',
+    regex: '\\beyJ[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+\\b',
+    flags: 'g',
+    enabled: true,
+  },
+  {
+    name: 'SSN',
+    regex: '\\b(?!000|666|9\\d{2})\\d{3}[- ]?(?!00)\\d{2}[- ]?(?!0000)\\d{4}\\b',
+    flags: 'g',
+    enabled: true,
+  },
+  {
+    name: 'Email Addresses',
+    regex: '\\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[a-zA-Z]{2,}\\b',
+    flags: 'gi',
+    enabled: true,
+  },
+  {
+    name: 'Phone Numbers',
+    regex: '\\b(?:\\+?1[-.]?)?\\(?[0-9]{3}\\)?[-. ]?[0-9]{3}[-. ]?[0-9]{4}\\b',
+    flags: 'g',
+    enabled: true,
+  },
+  { name: 'Credit Card Numbers', regex: '\\b(?:\\d[ -]?){13,16}\\b', flags: 'g', enabled: true },
+  {
+    name: 'Crypto Seeds',
+    regex: '(?:seed phrase|recovery phrase|mnemonic|wallet seed)[\\s:=]+[a-z\\s]{20,}',
+    flags: 'gi',
+    enabled: true,
+  },
+  {
+    name: 'Bank Routing/Account',
+    regex: '(?:routing|account)[\\s_-]?number[\\s:=]+\\d{8,12}',
+    flags: 'gi',
+    enabled: true,
+  },
+  {
+    name: 'Plaintext Passwords',
+    regex: '(?:password|passwd|pwd)\\s*[:=]\\s*(["\']?)[^\\s"\'\`]{8,}\\1',
+    flags: 'gi',
+    enabled: true,
+  },
+  {
+    name: 'Database URIs',
+    regex: '(?:mongodb(?:\\+srv)?|postgres(?:ql)?|mysql|redis)://[^\\s]+',
+    flags: 'gi',
+    enabled: true,
+  },
+  {
+    name: 'AWS Access Keys',
+    regex: '\\b(?:AKIA|A3T|AGPA|AIDA|AROA|AIPA|ANPA|ANVA|ASIA)[A-Z0-9]{16}\\b',
+    flags: 'g',
+    enabled: true,
+  },
+  {
+    name: 'IPv4 Addresses',
+    regex:
+      '\\b(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\b',
+    flags: 'g',
+    enabled: true,
+  },
+  {
+    name: 'URLs (HTTP/FTP)',
+    regex: '\\b(?:https?|ftp)://[^\\s/$.?#].[^\\s]*\\b',
+    flags: 'gi',
+    enabled: true,
+  },
+  {
+    name: 'Localhost Domains',
+    regex: '\\b(?:https?://)?(?:localhost|127\\.0\\.0\\.1|[\\w-]+\\.local)(?::\\d{1,5})?\\b',
+    flags: 'gi',
+    enabled: true,
+  },
 ];
 
 // Intelligence: Repository Ownership Resolution Logic
 function findRepoForPath(filePath) {
-    if (!filePath) return null;
-    const normPath = filePath.replace(/\\/g, '/').toLowerCase();
-    const matches = repositories.filter(r => {
-        const rPath = String(r.path || '').replace(/\\/g, '/').toLowerCase();
-        return normPath === rPath || normPath.startsWith(rPath + '/');
-    });
-    return matches.sort((a, b) => b.path.length - a.path.length)[0] || null;
+  if (!filePath) return null;
+  const normPath = filePath.replace(/\\/g, '/').toLowerCase();
+  const matches = repositories.filter((r) => {
+    const rPath = String(r.path || '')
+      .replace(/\\/g, '/')
+      .toLowerCase();
+    return normPath === rPath || normPath.startsWith(rPath + '/');
+  });
+  return matches.sort((a, b) => b.path.length - a.path.length)[0] || null;
 }
 
 function setTaskState(running) {
-    activeTasks = running ? activeTasks + 1 : Math.max(0, activeTasks - 1);
-    if (elements.globalProgress) {
-        elements.globalProgress.style.display = activeTasks > 0 ? 'block' : 'none';
-    }
+  activeTasks = running ? activeTasks + 1 : Math.max(0, activeTasks - 1);
+  if (elements.globalProgress) {
+    elements.globalProgress.style.display = activeTasks > 0 ? 'block' : 'none';
+  }
 }
 
 function updateProgress(percent) {
-    const bar = document.getElementById('global-progress-bar');
-    if (bar) {
-        bar.classList.remove('looping');
-        bar.style.width = percent + '%';
-    }
+  const bar = document.getElementById('global-progress-bar');
+  if (bar) {
+    bar.classList.remove('looping');
+    bar.style.width = percent + '%';
+  }
 }
 
 /**
  * Checks if a font is available on the system or loaded via @font-face.
  */
 function checkFontAvailability(fontName) {
-    if (!fontName || ['monospace', 'sans-serif', 'serif'].includes(fontName.toLowerCase())) return true;
+  if (!fontName || ['monospace', 'sans-serif', 'serif'].includes(fontName.toLowerCase()))
+    return true;
 
-    // Modern check for loaded fonts (works best for project-bundled fonts)
-    try {
-        if (document.fonts && document.fonts.check) {
-            // Check for the font with a fallback to ensure it's specifically the font we want
-            // If the browser hasn't loaded it yet, check() returns false
-            if (document.fonts.check(`12px "${fontName}"`)) return true;
-        }
-    } catch (e) {}
+  // Modern check for loaded fonts (works best for project-bundled fonts)
+  try {
+    if (document.fonts && document.fonts.check) {
+      // Check for the font with a fallback to ensure it's specifically the font we want
+      // If the browser hasn't loaded it yet, check() returns false
+      if (document.fonts.check(`12px "${fontName}"`)) return true;
+    }
+  } catch (e) {}
 
-    const text = 'abcdefghijklmnopqrstuvwxyz0123456789';
-    const canvas = document.createElement('canvas');
-    const context = canvas.getContext('2d');
+  const text = 'abcdefghijklmnopqrstuvwxyz0123456789';
+  const canvas = document.createElement('canvas');
+  const context = canvas.getContext('2d');
 
-    // Test against monospace
-    context.font = '72px monospace';
-    const baselineMono = context.measureText(text).width;
-    context.font = `72px "${fontName}", monospace`;
-    const testMono = context.measureText(text).width;
+  // Test against monospace
+  context.font = '72px monospace';
+  const baselineMono = context.measureText(text).width;
+  context.font = `72px "${fontName}", monospace`;
+  const testMono = context.measureText(text).width;
 
-    // Test against serif
-    context.font = '72px serif';
-    const baselineSerif = context.measureText(text).width;
-    context.font = `72px "${fontName}", serif`;
-    const testSerif = context.measureText(text).width;
+  // Test against serif
+  context.font = '72px serif';
+  const baselineSerif = context.measureText(text).width;
+  context.font = `72px "${fontName}", serif`;
+  const testSerif = context.measureText(text).width;
 
-    // If it differs from generic fallbacks, it's installed
-    return (testMono !== baselineMono) || (testSerif !== baselineSerif);
+  // If it differs from generic fallbacks, it's installed
+  return testMono !== baselineMono || testSerif !== baselineSerif;
 }
 
 // Re-render theme controls when fonts finish loading to update (Not Installed) labels
 if (document.fonts) {
-    // Force browser to start loading project fonts by checking/requesting them
-    const projectFonts = ['Fira Code', 'JetBrains Mono', 'Source Code Pro', 'JetBrains Mono'];
-    projectFonts.forEach(f => document.fonts.load(`12px "${f}"`));
+  // Force browser to start loading project fonts by checking/requesting them
+  const projectFonts = ['Fira Code', 'JetBrains Mono', 'Source Code Pro', 'JetBrains Mono'];
+  projectFonts.forEach((f) => document.fonts.load(`12px "${f}"`));
 
-    document.fonts.ready.then(() => {
-        if (elements.themeEditorView && elements.themeEditorView.style.display !== 'none' && themeEditor) {
-            renderThemeVisualControls(themeEditor.getValue());
-        }
-    });
+  document.fonts.ready.then(() => {
+    if (
+      elements.themeEditorView &&
+      elements.themeEditorView.style.display !== 'none' &&
+      themeEditor
+    ) {
+      renderThemeVisualControls(themeEditor.getValue());
+    }
+  });
 }
 
 // Global Custom Modals (Dark themed replacements for alert/confirm)
 function showAlert(message, title = 'Notification') {
-    return new Promise((resolve) => {
-        const modal = document.getElementById('confirm-modal');
-        const titleEl = document.getElementById('confirm-title');
-        const msgEl = document.getElementById('confirm-message');
-        const okBtn = document.getElementById('confirm-ok');
-        const cancelBtn = document.getElementById('confirm-cancel');
+  return new Promise((resolve) => {
+    const modal = document.getElementById('confirm-modal');
+    const titleEl = document.getElementById('confirm-title');
+    const msgEl = document.getElementById('confirm-message');
+    const okBtn = document.getElementById('confirm-ok');
+    const cancelBtn = document.getElementById('confirm-cancel');
 
-        if (!modal || !titleEl || !msgEl || !okBtn) {
-            alert(title + ": " + message);
-            resolve(true);
-            return;
-        }
+    if (!modal || !titleEl || !msgEl || !okBtn) {
+      alert(title + ': ' + message);
+      resolve(true);
+      return;
+    }
 
-        titleEl.textContent = title;
-        msgEl.textContent = message;
-        if (cancelBtn) cancelBtn.style.display = 'none';
-        modal.style.display = 'flex';
+    titleEl.textContent = title;
+    msgEl.textContent = message;
+    if (cancelBtn) cancelBtn.style.display = 'none';
+    modal.style.display = 'flex';
 
-        okBtn.onclick = () => {
-            modal.style.display = 'none';
-            resolve(true);
-        };
-    });
+    okBtn.onclick = () => {
+      modal.style.display = 'none';
+      resolve(true);
+    };
+  });
 }
 
 function showConfirm(message, title = 'Confirm Action') {
-    return new Promise((resolve) => {
-        const modal = document.getElementById('confirm-modal');
-        const titleEl = document.getElementById('confirm-title');
-        const msgEl = document.getElementById('confirm-message');
-        const okBtn = document.getElementById('confirm-ok');
-        const cancelBtn = document.getElementById('confirm-cancel');
+  return new Promise((resolve) => {
+    const modal = document.getElementById('confirm-modal');
+    const titleEl = document.getElementById('confirm-title');
+    const msgEl = document.getElementById('confirm-message');
+    const okBtn = document.getElementById('confirm-ok');
+    const cancelBtn = document.getElementById('confirm-cancel');
 
-        if (!modal || !titleEl || !msgEl || !okBtn || !cancelBtn) {
-            const res = confirm(title + "\n\n" + message);
-            resolve(res);
-            return;
-        }
+    if (!modal || !titleEl || !msgEl || !okBtn || !cancelBtn) {
+      const res = confirm(title + '\n\n' + message);
+      resolve(res);
+      return;
+    }
 
-        titleEl.textContent = title;
-        msgEl.textContent = message;
-        cancelBtn.style.display = 'block';
-        modal.style.display = 'flex';
+    titleEl.textContent = title;
+    msgEl.textContent = message;
+    cancelBtn.style.display = 'block';
+    modal.style.display = 'flex';
 
-        okBtn.onclick = () => {
-            modal.style.display = 'none';
-            resolve(true);
-        };
-        cancelBtn.onclick = () => {
-            modal.style.display = 'none';
-            resolve(false);
-        };
-    });
+    okBtn.onclick = () => {
+      modal.style.display = 'none';
+      resolve(true);
+    };
+    cancelBtn.onclick = () => {
+      modal.style.display = 'none';
+      resolve(false);
+    };
+  });
 }
 
 function showError(message, title = 'Error') {
-    return new Promise((resolve) => {
-        const modal = document.getElementById('confirm-modal');
-        const titleEl = document.getElementById('confirm-title');
-        const msgEl = document.getElementById('confirm-message');
-        const okBtn = document.getElementById('confirm-ok');
-        const cancelBtn = document.getElementById('confirm-cancel');
+  return new Promise((resolve) => {
+    const modal = document.getElementById('confirm-modal');
+    const titleEl = document.getElementById('confirm-title');
+    const msgEl = document.getElementById('confirm-message');
+    const okBtn = document.getElementById('confirm-ok');
+    const cancelBtn = document.getElementById('confirm-cancel');
 
-        if (!modal || !titleEl || !msgEl || !okBtn) {
-            alert("ERROR: " + title + "\n\n" + message);
-            resolve(true);
-            return;
-        }
+    if (!modal || !titleEl || !msgEl || !okBtn) {
+      alert('ERROR: ' + title + '\n\n' + message);
+      resolve(true);
+      return;
+    }
 
-        titleEl.textContent = title;
-        titleEl.style.color = 'var(--accent-red)';
-        msgEl.textContent = message;
-        if (cancelBtn) cancelBtn.style.display = 'none';
-        modal.style.display = 'flex';
+    titleEl.textContent = title;
+    titleEl.style.color = 'var(--accent-red)';
+    msgEl.textContent = message;
+    if (cancelBtn) cancelBtn.style.display = 'none';
+    modal.style.display = 'flex';
 
-        okBtn.onclick = () => {
-            titleEl.style.color = '';
-            modal.style.display = 'none';
-            resolve(true);
-        };
-    });
+    okBtn.onclick = () => {
+      titleEl.style.color = '';
+      modal.style.display = 'none';
+      resolve(true);
+    };
+  });
 }
 
 function showUnsavedChangesDialog() {
-    return new Promise((resolve) => {
-        const modal = document.getElementById('unsaved-changes-modal');
-        const saveBtn = document.getElementById('unsaved-save');
-        const discardBtn = document.getElementById('unsaved-discard');
-        const cancelBtn = document.getElementById('unsaved-cancel');
+  return new Promise((resolve) => {
+    const modal = document.getElementById('unsaved-changes-modal');
+    const saveBtn = document.getElementById('unsaved-save');
+    const discardBtn = document.getElementById('unsaved-discard');
+    const cancelBtn = document.getElementById('unsaved-cancel');
 
-        if (!modal) {
-            const res = confirm("You have unsaved changes. Save them now?");
-            resolve(res ? 'save' : 'discard');
-            return;
-        }
+    if (!modal) {
+      const res = confirm('You have unsaved changes. Save them now?');
+      resolve(res ? 'save' : 'discard');
+      return;
+    }
 
-        modal.style.display = 'flex';
+    modal.style.display = 'flex';
 
-        saveBtn.onclick = () => { modal.style.display = 'none'; resolve('save'); };
-        discardBtn.onclick = () => { modal.style.display = 'none'; resolve('discard'); };
-        cancelBtn.onclick = () => { modal.style.display = 'none'; resolve('cancel'); };
-    });
+    saveBtn.onclick = () => {
+      modal.style.display = 'none';
+      resolve('save');
+    };
+    discardBtn.onclick = () => {
+      modal.style.display = 'none';
+      resolve('discard');
+    };
+    cancelBtn.onclick = () => {
+      modal.style.display = 'none';
+      resolve('cancel');
+    };
+  });
 }
 
 async function guardNavigation() {
-    if (!monacoEditor || !elements.editorView) return true;
-    if (elements.editorView.style.display === 'none') return true;
+  if (!monacoEditor || !elements.editorView) return true;
+  if (elements.editorView.style.display === 'none') return true;
 
-    if (hasUnsavedChanges()) {
-        const result = await showUnsavedChangesDialog();
-        if (result === 'save') {
-            await saveCurrentFile();
-            return true;
-        } else if (result === 'discard') {
-            return true;
-        } else {
-            return false; // User cancelled navigation
-        }
+  if (hasUnsavedChanges()) {
+    const result = await showUnsavedChangesDialog();
+    if (result === 'save') {
+      await saveCurrentFile();
+      return true;
+    } else if (result === 'discard') {
+      return true;
+    } else {
+      return false; // User cancelled navigation
     }
-    return true;
+  }
+  return true;
 }
 
 function hasUnsavedChanges() {
-    if (!monacoEditor) return false;
-    // Normalize both strings to LF to prevent false positives from CRLF vs LF
-    const currentContent = monacoEditor.getValue().replace(/\r\n/g, '\n');
-    const originalNormalized = (originalFileContent || '').replace(/\r\n/g, '\n');
-    return currentContent !== originalNormalized;
+  if (!monacoEditor) return false;
+  // Normalize both strings to LF to prevent false positives from CRLF vs LF
+  const currentContent = monacoEditor.getValue().replace(/\r\n/g, '\n');
+  const originalNormalized = (originalFileContent || '').replace(/\r\n/g, '\n');
+  return currentContent !== originalNormalized;
 }
 
 // DOM Elements Mapping (Getter-based for total resilience)
 const elements = {
-    get navHome() { return document.getElementById('nav-home'); },
-    get navGist() { return document.getElementById('nav-gist'); },
-    get navImport() { return document.getElementById('nav-import'); },
-    get navNew() { return document.getElementById('nav-new'); },
-    get navSearch() { return document.getElementById('nav-search'); },
-    get navCustomCommands() { return document.getElementById('nav-custom-commands'); },
-    get navGitConfig() { return document.getElementById('nav-git-config'); },
-    get navTheme() { return document.getElementById('nav-theme'); },
-    get navSettings() { return document.getElementById('nav-settings'); },
-    get repoTree() { return document.getElementById('repo-tree'); },
-    get repoFilter() { return document.getElementById('repo-filter'); },
-    get repoFilterClear() { return document.getElementById('repo-filter-clear'); },
-    get mainContent() { return document.getElementById('main-content'); },
-    get dashboardView() { return document.getElementById('dashboard-view'); },
-    get dashboardSummary() { return document.getElementById('dashboard-summary'); },
-    get dashboardGrid() { return document.getElementById('dashboard-grid'); },
-    get gistView() { return document.getElementById('gist-view'); },
-    get gistList() { return document.getElementById('gist-list'); },
-    get gistRefreshBtn() { return document.getElementById('gist-refresh-btn'); },
-    get editorChromeBtn() { return document.getElementById('editor-chrome-btn'); },
-    get gistNewBtn() { return document.getElementById('gist-new-btn'); },
-    get gistCreateModal() { return document.getElementById('gist-create-modal'); },
-    get gistCreateDescription() { return document.getElementById('gist-create-description'); },
-    get gistCreateFilename() { return document.getElementById('gist-create-filename'); },
-    get gistCreateBrowse() { return document.getElementById('gist-create-browse'); },
-    get gistCreatePublic() { return document.getElementById('gist-create-public'); },
-    get gistCreateContent() { return document.getElementById('gist-create-content'); },
-    get gistCreateConfirm() { return document.getElementById('gist-create-confirm'); },
-    get gistCreateCancel() { return document.getElementById('gist-create-cancel'); },
-    get gistEditModal() { return document.getElementById('gist-edit-modal'); },
-    get gistEditDescription() { return document.getElementById('gist-edit-description'); },
-    get gistEditFilesContainer() { return document.getElementById('gist-edit-files-container'); },
-    get gistEditConfirm() { return document.getElementById('gist-edit-confirm'); },
-    get gistEditCancel() { return document.getElementById('gist-edit-cancel'); },
-    get repoView() { return document.getElementById('repo-view'); },
-    get repoLeftPanel() { return document.getElementById('repo-left-panel'); },
-    get repoRightPanel() { return document.getElementById('repo-right-panel'); },
-    get repoRefreshBtn() { return document.getElementById('repo-refresh-btn'); },
-    get stagedList() { return document.getElementById('staged-list'); },
-    get unstagedList() { return document.getElementById('unstaged-list'); },
-    get messageView() { return document.getElementById('message-view'); },
-    get diffView() { return document.getElementById('diff-view'); },
-    get diffContainer() { return document.getElementById('diff-container'); },
-    get diffFileName() { return document.getElementById('diff-file-name'); },
-    get diffEditBtn() { return document.getElementById('diff-edit-btn'); },
-    get diffBackBtn() { return document.getElementById('diff-back-btn'); },
-    get statusView() { return document.getElementById('status-view'); },
-    get statusContainer() { return document.getElementById('status-container'); },
-    get searchHubModal() { return document.getElementById('search-hub-modal'); },
-    get searchHubClose() { return document.getElementById('search-hub-close'); },
-    get tabAdvanced() { return document.getElementById('tab-advanced'); },
-    get tabPrivacy() { return document.getElementById('tab-privacy'); },
-    get contentAdvanced() { return document.getElementById('content-advanced'); },
-    get contentPrivacy() { return document.getElementById('content-privacy'); },
-    get privacyResults() { return document.getElementById('privacy-results'); },
-    get privacySearchProject() { return document.getElementById('privacy-search-project'); },
-    get privacyScanStart() { return document.getElementById('privacy-scan-start'); },
-    get privacyScanStatus() { return document.getElementById('privacy-scan-status'); },
-    get privacyBulkGitRm() { return document.getElementById('privacy-bulk-git-rm'); },
-    get privacyBulkIgnore() { return document.getElementById('privacy-bulk-ignore'); },
-    get privacyPatternsList() { return document.getElementById('privacy-patterns-list'); },
-    get privacyPatternsSelectAll() { return document.getElementById('privacy-patterns-select-all'); },
-    get privacyResultsSelectAll() { return document.getElementById('privacy-results-select-all'); },
-    get privacyAddPattern() { return document.getElementById('privacy-add-pattern'); },
-    get privacyExportCsv() { return document.getElementById('privacy-export-csv'); },
-    get privacyExportMd() { return document.getElementById('privacy-export-md'); },
-    get statusBackBtn() { return document.getElementById('status-back-btn'); },
-    get repoStatusBtn() { return document.getElementById('repo-status-btn'); },
-    get repoStashBtn() { return document.getElementById('repo-stash-btn'); },
-    get editorView() { return document.getElementById('editor-view'); },
-    get editorFileName() { return document.getElementById('editor-file-name'); },
-    get editorFileInfo() { return document.getElementById('editor-file-info'); },
-    get editorSaveBtn() { return document.getElementById('editor-save-btn'); },
-    get editorGistBtn() { return document.getElementById('editor-gist-btn'); },
-    get editorRestoreBtn() { return document.getElementById('editor-restore-btn'); },
-    get editorUndoBtn() { return document.getElementById('editor-undo-btn'); },
-    get editorRedoBtn() { return document.getElementById('editor-redo-btn'); },
-    get editorWrapBtn() { return document.getElementById('editor-wrap-btn'); },
-    get editorFolderBtn() { return document.getElementById('editor-folder-btn'); },
-    get editorFormatBtn() { return document.getElementById('editor-format-btn'); },
-    get editorFindBtn() { return document.getElementById('editor-find-btn'); },
-    get previewFindWidget() { return document.getElementById('preview-find-widget'); },
-    get previewFindInput() { return document.getElementById('preview-find-input'); },
-    get previewFindPrev() { return document.getElementById('preview-find-prev'); },
-    get previewFindNext() { return document.getElementById('preview-find-next'); },
-    get previewFindClose() { return document.getElementById('preview-find-close'); },
-    get editorTransformBtn() { return document.getElementById('editor-transform-btn'); },
-    get transformMenu() { return document.getElementById('transform-menu'); },
-    get editorCloseBtn() { return document.getElementById('editor-close-btn'); },
-    get editorPreviewToggle() { return document.getElementById('editor-preview-toggle'); },
-    get editorContainerWrapper() { return document.getElementById('editor-container-wrapper'); },
-    get gitignoreScanBtn() { return document.getElementById('gitignore-scan-btn'); },
-    get markdownPreview() { return document.getElementById('markdown-preview'); },
-    get htmlPreview() { return document.getElementById('html-preview'); },
-    get imagePreview() { return document.getElementById('image-preview'); },
-    get previewImg() { return document.getElementById('preview-img'); },
-    get monacoContainer() { return document.getElementById('monaco-container'); },
-    get settingsView() { return document.getElementById('settings-view'); },
-    get customCommandsView() { return document.getElementById('custom-commands-view'); },
-    get customCommandSelect() { return document.getElementById('custom-command-select'); },
-    get customCommandForm() { return document.getElementById('custom-command-form'); },
-    get customCommandName() { return document.getElementById('custom-command-name'); },
-    get customCommandPath() { return document.getElementById('custom-command-path'); },
-    get customCommandArgs() { return document.getElementById('custom-command-args'); },
-    get customCommandCwd() { return document.getElementById('custom-command-cwd'); },
-    get customCommandAdmin() { return document.getElementById('custom-command-admin'); },
-    get saveCustomCommandBtn() { return document.getElementById('save-custom-command-btn'); },
-    get deleteCustomCommandBtn() { return document.getElementById('delete-custom-command-btn'); },
-    get browseCustomCommandPath() { return document.getElementById('browse-custom-command-path'); },
-    get browseCustomCommandCwd() { return document.getElementById('browse-custom-command-cwd'); },
-    get gitConfigView() { return document.getElementById('git-config-view'); },
-    get themeEditorView() { return document.getElementById('theme-editor-view'); },
-    get themeVisualControls() { return document.getElementById('theme-visual-controls'); },
-    get themeDynamicControls() { return document.getElementById('theme-dynamic-controls'); },
-    get themeMonacoContainer() { return document.getElementById('theme-monaco-container'); },
-    get themeSaveBtn() { return document.getElementById('theme-save-btn'); },
-    get themeExportIniBtn() { return document.getElementById('theme-export-ini-btn'); },
-    get themeImportIniBtn() { return document.getElementById('theme-import-ini-btn'); },
-    get themeUndoBtn() { return document.getElementById('theme-undo-btn'); },
-    get themeResetBtn() { return document.getElementById('theme-reset-btn'); },
-    get themeCloseBtn() { return document.getElementById('theme-close-btn'); },
-    get themePresetsSelect() { return document.getElementById('theme-presets-select'); },
-    get newThemeNameInput() { return document.getElementById('new-theme-name'); },
-    get themeSavePresetBtn() { return document.getElementById('theme-save-preset-btn'); },
-    get themeDeletePresetBtn() { return document.getElementById('theme-delete-preset-btn'); },
-    get exportSettingsBtn() { return document.getElementById('export-settings-btn'); },
-    get importSettingsBtn() { return document.getElementById('import-settings-btn'); },
-    get branchSelect() { return document.getElementById('branch-select'); },
-    get remoteSelect() { return document.getElementById('remote-select'); },
-    get openRemoteBtn() { return document.getElementById('open-remote-btn'); },
-    get restoreAllBtn() { return document.getElementById('restore-all-btn'); },
-    get stageAllBtn() { return document.getElementById('stage-all-btn'); },
-    get unstageAllBtn() { return document.getElementById('unstage-all-btn'); },
-    get createBranchBtn() { return document.getElementById('create-branch-btn'); },
-    get deleteBranchBtn() { return document.getElementById('delete-branch-btn'); },
-    get renameBranchBtn() { return document.getElementById('rename-branch-btn'); },
-    get magicCommitBtn() { return document.getElementById('magic-commit-btn'); },
-    get commitAmendToggle() { return document.getElementById('commit-amend-toggle'); },
-    get commitMsgArea() { return document.getElementById('commit-msg'); },
-    get commitBtn() { return document.getElementById('commit-btn'); },
-    get commitPushBtn() { return document.getElementById('commit-push-btn'); },
-    get revertChangesBtnTop() { return document.getElementById('revert-changes-btn-top'); },
-    get nukeReinitBtn() { return document.getElementById('nuke-reinit-btn'); },
-    get restoreFileBtn() { return document.getElementById('restore-file-btn'); },
-    get consoleOutput() { return document.getElementById('console-output'); },
-    get sidebarCollapse() { return document.getElementById('sidebar-collapse'); },
-    get sidebarToggleIgnored() { return document.getElementById('sidebar-toggle-ignored'); },
-    get sidebarRefresh() { return document.getElementById('sidebar-refresh'); },
-    get sidebar() { return document.getElementById('sidebar'); },
-    get sidebarResizer() { return document.getElementById('sidebar-resizer'); },
-    get consolePanel() { return document.getElementById('console-panel'); },
-    get consoleResizer() { return document.getElementById('console-resizer'); },
-    get globalProgress() { return document.getElementById('global-progress-container'); },
-    get dashboardProgressContainer() { return document.getElementById('dashboard-progress-container'); },
-    get dashboardProgressBar() { return document.getElementById('dashboard-progress-bar'); },
-    get dashboardBulkPullBtn() { return document.getElementById('dashboard-bulk-pull-btn'); },
-    get dashboardBulkCommitBtn() { return document.getElementById('dashboard-bulk-commit-btn'); },
-    get dashboardBulkStageBtn() { return document.getElementById('dashboard-bulk-stage-btn'); },
-    get dashboardBulkPushBtn() { return document.getElementById('dashboard-bulk-push-btn'); },
-    get dashboardBulkRestoreBtn() { return document.getElementById('dashboard-bulk-restore-btn'); },
-    get bulkCommitModal() { return document.getElementById('bulk-commit-modal'); },
-    get bulkCommitRepoList() { return document.getElementById('bulk-commit-repo-list'); },
-    get bulkCommitSelectAll() { return document.getElementById('bulk-commit-select-all'); },
-    get bulkCommitMsg() { return document.getElementById('bulk-commit-msg'); },
-    get bulkCommitAutoMsg() { return document.getElementById('bulk-commit-auto-msg'); },
-    get notifRepoChanges() { return document.getElementById('notif-repo-changes'); },
-    get bulkCommitConfirm() { return document.getElementById('bulk-commit-confirm'); },
-    get bulkCommitCancel() { return document.getElementById('bulk-commit-cancel'); },
-    get bulkPushModal() { return document.getElementById('bulk-push-modal'); },
-    get bulkPushRepoList() { return document.getElementById('bulk-push-repo-list'); },
-    get bulkPushSelectAll() { return document.getElementById('bulk-push-select-all'); },
-    get bulkPushConfirm() { return document.getElementById('bulk-push-confirm'); },
-    get bulkPushCancel() { return document.getElementById('bulk-push-cancel'); },
-    get bulkStageModal() { return document.getElementById('bulk-stage-modal'); },
-    get bulkStageRepoList() { return document.getElementById('bulk-stage-repo-list'); },
-    get bulkStageSelectAll() { return document.getElementById('bulk-stage-select-all'); },
-    get bulkStageConfirm() { return document.getElementById('bulk-stage-confirm'); },
-    get bulkStageCancel() { return document.getElementById('bulk-stage-cancel'); },
-    get bulkRestoreModal() { return document.getElementById('bulk-restore-modal'); },
-    get bulkRestoreRepoList() { return document.getElementById('bulk-restore-repo-list'); },
-    get bulkRestoreSelectAll() { return document.getElementById('bulk-restore-select-all'); },
-    get bulkRestoreConfirm() { return document.getElementById('bulk-restore-confirm'); },
-    get bulkRestoreCancel() { return document.getElementById('bulk-restore-cancel'); },
-    get bulkPullModal() { return document.getElementById('bulk-pull-modal'); },
-    get bulkPullRepoList() { return document.getElementById('bulk-pull-repo-list'); },
-    get bulkPullSelectAll() { return document.getElementById('bulk-pull-select-all'); },
-    get bulkPullConfirm() { return document.getElementById('bulk-pull-confirm'); },
-    get bulkPullCancel() { return document.getElementById('bulk-pull-cancel'); },
-    get dashboardBulkFetchBtn() { return document.getElementById('dashboard-bulk-fetch-btn'); },
-    get bulkFetchModal() { return document.getElementById('bulk-fetch-modal'); },
-    get bulkFetchRepoList() { return document.getElementById('bulk-fetch-repo-list'); },
-    get bulkFetchSelectAll() { return document.getElementById('bulk-fetch-select-all'); },
-    get bulkFetchConfirm() { return document.getElementById('bulk-fetch-confirm'); },
-    get bulkFetchCancel() { return document.getElementById('bulk-fetch-cancel'); },
-    get protocolModal() { return document.getElementById('protocol-modal'); },
-    get protocolRepoList() { return document.getElementById('protocol-repo-list'); },
-    get protocolSelectAll() { return document.getElementById('protocol-select-all'); },
-    get protocolSelectSSH() { return document.getElementById('protocol-select-ssh'); },
-    get protocolSelectHTTPS() { return document.getElementById('protocol-select-https'); },
-    get protocolConfirm() { return document.getElementById('protocol-confirm'); },
-    get protocolCancel() { return document.getElementById('protocol-cancel'); },
-    get protocolTrustGithub() { return document.getElementById('protocol-trust-github'); },
-    get subtreeHubModal() { return document.getElementById('subtree-hub-modal'); },
-    get subtreeMappingList() { return document.getElementById('subtree-mapping-list'); },
-    get subtreeMappingSelectAll() { return document.getElementById('subtree-mapping-select-all'); },
-    get addSubtreeBtn() { return document.getElementById('add-subtree-mapping-btn'); },
-    get subtreePullSelectedBtn() { return document.getElementById('subtree-pull-selected-btn'); },
-    get subtreePushSelectedBtn() { return document.getElementById('subtree-push-selected-btn'); },
-    get subtreeDeleteSelectedBtn() { return document.getElementById('subtree-delete-selected-btn'); },
-    get subtreeClearAllBtn() { return document.getElementById('subtree-clear-all-btn'); },
-    get subtreeGitHubFetchBtn() { return document.getElementById('subtree-github-fetch-btn'); },
-    get subtreeGitHubModal() { return document.getElementById('subtree-github-modal'); },
-    get subtreeGitHubList() { return document.getElementById('subtree-github-list'); },
-    get subtreeGitHubSelectAll() { return document.getElementById('subtree-github-select-all'); },
-    get subtreeGitHubConfirm() { return document.getElementById('subtree-github-confirm'); },
-    get subtreeGitHubCancel() { return document.getElementById('subtree-github-cancel'); },
-    get prefixPickerModal() { return document.getElementById('prefix-picker-modal'); },
-    get prefixFolderList() { return document.getElementById('prefix-folder-list'); },
-    get prefixPickerCancel() { return document.getElementById('prefix-picker-cancel'); },
-    get subtreeModalClose() { return document.getElementById('subtree-modal-close'); },
-    get repoSubtreeBtn() { return document.getElementById('repo-subtree-btn'); },
-    get gitForceToggle() { return document.getElementById('git-force-toggle'); },
-    get unbornFoldersModal() { return document.getElementById('unborn-folders-modal'); },
-    get unbornFoldersList() { return document.getElementById('unborn-folders-list'); },
-    get unbornFoldersClose() { return document.getElementById('unborn-folders-close'); },
-    get rootRepoDirInput() { return document.getElementById('root-repo-dir'); },
-    get githubPatInput() { return document.getElementById('github-pat'); },
-    get syncTokenToGitBtn() { return document.getElementById('sync-token-to-git-btn'); },
-    get clearGitCredsBtn() { return document.getElementById('clear-git-creds-btn'); },
-    get shellSelect() { return document.getElementById('shell-select'); },
-    get themeModeSelect() { return document.getElementById('theme-mode-select'); },
-    get saveSettingsBtn() { return document.getElementById('save-settings-btn'); },
-    get settingsBanner() { return document.getElementById('settings-banner'); },
-    get settingsBannerApply() { return document.getElementById('settings-banner-apply'); },
-    get settingsBannerDismiss() { return document.getElementById('settings-banner-dismiss'); },
-    get resetAppBtn() { return document.getElementById('reset-app-btn'); },
-    get newItemModal() { return document.getElementById('new-item-modal'); },
-    get newItemName() { return document.getElementById('new-item-name'); },
-    get newItemPathDisplay() { return document.getElementById('new-item-path-display'); },
-    get mdListBtn() { return document.getElementById('md-list-btn'); },
-    get mdTaskBtn() { return document.getElementById('md-task-btn'); },
-    get mdImageBtn() { return document.getElementById('md-image-btn'); },
-    get mdViewControls() { return document.getElementById('md-view-controls'); },
-    get mdViewCodeBtn() { return document.getElementById('md-view-code'); },
-    get mdViewSplitBtn() { return document.getElementById('md-view-split'); },
-    get mdViewPreviewBtn() { return document.getElementById('md-view-preview'); },
-    get newBranchModal() { return document.getElementById('new-branch-modal'); },
-    get newBranchName() { return document.getElementById('new-branch-name'); },
-    get newRemoteModal() { return document.getElementById('new-remote-modal'); },
-    get newRemoteName() { return document.getElementById('new-remote-name'); },
-    get newRemoteUrl() { return document.getElementById('new-remote-url'); },
-    get addRemoteBtn() { return document.getElementById('add-remote-btn'); },
-    get editRemoteBtn() { return document.getElementById('edit-remote-btn'); },
-    get removeRemoteBtn() { return document.getElementById('remove-remote-btn'); },
-    get editRemoteModal() { return document.getElementById('edit-remote-modal'); },
-    get editRemoteName() { return document.getElementById('edit-remote-name'); },
-    get editRemoteUrl() { return document.getElementById('edit-remote-url'); },
-    get gitignoreModal() { return document.getElementById('gitignore-modal'); },
-    get gitignoreList() { return document.getElementById('gitignore-list'); },
-    get gitignoreSearch() { return document.getElementById('gitignore-search'); },
-    get gitignoreConfirm() { return document.getElementById('gitignore-confirm'); },
-    get gitignoreCancel() { return document.getElementById('gitignore-cancel'); },
-    get licenseModal() { return document.getElementById('license-modal'); },
-    get licenseList() { return document.getElementById('license-list'); },
-    get licenseSearch() { return document.getElementById('license-search'); },
-    get licenseConfirm() { return document.getElementById('license-confirm'); },
-    get licenseCancel() { return document.getElementById('license-cancel'); },
-    get deleteGitHubBtn() { return document.getElementById('delete-github-btn'); },
-    get publishGitHubBtn() { return document.getElementById('publish-github-btn'); },
-    get githubVisibilityBtn() { return document.getElementById('github-visibility-btn'); },
-    get publishGitHubModal() { return document.getElementById('publish-github-modal'); },
-    get publishRepoName() { return document.getElementById('publish-repo-name'); },
-    get publishRepoPrivate() { return document.getElementById('publish-repo-private'); },
-    get publishConfirm() { return document.getElementById('publish-confirm'); },
-    get publishCancel() { return document.getElementById('publish-cancel'); },
-    get renameModal() { return document.getElementById('rename-modal'); },
-    get renamePathDisplay() { return document.getElementById('rename-path-display'); },
-    get renameNewName() { return document.getElementById('rename-new-name'); },
-    get renameConfirm() { return document.getElementById('rename-confirm'); },
-    get renameCancel() { return document.getElementById('rename-cancel'); },
-    get gitConfigSections() { return document.getElementById('git-config-sections'); },
-    get gitConfigPathDisplay() { return document.getElementById('git-config-path-display'); },
-    get saveGitConfigBtn() { return document.getElementById('save-git-config-btn'); },
-    get addConfigEntryBtn() { return document.getElementById('add-config-entry-btn'); },
-    get newConfigEntryModal() { return document.getElementById('new-config-entry-modal'); },
-    get newConfigSection() { return document.getElementById('new-config-section'); },
-    get newConfigKey() { return document.getElementById('new-config-key'); },
-    get newConfigVal() { return document.getElementById('new-config-val'); },
-    get newConfigConfirm() { return document.getElementById('new-config-confirm'); },
-    get newConfigCancel() { return document.getElementById('new-config-cancel'); },
-    get renameBranchModal() { return document.getElementById('rename-branch-modal'); },
-    get renameBranchNewName() { return document.getElementById('rename-branch-new-name'); },
-    get renameBranchConfirm() { return document.getElementById('rename-branch-confirm'); },
-    get renameBranchCancel() { return document.getElementById('rename-branch-cancel'); },
-    get stashModal() { return document.getElementById('stash-modal'); },
-    get stashMessageInput() { return document.getElementById('stash-message-input'); },
-    get stashSaveBtn() { return document.getElementById('stash-save-btn'); },
-    get stashListContainer() { return document.getElementById('stash-list-container'); },
-    get stashCloseBtn() { return document.getElementById('stash-close-btn'); },
-    get advSearchQuery() { return document.getElementById('adv-search-query'); },
-    get advSearchProject() { return document.getElementById('adv-search-project'); },
-    get advSearchContent() { return document.getElementById('adv-search-content'); },
-    get advSearchFiles() { return document.getElementById('adv-search-files'); },
-    get advSearchRegex() { return document.getElementById('adv-search-regex'); },
-    get advSearchExecute() { return document.getElementById('adv-search-execute'); },
-    get advSearchReplace() { return document.getElementById('adv-search-replace'); },
-    get advSearchReplaceBtn() { return document.getElementById('adv-search-replace-btn'); },
-    get advSearchSelectAll() { return document.getElementById('adv-search-select-all'); },
-    get advSearchDeselectAll() { return document.getElementById('adv-search-deselect-all'); },
-    get advSearchExport() { return document.getElementById('adv-search-export'); },
-    get advSearchExportMd() { return document.getElementById('adv-search-export-md'); },
-    get advSearchResults() { return document.getElementById('adv-search-results'); },
-    get advSearchResultsHeader() { return document.getElementById('adv-search-results-header'); },
-    get importChoiceModal() { return document.getElementById('import-choice-modal'); },
-    get importChoiceLocal() { return document.getElementById('import-choice-local'); },
-    get importChoiceGitHub() { return document.getElementById('import-choice-github'); },
-    get importChoiceServer() { return document.getElementById('import-choice-server'); },
-    get importChoiceCancel() { return document.getElementById('import-choice-cancel'); },
-    get serverImportModal() { return document.getElementById('server-import-modal'); },
-    get serverImportUrl() { return document.getElementById('server-import-url'); },
-    get serverImportConfirm() { return document.getElementById('server-import-confirm'); },
-    get serverImportCancel() { return document.getElementById('server-import-cancel'); }
+  get navHome() {
+    return document.getElementById('nav-home');
+  },
+  get navGist() {
+    return document.getElementById('nav-gist');
+  },
+  get navImport() {
+    return document.getElementById('nav-import');
+  },
+  get navNew() {
+    return document.getElementById('nav-new');
+  },
+  get navSearch() {
+    return document.getElementById('nav-search');
+  },
+  get navCustomCommands() {
+    return document.getElementById('nav-custom-commands');
+  },
+  get navGitConfig() {
+    return document.getElementById('nav-git-config');
+  },
+  get navTheme() {
+    return document.getElementById('nav-theme');
+  },
+  get navSettings() {
+    return document.getElementById('nav-settings');
+  },
+  get repoTree() {
+    return document.getElementById('repo-tree');
+  },
+  get repoFilter() {
+    return document.getElementById('repo-filter');
+  },
+  get repoFilterClear() {
+    return document.getElementById('repo-filter-clear');
+  },
+  get mainContent() {
+    return document.getElementById('main-content');
+  },
+  get dashboardView() {
+    return document.getElementById('dashboard-view');
+  },
+  get dashboardSummary() {
+    return document.getElementById('dashboard-summary');
+  },
+  get dashboardGrid() {
+    return document.getElementById('dashboard-grid');
+  },
+  get gistView() {
+    return document.getElementById('gist-view');
+  },
+  get gistList() {
+    return document.getElementById('gist-list');
+  },
+  get gistRefreshBtn() {
+    return document.getElementById('gist-refresh-btn');
+  },
+  get editorChromeBtn() {
+    return document.getElementById('editor-chrome-btn');
+  },
+  get gistNewBtn() {
+    return document.getElementById('gist-new-btn');
+  },
+  get gistCreateModal() {
+    return document.getElementById('gist-create-modal');
+  },
+  get gistCreateDescription() {
+    return document.getElementById('gist-create-description');
+  },
+  get gistCreateFilename() {
+    return document.getElementById('gist-create-filename');
+  },
+  get gistCreateBrowse() {
+    return document.getElementById('gist-create-browse');
+  },
+  get gistCreatePublic() {
+    return document.getElementById('gist-create-public');
+  },
+  get gistCreateContent() {
+    return document.getElementById('gist-create-content');
+  },
+  get gistCreateConfirm() {
+    return document.getElementById('gist-create-confirm');
+  },
+  get gistCreateCancel() {
+    return document.getElementById('gist-create-cancel');
+  },
+  get gistEditModal() {
+    return document.getElementById('gist-edit-modal');
+  },
+  get gistEditDescription() {
+    return document.getElementById('gist-edit-description');
+  },
+  get gistEditFilesContainer() {
+    return document.getElementById('gist-edit-files-container');
+  },
+  get gistEditConfirm() {
+    return document.getElementById('gist-edit-confirm');
+  },
+  get gistEditCancel() {
+    return document.getElementById('gist-edit-cancel');
+  },
+  get repoView() {
+    return document.getElementById('repo-view');
+  },
+  get repoLeftPanel() {
+    return document.getElementById('repo-left-panel');
+  },
+  get repoRightPanel() {
+    return document.getElementById('repo-right-panel');
+  },
+  get repoRefreshBtn() {
+    return document.getElementById('repo-refresh-btn');
+  },
+  get stagedList() {
+    return document.getElementById('staged-list');
+  },
+  get unstagedList() {
+    return document.getElementById('unstaged-list');
+  },
+  get messageView() {
+    return document.getElementById('message-view');
+  },
+  get diffView() {
+    return document.getElementById('diff-view');
+  },
+  get diffContainer() {
+    return document.getElementById('diff-container');
+  },
+  get diffFileName() {
+    return document.getElementById('diff-file-name');
+  },
+  get diffEditBtn() {
+    return document.getElementById('diff-edit-btn');
+  },
+  get diffBackBtn() {
+    return document.getElementById('diff-back-btn');
+  },
+  get statusView() {
+    return document.getElementById('status-view');
+  },
+  get statusContainer() {
+    return document.getElementById('status-container');
+  },
+  get searchHubModal() {
+    return document.getElementById('search-hub-modal');
+  },
+  get searchHubClose() {
+    return document.getElementById('search-hub-close');
+  },
+  get tabAdvanced() {
+    return document.getElementById('tab-advanced');
+  },
+  get tabPrivacy() {
+    return document.getElementById('tab-privacy');
+  },
+  get contentAdvanced() {
+    return document.getElementById('content-advanced');
+  },
+  get contentPrivacy() {
+    return document.getElementById('content-privacy');
+  },
+  get privacyResults() {
+    return document.getElementById('privacy-results');
+  },
+  get privacySearchProject() {
+    return document.getElementById('privacy-search-project');
+  },
+  get privacyScanStart() {
+    return document.getElementById('privacy-scan-start');
+  },
+  get privacyScanStatus() {
+    return document.getElementById('privacy-scan-status');
+  },
+  get privacyBulkGitRm() {
+    return document.getElementById('privacy-bulk-git-rm');
+  },
+  get privacyBulkIgnore() {
+    return document.getElementById('privacy-bulk-ignore');
+  },
+  get privacyPatternsList() {
+    return document.getElementById('privacy-patterns-list');
+  },
+  get privacyPatternsSelectAll() {
+    return document.getElementById('privacy-patterns-select-all');
+  },
+  get privacyResultsSelectAll() {
+    return document.getElementById('privacy-results-select-all');
+  },
+  get privacyAddPattern() {
+    return document.getElementById('privacy-add-pattern');
+  },
+  get privacyExportCsv() {
+    return document.getElementById('privacy-export-csv');
+  },
+  get privacyExportMd() {
+    return document.getElementById('privacy-export-md');
+  },
+  get statusBackBtn() {
+    return document.getElementById('status-back-btn');
+  },
+  get repoStatusBtn() {
+    return document.getElementById('repo-status-btn');
+  },
+  get repoStashBtn() {
+    return document.getElementById('repo-stash-btn');
+  },
+  get editorView() {
+    return document.getElementById('editor-view');
+  },
+  get editorFileName() {
+    return document.getElementById('editor-file-name');
+  },
+  get editorFileInfo() {
+    return document.getElementById('editor-file-info');
+  },
+  get editorSaveBtn() {
+    return document.getElementById('editor-save-btn');
+  },
+  get editorGistBtn() {
+    return document.getElementById('editor-gist-btn');
+  },
+  get editorRestoreBtn() {
+    return document.getElementById('editor-restore-btn');
+  },
+  get editorUndoBtn() {
+    return document.getElementById('editor-undo-btn');
+  },
+  get editorRedoBtn() {
+    return document.getElementById('editor-redo-btn');
+  },
+  get editorWrapBtn() {
+    return document.getElementById('editor-wrap-btn');
+  },
+  get editorFolderBtn() {
+    return document.getElementById('editor-folder-btn');
+  },
+  get editorFormatBtn() {
+    return document.getElementById('editor-format-btn');
+  },
+  get editorFindBtn() {
+    return document.getElementById('editor-find-btn');
+  },
+  get previewFindWidget() {
+    return document.getElementById('preview-find-widget');
+  },
+  get previewFindInput() {
+    return document.getElementById('preview-find-input');
+  },
+  get previewFindPrev() {
+    return document.getElementById('preview-find-prev');
+  },
+  get previewFindNext() {
+    return document.getElementById('preview-find-next');
+  },
+  get previewFindClose() {
+    return document.getElementById('preview-find-close');
+  },
+  get editorTransformBtn() {
+    return document.getElementById('editor-transform-btn');
+  },
+  get transformMenu() {
+    return document.getElementById('transform-menu');
+  },
+  get editorCloseBtn() {
+    return document.getElementById('editor-close-btn');
+  },
+  get editorPreviewToggle() {
+    return document.getElementById('editor-preview-toggle');
+  },
+  get editorContainerWrapper() {
+    return document.getElementById('editor-container-wrapper');
+  },
+  get gitignoreScanBtn() {
+    return document.getElementById('gitignore-scan-btn');
+  },
+  get markdownPreview() {
+    return document.getElementById('markdown-preview');
+  },
+  get htmlPreview() {
+    return document.getElementById('html-preview');
+  },
+  get imagePreview() {
+    return document.getElementById('image-preview');
+  },
+  get previewImg() {
+    return document.getElementById('preview-img');
+  },
+  get monacoContainer() {
+    return document.getElementById('monaco-container');
+  },
+  get settingsView() {
+    return document.getElementById('settings-view');
+  },
+  get customCommandsView() {
+    return document.getElementById('custom-commands-view');
+  },
+  get customCommandSelect() {
+    return document.getElementById('custom-command-select');
+  },
+  get customCommandForm() {
+    return document.getElementById('custom-command-form');
+  },
+  get customCommandName() {
+    return document.getElementById('custom-command-name');
+  },
+  get customCommandPath() {
+    return document.getElementById('custom-command-path');
+  },
+  get customCommandArgs() {
+    return document.getElementById('custom-command-args');
+  },
+  get customCommandCwd() {
+    return document.getElementById('custom-command-cwd');
+  },
+  get customCommandAdmin() {
+    return document.getElementById('custom-command-admin');
+  },
+  get saveCustomCommandBtn() {
+    return document.getElementById('save-custom-command-btn');
+  },
+  get deleteCustomCommandBtn() {
+    return document.getElementById('delete-custom-command-btn');
+  },
+  get browseCustomCommandPath() {
+    return document.getElementById('browse-custom-command-path');
+  },
+  get browseCustomCommandCwd() {
+    return document.getElementById('browse-custom-command-cwd');
+  },
+  get gitConfigView() {
+    return document.getElementById('git-config-view');
+  },
+  get themeEditorView() {
+    return document.getElementById('theme-editor-view');
+  },
+  get themeVisualControls() {
+    return document.getElementById('theme-visual-controls');
+  },
+  get themeDynamicControls() {
+    return document.getElementById('theme-dynamic-controls');
+  },
+  get themeMonacoContainer() {
+    return document.getElementById('theme-monaco-container');
+  },
+  get themeSaveBtn() {
+    return document.getElementById('theme-save-btn');
+  },
+  get themeExportIniBtn() {
+    return document.getElementById('theme-export-ini-btn');
+  },
+  get themeImportIniBtn() {
+    return document.getElementById('theme-import-ini-btn');
+  },
+  get themeUndoBtn() {
+    return document.getElementById('theme-undo-btn');
+  },
+  get themeResetBtn() {
+    return document.getElementById('theme-reset-btn');
+  },
+  get themeCloseBtn() {
+    return document.getElementById('theme-close-btn');
+  },
+  get themePresetsSelect() {
+    return document.getElementById('theme-presets-select');
+  },
+  get newThemeNameInput() {
+    return document.getElementById('new-theme-name');
+  },
+  get themeSavePresetBtn() {
+    return document.getElementById('theme-save-preset-btn');
+  },
+  get themeDeletePresetBtn() {
+    return document.getElementById('theme-delete-preset-btn');
+  },
+  get exportSettingsBtn() {
+    return document.getElementById('export-settings-btn');
+  },
+  get importSettingsBtn() {
+    return document.getElementById('import-settings-btn');
+  },
+  get branchSelect() {
+    return document.getElementById('branch-select');
+  },
+  get remoteSelect() {
+    return document.getElementById('remote-select');
+  },
+  get openRemoteBtn() {
+    return document.getElementById('open-remote-btn');
+  },
+  get restoreAllBtn() {
+    return document.getElementById('restore-all-btn');
+  },
+  get stageAllBtn() {
+    return document.getElementById('stage-all-btn');
+  },
+  get unstageAllBtn() {
+    return document.getElementById('unstage-all-btn');
+  },
+  get createBranchBtn() {
+    return document.getElementById('create-branch-btn');
+  },
+  get deleteBranchBtn() {
+    return document.getElementById('delete-branch-btn');
+  },
+  get renameBranchBtn() {
+    return document.getElementById('rename-branch-btn');
+  },
+  get magicCommitBtn() {
+    return document.getElementById('magic-commit-btn');
+  },
+  get commitAmendToggle() {
+    return document.getElementById('commit-amend-toggle');
+  },
+  get commitMsgArea() {
+    return document.getElementById('commit-msg');
+  },
+  get commitBtn() {
+    return document.getElementById('commit-btn');
+  },
+  get commitPushBtn() {
+    return document.getElementById('commit-push-btn');
+  },
+  get revertChangesBtnTop() {
+    return document.getElementById('revert-changes-btn-top');
+  },
+  get nukeReinitBtn() {
+    return document.getElementById('nuke-reinit-btn');
+  },
+  get restoreFileBtn() {
+    return document.getElementById('restore-file-btn');
+  },
+  get consoleOutput() {
+    return document.getElementById('console-output');
+  },
+  get sidebarCollapse() {
+    return document.getElementById('sidebar-collapse');
+  },
+  get sidebarToggleIgnored() {
+    return document.getElementById('sidebar-toggle-ignored');
+  },
+  get sidebarRefresh() {
+    return document.getElementById('sidebar-refresh');
+  },
+  get sidebar() {
+    return document.getElementById('sidebar');
+  },
+  get sidebarResizer() {
+    return document.getElementById('sidebar-resizer');
+  },
+  get consolePanel() {
+    return document.getElementById('console-panel');
+  },
+  get consoleResizer() {
+    return document.getElementById('console-resizer');
+  },
+  get globalProgress() {
+    return document.getElementById('global-progress-container');
+  },
+  get dashboardProgressContainer() {
+    return document.getElementById('dashboard-progress-container');
+  },
+  get dashboardProgressBar() {
+    return document.getElementById('dashboard-progress-bar');
+  },
+  get dashboardBulkPullBtn() {
+    return document.getElementById('dashboard-bulk-pull-btn');
+  },
+  get dashboardBulkCommitBtn() {
+    return document.getElementById('dashboard-bulk-commit-btn');
+  },
+  get dashboardBulkStageBtn() {
+    return document.getElementById('dashboard-bulk-stage-btn');
+  },
+  get dashboardBulkPushBtn() {
+    return document.getElementById('dashboard-bulk-push-btn');
+  },
+  get dashboardBulkRestoreBtn() {
+    return document.getElementById('dashboard-bulk-restore-btn');
+  },
+  get bulkCommitModal() {
+    return document.getElementById('bulk-commit-modal');
+  },
+  get bulkCommitRepoList() {
+    return document.getElementById('bulk-commit-repo-list');
+  },
+  get bulkCommitSelectAll() {
+    return document.getElementById('bulk-commit-select-all');
+  },
+  get bulkCommitMsg() {
+    return document.getElementById('bulk-commit-msg');
+  },
+  get bulkCommitAutoMsg() {
+    return document.getElementById('bulk-commit-auto-msg');
+  },
+  get notifRepoChanges() {
+    return document.getElementById('notif-repo-changes');
+  },
+  get bulkCommitConfirm() {
+    return document.getElementById('bulk-commit-confirm');
+  },
+  get bulkCommitCancel() {
+    return document.getElementById('bulk-commit-cancel');
+  },
+  get bulkPushModal() {
+    return document.getElementById('bulk-push-modal');
+  },
+  get bulkPushRepoList() {
+    return document.getElementById('bulk-push-repo-list');
+  },
+  get bulkPushSelectAll() {
+    return document.getElementById('bulk-push-select-all');
+  },
+  get bulkPushConfirm() {
+    return document.getElementById('bulk-push-confirm');
+  },
+  get bulkPushCancel() {
+    return document.getElementById('bulk-push-cancel');
+  },
+  get bulkStageModal() {
+    return document.getElementById('bulk-stage-modal');
+  },
+  get bulkStageRepoList() {
+    return document.getElementById('bulk-stage-repo-list');
+  },
+  get bulkStageSelectAll() {
+    return document.getElementById('bulk-stage-select-all');
+  },
+  get bulkStageConfirm() {
+    return document.getElementById('bulk-stage-confirm');
+  },
+  get bulkStageCancel() {
+    return document.getElementById('bulk-stage-cancel');
+  },
+  get bulkRestoreModal() {
+    return document.getElementById('bulk-restore-modal');
+  },
+  get bulkRestoreRepoList() {
+    return document.getElementById('bulk-restore-repo-list');
+  },
+  get bulkRestoreSelectAll() {
+    return document.getElementById('bulk-restore-select-all');
+  },
+  get bulkRestoreConfirm() {
+    return document.getElementById('bulk-restore-confirm');
+  },
+  get bulkRestoreCancel() {
+    return document.getElementById('bulk-restore-cancel');
+  },
+  get bulkPullModal() {
+    return document.getElementById('bulk-pull-modal');
+  },
+  get bulkPullRepoList() {
+    return document.getElementById('bulk-pull-repo-list');
+  },
+  get bulkPullSelectAll() {
+    return document.getElementById('bulk-pull-select-all');
+  },
+  get bulkPullConfirm() {
+    return document.getElementById('bulk-pull-confirm');
+  },
+  get bulkPullCancel() {
+    return document.getElementById('bulk-pull-cancel');
+  },
+  get dashboardBulkFetchBtn() {
+    return document.getElementById('dashboard-bulk-fetch-btn');
+  },
+  get bulkFetchModal() {
+    return document.getElementById('bulk-fetch-modal');
+  },
+  get bulkFetchRepoList() {
+    return document.getElementById('bulk-fetch-repo-list');
+  },
+  get bulkFetchSelectAll() {
+    return document.getElementById('bulk-fetch-select-all');
+  },
+  get bulkFetchConfirm() {
+    return document.getElementById('bulk-fetch-confirm');
+  },
+  get bulkFetchCancel() {
+    return document.getElementById('bulk-fetch-cancel');
+  },
+  get protocolModal() {
+    return document.getElementById('protocol-modal');
+  },
+  get protocolRepoList() {
+    return document.getElementById('protocol-repo-list');
+  },
+  get protocolSelectAll() {
+    return document.getElementById('protocol-select-all');
+  },
+  get protocolSelectSSH() {
+    return document.getElementById('protocol-select-ssh');
+  },
+  get protocolSelectHTTPS() {
+    return document.getElementById('protocol-select-https');
+  },
+  get protocolConfirm() {
+    return document.getElementById('protocol-confirm');
+  },
+  get protocolCancel() {
+    return document.getElementById('protocol-cancel');
+  },
+  get protocolTrustGithub() {
+    return document.getElementById('protocol-trust-github');
+  },
+  get subtreeHubModal() {
+    return document.getElementById('subtree-hub-modal');
+  },
+  get subtreeMappingList() {
+    return document.getElementById('subtree-mapping-list');
+  },
+  get subtreeMappingSelectAll() {
+    return document.getElementById('subtree-mapping-select-all');
+  },
+  get addSubtreeBtn() {
+    return document.getElementById('add-subtree-mapping-btn');
+  },
+  get subtreePullSelectedBtn() {
+    return document.getElementById('subtree-pull-selected-btn');
+  },
+  get subtreePushSelectedBtn() {
+    return document.getElementById('subtree-push-selected-btn');
+  },
+  get subtreeDeleteSelectedBtn() {
+    return document.getElementById('subtree-delete-selected-btn');
+  },
+  get subtreeClearAllBtn() {
+    return document.getElementById('subtree-clear-all-btn');
+  },
+  get subtreeGitHubFetchBtn() {
+    return document.getElementById('subtree-github-fetch-btn');
+  },
+  get subtreeGitHubModal() {
+    return document.getElementById('subtree-github-modal');
+  },
+  get subtreeGitHubList() {
+    return document.getElementById('subtree-github-list');
+  },
+  get subtreeGitHubSelectAll() {
+    return document.getElementById('subtree-github-select-all');
+  },
+  get subtreeGitHubConfirm() {
+    return document.getElementById('subtree-github-confirm');
+  },
+  get subtreeGitHubCancel() {
+    return document.getElementById('subtree-github-cancel');
+  },
+  get prefixPickerModal() {
+    return document.getElementById('prefix-picker-modal');
+  },
+  get prefixFolderList() {
+    return document.getElementById('prefix-folder-list');
+  },
+  get prefixPickerCancel() {
+    return document.getElementById('prefix-picker-cancel');
+  },
+  get subtreeModalClose() {
+    return document.getElementById('subtree-modal-close');
+  },
+  get repoSubtreeBtn() {
+    return document.getElementById('repo-subtree-btn');
+  },
+  get gitForceToggle() {
+    return document.getElementById('git-force-toggle');
+  },
+  get unbornFoldersModal() {
+    return document.getElementById('unborn-folders-modal');
+  },
+  get unbornFoldersList() {
+    return document.getElementById('unborn-folders-list');
+  },
+  get unbornFoldersClose() {
+    return document.getElementById('unborn-folders-close');
+  },
+  get rootRepoDirInput() {
+    return document.getElementById('root-repo-dir');
+  },
+  get githubPatInput() {
+    return document.getElementById('github-pat');
+  },
+  get syncTokenToGitBtn() {
+    return document.getElementById('sync-token-to-git-btn');
+  },
+  get clearGitCredsBtn() {
+    return document.getElementById('clear-git-creds-btn');
+  },
+  get shellSelect() {
+    return document.getElementById('shell-select');
+  },
+  get themeModeSelect() {
+    return document.getElementById('theme-mode-select');
+  },
+  get saveSettingsBtn() {
+    return document.getElementById('save-settings-btn');
+  },
+  get settingsBanner() {
+    return document.getElementById('settings-banner');
+  },
+  get settingsBannerApply() {
+    return document.getElementById('settings-banner-apply');
+  },
+  get settingsBannerDismiss() {
+    return document.getElementById('settings-banner-dismiss');
+  },
+  get resetAppBtn() {
+    return document.getElementById('reset-app-btn');
+  },
+  get newItemModal() {
+    return document.getElementById('new-item-modal');
+  },
+  get newItemName() {
+    return document.getElementById('new-item-name');
+  },
+  get newItemPathDisplay() {
+    return document.getElementById('new-item-path-display');
+  },
+  get mdListBtn() {
+    return document.getElementById('md-list-btn');
+  },
+  get mdTaskBtn() {
+    return document.getElementById('md-task-btn');
+  },
+  get mdImageBtn() {
+    return document.getElementById('md-image-btn');
+  },
+  get mdViewControls() {
+    return document.getElementById('md-view-controls');
+  },
+  get mdViewCodeBtn() {
+    return document.getElementById('md-view-code');
+  },
+  get mdViewSplitBtn() {
+    return document.getElementById('md-view-split');
+  },
+  get mdViewPreviewBtn() {
+    return document.getElementById('md-view-preview');
+  },
+  get newBranchModal() {
+    return document.getElementById('new-branch-modal');
+  },
+  get newBranchName() {
+    return document.getElementById('new-branch-name');
+  },
+  get newRemoteModal() {
+    return document.getElementById('new-remote-modal');
+  },
+  get newRemoteName() {
+    return document.getElementById('new-remote-name');
+  },
+  get newRemoteUrl() {
+    return document.getElementById('new-remote-url');
+  },
+  get addRemoteBtn() {
+    return document.getElementById('add-remote-btn');
+  },
+  get editRemoteBtn() {
+    return document.getElementById('edit-remote-btn');
+  },
+  get removeRemoteBtn() {
+    return document.getElementById('remove-remote-btn');
+  },
+  get editRemoteModal() {
+    return document.getElementById('edit-remote-modal');
+  },
+  get editRemoteName() {
+    return document.getElementById('edit-remote-name');
+  },
+  get editRemoteUrl() {
+    return document.getElementById('edit-remote-url');
+  },
+  get gitignoreModal() {
+    return document.getElementById('gitignore-modal');
+  },
+  get gitignoreList() {
+    return document.getElementById('gitignore-list');
+  },
+  get gitignoreSearch() {
+    return document.getElementById('gitignore-search');
+  },
+  get gitignoreConfirm() {
+    return document.getElementById('gitignore-confirm');
+  },
+  get gitignoreCancel() {
+    return document.getElementById('gitignore-cancel');
+  },
+  get licenseModal() {
+    return document.getElementById('license-modal');
+  },
+  get licenseList() {
+    return document.getElementById('license-list');
+  },
+  get licenseSearch() {
+    return document.getElementById('license-search');
+  },
+  get licenseConfirm() {
+    return document.getElementById('license-confirm');
+  },
+  get licenseCancel() {
+    return document.getElementById('license-cancel');
+  },
+  get deleteGitHubBtn() {
+    return document.getElementById('delete-github-btn');
+  },
+  get publishGitHubBtn() {
+    return document.getElementById('publish-github-btn');
+  },
+  get githubVisibilityBtn() {
+    return document.getElementById('github-visibility-btn');
+  },
+  get publishGitHubModal() {
+    return document.getElementById('publish-github-modal');
+  },
+  get publishRepoName() {
+    return document.getElementById('publish-repo-name');
+  },
+  get publishRepoPrivate() {
+    return document.getElementById('publish-repo-private');
+  },
+  get publishConfirm() {
+    return document.getElementById('publish-confirm');
+  },
+  get publishCancel() {
+    return document.getElementById('publish-cancel');
+  },
+  get renameModal() {
+    return document.getElementById('rename-modal');
+  },
+  get renamePathDisplay() {
+    return document.getElementById('rename-path-display');
+  },
+  get renameNewName() {
+    return document.getElementById('rename-new-name');
+  },
+  get renameConfirm() {
+    return document.getElementById('rename-confirm');
+  },
+  get renameCancel() {
+    return document.getElementById('rename-cancel');
+  },
+  get gitConfigSections() {
+    return document.getElementById('git-config-sections');
+  },
+  get gitConfigPathDisplay() {
+    return document.getElementById('git-config-path-display');
+  },
+  get saveGitConfigBtn() {
+    return document.getElementById('save-git-config-btn');
+  },
+  get addConfigEntryBtn() {
+    return document.getElementById('add-config-entry-btn');
+  },
+  get newConfigEntryModal() {
+    return document.getElementById('new-config-entry-modal');
+  },
+  get newConfigSection() {
+    return document.getElementById('new-config-section');
+  },
+  get newConfigKey() {
+    return document.getElementById('new-config-key');
+  },
+  get newConfigVal() {
+    return document.getElementById('new-config-val');
+  },
+  get newConfigConfirm() {
+    return document.getElementById('new-config-confirm');
+  },
+  get newConfigCancel() {
+    return document.getElementById('new-config-cancel');
+  },
+  get renameBranchModal() {
+    return document.getElementById('rename-branch-modal');
+  },
+  get renameBranchNewName() {
+    return document.getElementById('rename-branch-new-name');
+  },
+  get renameBranchConfirm() {
+    return document.getElementById('rename-branch-confirm');
+  },
+  get renameBranchCancel() {
+    return document.getElementById('rename-branch-cancel');
+  },
+  get stashModal() {
+    return document.getElementById('stash-modal');
+  },
+  get stashMessageInput() {
+    return document.getElementById('stash-message-input');
+  },
+  get stashSaveBtn() {
+    return document.getElementById('stash-save-btn');
+  },
+  get stashListContainer() {
+    return document.getElementById('stash-list-container');
+  },
+  get stashCloseBtn() {
+    return document.getElementById('stash-close-btn');
+  },
+  get advSearchQuery() {
+    return document.getElementById('adv-search-query');
+  },
+  get advSearchProject() {
+    return document.getElementById('adv-search-project');
+  },
+  get advSearchContent() {
+    return document.getElementById('adv-search-content');
+  },
+  get advSearchFiles() {
+    return document.getElementById('adv-search-files');
+  },
+  get advSearchRegex() {
+    return document.getElementById('adv-search-regex');
+  },
+  get advSearchExecute() {
+    return document.getElementById('adv-search-execute');
+  },
+  get advSearchReplace() {
+    return document.getElementById('adv-search-replace');
+  },
+  get advSearchReplaceBtn() {
+    return document.getElementById('adv-search-replace-btn');
+  },
+  get advSearchSelectAll() {
+    return document.getElementById('adv-search-select-all');
+  },
+  get advSearchDeselectAll() {
+    return document.getElementById('adv-search-deselect-all');
+  },
+  get advSearchExport() {
+    return document.getElementById('adv-search-export');
+  },
+  get advSearchExportMd() {
+    return document.getElementById('adv-search-export-md');
+  },
+  get advSearchResults() {
+    return document.getElementById('adv-search-results');
+  },
+  get advSearchResultsHeader() {
+    return document.getElementById('adv-search-results-header');
+  },
+  get importChoiceModal() {
+    return document.getElementById('import-choice-modal');
+  },
+  get importChoiceLocal() {
+    return document.getElementById('import-choice-local');
+  },
+  get importChoiceGitHub() {
+    return document.getElementById('import-choice-github');
+  },
+  get importChoiceServer() {
+    return document.getElementById('import-choice-server');
+  },
+  get importChoiceCancel() {
+    return document.getElementById('import-choice-cancel');
+  },
+  get serverImportModal() {
+    return document.getElementById('server-import-modal');
+  },
+  get serverImportUrl() {
+    return document.getElementById('server-import-url');
+  },
+  get serverImportConfirm() {
+    return document.getElementById('server-import-confirm');
+  },
+  get serverImportCancel() {
+    return document.getElementById('server-import-cancel');
+  },
 };
 
 // Initialize app
 document.addEventListener('DOMContentLoaded', async () => {
-    try {
-        // 1. Setup UI Mechanics (Instant - No async work here)
-        initResizers();
-        initEventListeners();
-        initPreviewFind();
-    } catch (e) {
-        console.error("CRITICAL UI INIT FAILURE:", e);
+  try {
+    // 1. Setup UI Mechanics (Instant - No async work here)
+    initResizers();
+    initEventListeners();
+    initPreviewFind();
+  } catch (e) {
+    console.error('CRITICAL UI INIT FAILURE:', e);
+  }
+
+  try {
+    if (!window.electronAPI) {
+      throw new Error('window.electronAPI is undefined. Preload script failure.');
     }
 
-    try {
-        if (!window.electronAPI) {
-            throw new Error("window.electronAPI is undefined. Preload script failure.");
-        }
+    // 2. Parallel Data Loading
+    const settingsPromise = window.electronAPI.getSettings();
+    const reposPromise = window.electronAPI.getRepositories();
 
-        // 2. Parallel Data Loading
-        const settingsPromise = window.electronAPI.getSettings();
-        const reposPromise = window.electronAPI.getRepositories();
+    // 4. Populate Shell with Settings
+    settings = await settingsPromise;
+    if (elements.rootRepoDirInput) elements.rootRepoDirInput.value = settings.rootRepoDir || '';
+    if (elements.githubPatInput) elements.githubPatInput.value = settings.githubToken || '';
+    if (elements.notifRepoChanges) elements.notifRepoChanges.checked = !!settings.notifRepoChanges;
+    if (elements.themeModeSelect) elements.themeModeSelect.value = settings.themeMode || 'system';
+    updateApplicationThemeMode();
 
-        // 4. Populate Shell with Settings
-        settings = await settingsPromise;
-        if (elements.rootRepoDirInput) elements.rootRepoDirInput.value = settings.rootRepoDir || '';
-        if (elements.githubPatInput) elements.githubPatInput.value = settings.githubToken || '';
-        if (elements.notifRepoChanges) elements.notifRepoChanges.checked = !!settings.notifRepoChanges;
-        if (elements.themeModeSelect) elements.themeModeSelect.value = settings.themeMode || 'system';
-        updateApplicationThemeMode();
+    // Note: Project-specific toggles (Force/AutoFetch) are hydrated in selectRepo()
 
-        // Note: Project-specific toggles (Force/AutoFetch) are hydrated in selectRepo()
-
-        // Intelligence: Self-healing for corrupted themes from previous sessions
-        if (settings.obsidianIni && settings.obsidianIni.includes('`;')) {
-            console.warn("Corrupted theme detected. Resetting to default.");
-            settings.obsidianIni = DEFAULT_THEME_INI;
-            window.electronAPI.saveSettings(settings);
-        }
-
-        // Intelligence: If Obsidian theme is empty, use the new simplified default
-        if (!settings.obsidianIni) {
-            settings.obsidianIni = DEFAULT_THEME_INI;
-            window.electronAPI.saveSettings(settings);
-        }
-
-        // 5. Hydrate Repositories
-        const savedRepos = await reposPromise;
-        repositories = (savedRepos || []).map(r => ({
-            name: r.name || 'Unnamed Project',
-            path: String(r.path || '').replace(/\\/g, '/'),
-            expanded: false,
-            subtrees: r.subtrees || []
-        }));
-
-        sortRepositories();
-
-        // 6. Initial Render (Deferred to next tick to let browser finish loading script)
-        setTimeout(() => {
-            try {
-                renderTree();
-                showDashboard();
-                initEditor();
-                console.log("Initial render complete.");
-            } catch (e) {
-                console.error("INITIAL RENDER FAILURE:", e);
-                showError(e.message, 'Initial Render Error');
-            }
-        }, 0);
-
-        // 7. Non-critical Background tasks (Deferred for speed)
-        setTimeout(() => {
-            if (settings.rootRepoDir) {
-                autoImportFromRoot(settings.rootRepoDir);
-            }
-
-            if (settings.githubToken) {
-                checkGitHubTokenLife();
-            }
-
-            window.electronAPI.getAvailableShells().then(shells => {
-                if (elements.shellSelect) {
-                    elements.shellSelect.innerHTML = shells.map(s => `<option value="${s.path}" ${s.path === settings.shell ? 'selected' : ''}>${s.name}</option>`).join('');
-                }
-            });
-        }, 500);
-    } catch (e) {
-        console.error('FATAL STARTUP ERROR:', e);
-        showError(e.message, 'Fatal Startup Error');
+    // Intelligence: Self-healing for corrupted themes from previous sessions
+    if (settings.obsidianIni && settings.obsidianIni.includes('`;')) {
+      console.warn('Corrupted theme detected. Resetting to default.');
+      settings.obsidianIni = DEFAULT_THEME_INI;
+      window.electronAPI.saveSettings(settings);
     }
+
+    // Intelligence: If Obsidian theme is empty, use the new simplified default
+    if (!settings.obsidianIni) {
+      settings.obsidianIni = DEFAULT_THEME_INI;
+      window.electronAPI.saveSettings(settings);
+    }
+
+    // 5. Hydrate Repositories
+    const savedRepos = await reposPromise;
+    repositories = (savedRepos || []).map((r) => ({
+      name: r.name || 'Unnamed Project',
+      path: String(r.path || '').replace(/\\/g, '/'),
+      expanded: false,
+      subtrees: r.subtrees || [],
+    }));
+
+    sortRepositories();
+
+    // 6. Initial Render (Deferred to next tick to let browser finish loading script)
+    setTimeout(() => {
+      try {
+        renderTree();
+        showDashboard();
+        initEditor();
+        console.log('Initial render complete.');
+      } catch (e) {
+        console.error('INITIAL RENDER FAILURE:', e);
+        showError(e.message, 'Initial Render Error');
+      }
+    }, 0);
+
+    // 7. Non-critical Background tasks (Deferred for speed)
+    setTimeout(() => {
+      if (settings.rootRepoDir) {
+        autoImportFromRoot(settings.rootRepoDir);
+      }
+
+      if (settings.githubToken) {
+        checkGitHubTokenLife();
+      }
+
+      window.electronAPI.getAvailableShells().then((shells) => {
+        if (elements.shellSelect) {
+          elements.shellSelect.innerHTML = shells
+            .map(
+              (s) =>
+                `<option value="${s.path}" ${s.path === settings.shell ? 'selected' : ''}>${s.name}</option>`,
+            )
+            .join('');
+        }
+      });
+    }, 500);
+  } catch (e) {
+    console.error('FATAL STARTUP ERROR:', e);
+    showError(e.message, 'Fatal Startup Error');
+  }
 });
 
 function initEditor() {
-    if (typeof require !== 'undefined') {
-        require.config({ paths: { 'vs': '../node_modules/monaco-editor/min/vs' } });
-        require(['vs/editor/editor.main'], function () {
-            // 1. Define the theme BEFORE creating any editor instances
-            if (settings.obsidianIni) {
-                applyObsidianTheme(settings.obsidianIni);
-            }
+  if (typeof require !== 'undefined') {
+    require.config({ paths: { vs: '../node_modules/monaco-editor/min/vs' } });
+    require(['vs/editor/editor.main'], function () {
+      // 1. Define the theme BEFORE creating any editor instances
+      if (settings.obsidianIni) {
+        applyObsidianTheme(settings.obsidianIni);
+      }
 
-            // Register Custom Language for Themes to prevent "Split Color" bug
-            monaco.languages.register({ id: 'green-latern' });
-            monaco.languages.setMonarchTokensProvider('green-latern', {
-                tokenizer: {
-                    root: [
-                        [/^\[.*\]/, 'header'],
-                        [/^;.*$/, 'comment'],
-                        [/^#.*$/, 'comment'],
-                        [/^([^=]+)(=)(.*)$/, [
-                            { token: 'key' },
-                            { token: 'operator' },
-                            { token: 'value' }
-                        ]]
-                    ]
-                }
-            });
+      // Register Custom Language for Themes to prevent "Split Color" bug
+      monaco.languages.register({ id: 'green-latern' });
+      monaco.languages.setMonarchTokensProvider('green-latern', {
+        tokenizer: {
+          root: [
+            [/^\[.*\]/, 'header'],
+            [/^;.*$/, 'comment'],
+            [/^#.*$/, 'comment'],
+            [/^([^=]+)(=)(.*)$/, [{ token: 'key' }, { token: 'operator' }, { token: 'value' }]],
+          ],
+        },
+      });
 
-            // Resolve initial font stack
-            let initialTheme = { rules: [], colors: {}, fontFamily: 'JetBrains Mono', fontWeight: 'normal', fontLigatures: true };
-            try {
-                initialTheme = parseObsidianIni(settings.obsidianIni || DEFAULT_THEME_INI);
-            } catch (e) { console.error('Failed parsing theme:', e); }
+      // Resolve initial font stack
+      let initialTheme = {
+        rules: [],
+        colors: {},
+        fontFamily: 'JetBrains Mono',
+        fontWeight: 'normal',
+        fontLigatures: true,
+      };
+      try {
+        initialTheme = parseObsidianIni(settings.obsidianIni || DEFAULT_THEME_INI);
+      } catch (e) {
+        console.error('Failed parsing theme:', e);
+      }
 
-            const initialFont = (initialTheme.fontFamily && !initialTheme.fontFamily.includes(','))
-                ? `"${initialTheme.fontFamily}", JetBrains Mono, Cascadia Mono, Consolas, monospace`
-                : (initialTheme.fontFamily || 'JetBrains Mono, Cascadia Mono, Consolas, monospace');
+      const initialFont =
+        initialTheme.fontFamily && !initialTheme.fontFamily.includes(',')
+          ? `"${initialTheme.fontFamily}", JetBrains Mono, Cascadia Mono, Consolas, monospace`
+          : initialTheme.fontFamily || 'JetBrains Mono, Cascadia Mono, Consolas, monospace';
 
-            // 2. Create the editor with the 'obsidian' theme already active
-            monacoEditor = monaco.editor.create(elements.monacoContainer, {
-                theme: settings.obsidianIni ? 'obsidian' : 'vs-dark',
-                automaticLayout: true,
-                bracketPairColorization: { enabled: true },
-                tabSize: 4,
-                insertSpaces: true,
-                formatOnPaste: true,
-                formatOnType: true,
-                minimap: { enabled: true, side: 'right' },
-                wordWrap: 'on',
-                fontFamily: initialFont,
-                fontWeight: initialTheme.fontWeight || 'normal',
-                fontLigatures: true,
-                fontSize: 13,
-                detectIndentation: true,
-                tabFocusMode: false,
-                // UPGRADE: VS Code-like Smoothness & Intelligence
-                cursorBlinking: 'smooth',
-                cursorSmoothCaretAnimation: 'on',
-                smoothScrolling: true,
-                mouseWheelZoom: true,
-                colorDecorators: true,
-                renderLineHighlight: 'all',
-                symbolAutoLink: true,
-                definitionLink: true,
-                links: true,
-                contextmenu: true,
-                mouseWheelScrollSensitivity: 1,
-                fastScrollSensitivity: 5,
-                scrollBeyondLastLine: true,
-                padding: { top: 10, bottom: 10 },
-                fixedOverflowWidgets: true, // Ensures tooltips don't get cut off by container
-                stickyScroll: { enabled: true } // UPGRADE: Keep function headers/classes visible while scrolling
-            });
+      // 2. Create the editor with the 'obsidian' theme already active
+      monacoEditor = monaco.editor.create(elements.monacoContainer, {
+        theme: settings.obsidianIni ? 'obsidian' : 'vs-dark',
+        automaticLayout: true,
+        bracketPairColorization: { enabled: true },
+        tabSize: 4,
+        insertSpaces: true,
+        formatOnPaste: true,
+        formatOnType: true,
+        minimap: { enabled: true, side: 'right' },
+        wordWrap: 'on',
+        fontFamily: initialFont,
+        fontWeight: initialTheme.fontWeight || 'normal',
+        fontLigatures: true,
+        fontSize: 13,
+        detectIndentation: true,
+        tabFocusMode: false,
+        // UPGRADE: VS Code-like Smoothness & Intelligence
+        cursorBlinking: 'smooth',
+        cursorSmoothCaretAnimation: 'on',
+        smoothScrolling: true,
+        mouseWheelZoom: true,
+        colorDecorators: true,
+        renderLineHighlight: 'all',
+        symbolAutoLink: true,
+        definitionLink: true,
+        links: true,
+        contextmenu: true,
+        mouseWheelScrollSensitivity: 1,
+        fastScrollSensitivity: 5,
+        scrollBeyondLastLine: true,
+        padding: { top: 10, bottom: 10 },
+        fixedOverflowWidgets: true, // Ensures tooltips don't get cut off by container
+        stickyScroll: { enabled: true }, // UPGRADE: Keep function headers/classes visible while scrolling
+      });
 
-            // PRO FEATURE: Save with Ctrl+S
-            monacoEditor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => {
-                saveCurrentFile();
-            });
+      // PRO FEATURE: Save with Ctrl+S
+      monacoEditor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => {
+        saveCurrentFile();
+      });
 
-            logToConsole('Code Editor ready.', 'info');
-        });
-    }
+      logToConsole('Code Editor ready.', 'info');
+    });
+  }
 }
 
 function isThemeDark() {
-    const mode = (settings && settings.themeMode) || 'system';
-    if (mode === 'dark') return true;
-    if (mode === 'light') return false;
-    return window.matchMedia('(prefers-color-scheme: dark)').matches;
+  const mode = (settings && settings.themeMode) || 'system';
+  if (mode === 'dark') return true;
+  if (mode === 'light') return false;
+  return window.matchMedia('(prefers-color-scheme: dark)').matches;
 }
 
 function updateApplicationThemeMode() {
-    const mode = (settings && settings.themeMode) || 'system';
-    const root = document.documentElement;
-    root.classList.remove('theme-dark', 'theme-light');
-    if (mode === 'dark') {
-        root.classList.add('theme-dark');
-    } else if (mode === 'light') {
-        root.classList.add('theme-light');
-    }
+  const mode = (settings && settings.themeMode) || 'system';
+  const root = document.documentElement;
+  root.classList.remove('theme-dark', 'theme-light');
+  if (mode === 'dark') {
+    root.classList.add('theme-dark');
+  } else if (mode === 'light') {
+    root.classList.add('theme-light');
+  }
 
-    if (settings && settings.obsidianIni) {
-        applyObsidianTheme(settings.obsidianIni);
-    }
+  if (settings && settings.obsidianIni) {
+    applyObsidianTheme(settings.obsidianIni);
+  }
 }
 
 function applyObsidianTheme(iniContent) {
-    if (!iniContent || typeof monaco === 'undefined') return;
-    try {
-        const themeData = parseObsidianIni(iniContent);
-        const isSystemDark = isThemeDark();
+  if (!iniContent || typeof monaco === 'undefined') return;
+  try {
+    const themeData = parseObsidianIni(iniContent);
+    const isSystemDark = isThemeDark();
 
-        // Dynamically adjust default theme colors to match system theme sync perfectly
-        if (iniContent === DEFAULT_THEME_INI && !isSystemDark) {
-            themeData.colors['editor.background'] = '#ffffff';
-            themeData.colors['editor.foreground'] = '#000000';
-            themeData.rules = themeData.rules.map(r => {
-                if (r.foreground === '#D4D8E2') return { ...r, foreground: '#000000' };
-                if (r.foreground === '#75C9FF') return { ...r, foreground: '#0056b3' };
-                if (r.foreground === '#2299FF') return { ...r, foreground: '#0066cc' };
-                return r;
-            });
-        } else if (iniContent === DEFAULT_THEME_INI && isSystemDark) {
-            // Match our deeply integrated Windows dark theme background
-            themeData.colors['editor.background'] = '#1a1a1a';
-        }
-
-        // Define or Update the 'obsidian' theme
-        monaco.editor.defineTheme('obsidian', {
-            base: isSystemDark ? 'vs-dark' : 'vs',
-            inherit: true,
-            rules: themeData.rules,
-            colors: themeData.colors
-        });
-
-        // FORCE APPLY to all editor instances
-        if (monaco.editor.setTheme) {
-            monaco.editor.setTheme('obsidian');
-        }
-
-        const rawFont = themeData.fontFamily;
-        const fontStack = (rawFont && !rawFont.includes(','))
-            ? `"${rawFont}", JetBrains Mono, Cascadia Mono, Consolas, monospace`
-            : (rawFont || 'JetBrains Mono, Cascadia Mono, Consolas, monospace');
-
-        const weight = themeData.fontWeight || 'normal';
-
-        if (monacoEditor) {
-            monacoEditor.updateOptions({
-                fontFamily: fontStack,
-                fontWeight: weight,
-                fontLigatures: true
-            });
-        }
-
-        // Apply font to Theme Editor as well
-        if (themeEditor) {
-            themeEditor.updateOptions({
-                fontFamily: fontStack,
-                fontWeight: weight,
-                fontLigatures: true
-            });
-        }
-
-        // Intelligence: Update the Dashboard/UI background for a unified feel
-        const bg = themeData.colors['editor.background'];
-        if (bg) {
-            // Check if theme supports dual configurations split by a delimiter marker
-            if (iniContent.includes('[Light-Theme]')) {
-                // Dual layout is explicitly managed inside parseObsidianIni block
-                document.body.style.backgroundColor = '';
-            } else if (iniContent !== DEFAULT_THEME_INI) {
-                document.body.style.backgroundColor = bg;
-            } else {
-                document.body.style.backgroundColor = ''; // Use responsive CSS variables
-            }
-            document.querySelectorAll('.dashboard-card, .summary-card, .settings-card').forEach(el => {
-                el.style.backgroundColor = '';
-            });
-        }
-    } catch (e) {
-        console.error('Failed to apply theme:', e);
+    // Dynamically adjust default theme colors to match system theme sync perfectly
+    if (iniContent === DEFAULT_THEME_INI && !isSystemDark) {
+      themeData.colors['editor.background'] = '#ffffff';
+      themeData.colors['editor.foreground'] = '#000000';
+      themeData.rules = themeData.rules.map((r) => {
+        if (r.foreground === '#D4D8E2') return { ...r, foreground: '#000000' };
+        if (r.foreground === '#75C9FF') return { ...r, foreground: '#0056b3' };
+        if (r.foreground === '#2299FF') return { ...r, foreground: '#0066cc' };
+        return r;
+      });
+    } else if (iniContent === DEFAULT_THEME_INI && isSystemDark) {
+      // Match our deeply integrated Windows dark theme background
+      themeData.colors['editor.background'] = '#1a1a1a';
     }
+
+    // Define or Update the 'obsidian' theme
+    monaco.editor.defineTheme('obsidian', {
+      base: isSystemDark ? 'vs-dark' : 'vs',
+      inherit: true,
+      rules: themeData.rules,
+      colors: themeData.colors,
+    });
+
+    // FORCE APPLY to all editor instances
+    if (monaco.editor.setTheme) {
+      monaco.editor.setTheme('obsidian');
+    }
+
+    const rawFont = themeData.fontFamily;
+    const fontStack =
+      rawFont && !rawFont.includes(',')
+        ? `"${rawFont}", JetBrains Mono, Cascadia Mono, Consolas, monospace`
+        : rawFont || 'JetBrains Mono, Cascadia Mono, Consolas, monospace';
+
+    const weight = themeData.fontWeight || 'normal';
+
+    if (monacoEditor) {
+      monacoEditor.updateOptions({
+        fontFamily: fontStack,
+        fontWeight: weight,
+        fontLigatures: true,
+      });
+    }
+
+    // Apply font to Theme Editor as well
+    if (themeEditor) {
+      themeEditor.updateOptions({
+        fontFamily: fontStack,
+        fontWeight: weight,
+        fontLigatures: true,
+      });
+    }
+
+    // Intelligence: Update the Dashboard/UI background for a unified feel
+    const bg = themeData.colors['editor.background'];
+    if (bg) {
+      // Check if theme supports dual configurations split by a delimiter marker
+      if (iniContent.includes('[Light-Theme]')) {
+        // Dual layout is explicitly managed inside parseObsidianIni block
+        document.body.style.backgroundColor = '';
+      } else if (iniContent !== DEFAULT_THEME_INI) {
+        document.body.style.backgroundColor = bg;
+      } else {
+        document.body.style.backgroundColor = ''; // Use responsive CSS variables
+      }
+      document.querySelectorAll('.dashboard-card, .summary-card, .settings-card').forEach((el) => {
+        el.style.backgroundColor = '';
+      });
+    }
+  } catch (e) {
+    console.error('Failed to apply theme:', e);
+  }
 }
 
 // Global listener to keep application components perfectly synced on theme changes
 window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
-    updateApplicationThemeMode();
+  updateApplicationThemeMode();
 });
 
 const DEFAULT_THEME_INI = `[Theme]
@@ -923,1704 +1666,1888 @@ Bracket2=#000000
 Bracket3=#bc05bc`;
 
 const BUILTIN_THEMES = {
-    "Blue Lantern": "[Theme]\n; Global Workspace Colors\nFont=JetBrains Mono\nFontWeight=normal\nLigatures=true\nBackground=#0B0E14\nForeground=#D4D8E2\nLineNumbers=#5A6B82\nSelection=#1D3B59\nCursor=#3388FF\n\n[Syntax]\n; Code Element Colors\nComment=#4A7090\nString=#36BCDD\nInteger=#70FFE2\nKeyword=#2299FF\nOperator=#D4D8E2\nIdentifier=#75C9FF\nPreprocessor=#52B0EF\nTag=#2288FF\nAttribute=#4DBBFF\nBracket1=#9DC9DD\nBracket2=#66FFF5\nBracket3=#0096E1\n\n[Light-Theme]\n[Theme]\nFont=JetBrains Mono\nFontWeight=normal\nLigatures=true\nBackground=#f0f4f8\nForeground=#102a43\nLineNumbers=#627d98\nSelection=#bcccdc\nCursor=#0078d4\n\n[Syntax]\nComment=#486581\nString=#1982c4\nInteger=#243b53\nKeyword=#0078d4\nOperator=#102a43\nIdentifier=#334e68\nPreprocessor=#627d98\nTag=#0078d4\nAttribute=#ff006e\nBracket1=#0078d4\nBracket2=#ff006e\nBracket3=#8338ec",
-    "Green lantern": "[Theme]\n; Global Workspace Colors\nFont=JetBrains Mono\nFontWeight=normal\nLigatures=true\nBackground=#141513\nForeground=#D4D4D4\nLineNumbers=#858585\nSelection=#264F78\nCursor=#569CD6\n\n[Syntax]\n; Code Element Colors\nComment=#008000\nString=#3ADB00\nInteger=#AFE1A2\nKeyword=#46AFAD\nOperator=#D4D4D4\nIdentifier=#9CDCFE\nPreprocessor=#8EC587\nTag=#569CD6\nAttribute=#9CDCFE\nBracket1=#FFD700\nBracket2=#71DA94\nBracket3=#179FFF",
-    "Red Lantern": "[Theme]\n; Global Workspace Colors\nFont=JetBrains Mono\nFontWeight=normal\nLigatures=true\nBackground=#0E0A0B\nForeground=#E0E0E0\nLineNumbers=#7A5C5C\nSelection=#541212\nCursor=#FF3333\n\n[Syntax]\n; Code Element Colors\nComment=#803B3B\nString=#FF5555\nInteger=#FF8866\nKeyword=#FF2222\nOperator=#E0E0E0\nIdentifier=#FF9999\nPreprocessor=#CC4444\nTag=#FF4444\nAttribute=#FF9999\nBracket1=#FFCC00\nBracket2=#FF6600\nBracket3=#FF1A1A",
-    "Yellow Lantern": "[Theme]\n; Global Workspace Colors\nFont=JetBrains Mono\nFontWeight=normal\nLigatures=true\nBackground=#0F0E0B\nForeground=#E0E0DC\nLineNumbers=#7A725C\nSelection=#544412\nCursor=#FFCC00\n\n[Syntax]\n; Code Element Colors\nComment=#80733B\nString=#FFEA55\nInteger=#FFFAA2\nKeyword=#FFB700\nOperator=#E0E0DC\nIdentifier=#FFE175\nPreprocessor=#D4A337\nTag=#FFC400\nAttribute=#FFE175\nBracket1=#FF5555\nBracket2=#71DA94\nBracket3=#FF9900",
-    "Cyberpunk Void": "[Theme]\n; Global Workspace Colors\nFont=JetBrains Mono\nFontWeight=normal\nLigatures=true\nBackground=#0A0812\nForeground=#E0DEF4\nLineNumbers=#6E6A86\nSelection=#403D52\nCursor=#EBBCBA\n\n[Syntax]\n; Code Element Colors\nComment=#6B5B95\nString=#EB6F92\nInteger=#F6C177\nKeyword=#31748F\nOperator=#E0DEF4\nIdentifier=#9CCFD8\nPreprocessor=#C4A7E7\nTag=#EA9A97\nAttribute=#9CCFD8\nBracket1=#F6C177\nBracket2=#31748F\nBracket3=#EBBCBA",
-    "Deep Trench": "[Theme]\n; Global Workspace Colors\nFont=JetBrains Mono\nFontWeight=normal\nLigatures=true\nBackground=#070B12\nForeground=#C5D1DE\nLineNumbers=#3F536E\nSelection=#132B47\nCursor=#00F0FF\n\n[Syntax]\n; Code Element Colors\nComment=#335C67\nString=#00F5D4\nInteger=#70C1B3\nKeyword=#00BBF9\nOperator=#C5D1DE\nIdentifier=#48CAE4\nPreprocessor=#90E0EF\nTag=#0096C7\nAttribute=#48CAE4\nBracket1=#F77F00\nBracket2=#00F5D4\nBracket3=#90E0EF",
-    "Supernova": "[Theme]\n; Global Workspace Colors\nFont=JetBrains Mono\nFontWeight=normal\nLigatures=true\nBackground=#080608\nForeground=#F2EEEF\nLineNumbers=#6B5C63\nSelection=#421D31\nCursor=#FF2A85\n\n[Syntax]\n; Code Element Colors\nComment=#7A4F65\nString=#FF5588\nInteger=#FFAA55\nKeyword=#FF2A55\nOperator=#F2EEEF\nIdentifier=#FF88BB\nPreprocessor=#FFA500\nTag=#FF3366\nAttribute=#FF88BB\nBracket1=#FFE600\nBracket2=#FF5588\nBracket3=#00FFFF",
-    "Cryptic Moss": "[Theme]\n; Global Workspace Colors\nFont=JetBrains Mono\nFontWeight=normal\nLigatures=true\nBackground=#0D1110\nForeground=#D0DCD7\nLineNumbers=#4A5C55\nSelection=#1D362E\nCursor=#53B692\n\n[Syntax]\n; Code Element Colors\nComment=#3E6B5A\nString=#73D085\nInteger=#A2F689\nKeyword=#2FB988\nOperator=#D0DCD7\nIdentifier=#80CDC1\nPreprocessor=#4DB6AC\nTag=#38A169\nAttribute=#80CDC1\nBracket1=#F6C177\nBracket2=#73D085\nBracket3=#53B692",
-    "Obsidian Amethyst": "[Theme]\n; Global Workspace Colors\nFont=JetBrains Mono\nFontWeight=normal\nLigatures=true\nBackground=#0D0B12\nForeground=#DCD6F7\nLineNumbers=#5B5270\nSelection=#31224D\nCursor=#B892FF\n\n[Syntax]\n; Code Element Colors\nComment=#6A5A8A\nString=#C4B5FD\nInteger=#F3E8FF\nKeyword=#9333EA\nOperator=#DCD6F7\nIdentifier=#D8B4FE\nPreprocessor=#A855F7\nTag=#7C3AED\nAttribute=#D8B4FE\nBracket1=#F43F5E\nBracket2=#C4B5FD\nBracket3=#38BDF8",
-    "Solar Flare": "[Theme]\n; Global Workspace Colors\nFont=JetBrains Mono\nFontWeight=normal\nLigatures=true\nBackground=#120F0A\nForeground=#F5EDD6\nLineNumbers=#6B5C43\nSelection=#4A3512\nCursor=#FFB700\n\n[Syntax]\n; Code Element Colors\nComment=#7A602C\nString=#FFCC00\nInteger=#FFE680\nKeyword=#FF9900\nOperator=#F5EDD6\nIdentifier=#FFDB4D\nPreprocessor=#FFAA33\nTag=#FF8800\nAttribute=#FFDB4D\nBracket1=#FF4444\nBracket2=#FFCC00\nBracket3=#33CCFF",
-    "Vaporwave Sunset": "[Theme]\n; Global Workspace Colors\nFont=JetBrains Mono\nFontWeight=normal\nLigatures=true\nBackground=#100C1C\nForeground=#F1EFF8\nLineNumbers=#61527C\nSelection=#432B63\nCursor=#FF71CE\n\n[Syntax]\n; Code Element Colors\nComment=#8B78AF\nString=#01CDFE\nInteger=#05FFA1\nKeyword=#FF71CE\nOperator=#F1EFF8\nIdentifier=#B967FF\nPreprocessor=#01CDFE\nTag=#FF71CE\nAttribute=#B967FF\nBracket1=#FFFB96\nBracket2=#05FFA1\nBracket3=#01CDFE"
+  'Blue Lantern':
+    '[Theme]\n; Global Workspace Colors\nFont=JetBrains Mono\nFontWeight=normal\nLigatures=true\nBackground=#0B0E14\nForeground=#D4D8E2\nLineNumbers=#5A6B82\nSelection=#1D3B59\nCursor=#3388FF\n\n[Syntax]\n; Code Element Colors\nComment=#4A7090\nString=#36BCDD\nInteger=#70FFE2\nKeyword=#2299FF\nOperator=#D4D8E2\nIdentifier=#75C9FF\nPreprocessor=#52B0EF\nTag=#2288FF\nAttribute=#4DBBFF\nBracket1=#9DC9DD\nBracket2=#66FFF5\nBracket3=#0096E1\n\n[Light-Theme]\n[Theme]\nFont=JetBrains Mono\nFontWeight=normal\nLigatures=true\nBackground=#f0f4f8\nForeground=#102a43\nLineNumbers=#627d98\nSelection=#bcccdc\nCursor=#0078d4\n\n[Syntax]\nComment=#486581\nString=#1982c4\nInteger=#243b53\nKeyword=#0078d4\nOperator=#102a43\nIdentifier=#334e68\nPreprocessor=#627d98\nTag=#0078d4\nAttribute=#ff006e\nBracket1=#0078d4\nBracket2=#ff006e\nBracket3=#8338ec',
+  'Green lantern':
+    '[Theme]\n; Global Workspace Colors\nFont=JetBrains Mono\nFontWeight=normal\nLigatures=true\nBackground=#141513\nForeground=#D4D4D4\nLineNumbers=#858585\nSelection=#264F78\nCursor=#569CD6\n\n[Syntax]\n; Code Element Colors\nComment=#008000\nString=#3ADB00\nInteger=#AFE1A2\nKeyword=#46AFAD\nOperator=#D4D4D4\nIdentifier=#9CDCFE\nPreprocessor=#8EC587\nTag=#569CD6\nAttribute=#9CDCFE\nBracket1=#FFD700\nBracket2=#71DA94\nBracket3=#179FFF',
+  'Red Lantern':
+    '[Theme]\n; Global Workspace Colors\nFont=JetBrains Mono\nFontWeight=normal\nLigatures=true\nBackground=#0E0A0B\nForeground=#E0E0E0\nLineNumbers=#7A5C5C\nSelection=#541212\nCursor=#FF3333\n\n[Syntax]\n; Code Element Colors\nComment=#803B3B\nString=#FF5555\nInteger=#FF8866\nKeyword=#FF2222\nOperator=#E0E0E0\nIdentifier=#FF9999\nPreprocessor=#CC4444\nTag=#FF4444\nAttribute=#FF9999\nBracket1=#FFCC00\nBracket2=#FF6600\nBracket3=#FF1A1A',
+  'Yellow Lantern':
+    '[Theme]\n; Global Workspace Colors\nFont=JetBrains Mono\nFontWeight=normal\nLigatures=true\nBackground=#0F0E0B\nForeground=#E0E0DC\nLineNumbers=#7A725C\nSelection=#544412\nCursor=#FFCC00\n\n[Syntax]\n; Code Element Colors\nComment=#80733B\nString=#FFEA55\nInteger=#FFFAA2\nKeyword=#FFB700\nOperator=#E0E0DC\nIdentifier=#FFE175\nPreprocessor=#D4A337\nTag=#FFC400\nAttribute=#FFE175\nBracket1=#FF5555\nBracket2=#71DA94\nBracket3=#FF9900',
+  'Cyberpunk Void':
+    '[Theme]\n; Global Workspace Colors\nFont=JetBrains Mono\nFontWeight=normal\nLigatures=true\nBackground=#0A0812\nForeground=#E0DEF4\nLineNumbers=#6E6A86\nSelection=#403D52\nCursor=#EBBCBA\n\n[Syntax]\n; Code Element Colors\nComment=#6B5B95\nString=#EB6F92\nInteger=#F6C177\nKeyword=#31748F\nOperator=#E0DEF4\nIdentifier=#9CCFD8\nPreprocessor=#C4A7E7\nTag=#EA9A97\nAttribute=#9CCFD8\nBracket1=#F6C177\nBracket2=#31748F\nBracket3=#EBBCBA',
+  'Deep Trench':
+    '[Theme]\n; Global Workspace Colors\nFont=JetBrains Mono\nFontWeight=normal\nLigatures=true\nBackground=#070B12\nForeground=#C5D1DE\nLineNumbers=#3F536E\nSelection=#132B47\nCursor=#00F0FF\n\n[Syntax]\n; Code Element Colors\nComment=#335C67\nString=#00F5D4\nInteger=#70C1B3\nKeyword=#00BBF9\nOperator=#C5D1DE\nIdentifier=#48CAE4\nPreprocessor=#90E0EF\nTag=#0096C7\nAttribute=#48CAE4\nBracket1=#F77F00\nBracket2=#00F5D4\nBracket3=#90E0EF',
+  Supernova:
+    '[Theme]\n; Global Workspace Colors\nFont=JetBrains Mono\nFontWeight=normal\nLigatures=true\nBackground=#080608\nForeground=#F2EEEF\nLineNumbers=#6B5C63\nSelection=#421D31\nCursor=#FF2A85\n\n[Syntax]\n; Code Element Colors\nComment=#7A4F65\nString=#FF5588\nInteger=#FFAA55\nKeyword=#FF2A55\nOperator=#F2EEEF\nIdentifier=#FF88BB\nPreprocessor=#FFA500\nTag=#FF3366\nAttribute=#FF88BB\nBracket1=#FFE600\nBracket2=#FF5588\nBracket3=#00FFFF',
+  'Cryptic Moss':
+    '[Theme]\n; Global Workspace Colors\nFont=JetBrains Mono\nFontWeight=normal\nLigatures=true\nBackground=#0D1110\nForeground=#D0DCD7\nLineNumbers=#4A5C55\nSelection=#1D362E\nCursor=#53B692\n\n[Syntax]\n; Code Element Colors\nComment=#3E6B5A\nString=#73D085\nInteger=#A2F689\nKeyword=#2FB988\nOperator=#D0DCD7\nIdentifier=#80CDC1\nPreprocessor=#4DB6AC\nTag=#38A169\nAttribute=#80CDC1\nBracket1=#F6C177\nBracket2=#73D085\nBracket3=#53B692',
+  'Obsidian Amethyst':
+    '[Theme]\n; Global Workspace Colors\nFont=JetBrains Mono\nFontWeight=normal\nLigatures=true\nBackground=#0D0B12\nForeground=#DCD6F7\nLineNumbers=#5B5270\nSelection=#31224D\nCursor=#B892FF\n\n[Syntax]\n; Code Element Colors\nComment=#6A5A8A\nString=#C4B5FD\nInteger=#F3E8FF\nKeyword=#9333EA\nOperator=#DCD6F7\nIdentifier=#D8B4FE\nPreprocessor=#A855F7\nTag=#7C3AED\nAttribute=#D8B4FE\nBracket1=#F43F5E\nBracket2=#C4B5FD\nBracket3=#38BDF8',
+  'Solar Flare':
+    '[Theme]\n; Global Workspace Colors\nFont=JetBrains Mono\nFontWeight=normal\nLigatures=true\nBackground=#120F0A\nForeground=#F5EDD6\nLineNumbers=#6B5C43\nSelection=#4A3512\nCursor=#FFB700\n\n[Syntax]\n; Code Element Colors\nComment=#7A602C\nString=#FFCC00\nInteger=#FFE680\nKeyword=#FF9900\nOperator=#F5EDD6\nIdentifier=#FFDB4D\nPreprocessor=#FFAA33\nTag=#FF8800\nAttribute=#FFDB4D\nBracket1=#FF4444\nBracket2=#FFCC00\nBracket3=#33CCFF',
+  'Vaporwave Sunset':
+    '[Theme]\n; Global Workspace Colors\nFont=JetBrains Mono\nFontWeight=normal\nLigatures=true\nBackground=#100C1C\nForeground=#F1EFF8\nLineNumbers=#61527C\nSelection=#432B63\nCursor=#FF71CE\n\n[Syntax]\n; Code Element Colors\nComment=#8B78AF\nString=#01CDFE\nInteger=#05FFA1\nKeyword=#FF71CE\nOperator=#F1EFF8\nIdentifier=#B967FF\nPreprocessor=#01CDFE\nTag=#FF71CE\nAttribute=#B967FF\nBracket1=#FFFB96\nBracket2=#05FFA1\nBracket3=#01CDFE',
 };
 
 function parseObsidianIni(ini) {
-    if (!ini) return { rules: [], colors: {}, fontFamily: 'JetBrains Mono', fontWeight: 'normal', fontLigatures: true };
-    let finalIni = ini;
-
-    // Support dual configuration themes split via [Light-Theme] structural boundaries
-    if (ini.includes('[Light-Theme]')) {
-        const isSystemDark = isThemeDark();
-        const segments = ini.split('[Light-Theme]');
-        if (!isSystemDark) {
-            // Reparse using light layout structure
-            finalIni = segments[1] || segments[0];
-        } else {
-            finalIni = segments[0];
-        }
-    }
-
-    const lines = finalIni.split('\n');
-    const sections = {};
-    let currentSection = null;
-
-    for (let line of lines) {
-        line = line.trim();
-        if (!line || line.startsWith(';') || line.startsWith('#')) continue;
-        if (line.startsWith('[') && line.endsWith(']')) {
-            currentSection = line.substring(1, line.length - 1).toLowerCase();
-            sections[currentSection] = {};
-            continue;
-        }
-        if (currentSection) {
-            const eqIdx = line.indexOf('=');
-            if (eqIdx !== -1) {
-                const key = line.substring(0, eqIdx).trim().toLowerCase();
-                const value = line.substring(eqIdx + 1).trim();
-                sections[currentSection][key] = value;
-            }
-        }
-    }
-
-    const theme = sections['theme'] || {};
-    const syntax = sections['syntax'] || {};
-
-    const rules = [
-        { token: 'comment', foreground: syntax['comment'] || '#6a9955' },
-        { token: 'string', foreground: syntax['string'] || '#ce9178' },
-        { token: 'string.key.json', foreground: syntax['string'] || '#ce9178' },
-        { token: 'string.value.json', foreground: syntax['string'] || '#ce9178' },
-        { token: 'number', foreground: syntax['integer'] || syntax['number'] || '#b5cea8' },
-        { token: 'keyword', foreground: syntax['keyword'] || '#569cd6' },
-        { token: 'keyword.directive', foreground: syntax['preprocessor'] || '#c586c0' },
-        { token: 'constant', foreground: syntax['keyword'] || '#569cd6' },
-        { token: 'operator', foreground: syntax['operator'] || '#d4d4d4' },
-        { token: 'identifier', foreground: syntax['identifier'] || theme['foreground'] || '#d4d4d4' },
-        { token: 'type', foreground: syntax['identifier'] || theme['foreground'] || '#d4d4d4' },
-        { token: 'class', foreground: syntax['identifier'] || theme['foreground'] || '#d4d4d4' },
-        { token: 'namespace', foreground: syntax['keyword'] || '#569cd6' },
-        { token: 'metatag', foreground: syntax['preprocessor'] || '#c586c0' },
-        { token: 'preprocessor', foreground: syntax['preprocessor'] || '#c586c0' },
-        { token: 'tag', foreground: syntax['tag'] || '#569cd6' },
-        { token: 'tag.xml', foreground: syntax['tag'] || '#569cd6' },
-        { token: 'tag.html', foreground: syntax['tag'] || '#569cd6' },
-        { token: 'attribute.name', foreground: syntax['attribute'] || theme['foreground'] || '#d4d4d4' },
-        { token: 'attribute.name.xml', foreground: syntax['attribute'] || theme['foreground'] || '#d4d4d4' },
-        { token: 'attribute.name.html', foreground: syntax['attribute'] || theme['foreground'] || '#d4d4d4' },
-        { token: 'attribute.value', foreground: syntax['string'] || '#ce9178' },
-        { token: 'attribute.value.xml', foreground: syntax['string'] || '#ce9178' },
-        { token: 'attribute.value.html', foreground: syntax['string'] || '#ce9178' },
-        { token: 'delimiter', foreground: syntax['operator'] || '#d4d4d4' },
-        { token: 'delimiter.xml', foreground: syntax['operator'] || '#d4d4d4' },
-        { token: 'delimiter.html', foreground: syntax['operator'] || '#d4d4d4' },
-        // INI specific tokens
-        { token: 'header', foreground: syntax['keyword'] || '#569cd6' },
-        { token: 'key', foreground: theme['foreground'] || '#d4d4d4' },
-        { token: 'value', foreground: syntax['string'] || '#ce9178' }
-    ];
-
-    const colors = {
-        'editor.background': theme['background'] || '#121314',
-        'editor.foreground': theme['foreground'] || '#d4d4d4',
-        'editorLineNumber.foreground': theme['linenumbers'] || '#858585',
-        'editor.selectionBackground': theme['selection'] || '#264f78',
-        'editorCursor.foreground': theme['cursor'] || '#569cd6',
-        'editor.lineHighlightBackground': (theme['background'] || '#121314') + '44',
-        'editorBracketHighlight.foreground1': syntax['bracket1'] || '#ffd700',
-        'editorBracketHighlight.foreground2': syntax['bracket2'] || '#da70d6',
-        'editorBracketHighlight.foreground3': syntax['bracket3'] || '#179fff',
-    };
-
+  if (!ini)
     return {
-        rules,
-        colors,
-        fontFamily: theme['font'] || 'JetBrains Mono',
-        fontWeight: theme['fontweight'] || 'normal',
-        fontLigatures: theme['ligatures'] !== 'false'
+      rules: [],
+      colors: {},
+      fontFamily: 'JetBrains Mono',
+      fontWeight: 'normal',
+      fontLigatures: true,
     };
+  let finalIni = ini;
+
+  // Support dual configuration themes split via [Light-Theme] structural boundaries
+  if (ini.includes('[Light-Theme]')) {
+    const isSystemDark = isThemeDark();
+    const segments = ini.split('[Light-Theme]');
+    if (!isSystemDark) {
+      // Reparse using light layout structure
+      finalIni = segments[1] || segments[0];
+    } else {
+      finalIni = segments[0];
+    }
+  }
+
+  const lines = finalIni.split('\n');
+  const sections = {};
+  let currentSection = null;
+
+  for (let line of lines) {
+    line = line.trim();
+    if (!line || line.startsWith(';') || line.startsWith('#')) continue;
+    if (line.startsWith('[') && line.endsWith(']')) {
+      currentSection = line.substring(1, line.length - 1).toLowerCase();
+      sections[currentSection] = {};
+      continue;
+    }
+    if (currentSection) {
+      const eqIdx = line.indexOf('=');
+      if (eqIdx !== -1) {
+        const key = line.substring(0, eqIdx).trim().toLowerCase();
+        const value = line.substring(eqIdx + 1).trim();
+        sections[currentSection][key] = value;
+      }
+    }
+  }
+
+  const theme = sections['theme'] || {};
+  const syntax = sections['syntax'] || {};
+
+  const rules = [
+    { token: 'comment', foreground: syntax['comment'] || '#6a9955' },
+    { token: 'string', foreground: syntax['string'] || '#ce9178' },
+    { token: 'string.key.json', foreground: syntax['string'] || '#ce9178' },
+    { token: 'string.value.json', foreground: syntax['string'] || '#ce9178' },
+    { token: 'number', foreground: syntax['integer'] || syntax['number'] || '#b5cea8' },
+    { token: 'keyword', foreground: syntax['keyword'] || '#569cd6' },
+    { token: 'keyword.directive', foreground: syntax['preprocessor'] || '#c586c0' },
+    { token: 'constant', foreground: syntax['keyword'] || '#569cd6' },
+    { token: 'operator', foreground: syntax['operator'] || '#d4d4d4' },
+    { token: 'identifier', foreground: syntax['identifier'] || theme['foreground'] || '#d4d4d4' },
+    { token: 'type', foreground: syntax['identifier'] || theme['foreground'] || '#d4d4d4' },
+    { token: 'class', foreground: syntax['identifier'] || theme['foreground'] || '#d4d4d4' },
+    { token: 'namespace', foreground: syntax['keyword'] || '#569cd6' },
+    { token: 'metatag', foreground: syntax['preprocessor'] || '#c586c0' },
+    { token: 'preprocessor', foreground: syntax['preprocessor'] || '#c586c0' },
+    { token: 'tag', foreground: syntax['tag'] || '#569cd6' },
+    { token: 'tag.xml', foreground: syntax['tag'] || '#569cd6' },
+    { token: 'tag.html', foreground: syntax['tag'] || '#569cd6' },
+    {
+      token: 'attribute.name',
+      foreground: syntax['attribute'] || theme['foreground'] || '#d4d4d4',
+    },
+    {
+      token: 'attribute.name.xml',
+      foreground: syntax['attribute'] || theme['foreground'] || '#d4d4d4',
+    },
+    {
+      token: 'attribute.name.html',
+      foreground: syntax['attribute'] || theme['foreground'] || '#d4d4d4',
+    },
+    { token: 'attribute.value', foreground: syntax['string'] || '#ce9178' },
+    { token: 'attribute.value.xml', foreground: syntax['string'] || '#ce9178' },
+    { token: 'attribute.value.html', foreground: syntax['string'] || '#ce9178' },
+    { token: 'delimiter', foreground: syntax['operator'] || '#d4d4d4' },
+    { token: 'delimiter.xml', foreground: syntax['operator'] || '#d4d4d4' },
+    { token: 'delimiter.html', foreground: syntax['operator'] || '#d4d4d4' },
+    // INI specific tokens
+    { token: 'header', foreground: syntax['keyword'] || '#569cd6' },
+    { token: 'key', foreground: theme['foreground'] || '#d4d4d4' },
+    { token: 'value', foreground: syntax['string'] || '#ce9178' },
+  ];
+
+  const colors = {
+    'editor.background': theme['background'] || '#121314',
+    'editor.foreground': theme['foreground'] || '#d4d4d4',
+    'editorLineNumber.foreground': theme['linenumbers'] || '#858585',
+    'editor.selectionBackground': theme['selection'] || '#264f78',
+    'editorCursor.foreground': theme['cursor'] || '#569cd6',
+    'editor.lineHighlightBackground': (theme['background'] || '#121314') + '44',
+    'editorBracketHighlight.foreground1': syntax['bracket1'] || '#ffd700',
+    'editorBracketHighlight.foreground2': syntax['bracket2'] || '#da70d6',
+    'editorBracketHighlight.foreground3': syntax['bracket3'] || '#179fff',
+  };
+
+  return {
+    rules,
+    colors,
+    fontFamily: theme['font'] || 'JetBrains Mono',
+    fontWeight: theme['fontweight'] || 'normal',
+    fontLigatures: theme['ligatures'] !== 'false',
+  };
 }
 
 function initResizers() {
-    if (elements.sidebarResizer) {
-        elements.sidebarResizer.onmousedown = (e) => {
-            e.preventDefault();
-            const startX = e.clientX;
-            const startWidth = elements.sidebar.offsetWidth;
-            const onMouseMove = (ev) => {
-                const newWidth = startWidth + (ev.clientX - startX);
-                if (newWidth > 150 && newWidth < 600) {
-                    elements.sidebar.style.width = newWidth + 'px';
-                }
-            };
-            const onMouseUp = () => {
-                localStorage.setItem('sidebar-width', elements.sidebar.offsetWidth);
-                document.removeEventListener('mousemove', onMouseMove);
-                document.removeEventListener('mouseup', onMouseUp);
-            };
-            document.addEventListener('mousemove', onMouseMove);
-            document.addEventListener('mouseup', onMouseUp);
-        };
-        const savedWidth = localStorage.getItem('sidebar-width');
-        if (savedWidth) elements.sidebar.style.width = savedWidth + 'px';
-    }
+  if (elements.sidebarResizer) {
+    elements.sidebarResizer.onmousedown = (e) => {
+      e.preventDefault();
+      const startX = e.clientX;
+      const startWidth = elements.sidebar.offsetWidth;
+      const onMouseMove = (ev) => {
+        const newWidth = startWidth + (ev.clientX - startX);
+        if (newWidth > 150 && newWidth < 600) {
+          elements.sidebar.style.width = newWidth + 'px';
+        }
+      };
+      const onMouseUp = () => {
+        localStorage.setItem('sidebar-width', elements.sidebar.offsetWidth);
+        document.removeEventListener('mousemove', onMouseMove);
+        document.removeEventListener('mouseup', onMouseUp);
+      };
+      document.addEventListener('mousemove', onMouseMove);
+      document.addEventListener('mouseup', onMouseUp);
+    };
+    const savedWidth = localStorage.getItem('sidebar-width');
+    if (savedWidth) elements.sidebar.style.width = savedWidth + 'px';
+  }
 
-    if (elements.consoleResizer) {
-        elements.consoleResizer.onmousedown = (e) => {
-            e.preventDefault();
-            const startY = e.clientY;
-            const startHeight = elements.consolePanel.offsetHeight;
-            const onMouseMove = (ev) => {
-                const newHeight = startHeight - (ev.clientY - startY);
-                if (newHeight > 100 && newHeight < window.innerHeight - 200) {
-                    elements.consolePanel.style.height = newHeight + 'px';
-                    // Smooth refit during drag
-                    if (window.terminal) window.terminal.fitAddon.fit();
-                }
-            };
-            const onMouseUp = () => {
-                localStorage.setItem('console-height', elements.consolePanel.offsetHeight);
-                if (window.terminal) window.terminal.fitAddon.fit();
-                document.removeEventListener('mousemove', onMouseMove);
-                document.removeEventListener('mouseup', onMouseUp);
-            };
-            document.addEventListener('mousemove', onMouseMove);
-            document.addEventListener('mouseup', onMouseUp);
-        };
-        const savedHeight = localStorage.getItem('console-height');
-        if (savedHeight) elements.consolePanel.style.height = savedHeight + 'px';
-    }
+  if (elements.consoleResizer) {
+    elements.consoleResizer.onmousedown = (e) => {
+      e.preventDefault();
+      const startY = e.clientY;
+      const startHeight = elements.consolePanel.offsetHeight;
+      const onMouseMove = (ev) => {
+        const newHeight = startHeight - (ev.clientY - startY);
+        if (newHeight > 100 && newHeight < window.innerHeight - 200) {
+          elements.consolePanel.style.height = newHeight + 'px';
+          // Smooth refit during drag
+          if (window.terminal) window.terminal.fitAddon.fit();
+        }
+      };
+      const onMouseUp = () => {
+        localStorage.setItem('console-height', elements.consolePanel.offsetHeight);
+        if (window.terminal) window.terminal.fitAddon.fit();
+        document.removeEventListener('mousemove', onMouseMove);
+        document.removeEventListener('mouseup', onMouseUp);
+      };
+      document.addEventListener('mousemove', onMouseMove);
+      document.addEventListener('mouseup', onMouseUp);
+    };
+    const savedHeight = localStorage.getItem('console-height');
+    if (savedHeight) elements.consolePanel.style.height = savedHeight + 'px';
+  }
 }
 
 function initEventListeners() {
-    // Markdown Configuration
-    if (typeof marked !== 'undefined') {
-        marked.use({
-            breaks: false,
-            gfm: true
-        });
-    }
-
-    // Navigation Rail
-    if (elements.navHome) elements.navHome.onclick = async () => {
-        currentDashboardFilter = 'all'; // Reset filter when coming from nav
-        await showDashboard(true);
-    };
-    if (elements.navGist) elements.navGist.onclick = async () => {
-        await showGistView();
-    };
-    if (elements.navImport) elements.navImport.onclick = () => showImportChoiceModal();
-    if (elements.navNew) elements.navNew.onclick = () => showCreateRepoModal();
-    if (elements.navSearch) elements.navSearch.onclick = (e) => {
-        e.stopPropagation();
-        showSearchHub('advanced');
-    };
-    if (elements.navSettings) elements.navSettings.onclick = async () => await showSettings();
-
-    // Import Choice Modal
-    if (elements.importChoiceLocal) elements.importChoiceLocal.onclick = () => {
-        elements.importChoiceModal.style.display = 'none';
-        handleAddRepo();
-    };
-    if (elements.importChoiceGitHub) elements.importChoiceGitHub.onclick = () => {
-        elements.importChoiceModal.style.display = 'none';
-        showGitHubImportModal();
-    };
-    if (elements.importChoiceServer) elements.importChoiceServer.onclick = () => {
-        elements.importChoiceModal.style.display = 'none';
-        showServerImportModal();
-    };
-    if (elements.importChoiceCancel) elements.importChoiceCancel.onclick = () => elements.importChoiceModal.style.display = 'none';
-
-    // Server Import Modal
-    if (elements.serverImportConfirm) elements.serverImportConfirm.onclick = () => executeServerImport();
-    if (elements.serverImportCancel) elements.serverImportCancel.onclick = () => elements.serverImportModal.style.display = 'none';
-    if (elements.serverImportUrl) {
-        elements.serverImportUrl.onkeydown = (e) => {
-            if (e.key === 'Enter') executeServerImport();
-            if (e.key === 'Escape') elements.serverImportModal.style.display = 'none';
-        };
-    }
-
-    if (elements.navCustomCommands) elements.navCustomCommands.onclick = async () => {
-        await showCustomCommandsView();
-    };
-    if (elements.navGitConfig) elements.navGitConfig.onclick = async () => {
-        await showGitConfigView();
-    };
-    if (elements.navTheme) elements.navTheme.onclick = async () => {
-        await showThemeEditor();
-    };
-    if (elements.themeSaveBtn) elements.themeSaveBtn.onclick = () => saveThemeFromEditor();
-    if (elements.themeExportIniBtn) elements.themeExportIniBtn.onclick = () => exportThemeToIni();
-    if (elements.themeImportIniBtn) elements.themeImportIniBtn.onclick = () => importThemeFromIni();
-    if (elements.themeUndoBtn) elements.themeUndoBtn.onclick = () => {
-        if (themeEditor) themeEditor.trigger('keyboard', 'undo', null);
-    };
-    if (elements.themeResetBtn) elements.themeResetBtn.onclick = async () => {
-        if (themeEditor) {
-            themeEditor.setValue(DEFAULT_THEME_INI);
-            await saveThemeFromEditor();
-        }
-    };
-    if (elements.themeCloseBtn) elements.themeCloseBtn.onclick = async () => {
-        elements.themeEditorView.style.display = 'none';
-        await showDashboard();
-    };
-
-    // Search Hub Logic
-    if (elements.searchHubClose) {
-        elements.searchHubClose.onclick = () => {
-            elements.searchHubModal.style.display = 'none';
-            if (isAdvancedSearching) stopAdvancedSearchRequested = true;
-            if (isPrivacyScanning) stopPrivacyScanRequested = true;
-        };
-    }
-    if (elements.tabAdvanced) elements.tabAdvanced.onclick = () => switchSearchTab('advanced');
-    if (elements.tabPrivacy) elements.tabPrivacy.onclick = () => switchSearchTab('privacy');
-
-    if (elements.advSearchExecute) {
-        elements.advSearchExecute.onclick = executeAdvancedSearch;
-    }
-    if (elements.advSearchReplaceBtn) {
-        elements.advSearchReplaceBtn.onclick = handleAdvancedReplace;
-    }
-    if (elements.advSearchSelectAll) {
-        elements.advSearchSelectAll.onclick = () => {
-            const checkboxes = elements.advSearchResults.querySelectorAll('.adv-res-checkbox');
-            checkboxes.forEach(cb => cb.checked = true);
-        };
-    }
-    if (elements.advSearchDeselectAll) {
-        elements.advSearchDeselectAll.onclick = () => {
-            const checkboxes = elements.advSearchResults.querySelectorAll('.adv-res-checkbox');
-            checkboxes.forEach(cb => cb.checked = false);
-        };
-    }
-    if (elements.advSearchExport) {
-        elements.advSearchExport.onclick = exportAdvancedSearchResults;
-    }
-    if (elements.advSearchExportMd) {
-        elements.advSearchExportMd.onclick = exportAdvancedSearchResultsMarkdown;
-    }
-    if (elements.advSearchQuery) {
-        elements.advSearchQuery.onkeyup = (e) => {
-            if (e.key === 'Enter') executeAdvancedSearch();
-        };
-    }
-
-    if (elements.sidebarToggleIgnored) {
-        elements.sidebarToggleIgnored.onclick = () => {
-            hideIgnoredFiles = !hideIgnoredFiles;
-            elements.sidebarToggleIgnored.textContent = hideIgnoredFiles ? '👓' : '👁';
-            elements.sidebarToggleIgnored.title = hideIgnoredFiles ? 'Show All Files' : 'Show Tracked Files Only';
-            logToConsole(hideIgnoredFiles ? 'Filter: Only showing tracked/non-ignored files.' : 'Filter: Showing all files.', 'info');
-            renderTree(elements.repoFilter.value);
-        };
-    }
-    if (elements.dashboardBulkFetchBtn) elements.dashboardBulkFetchBtn.onclick = () => handleBulkFetch();
-    if (elements.dashboardBulkStageBtn) elements.dashboardBulkStageBtn.onclick = () => handleBulkStage();
-    if (elements.dashboardBulkCommitBtn) elements.dashboardBulkCommitBtn.onclick = () => showBulkCommitModal();
-    if (elements.dashboardBulkPullBtn) elements.dashboardBulkPullBtn.onclick = () => handleBulkPull();
-    if (elements.dashboardBulkPushBtn) elements.dashboardBulkPushBtn.onclick = () => handleBulkPush();
-    if (elements.dashboardBulkRestoreBtn) elements.dashboardBulkRestoreBtn.onclick = () => handleBulkRestore();
-    if (elements.repoRefreshBtn) elements.repoRefreshBtn.onclick = async () => { if (activeRepo) await selectRepo(activeRepo); };
-    if (elements.repoStatusBtn) elements.repoStatusBtn.onclick = () => showGitStatus();
-    if (elements.repoStashBtn) elements.repoStashBtn.onclick = () => handleStashModal();
-    if (elements.stashSaveBtn) elements.stashSaveBtn.onclick = () => saveStash();
-    if (elements.stashCloseBtn) elements.stashCloseBtn.onclick = () => elements.stashModal.style.display = 'none';
-    if (elements.statusBackBtn) elements.statusBackBtn.onclick = () => {
-        elements.statusView.style.display = 'none';
-        elements.messageView.style.display = 'flex';
-    };
-    if (elements.markdownPreview) {
-        elements.markdownPreview.oncontextmenu = (e) => {
-            e.preventDefault();
-            window.electronAPI.showContextMenu({ type: 'preview', path: currentEditingPath });
-        };
-    }
-
-    if (elements.htmlPreview) {
-        elements.htmlPreview.onload = () => {
-            try {
-                const doc = elements.htmlPreview.contentDocument || elements.htmlPreview.contentWindow.document;
-                if (doc) {
-                    doc.oncontextmenu = (e) => {
-                        e.preventDefault();
-                        window.electronAPI.showContextMenu({ type: 'preview-readonly', path: currentEditingPath });
-                    };
-                }
-            } catch (err) {
-                // cross-origin iframes might fail, but srcdoc is usually same-origin
-                console.warn('Could not attach context menu to HTML preview iframe:', err);
-            }
-        };
-    }
-
-    if (elements.sidebarCollapse) elements.sidebarCollapse.onclick = () => {
-        const containers = elements.repoTree.querySelectorAll('.children-container');
-        containers.forEach(c => c.remove());
-        elements.repoTree.querySelectorAll('.chevron').forEach(ch => { if (ch.textContent !== '') ch.textContent = '▸'; });
-        expandedNodes.clear();
-    };
-
-    if (elements.sidebarRefresh) {
-        elements.sidebarRefresh.onclick = async () => {
-            elements.sidebarRefresh.classList.add('spin');
-            await smartRefreshTree();
-            setTimeout(() => elements.sidebarRefresh.classList.remove('spin'), 600);
-        };
-    }
-
-    let filterTimeout;
-    if (elements.repoFilter) {
-        elements.repoFilter.oninput = () => {
-            updateClearButtonVisibility();
-            clearTimeout(filterTimeout);
-            filterTimeout = setTimeout(() => renderTree(elements.repoFilter.value), 300);
-        };
-
-        elements.repoFilter.onfocus = () => {
-            if (elements.sidebar) elements.sidebar.classList.add('search-active');
-            updateClearButtonVisibility();
-        };
-
-        elements.repoFilter.onblur = () => {
-            setTimeout(() => {
-                if (elements.sidebar && !elements.repoFilter.value) {
-                    elements.sidebar.classList.remove('search-active');
-                }
-                updateClearButtonVisibility();
-            }, 200);
-        };
-    }
-
-    if (elements.repoFilterClear) {
-        elements.repoFilterClear.onclick = () => {
-            elements.repoFilter.value = '';
-            elements.repoFilterClear.style.display = 'none';
-            renderTree('');
-            elements.repoFilter.focus();
-        };
-    }
-
-    // Git Control Panel
-    document.querySelectorAll('.git-btn').forEach(btn => {
-        btn.onclick = (e) => { e.stopPropagation(); quickGitAction(btn.dataset.action); };
+  // Markdown Configuration
+  if (typeof marked !== 'undefined') {
+    marked.use({
+      breaks: false,
+      gfm: true,
     });
+  }
 
-    if (elements.commitBtn) elements.commitBtn.onclick = () => handleCommit(false);
-    if (elements.commitPushBtn) elements.commitPushBtn.onclick = () => handleCommit(true);
-    if (elements.revertChangesBtnTop) elements.revertChangesBtnTop.onclick = () => showRevertModal();
-    if (elements.restoreFileBtn) elements.restoreFileBtn.onclick = () => handleRestoreFile();
-    if (elements.magicCommitBtn) elements.magicCommitBtn.onclick = () => generateMagicMsg();
-    if (elements.commitAmendToggle) {
-        elements.commitAmendToggle.onchange = async (e) => {
-            if (e.target.checked && activeRepo) {
-                try {
-                    const commits = await window.electronAPI.gitGetCommits(activeRepo.path);
-                    if (commits && commits.length > 0) {
-                        elements.commitMsgArea.value = commits[0].message;
-                        logToConsole('Loaded last commit message for amending.', 'info');
-                    }
-                } catch (err) {
-                    logToConsole(`Failed to load last commit: ${err.message}`, 'error');
-                }
-            }
-        };
-    }
-    if (elements.stageAllBtn) elements.stageAllBtn.onclick = () => handleStageAll();
-    if (elements.unstageAllBtn) elements.unstageAllBtn.onclick = () => handleUnstageAll();
-    if (elements.restoreAllBtn) elements.restoreAllBtn.onclick = () => handleRestoreHead();
-    if (elements.branchSelect) elements.branchSelect.onchange = () => handleBranchChange();
-    if (elements.createBranchBtn) elements.createBranchBtn.onclick = () => handleCreateBranch();
-    if (elements.deleteBranchBtn) elements.deleteBranchBtn.onclick = () => handleDeleteBranch();
-    if (elements.renameBranchBtn) elements.renameBranchBtn.onclick = () => handleRenameBranch();
-    if (elements.addRemoteBtn) elements.addRemoteBtn.onclick = () => handleAddRemoteModal();
-    if (elements.editRemoteBtn) elements.editRemoteBtn.onclick = () => handleEditRemoteModal();
-    if (elements.removeRemoteBtn) elements.removeRemoteBtn.onclick = () => handleRemoveRemote();
-    if (elements.openRemoteBtn) elements.openRemoteBtn.onclick = () => handleOpenRemote();
-    if (elements.publishGitHubBtn) elements.publishGitHubBtn.onclick = () => handlePublishGitHub();
-    if (elements.githubVisibilityBtn) elements.githubVisibilityBtn.onclick = () => handleToggleGitHubVisibility();
-    if (elements.repoSubtreeBtn) elements.repoSubtreeBtn.onclick = () => showSubtreeHubModal();
-
-    // Project-specific Git Operation Toggles
-    if (elements.gitForceToggle) {
-        elements.gitForceToggle.onchange = (e) => {
-            if (activeRepo) {
-                activeRepo.gitForce = e.target.checked;
-                window.electronAPI.saveRepositories(repositories);
-                logToConsole(`FORCE mode ${activeRepo.gitForce ? 'ENABLED' : 'DISABLED'} for ${activeRepo.name}`, 'info');
-            }
-        };
-    }
-
-    // Editor Actions
-    if (elements.mdListBtn) elements.mdListBtn.onclick = () => insertMarkdownSnippet('list');
-    if (elements.mdTaskBtn) elements.mdTaskBtn.onclick = () => insertMarkdownSnippet('task');
-    if (elements.mdImageBtn) elements.mdImageBtn.onclick = () => insertMarkdownSnippet('image');
-
-    if (elements.editorSaveBtn) elements.editorSaveBtn.onclick = () => saveCurrentFile();
-    if (elements.editorGistBtn) elements.editorGistBtn.onclick = () => publishCurrentFileToGist();
-    if (elements.editorRestoreBtn) elements.editorRestoreBtn.onclick = () => handleRestoreFile();
-    if (elements.editorUndoBtn) elements.editorUndoBtn.onclick = () => {
-        if (monacoEditor) {
-            const isPreview = elements.editorContainerWrapper.classList.contains('editor-mode-preview');
-            if (isPreview) {
-                monacoEditor.trigger('source', 'undo');
-            } else {
-                monacoEditor.focus();
-                monacoEditor.trigger('source', 'undo');
-            }
-        }
+  // Navigation Rail
+  if (elements.navHome)
+    elements.navHome.onclick = async () => {
+      currentDashboardFilter = 'all'; // Reset filter when coming from nav
+      await showDashboard(true);
     };
-    if (elements.editorRedoBtn) elements.editorRedoBtn.onclick = () => {
-        if (monacoEditor) {
-            const isPreview = elements.editorContainerWrapper.classList.contains('editor-mode-preview');
-            if (isPreview) {
-                monacoEditor.trigger('source', 'redo');
-            } else {
-                monacoEditor.focus();
-                monacoEditor.trigger('source', 'redo');
-            }
-        }
+  if (elements.navGist)
+    elements.navGist.onclick = async () => {
+      await showGistView();
     };
-    if (elements.editorWrapBtn) elements.editorWrapBtn.onclick = () => {
-        if (!monacoEditor) return;
-        const current = monacoEditor.getRawOptions().wordWrap;
-        const next = current === 'on' ? 'off' : 'on';
-        monacoEditor.updateOptions({ wordWrap: next });
-        elements.editorWrapBtn.classList.toggle('button-blue', next === 'on');
-        logToConsole(`Word wrap: ${next.toUpperCase()}`, 'info');
+  if (elements.navImport) elements.navImport.onclick = () => showImportChoiceModal();
+  if (elements.navNew) elements.navNew.onclick = () => showCreateRepoModal();
+  if (elements.navSearch)
+    elements.navSearch.onclick = (e) => {
+      e.stopPropagation();
+      showSearchHub('advanced');
     };
-    if (elements.editorChromeBtn) elements.editorChromeBtn.onclick = () => {
-        if (!currentEditingPath) return;
+  if (elements.navSettings) elements.navSettings.onclick = async () => await showSettings();
 
-        if (currentEditingPath.startsWith('gist://')) {
-            // Handle Gists by saving to a deterministic temp file
-            const content = monacoEditor.getValue();
-            const filename = currentEditingPath.split('/').pop() || 'gist_file.txt';
-            window.electronAPI.openContentInChrome({
-                content,
-                filename,
-                identifier: currentEditingPath
+  // Import Choice Modal
+  if (elements.importChoiceLocal)
+    elements.importChoiceLocal.onclick = () => {
+      elements.importChoiceModal.style.display = 'none';
+      handleAddRepo();
+    };
+  if (elements.importChoiceGitHub)
+    elements.importChoiceGitHub.onclick = () => {
+      elements.importChoiceModal.style.display = 'none';
+      showGitHubImportModal();
+    };
+  if (elements.importChoiceServer)
+    elements.importChoiceServer.onclick = () => {
+      elements.importChoiceModal.style.display = 'none';
+      showServerImportModal();
+    };
+  if (elements.importChoiceCancel)
+    elements.importChoiceCancel.onclick = () => (elements.importChoiceModal.style.display = 'none');
+
+  // Server Import Modal
+  if (elements.serverImportConfirm)
+    elements.serverImportConfirm.onclick = () => executeServerImport();
+  if (elements.serverImportCancel)
+    elements.serverImportCancel.onclick = () => (elements.serverImportModal.style.display = 'none');
+  if (elements.serverImportUrl) {
+    elements.serverImportUrl.onkeydown = (e) => {
+      if (e.key === 'Enter') executeServerImport();
+      if (e.key === 'Escape') elements.serverImportModal.style.display = 'none';
+    };
+  }
+
+  if (elements.navCustomCommands)
+    elements.navCustomCommands.onclick = async () => {
+      await showCustomCommandsView();
+    };
+  if (elements.navGitConfig)
+    elements.navGitConfig.onclick = async () => {
+      await showGitConfigView();
+    };
+  if (elements.navTheme)
+    elements.navTheme.onclick = async () => {
+      await showThemeEditor();
+    };
+  if (elements.themeSaveBtn) elements.themeSaveBtn.onclick = () => saveThemeFromEditor();
+  if (elements.themeExportIniBtn) elements.themeExportIniBtn.onclick = () => exportThemeToIni();
+  if (elements.themeImportIniBtn) elements.themeImportIniBtn.onclick = () => importThemeFromIni();
+  if (elements.themeUndoBtn)
+    elements.themeUndoBtn.onclick = () => {
+      if (themeEditor) themeEditor.trigger('keyboard', 'undo', null);
+    };
+  if (elements.themeResetBtn)
+    elements.themeResetBtn.onclick = async () => {
+      if (themeEditor) {
+        themeEditor.setValue(DEFAULT_THEME_INI);
+        await saveThemeFromEditor();
+      }
+    };
+  if (elements.themeCloseBtn)
+    elements.themeCloseBtn.onclick = async () => {
+      elements.themeEditorView.style.display = 'none';
+      await showDashboard();
+    };
+
+  // Search Hub Logic
+  if (elements.searchHubClose) {
+    elements.searchHubClose.onclick = () => {
+      elements.searchHubModal.style.display = 'none';
+      if (isAdvancedSearching) stopAdvancedSearchRequested = true;
+      if (isPrivacyScanning) stopPrivacyScanRequested = true;
+    };
+  }
+  if (elements.tabAdvanced) elements.tabAdvanced.onclick = () => switchSearchTab('advanced');
+  if (elements.tabPrivacy) elements.tabPrivacy.onclick = () => switchSearchTab('privacy');
+
+  if (elements.advSearchExecute) {
+    elements.advSearchExecute.onclick = executeAdvancedSearch;
+  }
+  if (elements.advSearchReplaceBtn) {
+    elements.advSearchReplaceBtn.onclick = handleAdvancedReplace;
+  }
+  if (elements.advSearchSelectAll) {
+    elements.advSearchSelectAll.onclick = () => {
+      const checkboxes = elements.advSearchResults.querySelectorAll('.adv-res-checkbox');
+      checkboxes.forEach((cb) => (cb.checked = true));
+    };
+  }
+  if (elements.advSearchDeselectAll) {
+    elements.advSearchDeselectAll.onclick = () => {
+      const checkboxes = elements.advSearchResults.querySelectorAll('.adv-res-checkbox');
+      checkboxes.forEach((cb) => (cb.checked = false));
+    };
+  }
+  if (elements.advSearchExport) {
+    elements.advSearchExport.onclick = exportAdvancedSearchResults;
+  }
+  if (elements.advSearchExportMd) {
+    elements.advSearchExportMd.onclick = exportAdvancedSearchResultsMarkdown;
+  }
+  if (elements.advSearchQuery) {
+    elements.advSearchQuery.onkeyup = (e) => {
+      if (e.key === 'Enter') executeAdvancedSearch();
+    };
+  }
+
+  if (elements.sidebarToggleIgnored) {
+    elements.sidebarToggleIgnored.onclick = () => {
+      hideIgnoredFiles = !hideIgnoredFiles;
+      elements.sidebarToggleIgnored.textContent = hideIgnoredFiles ? '👓' : '👁';
+      elements.sidebarToggleIgnored.title = hideIgnoredFiles
+        ? 'Show All Files'
+        : 'Show Tracked Files Only';
+      logToConsole(
+        hideIgnoredFiles
+          ? 'Filter: Only showing tracked/non-ignored files.'
+          : 'Filter: Showing all files.',
+        'info',
+      );
+      renderTree(elements.repoFilter.value);
+    };
+  }
+  if (elements.dashboardBulkFetchBtn)
+    elements.dashboardBulkFetchBtn.onclick = () => handleBulkFetch();
+  if (elements.dashboardBulkStageBtn)
+    elements.dashboardBulkStageBtn.onclick = () => handleBulkStage();
+  if (elements.dashboardBulkCommitBtn)
+    elements.dashboardBulkCommitBtn.onclick = () => showBulkCommitModal();
+  if (elements.dashboardBulkPullBtn) elements.dashboardBulkPullBtn.onclick = () => handleBulkPull();
+  if (elements.dashboardBulkPushBtn) elements.dashboardBulkPushBtn.onclick = () => handleBulkPush();
+  if (elements.dashboardBulkRestoreBtn)
+    elements.dashboardBulkRestoreBtn.onclick = () => handleBulkRestore();
+  if (elements.repoRefreshBtn)
+    elements.repoRefreshBtn.onclick = async () => {
+      if (activeRepo) await selectRepo(activeRepo);
+    };
+  if (elements.repoStatusBtn) elements.repoStatusBtn.onclick = () => showGitStatus();
+  if (elements.repoStashBtn) elements.repoStashBtn.onclick = () => handleStashModal();
+  if (elements.stashSaveBtn) elements.stashSaveBtn.onclick = () => saveStash();
+  if (elements.stashCloseBtn)
+    elements.stashCloseBtn.onclick = () => (elements.stashModal.style.display = 'none');
+  if (elements.statusBackBtn)
+    elements.statusBackBtn.onclick = () => {
+      elements.statusView.style.display = 'none';
+      elements.messageView.style.display = 'flex';
+    };
+  if (elements.markdownPreview) {
+    elements.markdownPreview.oncontextmenu = (e) => {
+      e.preventDefault();
+      window.electronAPI.showContextMenu({ type: 'preview', path: currentEditingPath });
+    };
+  }
+
+  if (elements.htmlPreview) {
+    elements.htmlPreview.onload = () => {
+      try {
+        const doc =
+          elements.htmlPreview.contentDocument || elements.htmlPreview.contentWindow.document;
+        if (doc) {
+          doc.oncontextmenu = (e) => {
+            e.preventDefault();
+            window.electronAPI.showContextMenu({
+              type: 'preview-readonly',
+              path: currentEditingPath,
             });
-        } else {
-            // Handle regular files
-            window.electronAPI.openFileInChrome(currentEditingPath);
+          };
         }
+      } catch (err) {
+        // cross-origin iframes might fail, but srcdoc is usually same-origin
+        console.warn('Could not attach context menu to HTML preview iframe:', err);
+      }
     };
-    if (elements.editorFolderBtn) elements.editorFolderBtn.onclick = () => {
-        if (currentEditingPath) window.electronAPI.revealInExplorer(currentEditingPath);
+  }
+
+  if (elements.sidebarCollapse)
+    elements.sidebarCollapse.onclick = () => {
+      const containers = elements.repoTree.querySelectorAll('.children-container');
+      containers.forEach((c) => c.remove());
+      elements.repoTree.querySelectorAll('.chevron').forEach((ch) => {
+        if (ch.textContent !== '') ch.textContent = '▸';
+      });
+      expandedNodes.clear();
     };
-    if (elements.editorFormatBtn) elements.editorFormatBtn.onclick = () => {
-        if (monacoEditor) {
-            monacoEditor.focus();
 
-            const ext = currentEditingPath ? currentEditingPath.split('.').pop().toLowerCase() : '';
-            if (ext === 'md' || ext === 'markdown') {
-                const model = monacoEditor.getModel();
-                if (model) {
-                    const lineCount = model.getLineCount();
-                    const edits = [];
-                    let inCodeBlock = false;
+  if (elements.sidebarRefresh) {
+    elements.sidebarRefresh.onclick = async () => {
+      elements.sidebarRefresh.classList.add('spin');
+      await smartRefreshTree();
+      setTimeout(() => elements.sidebarRefresh.classList.remove('spin'), 600);
+    };
+  }
 
-                    for (let i = 1; i <= lineCount; i++) {
-                        let lineContent = model.getLineContent(i);
-                        const trimmed = lineContent.trim();
-                        const nextLine = i < lineCount ? model.getLineContent(i + 1) : null;
+  let filterTimeout;
+  if (elements.repoFilter) {
+    elements.repoFilter.oninput = () => {
+      updateClearButtonVisibility();
+      clearTimeout(filterTimeout);
+      filterTimeout = setTimeout(() => renderTree(elements.repoFilter.value), 300);
+    };
 
-                        // Toggle code block state
-                        if (trimmed.startsWith('```')) {
-                            inCodeBlock = !inCodeBlock;
-                            continue;
-                        }
+    elements.repoFilter.onfocus = () => {
+      if (elements.sidebar) elements.sidebar.classList.add('search-active');
+      updateClearButtonVisibility();
+    };
 
-                        if (inCodeBlock) continue;
-
-                        let newLineContent = lineContent;
-
-                        // 1. Fix Header Spacing: #Header -> # Header
-                        if (/^#+[^#\s]/.test(trimmed)) {
-                            newLineContent = newLineContent.replace(/^(#+)([^#\s])/, '$1 $2');
-                        }
-
-                        // 2. Fix List Spacing: *Item -> * Item
-                        if (/^([\*\-\+]|\d+\.)[^\s]/.test(trimmed)) {
-                            newLineContent = newLineContent.replace(/^([\*\-\+]|\d+\.)([^\s])/, '$1 $2');
-                        }
-
-                        // 3. Add 2 spaces for hard breaks
-                        // Rule: Non-empty, not a header, not a HR (---), next line is also non-empty
-                        if (trimmed !== '' &&
-                            !trimmed.startsWith('#') &&
-                            !/^[\-\*_]{3,}$/.test(trimmed) &&
-                            nextLine && nextLine.trim() !== '') {
-
-                            // Clean existing trailing spaces then add 2
-                            const cleaned = newLineContent.replace(/\s+$/, '');
-                            newLineContent = cleaned + '  ';
-                        }
-
-                        if (newLineContent !== lineContent) {
-                            edits.push({
-                                range: new monaco.Range(i, 1, i, lineContent.length + 1),
-                                text: newLineContent
-                            });
-                        }
-                    }
-
-                    if (edits.length > 0) {
-                        model.pushEditOperations([], edits, () => null);
-                        logToConsole(`Markdown Prettify: Fixed ${edits.length} line formatting issues.`, 'success');
-                    } else {
-                        // Fallback to Monaco's built-in formatter if my custom one has nothing to do
-                        monacoEditor.getAction('editor.action.formatDocument').run()
-                            .then(() => logToConsole('Document formatted.', 'success'))
-                            .catch(() => {});
-                    }
-                }
-            } else {
-                // High-performance formatting for JS, TS, CSS, HTML, JSON, etc.
-                monacoEditor.getAction('editor.action.formatDocument').run()
-                    .then(() => logToConsole('Document formatted.', 'success'))
-                    .catch(err => logToConsole('Formatting failed or not supported for this language.', 'warn'));
-            }
+    elements.repoFilter.onblur = () => {
+      setTimeout(() => {
+        if (elements.sidebar && !elements.repoFilter.value) {
+          elements.sidebar.classList.remove('search-active');
         }
+        updateClearButtonVisibility();
+      }, 200);
     };
-    if (elements.editorFindBtn) elements.editorFindBtn.onclick = () => {
-        const isPreview = elements.editorContainerWrapper.classList.contains('editor-mode-preview') ||
-                         elements.editorContainerWrapper.classList.contains('editor-mode-split');
+  }
 
+  if (elements.repoFilterClear) {
+    elements.repoFilterClear.onclick = () => {
+      elements.repoFilter.value = '';
+      elements.repoFilterClear.style.display = 'none';
+      renderTree('');
+      elements.repoFilter.focus();
+    };
+  }
+
+  // Git Control Panel
+  document.querySelectorAll('.git-btn').forEach((btn) => {
+    btn.onclick = (e) => {
+      e.stopPropagation();
+      quickGitAction(btn.dataset.action);
+    };
+  });
+
+  if (elements.commitBtn) elements.commitBtn.onclick = () => handleCommit(false);
+  if (elements.commitPushBtn) elements.commitPushBtn.onclick = () => handleCommit(true);
+  if (elements.revertChangesBtnTop) elements.revertChangesBtnTop.onclick = () => showRevertModal();
+  if (elements.restoreFileBtn) elements.restoreFileBtn.onclick = () => handleRestoreFile();
+  if (elements.magicCommitBtn) elements.magicCommitBtn.onclick = () => generateMagicMsg();
+  if (elements.commitAmendToggle) {
+    elements.commitAmendToggle.onchange = async (e) => {
+      if (e.target.checked && activeRepo) {
+        try {
+          const commits = await window.electronAPI.gitGetCommits(activeRepo.path);
+          if (commits && commits.length > 0) {
+            elements.commitMsgArea.value = commits[0].message;
+            logToConsole('Loaded last commit message for amending.', 'info');
+          }
+        } catch (err) {
+          logToConsole(`Failed to load last commit: ${err.message}`, 'error');
+        }
+      }
+    };
+  }
+  if (elements.stageAllBtn) elements.stageAllBtn.onclick = () => handleStageAll();
+  if (elements.unstageAllBtn) elements.unstageAllBtn.onclick = () => handleUnstageAll();
+  if (elements.restoreAllBtn) elements.restoreAllBtn.onclick = () => handleRestoreHead();
+  if (elements.branchSelect) elements.branchSelect.onchange = () => handleBranchChange();
+  if (elements.createBranchBtn) elements.createBranchBtn.onclick = () => handleCreateBranch();
+  if (elements.deleteBranchBtn) elements.deleteBranchBtn.onclick = () => handleDeleteBranch();
+  if (elements.renameBranchBtn) elements.renameBranchBtn.onclick = () => handleRenameBranch();
+  if (elements.addRemoteBtn) elements.addRemoteBtn.onclick = () => handleAddRemoteModal();
+  if (elements.editRemoteBtn) elements.editRemoteBtn.onclick = () => handleEditRemoteModal();
+  if (elements.removeRemoteBtn) elements.removeRemoteBtn.onclick = () => handleRemoveRemote();
+  if (elements.openRemoteBtn) elements.openRemoteBtn.onclick = () => handleOpenRemote();
+  if (elements.publishGitHubBtn) elements.publishGitHubBtn.onclick = () => handlePublishGitHub();
+  if (elements.githubVisibilityBtn)
+    elements.githubVisibilityBtn.onclick = () => handleToggleGitHubVisibility();
+  if (elements.repoSubtreeBtn) elements.repoSubtreeBtn.onclick = () => showSubtreeHubModal();
+
+  // Project-specific Git Operation Toggles
+  if (elements.gitForceToggle) {
+    elements.gitForceToggle.onchange = (e) => {
+      if (activeRepo) {
+        activeRepo.gitForce = e.target.checked;
+        window.electronAPI.saveRepositories(repositories);
+        logToConsole(
+          `FORCE mode ${activeRepo.gitForce ? 'ENABLED' : 'DISABLED'} for ${activeRepo.name}`,
+          'info',
+        );
+      }
+    };
+  }
+
+  // Editor Actions
+  if (elements.mdListBtn) elements.mdListBtn.onclick = () => insertMarkdownSnippet('list');
+  if (elements.mdTaskBtn) elements.mdTaskBtn.onclick = () => insertMarkdownSnippet('task');
+  if (elements.mdImageBtn) elements.mdImageBtn.onclick = () => insertMarkdownSnippet('image');
+
+  if (elements.editorSaveBtn) elements.editorSaveBtn.onclick = () => saveCurrentFile();
+  if (elements.editorGistBtn) elements.editorGistBtn.onclick = () => publishCurrentFileToGist();
+  if (elements.editorRestoreBtn) elements.editorRestoreBtn.onclick = () => handleRestoreFile();
+  if (elements.editorUndoBtn)
+    elements.editorUndoBtn.onclick = () => {
+      if (monacoEditor) {
+        const isPreview = elements.editorContainerWrapper.classList.contains('editor-mode-preview');
         if (isPreview) {
-            showPreviewFind();
-        } else if (monacoEditor) {
-            monacoEditor.focus();
-            monacoEditor.trigger('editor', 'actions.find');
-        }
-    };
-    if (elements.editorTransformBtn) elements.editorTransformBtn.onclick = (e) => {
-        e.stopPropagation();
-        const menu = elements.transformMenu;
-        menu.style.display = menu.style.display === 'block' ? 'none' : 'block';
-    };
-    document.querySelectorAll('.menu-item[data-transform]').forEach(item => {
-        item.onclick = (e) => {
-            e.stopPropagation();
-            applyTextTransformation(item.dataset.transform);
-            elements.transformMenu.style.display = 'none';
-        };
-    });
-    document.addEventListener('click', () => {
-        if (elements.transformMenu) elements.transformMenu.style.display = 'none';
-        if (elements.searchPopout) elements.searchPopout.style.display = 'none';
-    });
-    if (elements.editorCloseBtn) elements.editorCloseBtn.onclick = async () => await closeEditor();
-    if (elements.mdViewCodeBtn) elements.mdViewCodeBtn.onclick = () => setMarkdownViewMode('code');
-    if (elements.mdViewSplitBtn) elements.mdViewSplitBtn.onclick = () => setMarkdownViewMode('split');
-    if (elements.mdViewPreviewBtn) elements.mdViewPreviewBtn.onclick = () => setMarkdownViewMode('preview');
-    if (elements.gitignoreScanBtn) elements.gitignoreScanBtn.onclick = () => runGitignoreScan();
-
-    if (elements.unbornFoldersClose) elements.unbornFoldersClose.onclick = () => {
-        elements.unbornFoldersModal.style.display = 'none';
-    };
-
-    // Close Views
-    if (elements.diffEditBtn) elements.diffEditBtn.onclick = async () => {
-        if (!currentEditingPath) return;
-        const path = currentEditingPath;
-        // Clean up UI state
-        elements.diffView.style.display = 'none';
-        elements.messageView.style.display = 'flex';
-        document.querySelectorAll('.change-item').forEach(el => el.classList.remove('active'));
-
-        await openFileInEditor(path);
-        await revealInTree(path);
-    };
-    if (elements.diffBackBtn) elements.diffBackBtn.onclick = () => {
-        elements.diffView.style.display = 'none';
-        elements.messageView.style.display = 'flex';
-        document.querySelectorAll('.change-item').forEach(el => el.classList.remove('active'));
-    };
-
-    // Console Management
-    document.querySelectorAll('.console-tab').forEach(tab => {
-        tab.onclick = () => switchConsoleTab(tab);
-    });
-
-    // High-Precision Console Scrolling (Fix for Windows 3-line jump)
-    if (elements.consoleOutput) {
-        elements.consoleOutput.addEventListener('wheel', (e) => {
-            e.preventDefault();
-            const delta = e.deltaY > 0 ? 30 : -30; // Scroll roughly one line at a time
-            elements.consoleOutput.scrollTop += delta;
-        }, { passive: false });
-
-        // Enable Context Menu for Copy/Clear
-        elements.consoleOutput.addEventListener('contextmenu', (e) => {
-            e.preventDefault();
-            window.electronAPI.showContextMenu({ type: 'console' });
-        });
-    }
-
-    window.electronAPI.onConsoleCommand((command) => {
-        if (!elements.consoleOutput) return;
-        if (command === 'copy') {
-            const selection = window.getSelection().toString();
-            if (selection) navigator.clipboard.writeText(selection);
-        } else if (command === 'select-all') {
-            const range = document.createRange();
-            range.selectNodeContents(elements.consoleOutput);
-            const selection = window.getSelection();
-            selection.removeAllRanges();
-            selection.addRange(range);
-        } else if (command === 'clear') {
-            elements.consoleOutput.innerHTML = '';
-            logToConsole('Console output cleared.', 'info');
-        }
-    });
-
-    // Settings Panel
-    if (elements.saveSettingsBtn) elements.saveSettingsBtn.onclick = () => saveGlobalSettings();
-
-    if (elements.settingsBannerApply) elements.settingsBannerApply.onclick = () => saveGlobalSettings();
-    if (elements.settingsBannerDismiss) {
-        elements.settingsBannerDismiss.onclick = () => {
-            elements.settingsBanner.style.display = 'none';
-        };
-    }
-
-    // Monitor settings changes
-    [elements.rootRepoDirInput, elements.githubPatInput, elements.shellSelect, elements.notifRepoChanges, elements.themeModeSelect].forEach(el => {
-        if (!el) return;
-        const eventType = el.tagName === 'SELECT' || el.type === 'checkbox' ? 'change' : 'input';
-        el.addEventListener(eventType, () => {
-            if (elements.settingsBanner) elements.settingsBanner.style.display = 'flex';
-        });
-    });
-
-    if (elements.syncTokenToGitBtn) {
-        elements.syncTokenToGitBtn.onclick = async () => {
-            const token = elements.githubPatInput.value.trim();
-            if (!token) return showAlert('Please enter a Personal Access Token first.', 'Token Required');
-
-            logToConsole('Attempting to sync token to system Git...', 'info');
-            try {
-                const res = await window.electronAPI.syncTokenToGit(token);
-                if (res.success) {
-                    logToConsole(res.message, 'success');
-                    showAlert(res.message, 'Success');
-                } else {
-                    logToConsole(`Failed to sync token: ${res.error}`, 'error');
-                    showError(res.error, 'Sync Failed');
-                }
-            } catch (err) {
-                logToConsole(`System Error: ${err.message}`, 'error');
-            }
-        };
-    }
-    if (elements.clearGitCredsBtn) {
-        elements.clearGitCredsBtn.onclick = async () => {
-            if (await showConfirm('This will remove all cached GitHub credentials from your system. You will need to log in again. Proceed?', 'Confirm Reset')) {
-                logToConsole('Clearing system GitHub credentials...', 'info');
-                try {
-                    const res = await window.electronAPI.clearGitCreds();
-                    if (res.success) {
-                        logToConsole(res.message, 'success');
-                        showAlert(res.message, 'Reset Complete');
-                    } else {
-                        logToConsole(`Failed to clear credentials: ${res.error}`, 'error');
-                    }
-                } catch (err) {
-                    logToConsole(`System Error: ${err.message}`, 'error');
-                }
-            }
-        };
-    }
-    if (elements.resetAppBtn) elements.resetAppBtn.onclick = () => handleResetApp();
-    if (elements.exportSettingsBtn) elements.exportSettingsBtn.onclick = () => handleExportSettings();
-    if (elements.importSettingsBtn) elements.importSettingsBtn.onclick = () => handleImportSettings();
-
-    if (elements.browseCustomCommandPath) elements.browseCustomCommandPath.onclick = async () => {
-        const path = await window.electronAPI.openFile();
-        if (path) elements.customCommandPath.value = path;
-    };
-    if (elements.browseCustomCommandCwd) elements.browseCustomCommandCwd.onclick = async () => {
-        const path = await window.electronAPI.openDirectory();
-        if (path) elements.customCommandCwd.value = path;
-    };
-    if (elements.customCommandSelect) elements.customCommandSelect.onchange = async () => {
-        const val = elements.customCommandSelect.value;
-        if (val === 'new') {
-            elements.customCommandName.value = '';
-            elements.customCommandPath.value = '';
-            elements.customCommandArgs.value = '';
-            elements.customCommandCwd.value = '';
-            elements.customCommandAdmin.checked = false;
-            elements.deleteCustomCommandBtn.style.display = 'none';
+          monacoEditor.trigger('source', 'undo');
         } else {
-            const settings = await window.electronAPI.getSettings();
-            const cmd = (settings.customCommands || []).find(c => c.id === val);
-            if (cmd) {
-                elements.customCommandName.value = cmd.name || '';
-                elements.customCommandPath.value = cmd.path || '';
-                elements.customCommandArgs.value = cmd.args || '';
-                elements.customCommandCwd.value = cmd.cwd || '';
-                elements.customCommandAdmin.checked = !!cmd.runAsAdmin;
-                elements.deleteCustomCommandBtn.style.display = 'inline-block';
-            }
+          monacoEditor.focus();
+          monacoEditor.trigger('source', 'undo');
         }
+      }
     };
-    if (elements.saveCustomCommandBtn) elements.saveCustomCommandBtn.onclick = async () => {
-        const name = elements.customCommandName.value.trim();
-        const path = elements.customCommandPath.value.trim();
-        if (!name || !path) {
-            showAlert('Display Name and Executable Path are required.', 'Error');
-            return;
-        }
-        const settings = await window.electronAPI.getSettings();
-        if (!settings.customCommands) settings.customCommands = [];
-
-        const val = elements.customCommandSelect.value;
-        if (val === 'new') {
-            const newCmd = {
-                id: 'cmd_' + Date.now(),
-                name,
-                path,
-                args: elements.customCommandArgs.value.trim(),
-                cwd: elements.customCommandCwd.value.trim(),
-                runAsAdmin: elements.customCommandAdmin.checked
-            };
-            settings.customCommands.push(newCmd);
+  if (elements.editorRedoBtn)
+    elements.editorRedoBtn.onclick = () => {
+      if (monacoEditor) {
+        const isPreview = elements.editorContainerWrapper.classList.contains('editor-mode-preview');
+        if (isPreview) {
+          monacoEditor.trigger('source', 'redo');
         } else {
-            const cmd = settings.customCommands.find(c => c.id === val);
-            if (cmd) {
-                cmd.name = name;
-                cmd.path = path;
-                cmd.args = elements.customCommandArgs.value.trim();
-                cmd.cwd = elements.customCommandCwd.value.trim();
-                cmd.runAsAdmin = elements.customCommandAdmin.checked;
+          monacoEditor.focus();
+          monacoEditor.trigger('source', 'redo');
+        }
+      }
+    };
+  if (elements.editorWrapBtn)
+    elements.editorWrapBtn.onclick = () => {
+      if (!monacoEditor) return;
+      const current = monacoEditor.getRawOptions().wordWrap;
+      const next = current === 'on' ? 'off' : 'on';
+      monacoEditor.updateOptions({ wordWrap: next });
+      elements.editorWrapBtn.classList.toggle('button-blue', next === 'on');
+      logToConsole(`Word wrap: ${next.toUpperCase()}`, 'info');
+    };
+  if (elements.editorChromeBtn)
+    elements.editorChromeBtn.onclick = () => {
+      if (!currentEditingPath) return;
+
+      if (currentEditingPath.startsWith('gist://')) {
+        // Handle Gists by saving to a deterministic temp file
+        const content = monacoEditor.getValue();
+        const filename = currentEditingPath.split('/').pop() || 'gist_file.txt';
+        window.electronAPI.openContentInChrome({
+          content,
+          filename,
+          identifier: currentEditingPath,
+        });
+      } else {
+        // Handle regular files
+        window.electronAPI.openFileInChrome(currentEditingPath);
+      }
+    };
+  if (elements.editorFolderBtn)
+    elements.editorFolderBtn.onclick = () => {
+      if (currentEditingPath) window.electronAPI.revealInExplorer(currentEditingPath);
+    };
+  if (elements.editorFormatBtn)
+    elements.editorFormatBtn.onclick = () => {
+      if (monacoEditor) {
+        monacoEditor.focus();
+
+        const ext = currentEditingPath ? currentEditingPath.split('.').pop().toLowerCase() : '';
+        if (ext === 'md' || ext === 'markdown') {
+          const model = monacoEditor.getModel();
+          if (model) {
+            const lineCount = model.getLineCount();
+            const edits = [];
+            let inCodeBlock = false;
+
+            for (let i = 1; i <= lineCount; i++) {
+              let lineContent = model.getLineContent(i);
+              const trimmed = lineContent.trim();
+              const nextLine = i < lineCount ? model.getLineContent(i + 1) : null;
+
+              // Toggle code block state
+              if (trimmed.startsWith('```')) {
+                inCodeBlock = !inCodeBlock;
+                continue;
+              }
+
+              if (inCodeBlock) continue;
+
+              let newLineContent = lineContent;
+
+              // 1. Fix Header Spacing: #Header -> # Header
+              if (/^#+[^#\s]/.test(trimmed)) {
+                newLineContent = newLineContent.replace(/^(#+)([^#\s])/, '$1 $2');
+              }
+
+              // 2. Fix List Spacing: *Item -> * Item
+              if (/^([\*\-\+]|\d+\.)[^\s]/.test(trimmed)) {
+                newLineContent = newLineContent.replace(/^([\*\-\+]|\d+\.)([^\s])/, '$1 $2');
+              }
+
+              // 3. Add 2 spaces for hard breaks
+              // Rule: Non-empty, not a header, not a HR (---), next line is also non-empty
+              if (
+                trimmed !== '' &&
+                !trimmed.startsWith('#') &&
+                !/^[\-\*_]{3,}$/.test(trimmed) &&
+                nextLine &&
+                nextLine.trim() !== ''
+              ) {
+                // Clean existing trailing spaces then add 2
+                const cleaned = newLineContent.replace(/\s+$/, '');
+                newLineContent = cleaned + '  ';
+              }
+
+              if (newLineContent !== lineContent) {
+                edits.push({
+                  range: new monaco.Range(i, 1, i, lineContent.length + 1),
+                  text: newLineContent,
+                });
+              }
             }
-        }
-        await window.electronAPI.saveSettings(settings);
-        showAlert('Custom command saved successfully.', 'Success');
-        await showCustomCommandsView();
-    };
-    if (elements.deleteCustomCommandBtn) elements.deleteCustomCommandBtn.onclick = async () => {
-        const val = elements.customCommandSelect.value;
-        if (val !== 'new' && (await showConfirm('Are you sure you want to delete this custom command?', 'Delete Command'))) {
-            const settings = await window.electronAPI.getSettings();
-            settings.customCommands = (settings.customCommands || []).filter(c => c.id !== val);
-            await window.electronAPI.saveSettings(settings);
-            showAlert('Custom command deleted.', 'Success');
-            await showCustomCommandsView();
-        }
-    };
 
-    if (document.getElementById('commit-diff-close')) {
-        document.getElementById('commit-diff-close').onclick = () => {
-            document.getElementById('commit-diff-modal').style.display = 'none';
-        };
-    }
-
-    if (elements.themeSavePresetBtn) elements.themeSavePresetBtn.onclick = () => saveThemePreset();
-    if (elements.themeDeletePresetBtn) elements.themeDeletePresetBtn.onclick = () => deleteThemePreset();
-    if (elements.themePresetsSelect) elements.themePresetsSelect.onchange = () => loadSelectedThemePreset();
-
-    if (elements.renameCancel) elements.renameCancel.onclick = () => {
-        elements.renameModal.style.display = 'none';
-    };
-
-    const browseShellBtn = document.getElementById('browse-custom-shell');
-    if (browseShellBtn) browseShellBtn.onclick = async () => {
-        const path = await window.electronAPI.openFile();
-        if (path) {
-            const customShellInput = document.getElementById('custom-shell-path');
-            if (customShellInput) customShellInput.value = path;
-            const customOpt = document.createElement('option');
-            customOpt.value = path;
-            customOpt.textContent = 'Custom: ' + path.split(/[\\\/]/).pop();
-            customOpt.selected = true;
-            elements.shellSelect.appendChild(customOpt);
-            if (elements.settingsBanner) elements.settingsBanner.style.display = 'flex';
-        }
-    };
-
-    const browseBtn = document.getElementById('browse-root-dir');
-    if (browseBtn) browseBtn.onclick = async () => {
-        const path = await window.electronAPI.openDirectory();
-        if (path) {
-            elements.rootRepoDirInput.value = path;
-            if (elements.settingsBanner) elements.settingsBanner.style.display = 'flex';
-        }
-    };
-
-    // Global click listener for deselection & Markdown Link Interception
-    document.addEventListener('click', (e) => {
-        // Markdown link interception
-        const path = e.composedPath();
-        const link = path.find(el => el.nodeName === 'A');
-        const isFromMarkdownPreview = path.some(el => el.id === 'markdown-preview');
-
-        if (link && isFromMarkdownPreview) {
-            const href = link.getAttribute('href');
-            if (href && !href.startsWith('#')) {
-                e.preventDefault();
-                window.electronAPI.openExternal(href);
-                return;
-            }
-        }
-
-        if (!e.target.closest('.tree-node') && !e.target.closest('.nav-item') && !e.target.closest('.modal-content') && !e.target.closest('.console-tab') && !e.target.closest('.sidebar-action-icon')) {
-            if (selectedNodes.size > 0) {
-                selectedNodes.clear();
-                updateTreeSelectionUI();
-            }
-        }
-    });
-
-    // Background System Listeners
-    let externalChangeDebounce;
-    window.electronAPI.onExternalChange((changedPath) => {
-        clearTimeout(externalChangeDebounce);
-        externalChangeDebounce = setTimeout(() => {
-            if (changedPath) {
-                const repo = findRepoForPath(changedPath);
-                if (repo) {
-                    console.log(`External change detected in ${repo.name}, refreshing...`);
-                    updateTreeHighlights(repo.path);
-                    if (settings.notifRepoChanges) triggerRepoChangeNotification(repo);
-                    if (activeRepo && activeRepo.path === repo.path) refreshActiveRepoUI(true);
-                }
+            if (edits.length > 0) {
+              model.pushEditOperations([], edits, () => null);
+              logToConsole(
+                `Markdown Prettify: Fixed ${edits.length} line formatting issues.`,
+                'success',
+              );
             } else {
-                console.log('Multiple external changes detected, refreshing all highlights...');
-                updateTreeHighlights(); // Refresh all
-                if (activeRepo) refreshActiveRepoUI(true);
+              // Fallback to Monaco's built-in formatter if my custom one has nothing to do
+              monacoEditor
+                .getAction('editor.action.formatDocument')
+                .run()
+                .then(() => logToConsole('Document formatted.', 'success'))
+                .catch(() => {});
             }
-        }, 100); // Small additional debounce to let FS settle
-    });
-
-    const pendingNotifications = new Map();
-    function triggerRepoChangeNotification(repo) {
-        if (pendingNotifications.has(repo.path)) {
-            clearTimeout(pendingNotifications.get(repo.path));
+          }
+        } else {
+          // High-performance formatting for JS, TS, CSS, HTML, JSON, etc.
+          monacoEditor
+            .getAction('editor.action.formatDocument')
+            .run()
+            .then(() => logToConsole('Document formatted.', 'success'))
+            .catch((err) =>
+              logToConsole('Formatting failed or not supported for this language.', 'warn'),
+            );
         }
+      }
+    };
+  if (elements.editorFindBtn)
+    elements.editorFindBtn.onclick = () => {
+      const isPreview =
+        elements.editorContainerWrapper.classList.contains('editor-mode-preview') ||
+        elements.editorContainerWrapper.classList.contains('editor-mode-split');
 
-        pendingNotifications.set(repo.path, setTimeout(async () => {
-            pendingNotifications.delete(repo.path);
-            if (!settings.notifRepoChanges) return;
+      if (isPreview) {
+        showPreviewFind();
+      } else if (monacoEditor) {
+        monacoEditor.focus();
+        monacoEditor.trigger('editor', 'actions.find');
+      }
+    };
+  if (elements.editorTransformBtn)
+    elements.editorTransformBtn.onclick = (e) => {
+      e.stopPropagation();
+      const menu = elements.transformMenu;
+      menu.style.display = menu.style.display === 'block' ? 'none' : 'block';
+    };
+  document.querySelectorAll('.menu-item[data-transform]').forEach((item) => {
+    item.onclick = (e) => {
+      e.stopPropagation();
+      applyTextTransformation(item.dataset.transform);
+      elements.transformMenu.style.display = 'none';
+    };
+  });
+  document.addEventListener('click', () => {
+    if (elements.transformMenu) elements.transformMenu.style.display = 'none';
+    if (elements.searchPopout) elements.searchPopout.style.display = 'none';
+  });
+  if (elements.editorCloseBtn) elements.editorCloseBtn.onclick = async () => await closeEditor();
+  if (elements.mdViewCodeBtn) elements.mdViewCodeBtn.onclick = () => setMarkdownViewMode('code');
+  if (elements.mdViewSplitBtn) elements.mdViewSplitBtn.onclick = () => setMarkdownViewMode('split');
+  if (elements.mdViewPreviewBtn)
+    elements.mdViewPreviewBtn.onclick = () => setMarkdownViewMode('preview');
+  if (elements.gitignoreScanBtn) elements.gitignoreScanBtn.onclick = () => runGitignoreScan();
 
-            try {
-                const status = await window.electronAPI.gitStatus(repo.path);
-                const total = (status.modified || 0) + (status.not_added || 0) + (status.deleted || 0);
+  if (elements.unbornFoldersClose)
+    elements.unbornFoldersClose.onclick = () => {
+      elements.unbornFoldersModal.style.display = 'none';
+    };
 
-                if (total > 0) {
-                    window.electronAPI.sendNotification({
-                        title: `Changes in ${repo.name}`,
-                        body: `${total} files changed. Open GitScope to review.`
-                    });
-                }
-            } catch (e) {}
-        }, 5000));
+  // Close Views
+  if (elements.diffEditBtn)
+    elements.diffEditBtn.onclick = async () => {
+      if (!currentEditingPath) return;
+      const path = currentEditingPath;
+      // Clean up UI state
+      elements.diffView.style.display = 'none';
+      elements.messageView.style.display = 'flex';
+      document.querySelectorAll('.change-item').forEach((el) => el.classList.remove('active'));
+
+      await openFileInEditor(path);
+      await revealInTree(path);
+    };
+  if (elements.diffBackBtn)
+    elements.diffBackBtn.onclick = () => {
+      elements.diffView.style.display = 'none';
+      elements.messageView.style.display = 'flex';
+      document.querySelectorAll('.change-item').forEach((el) => el.classList.remove('active'));
+    };
+
+  // Console Management
+  document.querySelectorAll('.console-tab').forEach((tab) => {
+    tab.onclick = () => switchConsoleTab(tab);
+  });
+
+  // High-Precision Console Scrolling (Fix for Windows 3-line jump)
+  if (elements.consoleOutput) {
+    elements.consoleOutput.addEventListener(
+      'wheel',
+      (e) => {
+        e.preventDefault();
+        const delta = e.deltaY > 0 ? 30 : -30; // Scroll roughly one line at a time
+        elements.consoleOutput.scrollTop += delta;
+      },
+      { passive: false },
+    );
+
+    // Enable Context Menu for Copy/Clear
+    elements.consoleOutput.addEventListener('contextmenu', (e) => {
+      e.preventDefault();
+      window.electronAPI.showContextMenu({ type: 'console' });
+    });
+  }
+
+  window.electronAPI.onConsoleCommand((command) => {
+    if (!elements.consoleOutput) return;
+    if (command === 'copy') {
+      const selection = window.getSelection().toString();
+      if (selection) navigator.clipboard.writeText(selection);
+    } else if (command === 'select-all') {
+      const range = document.createRange();
+      range.selectNodeContents(elements.consoleOutput);
+      const selection = window.getSelection();
+      selection.removeAllRanges();
+      selection.addRange(range);
+    } else if (command === 'clear') {
+      elements.consoleOutput.innerHTML = '';
+      logToConsole('Console output cleared.', 'info');
     }
-    window.electronAPI.onContextMenuCommand(async (data) => handleContextMenuCommand(data));
-    window.electronAPI.onShowError((data) => {
-        if (data && data.message) showError(data.message, data.title || 'Error');
+  });
+
+  // Settings Panel
+  if (elements.saveSettingsBtn) elements.saveSettingsBtn.onclick = () => saveGlobalSettings();
+
+  if (elements.settingsBannerApply)
+    elements.settingsBannerApply.onclick = () => saveGlobalSettings();
+  if (elements.settingsBannerDismiss) {
+    elements.settingsBannerDismiss.onclick = () => {
+      elements.settingsBanner.style.display = 'none';
+    };
+  }
+
+  // Monitor settings changes
+  [
+    elements.rootRepoDirInput,
+    elements.githubPatInput,
+    elements.shellSelect,
+    elements.notifRepoChanges,
+    elements.themeModeSelect,
+  ].forEach((el) => {
+    if (!el) return;
+    const eventType = el.tagName === 'SELECT' || el.type === 'checkbox' ? 'change' : 'input';
+    el.addEventListener(eventType, () => {
+      if (elements.settingsBanner) elements.settingsBanner.style.display = 'flex';
     });
+  });
 
-    // Keyboard Listeners
-    window.onkeydown = (e) => {
-        if (e.key === 'Delete') {
-            const isInput = ['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement.tagName) || document.activeElement.isContentEditable;
-            if (!isInput && selectedNodes.size > 0) {
-                const selection = Array.from(selectedNodes);
-                // ALWAYS show the confirmation modal for the recycle bin as requested
-                showDeleteModal(selection);
-            }
+  if (elements.syncTokenToGitBtn) {
+    elements.syncTokenToGitBtn.onclick = async () => {
+      const token = elements.githubPatInput.value.trim();
+      if (!token) return showAlert('Please enter a Personal Access Token first.', 'Token Required');
+
+      logToConsole('Attempting to sync token to system Git...', 'info');
+      try {
+        const res = await window.electronAPI.syncTokenToGit(token);
+        if (res.success) {
+          logToConsole(res.message, 'success');
+          showAlert(res.message, 'Success');
+        } else {
+          logToConsole(`Failed to sync token: ${res.error}`, 'error');
+          showError(res.error, 'Sync Failed');
         }
-        if (e.key === 'F2') {
-            const isInput = ['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement.tagName) || document.activeElement.isContentEditable;
-            if (!isInput && selectedNodes.size === 1) {
-                handleRename(Array.from(selectedNodes)[0]);
-            }
+      } catch (err) {
+        logToConsole(`System Error: ${err.message}`, 'error');
+      }
+    };
+  }
+  if (elements.clearGitCredsBtn) {
+    elements.clearGitCredsBtn.onclick = async () => {
+      if (
+        await showConfirm(
+          'This will remove all cached GitHub credentials from your system. You will need to log in again. Proceed?',
+          'Confirm Reset',
+        )
+      ) {
+        logToConsole('Clearing system GitHub credentials...', 'info');
+        try {
+          const res = await window.electronAPI.clearGitCreds();
+          if (res.success) {
+            logToConsole(res.message, 'success');
+            showAlert(res.message, 'Reset Complete');
+          } else {
+            logToConsole(`Failed to clear credentials: ${res.error}`, 'error');
+          }
+        } catch (err) {
+          logToConsole(`System Error: ${err.message}`, 'error');
         }
+      }
+    };
+  }
+  if (elements.resetAppBtn) elements.resetAppBtn.onclick = () => handleResetApp();
+  if (elements.exportSettingsBtn) elements.exportSettingsBtn.onclick = () => handleExportSettings();
+  if (elements.importSettingsBtn) elements.importSettingsBtn.onclick = () => handleImportSettings();
+
+  if (elements.browseCustomCommandPath)
+    elements.browseCustomCommandPath.onclick = async () => {
+      const path = await window.electronAPI.openFile();
+      if (path) elements.customCommandPath.value = path;
+    };
+  if (elements.browseCustomCommandCwd)
+    elements.browseCustomCommandCwd.onclick = async () => {
+      const path = await window.electronAPI.openDirectory();
+      if (path) elements.customCommandCwd.value = path;
+    };
+  if (elements.customCommandSelect)
+    elements.customCommandSelect.onchange = async () => {
+      const val = elements.customCommandSelect.value;
+      if (val === 'new') {
+        elements.customCommandName.value = '';
+        elements.customCommandPath.value = '';
+        elements.customCommandArgs.value = '';
+        elements.customCommandCwd.value = '';
+        elements.customCommandAdmin.checked = false;
+        elements.deleteCustomCommandBtn.style.display = 'none';
+      } else {
+        const settings = await window.electronAPI.getSettings();
+        const cmd = (settings.customCommands || []).find((c) => c.id === val);
+        if (cmd) {
+          elements.customCommandName.value = cmd.name || '';
+          elements.customCommandPath.value = cmd.path || '';
+          elements.customCommandArgs.value = cmd.args || '';
+          elements.customCommandCwd.value = cmd.cwd || '';
+          elements.customCommandAdmin.checked = !!cmd.runAsAdmin;
+          elements.deleteCustomCommandBtn.style.display = 'inline-block';
+        }
+      }
+    };
+  if (elements.saveCustomCommandBtn)
+    elements.saveCustomCommandBtn.onclick = async () => {
+      const name = elements.customCommandName.value.trim();
+      const path = elements.customCommandPath.value.trim();
+      if (!name || !path) {
+        showAlert('Display Name and Executable Path are required.', 'Error');
+        return;
+      }
+      const settings = await window.electronAPI.getSettings();
+      if (!settings.customCommands) settings.customCommands = [];
+
+      const val = elements.customCommandSelect.value;
+      if (val === 'new') {
+        const newCmd = {
+          id: 'cmd_' + Date.now(),
+          name,
+          path,
+          args: elements.customCommandArgs.value.trim(),
+          cwd: elements.customCommandCwd.value.trim(),
+          runAsAdmin: elements.customCommandAdmin.checked,
+        };
+        settings.customCommands.push(newCmd);
+      } else {
+        const cmd = settings.customCommands.find((c) => c.id === val);
+        if (cmd) {
+          cmd.name = name;
+          cmd.path = path;
+          cmd.args = elements.customCommandArgs.value.trim();
+          cmd.cwd = elements.customCommandCwd.value.trim();
+          cmd.runAsAdmin = elements.customCommandAdmin.checked;
+        }
+      }
+      await window.electronAPI.saveSettings(settings);
+      showAlert('Custom command saved successfully.', 'Success');
+      await showCustomCommandsView();
+    };
+  if (elements.deleteCustomCommandBtn)
+    elements.deleteCustomCommandBtn.onclick = async () => {
+      const val = elements.customCommandSelect.value;
+      if (
+        val !== 'new' &&
+        (await showConfirm(
+          'Are you sure you want to delete this custom command?',
+          'Delete Command',
+        ))
+      ) {
+        const settings = await window.electronAPI.getSettings();
+        settings.customCommands = (settings.customCommands || []).filter((c) => c.id !== val);
+        await window.electronAPI.saveSettings(settings);
+        showAlert('Custom command deleted.', 'Success');
+        await showCustomCommandsView();
+      }
     };
 
-    // Modal background click handler
-    window.onclick = (event) => {
-        if (event.target.classList.contains('modal')) {
-            event.target.style.display = 'none';
-        }
+  if (document.getElementById('commit-diff-close')) {
+    document.getElementById('commit-diff-close').onclick = () => {
+      document.getElementById('commit-diff-modal').style.display = 'none';
     };
+  }
+
+  if (elements.themeSavePresetBtn) elements.themeSavePresetBtn.onclick = () => saveThemePreset();
+  if (elements.themeDeletePresetBtn)
+    elements.themeDeletePresetBtn.onclick = () => deleteThemePreset();
+  if (elements.themePresetsSelect)
+    elements.themePresetsSelect.onchange = () => loadSelectedThemePreset();
+
+  if (elements.renameCancel)
+    elements.renameCancel.onclick = () => {
+      elements.renameModal.style.display = 'none';
+    };
+
+  const browseShellBtn = document.getElementById('browse-custom-shell');
+  if (browseShellBtn)
+    browseShellBtn.onclick = async () => {
+      const path = await window.electronAPI.openFile();
+      if (path) {
+        const customShellInput = document.getElementById('custom-shell-path');
+        if (customShellInput) customShellInput.value = path;
+        const customOpt = document.createElement('option');
+        customOpt.value = path;
+        customOpt.textContent = 'Custom: ' + path.split(/[\\\/]/).pop();
+        customOpt.selected = true;
+        elements.shellSelect.appendChild(customOpt);
+        if (elements.settingsBanner) elements.settingsBanner.style.display = 'flex';
+      }
+    };
+
+  const browseBtn = document.getElementById('browse-root-dir');
+  if (browseBtn)
+    browseBtn.onclick = async () => {
+      const path = await window.electronAPI.openDirectory();
+      if (path) {
+        elements.rootRepoDirInput.value = path;
+        if (elements.settingsBanner) elements.settingsBanner.style.display = 'flex';
+      }
+    };
+
+  // Global click listener for deselection & Markdown Link Interception
+  document.addEventListener('click', (e) => {
+    // Markdown link interception
+    const path = e.composedPath();
+    const link = path.find((el) => el.nodeName === 'A');
+    const isFromMarkdownPreview = path.some((el) => el.id === 'markdown-preview');
+
+    if (link && isFromMarkdownPreview) {
+      const href = link.getAttribute('href');
+      if (href && !href.startsWith('#')) {
+        e.preventDefault();
+        window.electronAPI.openExternal(href);
+        return;
+      }
+    }
+
+    if (
+      !e.target.closest('.tree-node') &&
+      !e.target.closest('.nav-item') &&
+      !e.target.closest('.modal-content') &&
+      !e.target.closest('.console-tab') &&
+      !e.target.closest('.sidebar-action-icon')
+    ) {
+      if (selectedNodes.size > 0) {
+        selectedNodes.clear();
+        updateTreeSelectionUI();
+      }
+    }
+  });
+
+  // Background System Listeners
+  let externalChangeDebounce;
+  window.electronAPI.onExternalChange((changedPath) => {
+    clearTimeout(externalChangeDebounce);
+    externalChangeDebounce = setTimeout(() => {
+      if (changedPath) {
+        const repo = findRepoForPath(changedPath);
+        if (repo) {
+          console.log(`External change detected in ${repo.name}, refreshing...`);
+          updateTreeHighlights(repo.path);
+          if (settings.notifRepoChanges) triggerRepoChangeNotification(repo);
+          if (activeRepo && activeRepo.path === repo.path) refreshActiveRepoUI(true);
+        }
+      } else {
+        console.log('Multiple external changes detected, refreshing all highlights...');
+        updateTreeHighlights(); // Refresh all
+        if (activeRepo) refreshActiveRepoUI(true);
+      }
+    }, 100); // Small additional debounce to let FS settle
+  });
+
+  const pendingNotifications = new Map();
+  function triggerRepoChangeNotification(repo) {
+    if (pendingNotifications.has(repo.path)) {
+      clearTimeout(pendingNotifications.get(repo.path));
+    }
+
+    pendingNotifications.set(
+      repo.path,
+      setTimeout(async () => {
+        pendingNotifications.delete(repo.path);
+        if (!settings.notifRepoChanges) return;
+
+        try {
+          const status = await window.electronAPI.gitStatus(repo.path);
+          const total = (status.modified || 0) + (status.not_added || 0) + (status.deleted || 0);
+
+          if (total > 0) {
+            window.electronAPI.sendNotification({
+              title: `Changes in ${repo.name}`,
+              body: `${total} files changed. Open GitScope to review.`,
+            });
+          }
+        } catch (e) {}
+      }, 5000),
+    );
+  }
+  window.electronAPI.onContextMenuCommand(async (data) => handleContextMenuCommand(data));
+  window.electronAPI.onShowError((data) => {
+    if (data && data.message) showError(data.message, data.title || 'Error');
+  });
+
+  // Keyboard Listeners
+  window.onkeydown = (e) => {
+    if (e.key === 'Delete') {
+      const isInput =
+        ['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement.tagName) ||
+        document.activeElement.isContentEditable;
+      if (!isInput && selectedNodes.size > 0) {
+        const selection = Array.from(selectedNodes);
+        // ALWAYS show the confirmation modal for the recycle bin as requested
+        showDeleteModal(selection);
+      }
+    }
+    if (e.key === 'F2') {
+      const isInput =
+        ['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement.tagName) ||
+        document.activeElement.isContentEditable;
+      if (!isInput && selectedNodes.size === 1) {
+        handleRename(Array.from(selectedNodes)[0]);
+      }
+    }
+  };
+
+  // Modal background click handler
+  window.onclick = (event) => {
+    if (event.target.classList.contains('modal')) {
+      event.target.style.display = 'none';
+    }
+  };
 }
 
 async function setActiveNavItem(item) {
-    if (!(await guardNavigation())) return false;
+  if (!(await guardNavigation())) return false;
 
-    document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
-    if (item) item.classList.add('active');
+  document.querySelectorAll('.nav-item').forEach((i) => i.classList.remove('active'));
+  if (item) item.classList.add('active');
 
-    // Reset all scrollable view containers to top
-    const scrollableViews = [
-        elements.dashboardView,
-        elements.gistView,
-        elements.settingsView,
-        elements.customCommandsView,
-        elements.gitConfigView,
-        elements.themeEditorView,
-        elements.mainContent
-    ];
-    scrollableViews.forEach(view => {
-        if (view) view.scrollTop = 0;
-    });
+  // Reset all scrollable view containers to top
+  const scrollableViews = [
+    elements.dashboardView,
+    elements.gistView,
+    elements.settingsView,
+    elements.customCommandsView,
+    elements.gitConfigView,
+    elements.themeEditorView,
+    elements.mainContent,
+  ];
+  scrollableViews.forEach((view) => {
+    if (view) view.scrollTop = 0;
+  });
 
-    elements.dashboardView.style.display = 'none';
-    elements.gistView.style.display = 'none';
-    elements.repoView.style.display = 'none';
-    elements.editorView.style.display = 'none';
-    elements.settingsView.style.display = 'none';
-    elements.customCommandsView.style.display = 'none';
-    elements.gitConfigView.style.display = 'none';
-    elements.themeEditorView.style.display = 'none';
-    elements.statusView.style.display = 'none';
-    document.querySelectorAll('.modal').forEach(m => m.style.display = 'none');
+  elements.dashboardView.style.display = 'none';
+  elements.gistView.style.display = 'none';
+  elements.repoView.style.display = 'none';
+  elements.editorView.style.display = 'none';
+  elements.settingsView.style.display = 'none';
+  elements.customCommandsView.style.display = 'none';
+  elements.gitConfigView.style.display = 'none';
+  elements.themeEditorView.style.display = 'none';
+  elements.statusView.style.display = 'none';
+  document.querySelectorAll('.modal').forEach((m) => (m.style.display = 'none'));
 
-    return true;
+  return true;
 }
 
 async function showSettings() {
-    if (!(await setActiveNavItem(elements.navSettings))) return;
-    elements.settingsView.style.display = 'flex';
+  if (!(await setActiveNavItem(elements.navSettings))) return;
+  elements.settingsView.style.display = 'flex';
 }
 
 function switchConsoleTab(tab) {
-    const targetId = tab.dataset.target;
-    document.querySelectorAll('.console-tab').forEach(t => t.classList.remove('active'));
-    document.querySelectorAll('#console-body > div').forEach(d => d.classList.remove('active'));
-    tab.classList.add('active');
-    const target = document.getElementById(targetId);
-    if (target) {
-        target.classList.add('active');
-        if (targetId === 'terminal-container' && window.terminal) {
-            setTimeout(() => {
-                window.terminal.fitAddon.fit();
-                window.terminal.term.focus();
-            }, 50);
-        } else if (targetId === 'console-output') {
-            // Force scroll to bottom when switching to console tab
-            target.scrollTop = target.scrollHeight;
-        }
+  const targetId = tab.dataset.target;
+  document.querySelectorAll('.console-tab').forEach((t) => t.classList.remove('active'));
+  document.querySelectorAll('#console-body > div').forEach((d) => d.classList.remove('active'));
+  tab.classList.add('active');
+  const target = document.getElementById(targetId);
+  if (target) {
+    target.classList.add('active');
+    if (targetId === 'terminal-container' && window.terminal) {
+      setTimeout(() => {
+        window.terminal.fitAddon.fit();
+        window.terminal.term.focus();
+      }, 50);
+    } else if (targetId === 'console-output') {
+      // Force scroll to bottom when switching to console tab
+      target.scrollTop = target.scrollHeight;
     }
+  }
 }
 
 async function autoImportFromRoot(rootPath) {
-    try {
-        // INTELLIGENCE: Helper to identify system folders
-        const isSystemFolder = (name) => {
-            const n = name.toUpperCase();
-            return ['$RECYCLE.BIN', 'SYSTEM VOLUME INFORMATION', 'RECOVERY', 'CONFIG.MSI', 'MSDOWNLD.TMP'].some(p => n === p || n.startsWith(p));
-        };
+  try {
+    // INTELLIGENCE: Helper to identify system folders
+    const isSystemFolder = (name) => {
+      const n = name.toUpperCase();
+      return [
+        '$RECYCLE.BIN',
+        'SYSTEM VOLUME INFORMATION',
+        'RECOVERY',
+        'CONFIG.MSI',
+        'MSDOWNLD.TMP',
+      ].some((p) => n === p || n.startsWith(p));
+    };
 
-        // CLEANUP: Deduplicate existing list and REMOVE system folders that might have been added
-        const unique = [];
-        const seen = new Set();
-        let removedSystemFolders = false;
+    // CLEANUP: Deduplicate existing list and REMOVE system folders that might have been added
+    const unique = [];
+    const seen = new Set();
+    let removedSystemFolders = false;
 
-        repositories.forEach(r => {
-            const norm = r.path.replace(/\\/g, '/').toLowerCase();
-            const name = r.name || '';
-            if (!seen.has(norm)) {
-                if (isSystemFolder(name) || isSystemFolder(r.path.split(/[\\\/]/).pop())) {
-                    removedSystemFolders = true;
-                    return; // Skip this one
-                }
-                seen.add(norm);
-                unique.push(r);
-            }
-        });
-
-        if (removedSystemFolders) {
-            logToConsole('Cleaned up system folders from workspace.', 'info');
+    repositories.forEach((r) => {
+      const norm = r.path.replace(/\\/g, '/').toLowerCase();
+      const name = r.name || '';
+      if (!seen.has(norm)) {
+        if (isSystemFolder(name) || isSystemFolder(r.path.split(/[\\\/]/).pop())) {
+          removedSystemFolders = true;
+          return; // Skip this one
         }
+        seen.add(norm);
+        unique.push(r);
+      }
+    });
 
-        repositories = unique;
+    if (removedSystemFolders) {
+      logToConsole('Cleaned up system folders from workspace.', 'info');
+    }
 
-        const children = await window.electronAPI.listDirectory(rootPath, true); // Always show all for auto-import
-        let addedCount = 0;
+    repositories = unique;
 
-        for (const dir of children.filter(c => c.isDirectory)) {
-            // Small pause to keep UI responsive during mass scan
-            await new Promise(r => setTimeout(resolve => r(), 10));
+    const children = await window.electronAPI.listDirectory(rootPath, true); // Always show all for auto-import
+    let addedCount = 0;
 
-            const scan = await window.electronAPI.scanDirectory(dir.path);
-            if (scan.type === 'single') {
-                const normPath = scan.path.replace(/\\/g, '/');
-                const alreadyExists = repositories.some(r =>
-                    r.path.replace(/\\/g, '/').toLowerCase() === normPath.toLowerCase()
-                );
+    for (const dir of children.filter((c) => c.isDirectory)) {
+      // Small pause to keep UI responsive during mass scan
+      await new Promise((r) => setTimeout((resolve) => r(), 10));
 
-                if (!alreadyExists) {
-                    repositories.push({ ...scan, path: normPath, expanded: false });
-                    addedCount++;
-                }
-            }
+      const scan = await window.electronAPI.scanDirectory(dir.path);
+      if (scan.type === 'single') {
+        const normPath = scan.path.replace(/\\/g, '/');
+        const alreadyExists = repositories.some(
+          (r) => r.path.replace(/\\/g, '/').toLowerCase() === normPath.toLowerCase(),
+        );
+
+        if (!alreadyExists) {
+          repositories.push({ ...scan, path: normPath, expanded: false });
+          addedCount++;
         }
-        if (addedCount > 0) {
-            logToConsole(`Auto-imported ${addedCount} projects.`, 'success');
-            sortRepositories();
-            window.electronAPI.saveRepositories(repositories);
-            renderTree(elements.repoFilter ? elements.repoFilter.value : '');
-        }
-    } catch (e) { logToConsole(e.message, 'error'); }
+      }
+    }
+    if (addedCount > 0) {
+      logToConsole(`Auto-imported ${addedCount} projects.`, 'success');
+      sortRepositories();
+      window.electronAPI.saveRepositories(repositories);
+      renderTree(elements.repoFilter ? elements.repoFilter.value : '');
+    }
+  } catch (e) {
+    logToConsole(e.message, 'error');
+  }
 }
 
 async function quickGitAction(action) {
-    if (!activeRepo) return;
+  if (!activeRepo) return;
 
-    // Safety Check: If pushing, check if we are behind
-    if (action === 'push') {
-        try {
-            const status = await window.electronAPI.gitStatus(activeRepo.path);
-            if (status.behind > 0) {
-                const proceed = await showConfirm(
-                    `You have ${status.behind} incoming commits from remote. It is highly recommended to PULL first.\n\nAre you sure you want to PUSH anyway?`,
-                    'Incoming Changes Detected'
-                );
-                if (!proceed) return;
-            }
-        } catch (e) {
-            console.warn('Push safety check failed:', e);
-        }
-    }
-
-    setTaskState(true);
-
-    // VISIBILITY: Use the terminal as the execution engine for core git commands
-    if (window.terminal) {
-        logToConsole(`Launching Git ${action.toUpperCase()} in terminal...`, 'info');
-
-        // Ensure terminal is in correct directory
-        window.terminal.sendCommand(`cd "${activeRepo.path}"`);
-
-        const forceFlag = (action === 'push' || action === 'pull') && activeRepo.gitForce ? ' --force' : '';
-        const upstream = (action === 'push') ? ' -u origin HEAD' : '';
-
-        // Construct the command
-        const cmd = `git ${action}${forceFlag}${upstream}`;
-        window.terminal.sendCommand(cmd);
-
-        // Switch to terminal tab for visibility
-        const termTab = document.querySelector('.console-tab[data-target="terminal-container"]');
-        if (termTab) switchConsoleTab(termTab);
-
-        // UI Refresh loop: Since we can't easily "wait" for terminal finish,
-        // we'll refresh after a few seconds and then again later.
-        setTimeout(async () => {
-            if (action === 'pull' || action === 'fetch' || action === 'merge') await smartRefreshTree();
-            // Force visibility check after push/pull/fetch as requested
-            await refreshActiveRepoUI(true);
-            setTaskState(false);
-        }, 4000);
-        return;
-    }
-
-    // Fallback: Background execution (Non-visible)
-    logToConsole(`Git ${action.toUpperCase()} in progress (background)...`, 'info');
+  // Safety Check: If pushing, check if we are behind
+  if (action === 'push') {
     try {
-        const method = `git${action.charAt(0).toUpperCase() + action.slice(1)}`;
-        const needsForce = (action === 'pull' || action === 'push');
-        const res = await window.electronAPI[method](activeRepo.path, needsForce ? activeRepo.gitForce : undefined);
-        logToConsole(res.output, res.success ? 'success' : 'error');
-        if (!res.success) showError(res.output, `Git ${action.toUpperCase()} Failed`);
-
-        if (action === 'pull' || action === 'fetch' || action === 'merge') {
-            await smartRefreshTree();
-        }
-        // Force visibility check after push/pull/fetch
-        await refreshActiveRepoUI(false);
+      const status = await window.electronAPI.gitStatus(activeRepo.path);
+      if (status.behind > 0) {
+        const proceed = await showConfirm(
+          `You have ${status.behind} incoming commits from remote. It is highly recommended to PULL first.\n\nAre you sure you want to PUSH anyway?`,
+          'Incoming Changes Detected',
+        );
+        if (!proceed) return;
+      }
     } catch (e) {
-        logToConsole(e.message, 'error');
-        showError(e.message, 'System Error');
+      console.warn('Push safety check failed:', e);
     }
-    finally { setTaskState(false); }
+  }
+
+  setTaskState(true);
+
+  // VISIBILITY: Use the terminal as the execution engine for core git commands
+  if (window.terminal) {
+    logToConsole(`Launching Git ${action.toUpperCase()} in terminal...`, 'info');
+
+    // Ensure terminal is in correct directory
+    window.terminal.sendCommand(`cd "${activeRepo.path}"`);
+
+    const forceFlag =
+      (action === 'push' || action === 'pull') && activeRepo.gitForce ? ' --force' : '';
+    const upstream = action === 'push' ? ' -u origin HEAD' : '';
+
+    // Construct the command
+    const cmd = `git ${action}${forceFlag}${upstream}`;
+    window.terminal.sendCommand(cmd);
+
+    // Switch to terminal tab for visibility
+    const termTab = document.querySelector('.console-tab[data-target="terminal-container"]');
+    if (termTab) switchConsoleTab(termTab);
+
+    // UI Refresh loop: Since we can't easily "wait" for terminal finish,
+    // we'll refresh after a few seconds and then again later.
+    setTimeout(async () => {
+      if (action === 'pull' || action === 'fetch' || action === 'merge') await smartRefreshTree();
+      // Force visibility check after push/pull/fetch as requested
+      await refreshActiveRepoUI(true);
+      setTaskState(false);
+    }, 4000);
+    return;
+  }
+
+  // Fallback: Background execution (Non-visible)
+  logToConsole(`Git ${action.toUpperCase()} in progress (background)...`, 'info');
+  try {
+    const method = `git${action.charAt(0).toUpperCase() + action.slice(1)}`;
+    const needsForce = action === 'pull' || action === 'push';
+    const res = await window.electronAPI[method](
+      activeRepo.path,
+      needsForce ? activeRepo.gitForce : undefined,
+    );
+    logToConsole(res.output, res.success ? 'success' : 'error');
+    if (!res.success) showError(res.output, `Git ${action.toUpperCase()} Failed`);
+
+    if (action === 'pull' || action === 'fetch' || action === 'merge') {
+      await smartRefreshTree();
+    }
+    // Force visibility check after push/pull/fetch
+    await refreshActiveRepoUI(false);
+  } catch (e) {
+    logToConsole(e.message, 'error');
+    showError(e.message, 'System Error');
+  } finally {
+    setTaskState(false);
+  }
 }
 
 /**
  * Quick Commit from Dashboard: Stages all and commits as "update".
  */
 async function handleDashboardCommit(repo) {
-    if (!repo) return;
-    activeRepo = repo;
-    setTaskState(true);
-    logToConsole(`🚀 Quick Commit: ${repo.name}`, 'info');
+  if (!repo) return;
+  activeRepo = repo;
+  setTaskState(true);
+  logToConsole(`🚀 Quick Commit: ${repo.name}`, 'info');
 
-    try {
-        // 1. Stage everything
-        logToConsole('Staging all changes...', 'info');
-        await window.electronAPI.gitStageAll(repo.path);
+  try {
+    // 1. Stage everything
+    logToConsole('Staging all changes...', 'info');
+    await window.electronAPI.gitStageAll(repo.path);
 
-        // 2. Commit with auto-message
-        logToConsole('Committing...', 'info');
-        const commitRes = await window.electronAPI.gitCommit(repo.path, 'update');
-        if (commitRes.success) {
-            logToConsole('Commit successful.', 'success');
-        } else if (commitRes.output.toLowerCase().includes('nothing to commit')) {
-            logToConsole('Nothing new to commit.', 'info');
-        } else {
-            logToConsole(`Commit Warning: ${commitRes.output}`, 'warn');
-        }
-        await showDashboard();
-    } catch (e) {
-        logToConsole(`Commit Error: ${e.message}`, 'error');
-        showError(e.message, 'Quick Commit Failed');
-    } finally {
-        setTaskState(false);
+    // 2. Commit with auto-message
+    logToConsole('Committing...', 'info');
+    const commitRes = await window.electronAPI.gitCommit(repo.path, 'update');
+    if (commitRes.success) {
+      logToConsole('Commit successful.', 'success');
+    } else if (commitRes.output.toLowerCase().includes('nothing to commit')) {
+      logToConsole('Nothing new to commit.', 'info');
+    } else {
+      logToConsole(`Commit Warning: ${commitRes.output}`, 'warn');
     }
+    await showDashboard();
+  } catch (e) {
+    logToConsole(`Commit Error: ${e.message}`, 'error');
+    showError(e.message, 'Quick Commit Failed');
+  } finally {
+    setTaskState(false);
+  }
 }
 
 /**
  * Dashboard Push: Only pushes to remote.
  */
 async function handleDashboardPush(repo) {
-    if (!repo) return;
-    activeRepo = repo;
-    setTaskState(true);
-    logToConsole(`🚀 Quick Push: ${repo.name}`, 'info');
+  if (!repo) return;
+  activeRepo = repo;
+  setTaskState(true);
+  logToConsole(`🚀 Quick Push: ${repo.name}`, 'info');
 
-    try {
-        logToConsole('Pushing to origin...', 'info');
-        if (window.terminal) {
-            // CRITICAL: Ensure terminal is in the correct directory before pushing
-            window.terminal.sendCommand(`cd "${repo.path}"`);
-            // Use -u origin HEAD to ensure upstream is set automatically
-            const forceFlag = repo.gitForce ? ' --force' : '';
-            window.terminal.sendCommand(`git push -u origin HEAD${forceFlag}`);
-            setTimeout(async () => {
-                await showDashboard();
-                setTaskState(false);
-            }, 3000);
-        } else {
-            const pushRes = await window.electronAPI.gitPush(repo.path, repo.gitForce);
-            logToConsole(pushRes.output, pushRes.success ? 'success' : 'error');
-            if (!pushRes.success) showError(pushRes.output, `Git Push Failed`);
-            await showDashboard();
-            setTaskState(false);
-        }
-    } catch (e) {
-        logToConsole(`Push Error: ${e.message}`, 'error');
-        showError(e.message, 'Quick Push Failed');
-    } finally {
+  try {
+    logToConsole('Pushing to origin...', 'info');
+    if (window.terminal) {
+      // CRITICAL: Ensure terminal is in the correct directory before pushing
+      window.terminal.sendCommand(`cd "${repo.path}"`);
+      // Use -u origin HEAD to ensure upstream is set automatically
+      const forceFlag = repo.gitForce ? ' --force' : '';
+      window.terminal.sendCommand(`git push -u origin HEAD${forceFlag}`);
+      setTimeout(async () => {
+        await showDashboard();
         setTaskState(false);
+      }, 3000);
+    } else {
+      const pushRes = await window.electronAPI.gitPush(repo.path, repo.gitForce);
+      logToConsole(pushRes.output, pushRes.success ? 'success' : 'error');
+      if (!pushRes.success) showError(pushRes.output, `Git Push Failed`);
+      await showDashboard();
+      setTaskState(false);
     }
+  } catch (e) {
+    logToConsole(`Push Error: ${e.message}`, 'error');
+    showError(e.message, 'Quick Push Failed');
+  } finally {
+    setTaskState(false);
+  }
 }
 
 /**
  * Dashboard Restore: Wipes all changes to HEAD for a project.
  */
 async function handleDashboardRestore(repo) {
-    if (!repo) return;
-    const warning = `DANGER: WIPE ALL CHANGES?\n\nThis will restore ${repo.name} to HEAD state.\n\nSTAGED and UNSTAGED changes will be PERMANENTLY LOST.`;
-    if (await showConfirm(warning, "Restore Project to HEAD")) {
-        setTaskState(true);
-        logToConsole(`Restoring ${repo.name} to HEAD...`, 'info');
-        try {
-            const res = await window.electronAPI.gitRestoreToHead(repo.path);
-            if (res.success) {
-                logToConsole(`Successfully restored ${repo.name}`, 'success');
-                await showDashboard();
-            } else {
-                logToConsole(`Restore failed: ${res.output}`, 'error');
-                showError(res.output, 'Restore Failed');
-            }
-        } catch (e) {
-            logToConsole(`Restore error: ${e.message}`, 'error');
-            showError(e.message, 'System Error');
-        } finally {
-            setTaskState(false);
-        }
+  if (!repo) return;
+  const warning = `DANGER: WIPE ALL CHANGES?\n\nThis will restore ${repo.name} to HEAD state.\n\nSTAGED and UNSTAGED changes will be PERMANENTLY LOST.`;
+  if (await showConfirm(warning, 'Restore Project to HEAD')) {
+    setTaskState(true);
+    logToConsole(`Restoring ${repo.name} to HEAD...`, 'info');
+    try {
+      const res = await window.electronAPI.gitRestoreToHead(repo.path);
+      if (res.success) {
+        logToConsole(`Successfully restored ${repo.name}`, 'success');
+        await showDashboard();
+      } else {
+        logToConsole(`Restore failed: ${res.output}`, 'error');
+        showError(res.output, 'Restore Failed');
+      }
+    } catch (e) {
+      logToConsole(`Restore error: ${e.message}`, 'error');
+      showError(e.message, 'System Error');
+    } finally {
+      setTaskState(false);
     }
+  }
 }
 
 async function handleStageAll() {
-    if (!activeRepo) return;
-    setTaskState(true);
-    logToConsole('Staging all changes (git add -A)...', 'info');
-    try {
-        const res = await window.electronAPI.gitStageAll(activeRepo.path);
-        if (res.success) {
-            if (res.partial) {
-                logToConsole(res.output, 'warn');
+  if (!activeRepo) return;
+  setTaskState(true);
+  logToConsole('Staging all changes (git add -A)...', 'info');
+  try {
+    const res = await window.electronAPI.gitStageAll(activeRepo.path);
+    if (res.success) {
+      if (res.partial) {
+        logToConsole(res.output, 'warn');
 
-                // Intelligence: If it's a locked .vs file, offer to ignore the folder
-                if (res.output.toLowerCase().includes('.vs')) {
-                    const ignore = await showConfirm(
-                        "Some files in the .vs/ folder are locked by Visual Studio and couldn't be staged.\n\nWould you like to add '.vs/' to your .gitignore to prevent this in the future?",
-                        "Locked IDE Files Detected"
-                    );
-                    if (ignore) {
-                        const ignoreRes = await window.electronAPI.gitAddToGitignore(activeRepo.path, '.vs/');
-                        if (ignoreRes.success) logToConsole(ignoreRes.output, 'success');
-                    }
-                } else {
-                    showError(res.output, 'Partial Stage Successful');
-                }
-            } else {
-                logToConsole(res.output, 'success');
-            }
-            await smartRefreshTree();
-            await refreshActiveRepoUI();
+        // Intelligence: If it's a locked .vs file, offer to ignore the folder
+        if (res.output.toLowerCase().includes('.vs')) {
+          const ignore = await showConfirm(
+            "Some files in the .vs/ folder are locked by Visual Studio and couldn't be staged.\n\nWould you like to add '.vs/' to your .gitignore to prevent this in the future?",
+            'Locked IDE Files Detected',
+          );
+          if (ignore) {
+            const ignoreRes = await window.electronAPI.gitAddToGitignore(activeRepo.path, '.vs/');
+            if (ignoreRes.success) logToConsole(ignoreRes.output, 'success');
+          }
         } else {
-            logToConsole(`Stage Failed: ${res.output}`, 'error');
-
-            // Intelligence: Special handling for common locked file errors if partial sync also failed
-            if (res.output.includes('Permission denied') || res.output.includes('locked')) {
-                showError(
-                    "Git could not stage some files because they are locked by another application (e.g. Visual Studio, Excel).\n\nPlease close the application using these files or add them to .gitignore.",
-                    "Stage Failed: Files Locked"
-                );
-            } else {
-                showError(res.output, 'Stage Failed');
-            }
+          showError(res.output, 'Partial Stage Successful');
         }
-    } catch (e) {
-        logToConsole(`System Error: ${e.message}`, 'error');
-        showError(e.message, 'System Error');
-    } finally { setTaskState(false); }
+      } else {
+        logToConsole(res.output, 'success');
+      }
+      await smartRefreshTree();
+      await refreshActiveRepoUI();
+    } else {
+      logToConsole(`Stage Failed: ${res.output}`, 'error');
+
+      // Intelligence: Special handling for common locked file errors if partial sync also failed
+      if (res.output.includes('Permission denied') || res.output.includes('locked')) {
+        showError(
+          'Git could not stage some files because they are locked by another application (e.g. Visual Studio, Excel).\n\nPlease close the application using these files or add them to .gitignore.',
+          'Stage Failed: Files Locked',
+        );
+      } else {
+        showError(res.output, 'Stage Failed');
+      }
+    }
+  } catch (e) {
+    logToConsole(`System Error: ${e.message}`, 'error');
+    showError(e.message, 'System Error');
+  } finally {
+    setTaskState(false);
+  }
 }
 
 async function handleUnstageAll() {
-    if (!activeRepo) return;
-    setTaskState(true);
-    logToConsole('Unstaging all changes (git reset .)...', 'info');
-    try {
-        const res = await window.electronAPI.gitUnstageAll(activeRepo.path);
-        if (res.success) {
-            logToConsole(res.output, 'success');
-            await smartRefreshTree();
-            await refreshActiveRepoUI();
-        } else {
-            logToConsole(`Unstage Failed: ${res.output}`, 'error');
-            showError(res.output, 'Unstage Failed');
-        }
-    } catch (e) {
-        logToConsole(`System Error: ${e.message}`, 'error');
-        showError(e.message, 'System Error');
-    } finally { setTaskState(false); }
+  if (!activeRepo) return;
+  setTaskState(true);
+  logToConsole('Unstaging all changes (git reset .)...', 'info');
+  try {
+    const res = await window.electronAPI.gitUnstageAll(activeRepo.path);
+    if (res.success) {
+      logToConsole(res.output, 'success');
+      await smartRefreshTree();
+      await refreshActiveRepoUI();
+    } else {
+      logToConsole(`Unstage Failed: ${res.output}`, 'error');
+      showError(res.output, 'Unstage Failed');
+    }
+  } catch (e) {
+    logToConsole(`System Error: ${e.message}`, 'error');
+    showError(e.message, 'System Error');
+  } finally {
+    setTaskState(false);
+  }
 }
 
 async function handleCommit(pushAfter = false) {
-    logToConsole(`Commit action triggered (pushAfter: ${pushAfter})...`, 'info');
-    if (!activeRepo) {
-        logToConsole("Error: No active project for commit.", "error");
-        return;
-    }
-    const msg = elements.commitMsgArea.value.trim();
-    if (!msg) {
-        logToConsole("Commit blocked: Message is empty.", "error");
-        showAlert('Please enter a commit message.', 'Missing Info');
-        elements.commitMsgArea.focus();
-        return;
-    }
+  logToConsole(`Commit action triggered (pushAfter: ${pushAfter})...`, 'info');
+  if (!activeRepo) {
+    logToConsole('Error: No active project for commit.', 'error');
+    return;
+  }
+  const msg = elements.commitMsgArea.value.trim();
+  if (!msg) {
+    logToConsole('Commit blocked: Message is empty.', 'error');
+    showAlert('Please enter a commit message.', 'Missing Info');
+    elements.commitMsgArea.focus();
+    return;
+  }
 
-    // Safety Check: If pushing after commit, check if we are behind
-    if (pushAfter) {
-        try {
-            const status = await window.electronAPI.gitStatus(activeRepo.path);
-            if (status.behind > 0) {
-                const proceed = await showConfirm(
-                    `You have ${status.behind} incoming commits from remote. It is highly recommended to PULL first.\n\nAre you sure you want to COMMIT and PUSH anyway?`,
-                    'Incoming Changes Detected'
-                );
-                if (!proceed) return;
-            }
-        } catch (e) {
-            console.warn('Push safety check failed:', e);
-        }
-    }
-
-    setTaskState(true);
-    elements.commitBtn.disabled = true;
-    if (elements.commitPushBtn) elements.commitPushBtn.disabled = true;
-    const amend = elements.commitAmendToggle ? elements.commitAmendToggle.checked : false;
-
+  // Safety Check: If pushing after commit, check if we are behind
+  if (pushAfter) {
     try {
-        const res = await window.electronAPI.gitCommit(activeRepo.path, msg, amend);
-        if (res && res.success) {
-            logToConsole(amend ? 'Commit Amended Successfully.' : 'Commit Successful.', 'success');
-            logToConsole(res.output, 'info');
-            elements.commitMsgArea.value = '';
-            if (elements.commitAmendToggle) elements.commitAmendToggle.checked = false;
-
-            if (pushAfter) {
-                logToConsole('Pushing changes...', 'info');
-                if (window.terminal) {
-                    window.terminal.sendCommand(`cd "${activeRepo.path}"`);
-                    const forceFlag = activeRepo.gitForce ? ' --force' : '';
-                    window.terminal.sendCommand(`git push${forceFlag}`);
-                } else await window.electronAPI.gitPush(activeRepo.path, activeRepo.gitForce);
-            }
-
-            await smartRefreshTree(); // Structural refresh (handles deleted files)
-            await refreshActiveRepoUI();
-
-        } else {
-            const errorMsg = res ? res.output : 'Unknown backend error';
-            logToConsole(`Commit Failed: ${errorMsg}`, 'error');
-            if (errorMsg.includes('nothing to commit')) {
-                showAlert("Nothing to commit. Make some changes first!", "Clean Tree");
-            } else {
-                showError(errorMsg, 'Commit Failed');
-            }
-        }
+      const status = await window.electronAPI.gitStatus(activeRepo.path);
+      if (status.behind > 0) {
+        const proceed = await showConfirm(
+          `You have ${status.behind} incoming commits from remote. It is highly recommended to PULL first.\n\nAre you sure you want to COMMIT and PUSH anyway?`,
+          'Incoming Changes Detected',
+        );
+        if (!proceed) return;
+      }
     } catch (e) {
-        logToConsole(`System Error during commit: ${e.message}`, 'error');
-        showError(e.message, 'System Error');
+      console.warn('Push safety check failed:', e);
     }
-    finally {
-        elements.commitBtn.disabled = false;
-        if (elements.commitPushBtn) elements.commitPushBtn.disabled = false;
-        setTaskState(false);
+  }
+
+  setTaskState(true);
+  elements.commitBtn.disabled = true;
+  if (elements.commitPushBtn) elements.commitPushBtn.disabled = true;
+  const amend = elements.commitAmendToggle ? elements.commitAmendToggle.checked : false;
+
+  try {
+    const res = await window.electronAPI.gitCommit(activeRepo.path, msg, amend);
+    if (res && res.success) {
+      logToConsole(amend ? 'Commit Amended Successfully.' : 'Commit Successful.', 'success');
+      logToConsole(res.output, 'info');
+      elements.commitMsgArea.value = '';
+      if (elements.commitAmendToggle) elements.commitAmendToggle.checked = false;
+
+      if (pushAfter) {
+        logToConsole('Pushing changes...', 'info');
+        if (window.terminal) {
+          window.terminal.sendCommand(`cd "${activeRepo.path}"`);
+          const forceFlag = activeRepo.gitForce ? ' --force' : '';
+          window.terminal.sendCommand(`git push${forceFlag}`);
+        } else await window.electronAPI.gitPush(activeRepo.path, activeRepo.gitForce);
+      }
+
+      await smartRefreshTree(); // Structural refresh (handles deleted files)
+      await refreshActiveRepoUI();
+    } else {
+      const errorMsg = res ? res.output : 'Unknown backend error';
+      logToConsole(`Commit Failed: ${errorMsg}`, 'error');
+      if (errorMsg.includes('nothing to commit')) {
+        showAlert('Nothing to commit. Make some changes first!', 'Clean Tree');
+      } else {
+        showError(errorMsg, 'Commit Failed');
+      }
     }
+  } catch (e) {
+    logToConsole(`System Error during commit: ${e.message}`, 'error');
+    showError(e.message, 'System Error');
+  } finally {
+    elements.commitBtn.disabled = false;
+    if (elements.commitPushBtn) elements.commitPushBtn.disabled = false;
+    setTaskState(false);
+  }
 }
 
 async function generateMagicMsg() {
-    if (!activeRepo) return;
-    elements.magicCommitBtn.disabled = true;
-    try {
-        // Intelligence: Only generate message based on STAGED changes if they exist
-        let diff = await window.electronAPI.getStagedDiff(activeRepo.path);
+  if (!activeRepo) return;
+  elements.magicCommitBtn.disabled = true;
+  try {
+    // Intelligence: Only generate message based on STAGED changes if they exist
+    let diff = await window.electronAPI.getStagedDiff(activeRepo.path);
 
-        // Fallback to full diff only if absolutely nothing is staged
-        if (!diff || diff.trim() === '') {
-            diff = await window.electronAPI.getFullDiff(activeRepo.path);
-        }
+    // Fallback to full diff only if absolutely nothing is staged
+    if (!diff || diff.trim() === '') {
+      diff = await window.electronAPI.getFullDiff(activeRepo.path);
+    }
 
-        const msg = await window.electronAPI.generateCommitMsg(diff);
-        elements.commitMsgArea.value = msg;
-    } catch (e) { logToConsole(e.message, 'error'); }
-    finally { elements.magicCommitBtn.disabled = false; }
+    const msg = await window.electronAPI.generateCommitMsg(diff);
+    elements.commitMsgArea.value = msg;
+  } catch (e) {
+    logToConsole(e.message, 'error');
+  } finally {
+    elements.magicCommitBtn.disabled = false;
+  }
 }
 
 async function handleBranchChange() {
-    if (!activeRepo) return;
-    const branch = elements.branchSelect.value;
-    try {
-        const res = await window.electronAPI.switchBranch(activeRepo.path, branch);
-        logToConsole(res.output, res.success ? 'success' : 'error');
-        if (!res.success) showError(res.output, 'Branch Switch Failed');
-        await refreshActiveRepoUI();
-    } catch (e) {
-        logToConsole(e.message, 'error');
-        showError(e.message, 'System Error');
-    }
+  if (!activeRepo) return;
+  const branch = elements.branchSelect.value;
+  try {
+    const res = await window.electronAPI.switchBranch(activeRepo.path, branch);
+    logToConsole(res.output, res.success ? 'success' : 'error');
+    if (!res.success) showError(res.output, 'Branch Switch Failed');
+    await refreshActiveRepoUI();
+  } catch (e) {
+    logToConsole(e.message, 'error');
+    showError(e.message, 'System Error');
+  }
 }
 
 async function handleCreateBranch() {
-    if (!activeRepo) {
-        logToConsole("Error: No active project selected for branch creation.", "error");
-        return;
+  if (!activeRepo) {
+    logToConsole('Error: No active project selected for branch creation.', 'error');
+    return;
+  }
+
+  elements.newBranchModal.style.display = 'flex';
+  elements.newBranchName.value = '';
+  elements.newBranchName.focus();
+
+  const confirmBtn = document.getElementById('new-branch-confirm');
+  const cancelBtn = document.getElementById('new-branch-cancel');
+
+  const execute = async () => {
+    const name = elements.newBranchName.value.trim();
+    if (!name) return;
+
+    logToConsole(`Initializing creation for branch "${name}"...`, 'info');
+    try {
+      const res = await window.electronAPI.gitCreateBranch(activeRepo.path, name);
+      if (res.success) {
+        logToConsole(res.output, 'success');
+        elements.newBranchModal.style.display = 'none';
+        await refreshActiveRepoUI();
+      } else {
+        logToConsole(`Creation failed: ${res.output}`, 'error');
+        showError(`Creation Error: ${res.output}`, 'Error');
+      }
+    } catch (e) {
+      logToConsole(`System Error: ${e.message}`, 'error');
+      showError(e.message, 'System Error');
     }
+  };
 
-    elements.newBranchModal.style.display = 'flex';
-    elements.newBranchName.value = '';
-    elements.newBranchName.focus();
+  confirmBtn.onclick = execute;
+  cancelBtn.onclick = () => (elements.newBranchModal.style.display = 'none');
 
-    const confirmBtn = document.getElementById('new-branch-confirm');
-    const cancelBtn = document.getElementById('new-branch-cancel');
-
-    const execute = async () => {
-        const name = elements.newBranchName.value.trim();
-        if (!name) return;
-
-        logToConsole(`Initializing creation for branch "${name}"...`, 'info');
-        try {
-            const res = await window.electronAPI.gitCreateBranch(activeRepo.path, name);
-            if (res.success) {
-                logToConsole(res.output, 'success');
-                elements.newBranchModal.style.display = 'none';
-                await refreshActiveRepoUI();
-            } else {
-                logToConsole(`Creation failed: ${res.output}`, 'error');
-                showError(`Creation Error: ${res.output}`, 'Error');
-            }
-        } catch (e) {
-            logToConsole(`System Error: ${e.message}`, 'error');
-            showError(e.message, 'System Error');
-        }
-    };
-
-    confirmBtn.onclick = execute;
-    cancelBtn.onclick = () => elements.newBranchModal.style.display = 'none';
-
-    elements.newBranchName.onkeydown = (e) => {
-        if (e.key === 'Enter') execute();
-        if (e.key === 'Escape') elements.newBranchModal.style.display = 'none';
-    };
+  elements.newBranchName.onkeydown = (e) => {
+    if (e.key === 'Enter') execute();
+    if (e.key === 'Escape') elements.newBranchModal.style.display = 'none';
+  };
 }
 
 async function handleDeleteBranch() {
-    if (!activeRepo) return;
-    const branchToDelete = elements.branchSelect.value;
+  if (!activeRepo) return;
+  const branchToDelete = elements.branchSelect.value;
 
-    logToConsole(`Checking branch status for "${branchToDelete}"...`, 'info');
-    const branches = await window.electronAPI.getBranches(activeRepo.path);
+  logToConsole(`Checking branch status for "${branchToDelete}"...`, 'info');
+  const branches = await window.electronAPI.getBranches(activeRepo.path);
 
-    if (branches.all.length <= 1) {
-        showAlert("Cannot delete the only remaining branch.", "Action Blocked");
-        return;
-    }
+  if (branches.all.length <= 1) {
+    showAlert('Cannot delete the only remaining branch.', 'Action Blocked');
+    return;
+  }
 
-    if (await showConfirm(`PERMANENTLY DELETE branch "${branchToDelete}"?\n\nThis will use a FORCE delete.`, 'DANGER: Delete Branch')) {
-        try {
-            // 1. If deleting the branch we are currently standing on, we MUST switch first
-            if (branchToDelete === branches.current) {
-                const otherBranch = branches.all.find(b => b !== branchToDelete);
-                logToConsole(`Branch "${branchToDelete}" is active. Switching to "${otherBranch}" first...`, 'info');
+  if (
+    await showConfirm(
+      `PERMANENTLY DELETE branch "${branchToDelete}"?\n\nThis will use a FORCE delete.`,
+      'DANGER: Delete Branch',
+    )
+  ) {
+    try {
+      // 1. If deleting the branch we are currently standing on, we MUST switch first
+      if (branchToDelete === branches.current) {
+        const otherBranch = branches.all.find((b) => b !== branchToDelete);
+        logToConsole(
+          `Branch "${branchToDelete}" is active. Switching to "${otherBranch}" first...`,
+          'info',
+        );
 
-                const switchRes = await window.electronAPI.switchBranch(activeRepo.path, otherBranch);
-                if (!switchRes.success) {
-                    throw new Error(`Failed to switch branches: ${switchRes.output}`);
-                }
-                logToConsole(`Switch successful. Proceeding with deletion...`, 'success');
-                // Give Git a tiny moment to release any locks
-                await new Promise(r => setTimeout(r, 100));
-            }
-
-            // 2. Perform the deletion
-            logToConsole(`Deleting branch "${branchToDelete}"...`, 'info');
-            const res = await window.electronAPI.gitDeleteBranch(activeRepo.path, branchToDelete);
-
-            if (res.success) {
-                logToConsole(res.output, 'success');
-                await refreshActiveRepoUI();
-            } else {
-                logToConsole(`Delete failed: ${res.output}`, 'error');
-                showError(`Delete Error: ${res.output}\n\nThis can happen if the branch is open in another Git worktree or IDE.`, 'Error');
-            }
-        } catch (e) {
-            logToConsole(`System Error: ${e.message}`, 'error');
-            showError(`Error: ${e.message}`, 'Error');
+        const switchRes = await window.electronAPI.switchBranch(activeRepo.path, otherBranch);
+        if (!switchRes.success) {
+          throw new Error(`Failed to switch branches: ${switchRes.output}`);
         }
+        logToConsole(`Switch successful. Proceeding with deletion...`, 'success');
+        // Give Git a tiny moment to release any locks
+        await new Promise((r) => setTimeout(r, 100));
+      }
+
+      // 2. Perform the deletion
+      logToConsole(`Deleting branch "${branchToDelete}"...`, 'info');
+      const res = await window.electronAPI.gitDeleteBranch(activeRepo.path, branchToDelete);
+
+      if (res.success) {
+        logToConsole(res.output, 'success');
+        await refreshActiveRepoUI();
+      } else {
+        logToConsole(`Delete failed: ${res.output}`, 'error');
+        showError(
+          `Delete Error: ${res.output}\n\nThis can happen if the branch is open in another Git worktree or IDE.`,
+          'Error',
+        );
+      }
+    } catch (e) {
+      logToConsole(`System Error: ${e.message}`, 'error');
+      showError(`Error: ${e.message}`, 'Error');
     }
+  }
 }
 
 async function handleRenameBranch() {
-    if (!activeRepo) return;
-    const oldName = elements.branchSelect.value;
-    if (!oldName) return;
+  if (!activeRepo) return;
+  const oldName = elements.branchSelect.value;
+  if (!oldName) return;
 
-    elements.renameBranchModal.style.display = 'flex';
-    elements.renameBranchNewName.value = oldName;
-    elements.renameBranchNewName.focus();
-    elements.renameBranchNewName.select();
+  elements.renameBranchModal.style.display = 'flex';
+  elements.renameBranchNewName.value = oldName;
+  elements.renameBranchNewName.focus();
+  elements.renameBranchNewName.select();
 
-    elements.renameBranchNewName.onkeydown = (e) => {
-        if (e.key === 'Enter') {
-            elements.renameBranchConfirm.click();
-        } else if (e.key === 'Escape') {
-            elements.renameBranchModal.style.display = 'none';
-        }
-    };
+  elements.renameBranchNewName.onkeydown = (e) => {
+    if (e.key === 'Enter') {
+      elements.renameBranchConfirm.click();
+    } else if (e.key === 'Escape') {
+      elements.renameBranchModal.style.display = 'none';
+    }
+  };
 
-    elements.renameBranchCancel.onclick = () => elements.renameBranchModal.style.display = 'none';
+  elements.renameBranchCancel.onclick = () => (elements.renameBranchModal.style.display = 'none');
 
-    elements.renameBranchConfirm.onclick = async () => {
-        const newName = elements.renameBranchNewName.value.trim();
-        if (!newName || newName === oldName) {
-            elements.renameBranchModal.style.display = 'none';
-            return;
-        }
+  elements.renameBranchConfirm.onclick = async () => {
+    const newName = elements.renameBranchNewName.value.trim();
+    if (!newName || newName === oldName) {
+      elements.renameBranchModal.style.display = 'none';
+      return;
+    }
 
-        elements.renameBranchModal.style.display = 'none';
-        logToConsole(`Renaming branch "${oldName}" to "${newName}"...`, 'info');
-        setTaskState(true);
+    elements.renameBranchModal.style.display = 'none';
+    logToConsole(`Renaming branch "${oldName}" to "${newName}"...`, 'info');
+    setTaskState(true);
 
-        try {
-            const res = await window.electronAPI.gitRenameBranch(activeRepo.path, oldName, newName);
-            if (res.success) {
-                logToConsole(res.output, 'success');
-                await refreshActiveRepoUI();
-            } else {
-                logToConsole(`Rename failed: ${res.output}`, 'error');
-                showError(`Rename Error: ${res.output}`, 'Error');
-            }
-        } catch (e) {
-            logToConsole(`System Error: ${e.message}`, 'error');
-            showError(e.message, 'System Error');
-        } finally {
-            setTaskState(false);
-        }
-    };
+    try {
+      const res = await window.electronAPI.gitRenameBranch(activeRepo.path, oldName, newName);
+      if (res.success) {
+        logToConsole(res.output, 'success');
+        await refreshActiveRepoUI();
+      } else {
+        logToConsole(`Rename failed: ${res.output}`, 'error');
+        showError(`Rename Error: ${res.output}`, 'Error');
+      }
+    } catch (e) {
+      logToConsole(`System Error: ${e.message}`, 'error');
+      showError(e.message, 'System Error');
+    } finally {
+      setTaskState(false);
+    }
+  };
 }
 
 async function saveGlobalSettings() {
-    const customShellInput = document.getElementById('custom-shell-path');
-    const customPath = customShellInput ? customShellInput.value : '';
-    const selectedPath = elements.shellSelect.value;
-    settings.rootRepoDir = elements.rootRepoDirInput.value;
-    settings.githubToken = elements.githubPatInput.value;
-    settings.shell = customPath || selectedPath;
-    settings.notifRepoChanges = elements.notifRepoChanges ? elements.notifRepoChanges.checked : false;
-    if (elements.themeModeSelect) {
-        settings.themeMode = elements.themeModeSelect.value;
-    }
+  const customShellInput = document.getElementById('custom-shell-path');
+  const customPath = customShellInput ? customShellInput.value : '';
+  const selectedPath = elements.shellSelect.value;
+  settings.rootRepoDir = elements.rootRepoDirInput.value;
+  settings.githubToken = elements.githubPatInput.value;
+  settings.shell = customPath || selectedPath;
+  settings.notifRepoChanges = elements.notifRepoChanges ? elements.notifRepoChanges.checked : false;
+  if (elements.themeModeSelect) {
+    settings.themeMode = elements.themeModeSelect.value;
+  }
 
-    try {
-        await window.electronAPI.saveSettings(settings);
-        logToConsole('Settings saved.', 'success');
-        if (elements.settingsBanner) elements.settingsBanner.style.display = 'none';
-        if (settings.githubToken) checkGitHubTokenLife();
-        if (settings.rootRepoDir) await autoImportFromRoot(settings.rootRepoDir);
-        updateApplicationThemeMode();
-        renderTree();
-    } catch (e) { logToConsole(e.message, 'error'); }
+  try {
+    await window.electronAPI.saveSettings(settings);
+    logToConsole('Settings saved.', 'success');
+    if (elements.settingsBanner) elements.settingsBanner.style.display = 'none';
+    if (settings.githubToken) checkGitHubTokenLife();
+    if (settings.rootRepoDir) await autoImportFromRoot(settings.rootRepoDir);
+    updateApplicationThemeMode();
+    renderTree();
+  } catch (e) {
+    logToConsole(e.message, 'error');
+  }
 }
 
 async function loadThemePresets() {
-    try {
-        const userThemes = await window.electronAPI.getThemes();
-        const themes = { ...BUILTIN_THEMES, ...userThemes };
+  try {
+    const userThemes = await window.electronAPI.getThemes();
+    const themes = { ...BUILTIN_THEMES, ...userThemes };
 
-        if (elements.themePresetsSelect) {
-            elements.themePresetsSelect.innerHTML = '<option value="">-- Select Preset --</option>' +
-                Object.keys(themes).sort().map(name => `<option value="${name}">${name}</option>`).join('');
-            elements.newThemeNameInput.value = '';
-            elements.themeDeletePresetBtn.style.display = 'none';
-        }
-    } catch (e) {
-        logToConsole(`Failed to load themes: ${e.message}`, 'error');
+    if (elements.themePresetsSelect) {
+      elements.themePresetsSelect.innerHTML =
+        '<option value="">-- Select Preset --</option>' +
+        Object.keys(themes)
+          .sort()
+          .map((name) => `<option value="${name}">${name}</option>`)
+          .join('');
+      elements.newThemeNameInput.value = '';
+      elements.themeDeletePresetBtn.style.display = 'none';
     }
+  } catch (e) {
+    logToConsole(`Failed to load themes: ${e.message}`, 'error');
+  }
 }
 
 async function saveThemePreset() {
-    const name = elements.newThemeNameInput.value.trim();
-    if (!name) {
-        showAlert('Please enter a name for the theme.', 'Invalid Name');
-        return;
-    }
+  const name = elements.newThemeNameInput.value.trim();
+  if (!name) {
+    showAlert('Please enter a name for the theme.', 'Invalid Name');
+    return;
+  }
 
-    if (!themeEditor) return;
-    const ini = themeEditor.getValue();
+  if (!themeEditor) return;
+  const ini = themeEditor.getValue();
 
-    try {
-        await window.electronAPI.saveTheme(name, ini);
-        logToConsole(`Theme "${name}" saved to presets.`, 'success');
-        await loadThemePresets();
-    } catch (e) {
-        logToConsole(`Failed to save theme: ${e.message}`, 'error');
-    }
+  try {
+    await window.electronAPI.saveTheme(name, ini);
+    logToConsole(`Theme "${name}" saved to presets.`, 'success');
+    await loadThemePresets();
+  } catch (e) {
+    logToConsole(`Failed to save theme: ${e.message}`, 'error');
+  }
 }
 
 async function deleteThemePreset() {
-    const name = elements.themePresetsSelect.value;
-    if (!name) return;
+  const name = elements.themePresetsSelect.value;
+  if (!name) return;
 
-    if (name === 'Green lantern') {
-        showAlert('The default "Green lantern" theme cannot be deleted.', 'Action Blocked');
-        return;
-    }
+  if (name === 'Green lantern') {
+    showAlert('The default "Green lantern" theme cannot be deleted.', 'Action Blocked');
+    return;
+  }
 
-    if (await showConfirm(`Delete theme preset "${name}"?`, 'Confirm Delete')) {
-        try {
-            await window.electronAPI.deleteTheme(name);
-            logToConsole(`Theme "${name}" deleted.`, 'info');
-            await loadThemePresets();
-        } catch (e) {
-            logToConsole(`Failed to delete theme: ${e.message}`, 'error');
-        }
+  if (await showConfirm(`Delete theme preset "${name}"?`, 'Confirm Delete')) {
+    try {
+      await window.electronAPI.deleteTheme(name);
+      logToConsole(`Theme "${name}" deleted.`, 'info');
+      await loadThemePresets();
+    } catch (e) {
+      logToConsole(`Failed to delete theme: ${e.message}`, 'error');
     }
+  }
 }
 
 async function loadSelectedThemePreset() {
-    const name = elements.themePresetsSelect.value;
-    if (!name) {
-        elements.themeDeletePresetBtn.style.display = 'none';
-        return;
+  const name = elements.themePresetsSelect.value;
+  if (!name) {
+    elements.themeDeletePresetBtn.style.display = 'none';
+    return;
+  }
+
+  elements.themeDeletePresetBtn.style.display = BUILTIN_THEMES[name] ? 'none' : 'block';
+
+  try {
+    const userThemes = await window.electronAPI.getThemes();
+    const themes = { ...BUILTIN_THEMES, ...userThemes };
+    const ini = themes[name];
+
+    if (ini && themeEditor) {
+      themeEditor.setValue(ini);
+      elements.newThemeNameInput.value = name;
     }
-
-    elements.themeDeletePresetBtn.style.display = BUILTIN_THEMES[name] ? 'none' : 'block';
-
-    try {
-        const userThemes = await window.electronAPI.getThemes();
-        const themes = { ...BUILTIN_THEMES, ...userThemes };
-        const ini = themes[name];
-
-        if (ini && themeEditor) {
-            themeEditor.setValue(ini);
-            elements.newThemeNameInput.value = name;
-        }
-    } catch (e) {
-        logToConsole(`Failed to load theme: ${e.message}`, 'error');
-    }
+  } catch (e) {
+    logToConsole(`Failed to load theme: ${e.message}`, 'error');
+  }
 }
 
 async function handleExportSettings() {
-    try {
-        const res = await window.electronAPI.exportSettings();
-        if (res.success) {
-            logToConsole(`Settings exported successfully to: ${res.path}`, 'success');
-            showAlert(`Settings exported successfully to:\n${res.path}`, 'Export Complete');
-        }
-    } catch (e) {
-        logToConsole(`Export failed: ${e.message}`, 'error');
+  try {
+    const res = await window.electronAPI.exportSettings();
+    if (res.success) {
+      logToConsole(`Settings exported successfully to: ${res.path}`, 'success');
+      showAlert(`Settings exported successfully to:\n${res.path}`, 'Export Complete');
     }
+  } catch (e) {
+    logToConsole(`Export failed: ${e.message}`, 'error');
+  }
 }
 
 async function handleImportSettings() {
-    if (await showConfirm("⚠ WARNING ⚠\n\nImporting settings will OVERWRITE your current configuration and RESTART the application. Continue?", "Confirm Import")) {
-        try {
-            await window.electronAPI.importSettings();
-            // App will restart via main process
-        } catch (e) {
-            logToConsole(`Import failed: ${e.message}`, 'error');
-        }
+  if (
+    await showConfirm(
+      '⚠ WARNING ⚠\n\nImporting settings will OVERWRITE your current configuration and RESTART the application. Continue?',
+      'Confirm Import',
+    )
+  ) {
+    try {
+      await window.electronAPI.importSettings();
+      // App will restart via main process
+    } catch (e) {
+      logToConsole(`Import failed: ${e.message}`, 'error');
     }
+  }
 }
 
 async function handleResetApp() {
-    if (await showConfirm("⚠ DANGER ZONE ⚠\n\nReset everything?", "Reset Application")) {
-        if (await showConfirm("FINAL WARNING: Proceed?", "Nuclear Reset")) await window.electronAPI.resetApp();
-    }
+  if (await showConfirm('⚠ DANGER ZONE ⚠\n\nReset everything?', 'Reset Application')) {
+    if (await showConfirm('FINAL WARNING: Proceed?', 'Nuclear Reset'))
+      await window.electronAPI.resetApp();
+  }
 }
 
 async function showRevertModal() {
-    if (!activeRepo) return;
-    const modal = document.getElementById('revert-modal');
-    const list = document.getElementById('commit-history-list');
-    const confirmBtn = document.getElementById('revert-confirm');
-    const wipeBtn = document.getElementById('revert-wipe-uncommitted');
+  if (!activeRepo) return;
+  const modal = document.getElementById('revert-modal');
+  const list = document.getElementById('commit-history-list');
+  const confirmBtn = document.getElementById('revert-confirm');
+  const wipeBtn = document.getElementById('revert-wipe-uncommitted');
 
-    modal.style.display = 'flex';
-    list.scrollTop = 0;
-    list.innerHTML = '<p style="padding: 20px; color: var(--text-muted); text-align: center;">Fetching history...</p>';
-    confirmBtn.disabled = true;
+  modal.style.display = 'flex';
+  list.scrollTop = 0;
+  list.innerHTML =
+    '<p style="padding: 20px; color: var(--text-muted); text-align: center;">Fetching history...</p>';
+  confirmBtn.disabled = true;
 
-    if (wipeBtn) {
-        wipeBtn.onclick = () => {
-            modal.style.display = 'none';
-            handleRestoreHead();
-        };
+  if (wipeBtn) {
+    wipeBtn.onclick = () => {
+      modal.style.display = 'none';
+      handleRestoreHead();
+    };
+  }
+
+  if (elements.nukeReinitBtn) {
+    elements.nukeReinitBtn.onclick = () => {
+      modal.style.display = 'none';
+      handleNukeReinit();
+    };
+  }
+
+  try {
+    logToConsole(`Fetching commit history for ${activeRepo.name}...`, 'info');
+    const commits = await window.electronAPI.gitGetCommits(activeRepo.path);
+
+    if (commits.length === 0) {
+      list.innerHTML =
+        '<p style="padding: 20px; color: var(--text-muted); text-align: center;">No commit history found.</p>';
+      return;
     }
 
-    if (elements.nukeReinitBtn) {
-        elements.nukeReinitBtn.onclick = () => {
-            modal.style.display = 'none';
-            handleNukeReinit();
-        };
-    }
+    list.innerHTML = '';
+    let selectedHash = null;
 
-    try {
-        logToConsole(`Fetching commit history for ${activeRepo.name}...`, 'info');
-        const commits = await window.electronAPI.gitGetCommits(activeRepo.path);
+    commits.forEach((commit) => {
+      const item = document.createElement('div');
+      item.className = 'tree-node';
+      item.style.padding = '12px';
+      item.style.borderBottom = '1px solid var(--border-color)';
 
-        if (commits.length === 0) {
-            list.innerHTML = '<p style="padding: 20px; color: var(--text-muted); text-align: center;">No commit history found.</p>';
-            return;
-        }
+      const date = new Date(commit.date).toLocaleString();
 
-        list.innerHTML = '';
-        let selectedHash = null;
-
-        commits.forEach(commit => {
-            const item = document.createElement('div');
-            item.className = 'tree-node';
-            item.style.padding = '12px';
-            item.style.borderBottom = '1px solid var(--border-color)';
-
-            const date = new Date(commit.date).toLocaleString();
-
-            item.innerHTML = `
+      item.innerHTML = `
                 <div style="display: flex; justify-content: space-between; margin-bottom: 4px; align-items: center;">
                     <div style="display: flex; align-items: center; gap: 8px;">
                         <span style="font-weight: 700; color: var(--accent-blue); font-family: monospace;">${commit.hash.substring(0, 7)}</span>
@@ -2632,320 +3559,339 @@ async function showRevertModal() {
                 <div style="font-size: 11px; color: var(--text-muted); pointer-events: none;">Author: ${commit.author_name}</div>
             `;
 
-            const diffBtn = item.querySelector('.diff-commit-btn');
-            diffBtn.onclick = (e) => {
-                e.stopPropagation();
-                showCommitDiff(commit.hash, commit.message);
-            };
+      const diffBtn = item.querySelector('.diff-commit-btn');
+      diffBtn.onclick = (e) => {
+        e.stopPropagation();
+        showCommitDiff(commit.hash, commit.message);
+      };
 
-            item.onclick = () => {
-                Array.from(list.children).forEach(child => child.classList.remove('active'));
-                item.classList.add('active');
-                selectedHash = commit.hash;
-                confirmBtn.disabled = false;
-            };
+      item.onclick = () => {
+        Array.from(list.children).forEach((child) => child.classList.remove('active'));
+        item.classList.add('active');
+        selectedHash = commit.hash;
+        confirmBtn.disabled = false;
+      };
 
-            list.appendChild(item);
-        });
+      list.appendChild(item);
+    });
 
-        confirmBtn.onclick = async () => {
-            if (!selectedHash) return;
+    confirmBtn.onclick = async () => {
+      if (!selectedHash) return;
 
-            const warning = `ARE YOU SURE?\n\nThis will revert ${activeRepo.name} to commit ${selectedHash.substring(0, 7)}.\n\nALL uncommitted changes will be PERMANENTLY DELETED.`;
-            if (await showConfirm(warning, "Confirm Revert")) {
-                logToConsole(`Reverting ${activeRepo.name} to ${selectedHash.substring(0, 7)}...`, 'info');
-                modal.style.display = 'none';
+      const warning = `ARE YOU SURE?\n\nThis will revert ${activeRepo.name} to commit ${selectedHash.substring(0, 7)}.\n\nALL uncommitted changes will be PERMANENTLY DELETED.`;
+      if (await showConfirm(warning, 'Confirm Revert')) {
+        logToConsole(`Reverting ${activeRepo.name} to ${selectedHash.substring(0, 7)}...`, 'info');
+        modal.style.display = 'none';
 
-                setTaskState(true);
-                try {
-                    const res = await window.electronAPI.gitRevertToCommit(activeRepo.path, selectedHash);
-                    if (res.success) {
-                        logToConsole(res.output, 'success');
-                        await selectRepo(activeRepo);
-                        await smartRefreshTree();
-                    } else {
-                        logToConsole(`Revert failed: ${res.output}`, 'error');
-                        showAlert(`Revert Error: ${res.output}`, 'Error');
-                    }
-                } catch(err) {
-                    logToConsole(`System Error during revert: ${err.message}`, 'error');
-                } finally {
-                    setTaskState(false);
-                }
-            }
-        };
+        setTaskState(true);
+        try {
+          const res = await window.electronAPI.gitRevertToCommit(activeRepo.path, selectedHash);
+          if (res.success) {
+            logToConsole(res.output, 'success');
+            await selectRepo(activeRepo);
+            await smartRefreshTree();
+          } else {
+            logToConsole(`Revert failed: ${res.output}`, 'error');
+            showAlert(`Revert Error: ${res.output}`, 'Error');
+          }
+        } catch (err) {
+          logToConsole(`System Error during revert: ${err.message}`, 'error');
+        } finally {
+          setTaskState(false);
+        }
+      }
+    };
+  } catch (e) {
+    logToConsole(`History error: ${e.message}`, 'error');
+    list.innerHTML = `<p style="padding: 20px; color: var(--accent-red); text-align: center;">Error: ${e.message}</p>`;
+  }
 
-    } catch (e) {
-        logToConsole(`History error: ${e.message}`, 'error');
-        list.innerHTML = `<p style="padding: 20px; color: var(--accent-red); text-align: center;">Error: ${e.message}</p>`;
-    }
-
-    document.getElementById('revert-cancel').onclick = () => modal.style.display = 'none';
+  document.getElementById('revert-cancel').onclick = () => (modal.style.display = 'none');
 }
 
 async function handleRestoreHead() {
-    if (!activeRepo) return;
-    const warning = `DANGER: WIPE ALL CHANGES?\n\nThis will restore ${activeRepo.name} to HEAD state.\n\nEVERY uncommitted local edit will be PERMANENTLY DELETED.`;
-    if (await showConfirm(warning, "Restore")) {
-        setTaskState(true);
-        logToConsole(`Restoring ${activeRepo.name} to HEAD...`, 'info');
-        try {
-            const res = await window.electronAPI.gitRestoreToHead(activeRepo.path);
-            if (res.success) {
-                logToConsole(res.output, 'success');
-                await refreshActiveRepoUI();
-                await smartRefreshTree();
-            } else {
-                logToConsole(`Restore failed: ${res.output}`, 'error');
-            }
-        } catch (e) {
-            logToConsole(`Restore error: ${e.message}`, 'error');
-        } finally { setTaskState(false); }
+  if (!activeRepo) return;
+  const warning = `DANGER: WIPE ALL CHANGES?\n\nThis will restore ${activeRepo.name} to HEAD state.\n\nEVERY uncommitted local edit will be PERMANENTLY DELETED.`;
+  if (await showConfirm(warning, 'Restore')) {
+    setTaskState(true);
+    logToConsole(`Restoring ${activeRepo.name} to HEAD...`, 'info');
+    try {
+      const res = await window.electronAPI.gitRestoreToHead(activeRepo.path);
+      if (res.success) {
+        logToConsole(res.output, 'success');
+        await refreshActiveRepoUI();
+        await smartRefreshTree();
+      } else {
+        logToConsole(`Restore failed: ${res.output}`, 'error');
+      }
+    } catch (e) {
+      logToConsole(`Restore error: ${e.message}`, 'error');
+    } finally {
+      setTaskState(false);
     }
+  }
 }
 
 async function handleRestoreFile() {
-    if (!activeRepo || !currentEditingPath) return;
+  if (!activeRepo || !currentEditingPath) return;
 
-    // Determine the relative path for git
-    const repoBase = activeRepo.path.replace(/\\/g, '/').toLowerCase();
-    const fullPath = currentEditingPath.replace(/\\/g, '/').toLowerCase();
+  // Determine the relative path for git
+  const repoBase = activeRepo.path.replace(/\\/g, '/').toLowerCase();
+  const fullPath = currentEditingPath.replace(/\\/g, '/').toLowerCase();
 
-    let relPath = fullPath.replace(repoBase, '');
-    if (relPath.startsWith('/')) relPath = relPath.substring(1);
+  let relPath = fullPath.replace(repoBase, '');
+  if (relPath.startsWith('/')) relPath = relPath.substring(1);
 
-    const fileName = fullPath.split('/').pop();
-    const warning = `RESTORE FILE?\n\nThis will wipe all uncommitted edits in ${fileName} and restore it to the last committed state.`;
+  const fileName = fullPath.split('/').pop();
+  const warning = `RESTORE FILE?\n\nThis will wipe all uncommitted edits in ${fileName} and restore it to the last committed state.`;
 
-    if (await showConfirm(warning, "Restore File")) {
-        setTaskState(true);
-        logToConsole(`Restoring ${fileName}...`, 'info');
-        try {
-            const res = await window.electronAPI.gitRestoreFile(activeRepo.path, relPath);
-            if (res.success) {
-                logToConsole(res.output, 'success');
+  if (await showConfirm(warning, 'Restore File')) {
+    setTaskState(true);
+    logToConsole(`Restoring ${fileName}...`, 'info');
+    try {
+      const res = await window.electronAPI.gitRestoreFile(activeRepo.path, relPath);
+      if (res.success) {
+        logToConsole(res.output, 'success');
 
-                // 1. If we are in Diff View, refresh it
-                if (elements.diffView.style.display !== 'none') {
-                    await showFileDiff(currentEditingPath);
-                }
+        // 1. If we are in Diff View, refresh it
+        if (elements.diffView.style.display !== 'none') {
+          await showFileDiff(currentEditingPath);
+        }
 
-                // 2. If we are in Editor View, reload the file content
-                if (elements.editorView.style.display !== 'none') {
-                    await openFileInEditor(currentEditingPath);
-                }
+        // 2. If we are in Editor View, reload the file content
+        if (elements.editorView.style.display !== 'none') {
+          await openFileInEditor(currentEditingPath);
+        }
 
-                await refreshActiveRepoUI();
-                await smartRefreshTree();
-            } else {
-                logToConsole(`File restore failed: ${res.output}`, 'error');
-            }
-        } catch (e) {
-            logToConsole(`File restore error: ${e.message}`, 'error');
-        } finally { setTaskState(false); }
+        await refreshActiveRepoUI();
+        await smartRefreshTree();
+      } else {
+        logToConsole(`File restore failed: ${res.output}`, 'error');
+      }
+    } catch (e) {
+      logToConsole(`File restore error: ${e.message}`, 'error');
+    } finally {
+      setTaskState(false);
     }
+  }
 }
 
 async function handleAddRemoteModal() {
-    if (!activeRepo) return;
-    elements.newRemoteModal.style.display = 'flex';
-    elements.newRemoteName.value = '';
-    elements.newRemoteUrl.value = '';
-    elements.newRemoteName.focus();
+  if (!activeRepo) return;
+  elements.newRemoteModal.style.display = 'flex';
+  elements.newRemoteName.value = '';
+  elements.newRemoteUrl.value = '';
+  elements.newRemoteName.focus();
 
-    const confirmBtn = document.getElementById('new-remote-confirm');
-    const cancelBtn = document.getElementById('new-remote-cancel');
+  const confirmBtn = document.getElementById('new-remote-confirm');
+  const cancelBtn = document.getElementById('new-remote-cancel');
 
-    const execute = async () => {
-        const name = elements.newRemoteName.value.trim();
-        const url = elements.newRemoteUrl.value.trim();
-        if (!name || !url) return showAlert('Name and URL are required.', 'Missing Fields');
+  const execute = async () => {
+    const name = elements.newRemoteName.value.trim();
+    const url = elements.newRemoteUrl.value.trim();
+    if (!name || !url) return showAlert('Name and URL are required.', 'Missing Fields');
 
-        logToConsole(`Adding remote "${name}"...`, 'info');
-        try {
-            const res = await window.electronAPI.addRemote(activeRepo.path, name, url);
-            if (res.success) {
-                logToConsole(res.output, 'success');
-                elements.newRemoteModal.style.display = 'none';
-                await refreshActiveRepoUI();
-            } else {
-                logToConsole(`Failed to add remote: ${res.output}`, 'error');
-                showAlert(`Error: ${res.output}`, 'Error');
-            }
-        } catch (e) {
-            logToConsole(`Remote addition error: ${e.message}`, 'error');
-        }
-    };
+    logToConsole(`Adding remote "${name}"...`, 'info');
+    try {
+      const res = await window.electronAPI.addRemote(activeRepo.path, name, url);
+      if (res.success) {
+        logToConsole(res.output, 'success');
+        elements.newRemoteModal.style.display = 'none';
+        await refreshActiveRepoUI();
+      } else {
+        logToConsole(`Failed to add remote: ${res.output}`, 'error');
+        showAlert(`Error: ${res.output}`, 'Error');
+      }
+    } catch (e) {
+      logToConsole(`Remote addition error: ${e.message}`, 'error');
+    }
+  };
 
-    confirmBtn.onclick = execute;
-    cancelBtn.onclick = () => elements.newRemoteModal.style.display = 'none';
+  confirmBtn.onclick = execute;
+  cancelBtn.onclick = () => (elements.newRemoteModal.style.display = 'none');
 }
 
 async function handleEditRemoteModal() {
-    if (!activeRepo) return;
-    const select = elements.remoteSelect;
-    const remoteName = select.value;
-    if (!remoteName || remoteName === 'none') return showAlert('Please select a remote to edit.', 'Selection Required');
+  if (!activeRepo) return;
+  const select = elements.remoteSelect;
+  const remoteName = select.value;
+  if (!remoteName || remoteName === 'none')
+    return showAlert('Please select a remote to edit.', 'Selection Required');
 
-    // Get current URL for this remote
-    const remotes = await window.electronAPI.getRemotes(activeRepo.path);
-    const remote = remotes.find(r => r.name === remoteName);
-    if (!remote) return showAlert('Could not find information for the selected remote.', 'Error');
+  // Get current URL for this remote
+  const remotes = await window.electronAPI.getRemotes(activeRepo.path);
+  const remote = remotes.find((r) => r.name === remoteName);
+  if (!remote) return showAlert('Could not find information for the selected remote.', 'Error');
 
-    elements.editRemoteModal.style.display = 'flex';
-    elements.editRemoteName.value = remoteName;
-    elements.editRemoteUrl.value = remote.url;
-    elements.editRemoteUrl.focus();
+  elements.editRemoteModal.style.display = 'flex';
+  elements.editRemoteName.value = remoteName;
+  elements.editRemoteUrl.value = remote.url;
+  elements.editRemoteUrl.focus();
 
-    const confirmBtn = document.getElementById('edit-remote-confirm');
-    const cancelBtn = document.getElementById('edit-remote-cancel');
+  const confirmBtn = document.getElementById('edit-remote-confirm');
+  const cancelBtn = document.getElementById('edit-remote-cancel');
 
-    const execute = async () => {
-        const url = elements.editRemoteUrl.value.trim();
-        if (!url) return showAlert('URL is required.', 'Missing Field');
+  const execute = async () => {
+    const url = elements.editRemoteUrl.value.trim();
+    if (!url) return showAlert('URL is required.', 'Missing Field');
 
-        logToConsole(`Updating remote "${remoteName}" URL...`, 'info');
-        try {
-            const res = await window.electronAPI.setRemoteUrl(activeRepo.path, remoteName, url);
-            if (res.success) {
-                logToConsole(res.output, 'success');
-                elements.editRemoteModal.style.display = 'none';
-                await refreshActiveRepoUI();
-            } else {
-                logToConsole(`Failed to update remote: ${res.output}`, 'error');
-                showAlert(`Error: ${res.output}`, 'Error');
-            }
-        } catch (e) {
-            logToConsole(`Remote update error: ${e.message}`, 'error');
-        }
-    };
+    logToConsole(`Updating remote "${remoteName}" URL...`, 'info');
+    try {
+      const res = await window.electronAPI.setRemoteUrl(activeRepo.path, remoteName, url);
+      if (res.success) {
+        logToConsole(res.output, 'success');
+        elements.editRemoteModal.style.display = 'none';
+        await refreshActiveRepoUI();
+      } else {
+        logToConsole(`Failed to update remote: ${res.output}`, 'error');
+        showAlert(`Error: ${res.output}`, 'Error');
+      }
+    } catch (e) {
+      logToConsole(`Remote update error: ${e.message}`, 'error');
+    }
+  };
 
-    confirmBtn.onclick = execute;
-    cancelBtn.onclick = () => elements.editRemoteModal.style.display = 'none';
+  confirmBtn.onclick = execute;
+  cancelBtn.onclick = () => (elements.editRemoteModal.style.display = 'none');
 }
 
 async function handleRemoveRemote() {
-    if (!activeRepo) return;
-    const select = elements.remoteSelect;
-    const currentRemote = select.value;
-    if (!currentRemote || currentRemote === 'none') return;
+  if (!activeRepo) return;
+  const select = elements.remoteSelect;
+  const currentRemote = select.value;
+  if (!currentRemote || currentRemote === 'none') return;
 
-    const selectedOption = select.options[select.selectedIndex];
-    const remoteUrl = selectedOption ? selectedOption.getAttribute('data-url') : '';
-    const isGithub = remoteUrl && remoteUrl.toLowerCase().includes('github.com');
+  const selectedOption = select.options[select.selectedIndex];
+  const remoteUrl = selectedOption ? selectedOption.getAttribute('data-url') : '';
+  const isGithub = remoteUrl && remoteUrl.toLowerCase().includes('github.com');
 
-    if (await showConfirm(`Remove remote reference "${currentRemote}"?`, "Confirm Remove")) {
-        logToConsole(`Removing remote "${currentRemote}"...`, 'info');
-        try {
-            const res = await window.electronAPI.removeRemote(activeRepo.path, currentRemote);
-            if (res.success) {
-                logToConsole(res.output, 'success');
+  if (await showConfirm(`Remove remote reference "${currentRemote}"?`, 'Confirm Remove')) {
+    logToConsole(`Removing remote "${currentRemote}"...`, 'info');
+    try {
+      const res = await window.electronAPI.removeRemote(activeRepo.path, currentRemote);
+      if (res.success) {
+        logToConsole(res.output, 'success');
 
-                // INTELLIGENCE: If it was a GitHub remote, ask if they want to delete it from GitHub too
-                if (isGithub && settings.githubToken) {
-                    const regex = /github\.com[\/|:]([^\/]+)\/([^\/.]+)(\.git)?$/i;
-                    const match = remoteUrl.match(regex);
-                    if (match) {
-                        const owner = match[1];
-                        const repoName = match[2];
-                        if (await showConfirm(`This was a GitHub repository. Would you like to PERMANENTLY DELETE "${owner}/${repoName}" from GitHub as well?`, "Nuclear Option")) {
-                            setTaskState(true);
-                            logToConsole(`Deleting ${owner}/${repoName} from GitHub...`, 'info');
-                            const delRes = await window.electronAPI.deleteGitHubRepo(settings.githubToken, owner, repoName);
-                            if (delRes.success) {
-                                logToConsole(`Successfully deleted repository from GitHub.`, 'success');
-                            } else {
-                                logToConsole(`GitHub deletion failed: ${delRes.output}`, 'error');
-                                showAlert(`GitHub deletion failed: ${delRes.output}`, 'Error');
-                            }
-                            setTaskState(false);
-                        }
-                    }
-                }
-
-                await refreshActiveRepoUI();
-            } else {
-                logToConsole(`Failed to remove remote: ${res.output}`, 'error');
-                showAlert(`Error: ${res.output}`, 'Error');
+        // INTELLIGENCE: If it was a GitHub remote, ask if they want to delete it from GitHub too
+        if (isGithub && settings.githubToken) {
+          const regex = /github\.com[\/|:]([^\/]+)\/([^\/.]+)(\.git)?$/i;
+          const match = remoteUrl.match(regex);
+          if (match) {
+            const owner = match[1];
+            const repoName = match[2];
+            if (
+              await showConfirm(
+                `This was a GitHub repository. Would you like to PERMANENTLY DELETE "${owner}/${repoName}" from GitHub as well?`,
+                'Nuclear Option',
+              )
+            ) {
+              setTaskState(true);
+              logToConsole(`Deleting ${owner}/${repoName} from GitHub...`, 'info');
+              const delRes = await window.electronAPI.deleteGitHubRepo(
+                settings.githubToken,
+                owner,
+                repoName,
+              );
+              if (delRes.success) {
+                logToConsole(`Successfully deleted repository from GitHub.`, 'success');
+              } else {
+                logToConsole(`GitHub deletion failed: ${delRes.output}`, 'error');
+                showAlert(`GitHub deletion failed: ${delRes.output}`, 'Error');
+              }
+              setTaskState(false);
             }
-        } catch (e) {
-            logToConsole(`Remote removal error: ${e.message}`, 'error');
+          }
         }
+
+        await refreshActiveRepoUI();
+      } else {
+        logToConsole(`Failed to remove remote: ${res.output}`, 'error');
+        showAlert(`Error: ${res.output}`, 'Error');
+      }
+    } catch (e) {
+      logToConsole(`Remote removal error: ${e.message}`, 'error');
     }
+  }
 }
 
 async function handleOpenRemote() {
-    const selected = elements.remoteSelect.options[elements.remoteSelect.selectedIndex];
-    if (!selected) return;
-    const url = selected.getAttribute('data-url');
-    if (!url) return;
+  const selected = elements.remoteSelect.options[elements.remoteSelect.selectedIndex];
+  if (!selected) return;
+  const url = selected.getAttribute('data-url');
+  if (!url) return;
 
-    const browserUrl = normalizeGitUrl(url);
-    if (browserUrl) {
-        window.electronAPI.openExternal(browserUrl);
-    }
+  const browserUrl = normalizeGitUrl(url);
+  if (browserUrl) {
+    window.electronAPI.openExternal(browserUrl);
+  }
 }
 
 async function getRepoSubtreeMappings(repoPath) {
-    const repo = repositories.find(r => r.path === repoPath);
-    // Prioritize internal memory if it has data
-    if (repo && repo.subtrees && repo.subtrees.length > 0) return [...repo.subtrees];
+  const repo = repositories.find((r) => r.path === repoPath);
+  // Prioritize internal memory if it has data
+  if (repo && repo.subtrees && repo.subtrees.length > 0) return [...repo.subtrees];
 
-    try {
-        const mappingPath = `${repoPath}/.gitsubtree.json`;
-        const exists = await window.electronAPI.pathExists(mappingPath);
-        if (exists) {
-            const result = await window.electronAPI.readFile(mappingPath);
-            const content = result.content;
-            const parsed = JSON.parse(content);
-            if (repo) repo.subtrees = parsed;
-            return parsed;
-        }
-    } catch (e) {}
-    return repo ? (repo.subtrees || []) : [];
+  try {
+    const mappingPath = `${repoPath}/.gitsubtree.json`;
+    const exists = await window.electronAPI.pathExists(mappingPath);
+    if (exists) {
+      const result = await window.electronAPI.readFile(mappingPath);
+      const content = result.content;
+      const parsed = JSON.parse(content);
+      if (repo) repo.subtrees = parsed;
+      return parsed;
+    }
+  } catch (e) {}
+  return repo ? repo.subtrees || [] : [];
 }
 
 async function handleAddSubtreeFromTree(folderPath) {
-    // 1. Identify parent repo
-    const repo = findRepoForPath(folderPath);
+  // 1. Identify parent repo
+  const repo = findRepoForPath(folderPath);
 
-    if (!repo) {
-        logToConsole(`Error: Could not identify parent repository for selection.`, 'error');
-        return;
-    }
+  if (!repo) {
+    logToConsole(`Error: Could not identify parent repository for selection.`, 'error');
+    return;
+  }
 
-    activeRepo = repo;
+  activeRepo = repo;
 
-    // 2. Calculate relative path (prefix)
-    const targetPath = folderPath.replace(/\\/g, '/');
-    let relPath = targetPath.substring(repo.path.length).replace(/^[\\\/]/, '');
-    if (!relPath) {
-        showAlert('You cannot map the repository root as a subtree prefix. Please select a subfolder.', 'Invalid Selection');
-        return;
-    }
+  // 2. Calculate relative path (prefix)
+  const targetPath = folderPath.replace(/\\/g, '/');
+  let relPath = targetPath.substring(repo.path.length).replace(/^[\\\/]/, '');
+  if (!relPath) {
+    showAlert(
+      'You cannot map the repository root as a subtree prefix. Please select a subfolder.',
+      'Invalid Selection',
+    );
+    return;
+  }
 
-    // 3. Load existing and add new mapping
-    currentSubtreeMappings = await getRepoSubtreeMappings(repo.path);
-    if (!currentSubtreeMappings.some(m => m.prefix === relPath)) {
-        currentSubtreeMappings.push({ prefix: relPath, url: '', branch: 'main', force: false });
-        await saveSubtreeMappings();
-        logToConsole(`Added subtree mapping for folder: ${relPath}`, 'success');
-    } else {
-        logToConsole(`Folder "${relPath}" is already mapped. Opening manager...`, 'info');
-    }
+  // 3. Load existing and add new mapping
+  currentSubtreeMappings = await getRepoSubtreeMappings(repo.path);
+  if (!currentSubtreeMappings.some((m) => m.prefix === relPath)) {
+    currentSubtreeMappings.push({ prefix: relPath, url: '', branch: 'main', force: false });
+    await saveSubtreeMappings();
+    logToConsole(`Added subtree mapping for folder: ${relPath}`, 'success');
+  } else {
+    logToConsole(`Folder "${relPath}" is already mapped. Opening manager...`, 'info');
+  }
 
-    // 4. Trigger UI display
-    await showSubtreeHubModal();
+  // 4. Trigger UI display
+  await showSubtreeHubModal();
 }
 
 async function handlePushSubtreeFromTree(folderPath) {
-    const repo = findRepoForPath(folderPath);
-    if (!repo) return;
-    activeRepo = repo;
-    const relPath = folderPath.substring(repo.path.length).replace(/^[\\\/]/, '').replace(/\\/g, '/');
-    const mappings = await getRepoSubtreeMappings(repo.path);
-    const mapping = mappings.find(m => m.prefix === relPath);
-    if (mapping) handleSubtreePush(mapping);
+  const repo = findRepoForPath(folderPath);
+  if (!repo) return;
+  activeRepo = repo;
+  const relPath = folderPath
+    .substring(repo.path.length)
+    .replace(/^[\\\/]/, '')
+    .replace(/\\/g, '/');
+  const mappings = await getRepoSubtreeMappings(repo.path);
+  const mapping = mappings.find((m) => m.prefix === relPath);
+  if (mapping) handleSubtreePush(mapping);
 }
 
 // --- SUBTREE HUB HUB LOGIC ---
@@ -2953,130 +3899,153 @@ async function handlePushSubtreeFromTree(folderPath) {
 let currentSubtreeMappings = [];
 
 async function attemptAutoMatchMapping(m, folderNames = null) {
-    if (!activeRepo || !m.url) return;
+  if (!activeRepo || !m.url) return;
 
-    if (!folderNames) {
-        const projectFolders = await scanFoldersRecursive(activeRepo.path);
-        folderNames = projectFolders.map(f => ({
-            path: f,
-            name: f.substring(activeRepo.path.length + 1).replace(/\\/g, '/').toLowerCase()
-        }));
-    }
+  if (!folderNames) {
+    const projectFolders = await scanFoldersRecursive(activeRepo.path);
+    folderNames = projectFolders.map((f) => ({
+      path: f,
+      name: f
+        .substring(activeRepo.path.length + 1)
+        .replace(/\\/g, '/')
+        .toLowerCase(),
+    }));
+  }
 
-    const urlParts = m.url.split('/');
-    const rawRepoName = urlParts[urlParts.length - 1].replace('.git', '');
-    const repoName = rawRepoName.toLowerCase();
-    const repoNameClean = repoName.replace(/[-_]/g, ' ');
+  const urlParts = m.url.split('/');
+  const rawRepoName = urlParts[urlParts.length - 1].replace('.git', '');
+  const repoName = rawRepoName.toLowerCase();
+  const repoNameClean = repoName.replace(/[-_]/g, ' ');
 
-    const match = folderNames.find(f =>
-        f.name === repoName ||
-        f.name === repoNameClean ||
-        f.name.replace(/ /g, '') === repoName.replace(/[-_]/g, '') ||
-        repoName.includes(f.name) ||
-        f.name.includes(repoName)
-    );
+  const match = folderNames.find(
+    (f) =>
+      f.name === repoName ||
+      f.name === repoNameClean ||
+      f.name.replace(/ /g, '') === repoName.replace(/[-_]/g, '') ||
+      repoName.includes(f.name) ||
+      f.name.includes(repoName),
+  );
 
-    if (match) {
-        m.prefix = match.path.substring(activeRepo.path.length + 1).replace(/\\/g, '/');
-        return true;
-    } else {
-        m.prefix = rawRepoName; // Fallback to repo name
-        return false;
-    }
+  if (match) {
+    m.prefix = match.path.substring(activeRepo.path.length + 1).replace(/\\/g, '/');
+    return true;
+  } else {
+    m.prefix = rawRepoName; // Fallback to repo name
+    return false;
+  }
 }
 
 async function showSubtreeHubModal() {
-    if (!activeRepo) return;
-    elements.subtreeHubModal.style.display = 'flex';
+  if (!activeRepo) return;
+  elements.subtreeHubModal.style.display = 'flex';
 
-    try {
-        currentSubtreeMappings = await getRepoSubtreeMappings(activeRepo.path);
-    } catch (e) {
+  try {
+    currentSubtreeMappings = await getRepoSubtreeMappings(activeRepo.path);
+  } catch (e) {
+    currentSubtreeMappings = [];
+    console.error('Error loading subtree mappings:', e);
+  }
+
+  renderSubtreeMappings();
+  const hasMappings = currentSubtreeMappings.length > 0;
+  updateSubtreeActionButtonsState();
+  if (elements.subtreeClearAllBtn) elements.subtreeClearAllBtn.disabled = !hasMappings;
+
+  elements.subtreeGitHubFetchBtn.onclick = () => showSubtreeGitHubModal();
+
+  if (elements.subtreeMappingSelectAll) {
+    elements.subtreeMappingSelectAll.checked = false;
+    elements.subtreeMappingSelectAll.onchange = (e) => {
+      const cbs = elements.subtreeMappingList.querySelectorAll('.mapping-item-cb');
+      cbs.forEach((cb) => (cb.checked = e.target.checked));
+      updateSubtreeActionButtonsState();
+    };
+  }
+
+  if (elements.subtreeDeleteSelectedBtn) {
+    elements.subtreeDeleteSelectedBtn.onclick = async () => {
+      const checked = Array.from(
+        elements.subtreeMappingList.querySelectorAll('.mapping-item-cb:checked'),
+      );
+      if (checked.length === 0) return;
+
+      if (
+        await showConfirm(`Remove ${checked.length} selected subtree mappings?`, 'Confirm Delete')
+      ) {
+        const indicesToDelete = checked
+          .map((cb) => parseInt(cb.dataset.index))
+          .sort((a, b) => b - a);
+        indicesToDelete.forEach((idx) => currentSubtreeMappings.splice(idx, 1));
+
+        await saveSubtreeMappings();
+        renderSubtreeMappings();
+
+        const hasMappings = currentSubtreeMappings.length > 0;
+        updateSubtreeActionButtonsState();
+        if (elements.subtreeMappingSelectAll) elements.subtreeMappingSelectAll.checked = false;
+      }
+    };
+  }
+
+  if (elements.subtreeClearAllBtn) {
+    elements.subtreeClearAllBtn.onclick = async () => {
+      if (currentSubtreeMappings.length === 0) return;
+      if (
+        await showConfirm(
+          'Permanently remove ALL subtree mappings for this project?',
+          'Confirm Clear All',
+        )
+      ) {
         currentSubtreeMappings = [];
-        console.error('Error loading subtree mappings:', e);
-    }
-
-    renderSubtreeMappings();
-    const hasMappings = currentSubtreeMappings.length > 0;
-    updateSubtreeActionButtonsState();
-    if (elements.subtreeClearAllBtn) elements.subtreeClearAllBtn.disabled = !hasMappings;
-
-    elements.subtreeGitHubFetchBtn.onclick = () => showSubtreeGitHubModal();
-
-    if (elements.subtreeMappingSelectAll) {
-        elements.subtreeMappingSelectAll.checked = false;
-        elements.subtreeMappingSelectAll.onchange = (e) => {
-            const cbs = elements.subtreeMappingList.querySelectorAll('.mapping-item-cb');
-            cbs.forEach(cb => cb.checked = e.target.checked);
-            updateSubtreeActionButtonsState();
-        };
-    }
-
-    if (elements.subtreeDeleteSelectedBtn) {
-        elements.subtreeDeleteSelectedBtn.onclick = async () => {
-            const checked = Array.from(elements.subtreeMappingList.querySelectorAll('.mapping-item-cb:checked'));
-            if (checked.length === 0) return;
-
-            if (await showConfirm(`Remove ${checked.length} selected subtree mappings?`, "Confirm Delete")) {
-                const indicesToDelete = checked.map(cb => parseInt(cb.dataset.index)).sort((a, b) => b - a);
-                indicesToDelete.forEach(idx => currentSubtreeMappings.splice(idx, 1));
-
-                await saveSubtreeMappings();
-                renderSubtreeMappings();
-
-                const hasMappings = currentSubtreeMappings.length > 0;
-                updateSubtreeActionButtonsState();
-                if (elements.subtreeMappingSelectAll) elements.subtreeMappingSelectAll.checked = false;
-            }
-        };
-    }
-
-    if (elements.subtreeClearAllBtn) {
-        elements.subtreeClearAllBtn.onclick = async () => {
-            if (currentSubtreeMappings.length === 0) return;
-            if (await showConfirm("Permanently remove ALL subtree mappings for this project?", "Confirm Clear All")) {
-                currentSubtreeMappings = [];
-                await saveSubtreeMappings();
-                renderSubtreeMappings();
-                updateSubtreeActionButtonsState();
-                if (elements.subtreeMappingSelectAll) elements.subtreeMappingSelectAll.checked = false;
-                logToConsole('All subtree mappings cleared.', 'info');
-            }
-        };
-    }
+        await saveSubtreeMappings();
+        renderSubtreeMappings();
+        updateSubtreeActionButtonsState();
+        if (elements.subtreeMappingSelectAll) elements.subtreeMappingSelectAll.checked = false;
+        logToConsole('All subtree mappings cleared.', 'info');
+      }
+    };
+  }
 }
 
 function updateSubtreeActionButtonsState() {
-    const checkedCount = elements.subtreeMappingList ? elements.subtreeMappingList.querySelectorAll('.mapping-item-cb:checked').length : 0;
-    const disabled = checkedCount === 0;
+  const checkedCount = elements.subtreeMappingList
+    ? elements.subtreeMappingList.querySelectorAll('.mapping-item-cb:checked').length
+    : 0;
+  const disabled = checkedCount === 0;
 
-    if (elements.subtreeDeleteSelectedBtn) elements.subtreeDeleteSelectedBtn.disabled = disabled;
-    if (elements.subtreePullSelectedBtn) elements.subtreePullSelectedBtn.disabled = disabled;
-    if (elements.subtreePushSelectedBtn) elements.subtreePushSelectedBtn.disabled = disabled;
+  if (elements.subtreeDeleteSelectedBtn) elements.subtreeDeleteSelectedBtn.disabled = disabled;
+  if (elements.subtreePullSelectedBtn) elements.subtreePullSelectedBtn.disabled = disabled;
+  if (elements.subtreePushSelectedBtn) elements.subtreePushSelectedBtn.disabled = disabled;
 }
 
 async function showSubtreeGitHubModal(targetIndex = -1) {
-    if (!settings.githubToken) return showAlert('GitHub token is required to fetch repositories.', 'Auth Error');
-    elements.subtreeGitHubModal.style.display = 'flex';
-    const list = elements.subtreeGitHubList;
-    list.innerHTML = '<div style="padding:20px; color:var(--text-muted); text-align:center;">Loading GitHub repositories...</div>';
+  if (!settings.githubToken)
+    return showAlert('GitHub token is required to fetch repositories.', 'Auth Error');
+  elements.subtreeGitHubModal.style.display = 'flex';
+  const list = elements.subtreeGitHubList;
+  list.innerHTML =
+    '<div style="padding:20px; color:var(--text-muted); text-align:center;">Loading GitHub repositories...</div>';
 
-    if (elements.subtreeGitHubConfirm) elements.subtreeGitHubConfirm.disabled = true;
+  if (elements.subtreeGitHubConfirm) elements.subtreeGitHubConfirm.disabled = true;
 
-    try {
-        const res = await window.electronAPI.fetchGitHubRepos(settings.githubToken);
-        if (res.expiration) updateTokenExpirationUI(res.expiration);
+  try {
+    const res = await window.electronAPI.fetchGitHubRepos(settings.githubToken);
+    if (res.expiration) updateTokenExpirationUI(res.expiration);
 
-        const repos = res.repos || [];
-        if (repos.length === 0) {
-            list.innerHTML = '<div style="padding:20px; color:var(--text-muted); text-align:center;">No repositories found on your account.</div>';
-        } else {
-            if (elements.subtreeGitHubConfirm) {
-                elements.subtreeGitHubConfirm.disabled = false;
-                elements.subtreeGitHubConfirm.textContent = targetIndex >= 0 ? 'Update Remote URL' : 'Add Selected Repos';
-            }
+    const repos = res.repos || [];
+    if (repos.length === 0) {
+      list.innerHTML =
+        '<div style="padding:20px; color:var(--text-muted); text-align:center;">No repositories found on your account.</div>';
+    } else {
+      if (elements.subtreeGitHubConfirm) {
+        elements.subtreeGitHubConfirm.disabled = false;
+        elements.subtreeGitHubConfirm.textContent =
+          targetIndex >= 0 ? 'Update Remote URL' : 'Add Selected Repos';
+      }
 
-            list.innerHTML = repos.map(r => `
+      list.innerHTML = repos
+        .map(
+          (r) => `
                 <label style="display:flex; align-items:center; gap:10px; padding:8px 12px; background:rgba(255,255,255,0.02); border-radius:4px; border:1px solid transparent; cursor:pointer; transition:all 0.2s;">
                     <input type="${targetIndex >= 0 ? 'radio' : 'checkbox'}" class="gh-repo-item-cb" name="gh-repo-selection" value="${r.clone_url}" data-name="${r.name}">
                     <div style="flex:1; min-width:0;">
@@ -3084,117 +4053,139 @@ async function showSubtreeGitHubModal(targetIndex = -1) {
                         <div style="font-size:11px; color:var(--text-muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${r.clone_url}</div>
                     </div>
                 </label>
-            `).join('');
+            `,
+        )
+        .join('');
 
-            // Select All logic (only for bulk add)
-            if (elements.subtreeGitHubSelectAll) {
-                elements.subtreeGitHubSelectAll.parentElement.style.display = targetIndex >= 0 ? 'none' : 'block';
-                elements.subtreeGitHubSelectAll.checked = false;
-                elements.subtreeGitHubSelectAll.onchange = (e) => {
-                    list.querySelectorAll('.gh-repo-item-cb').forEach(cb => cb.checked = e.target.checked);
-                };
+      // Select All logic (only for bulk add)
+      if (elements.subtreeGitHubSelectAll) {
+        elements.subtreeGitHubSelectAll.parentElement.style.display =
+          targetIndex >= 0 ? 'none' : 'block';
+        elements.subtreeGitHubSelectAll.checked = false;
+        elements.subtreeGitHubSelectAll.onchange = (e) => {
+          list
+            .querySelectorAll('.gh-repo-item-cb')
+            .forEach((cb) => (cb.checked = e.target.checked));
+        };
+      }
+
+      if (elements.subtreeGitHubConfirm) {
+        elements.subtreeGitHubConfirm.onclick = async () => {
+          const selected = Array.from(list.querySelectorAll('.gh-repo-item-cb:checked'));
+          if (selected.length === 0)
+            return showAlert('Select at least one repository.', 'Selection Required');
+
+          const projectFolders = await scanFoldersRecursive(activeRepo.path);
+          const folderNames = projectFolders.map((f) => ({
+            path: f,
+            name: f
+              .substring(activeRepo.path.length + 1)
+              .replace(/\\/g, '/')
+              .toLowerCase(),
+          }));
+
+          if (targetIndex >= 0) {
+            // Editing single row
+            const m = currentSubtreeMappings[targetIndex];
+            m.url = selected[0].value;
+            await attemptAutoMatchMapping(m, folderNames);
+          } else {
+            // Bulk adding
+            for (const item of selected) {
+              const m = { prefix: '', url: item.value, branch: 'main' };
+              await attemptAutoMatchMapping(m, folderNames);
+              currentSubtreeMappings.push(m);
             }
+          }
 
-            if (elements.subtreeGitHubConfirm) {
-                elements.subtreeGitHubConfirm.onclick = async () => {
-                    const selected = Array.from(list.querySelectorAll('.gh-repo-item-cb:checked'));
-                    if (selected.length === 0) return showAlert('Select at least one repository.', 'Selection Required');
-
-                    const projectFolders = await scanFoldersRecursive(activeRepo.path);
-                    const folderNames = projectFolders.map(f => ({
-                        path: f,
-                        name: f.substring(activeRepo.path.length + 1).replace(/\\/g, '/').toLowerCase()
-                    }));
-
-                    if (targetIndex >= 0) {
-                        // Editing single row
-                        const m = currentSubtreeMappings[targetIndex];
-                        m.url = selected[0].value;
-                        await attemptAutoMatchMapping(m, folderNames);
-                    } else {
-                        // Bulk adding
-                        for (const item of selected) {
-                            const m = { prefix: '', url: item.value, branch: 'main' };
-                            await attemptAutoMatchMapping(m, folderNames);
-                            currentSubtreeMappings.push(m);
-                        }
-                    }
-
-                    elements.subtreeGitHubModal.style.display = 'none';
-                    saveSubtreeMappings();
-                    renderSubtreeMappings();
-                    logToConsole(`Added/Updated ${selected.length} GitHub repositories in subtree mappings.`, 'success');
-                };
-            }
-        }
-    } catch (e) {
-        list.innerHTML = `<div style="padding:20px; color:var(--accent-red); text-align:center;">API Error: ${e.message}</div>`;
+          elements.subtreeGitHubModal.style.display = 'none';
+          saveSubtreeMappings();
+          renderSubtreeMappings();
+          logToConsole(
+            `Added/Updated ${selected.length} GitHub repositories in subtree mappings.`,
+            'success',
+          );
+        };
+      }
     }
+  } catch (e) {
+    list.innerHTML = `<div style="padding:20px; color:var(--accent-red); text-align:center;">API Error: ${e.message}</div>`;
+  }
 }
 
-elements.subtreeGitHubCancel.onclick = () => elements.subtreeGitHubModal.style.display = 'none';
+elements.subtreeGitHubCancel.onclick = () => (elements.subtreeGitHubModal.style.display = 'none');
 
 async function showPrefixPickerModal(targetIndex) {
-    if (!activeRepo) return;
-    elements.prefixPickerModal.style.display = 'flex';
-    const list = elements.prefixFolderList;
-    list.innerHTML = '<div style="padding:20px; color:var(--text-muted); text-align:center;">Scanning project folders...</div>';
+  if (!activeRepo) return;
+  elements.prefixPickerModal.style.display = 'flex';
+  const list = elements.prefixFolderList;
+  list.innerHTML =
+    '<div style="padding:20px; color:var(--text-muted); text-align:center;">Scanning project folders...</div>';
 
-    try {
-        // We use a simplified recursive scanner to find all subdirectories
-        const folders = await scanFoldersRecursive(activeRepo.path);
+  try {
+    // We use a simplified recursive scanner to find all subdirectories
+    const folders = await scanFoldersRecursive(activeRepo.path);
 
-        if (folders.length === 0) {
-            list.innerHTML = '<div style="padding:20px; color:var(--text-muted); text-align:center;">No subfolders found in project.</div>';
-        } else {
-            list.innerHTML = folders.map(f => {
-                const relPath = f.substring(activeRepo.path.length + 1).replace(/\\/g, '/');
-                return `
+    if (folders.length === 0) {
+      list.innerHTML =
+        '<div style="padding:20px; color:var(--text-muted); text-align:center;">No subfolders found in project.</div>';
+    } else {
+      list.innerHTML = folders
+        .map((f) => {
+          const relPath = f.substring(activeRepo.path.length + 1).replace(/\\/g, '/');
+          return `
                     <div class="folder-picker-item" style="padding:8px 12px; border-bottom:1px solid var(--border-color); cursor:pointer; transition:background 0.2s;" data-path="${relPath}">
                         <div style="font-size:13px; color:#fff;">📁 ${relPath}</div>
                     </div>
                 `;
-            }).join('');
+        })
+        .join('');
 
-            list.querySelectorAll('.folder-picker-item').forEach(item => {
-                item.onclick = () => {
-                    currentSubtreeMappings[targetIndex].prefix = item.dataset.path;
-                    elements.prefixPickerModal.style.display = 'none';
-                    saveSubtreeMappings();
-                    renderSubtreeMappings();
-                };
-            });
-        }
-    } catch (e) {
-        list.innerHTML = `<div style="padding:20px; color:var(--accent-red); text-align:center;">Scan Error: ${e.message}</div>`;
+      list.querySelectorAll('.folder-picker-item').forEach((item) => {
+        item.onclick = () => {
+          currentSubtreeMappings[targetIndex].prefix = item.dataset.path;
+          elements.prefixPickerModal.style.display = 'none';
+          saveSubtreeMappings();
+          renderSubtreeMappings();
+        };
+      });
     }
+  } catch (e) {
+    list.innerHTML = `<div style="padding:20px; color:var(--accent-red); text-align:center;">Scan Error: ${e.message}</div>`;
+  }
 }
 
 async function scanFoldersRecursive(dir, results = []) {
-    const items = await window.electronAPI.listDirectory(dir, false);
-    for (const item of items) {
-        if (item.isDirectory) {
-            results.push(item.path);
-            // Limit depth to 3 for performance in bulk manager
-            const parts = item.path.substring(activeRepo.path.length).split(/[\\\/]/).filter(p => p);
-            if (parts.length < 3) {
-                await scanFoldersRecursive(item.path, results);
-            }
-        }
+  const items = await window.electronAPI.listDirectory(dir, false);
+  for (const item of items) {
+    if (item.isDirectory) {
+      results.push(item.path);
+      // Limit depth to 3 for performance in bulk manager
+      const parts = item.path
+        .substring(activeRepo.path.length)
+        .split(/[\\\/]/)
+        .filter((p) => p);
+      if (parts.length < 3) {
+        await scanFoldersRecursive(item.path, results);
+      }
     }
-    return results;
+  }
+  return results;
 }
 
-elements.prefixPickerCancel.onclick = () => elements.prefixPickerModal.style.display = 'none';
+elements.prefixPickerCancel.onclick = () => (elements.prefixPickerModal.style.display = 'none');
 
 function renderSubtreeMappings() {
-    const list = elements.subtreeMappingList;
-    if (currentSubtreeMappings.length === 0) {
-        list.innerHTML = '<div style="color:var(--text-muted); font-size:12px; text-align:center; padding:20px;">No subtree mappings defined yet.</div>';
-        return;
-    }
+  const list = elements.subtreeMappingList;
+  if (currentSubtreeMappings.length === 0) {
+    list.innerHTML =
+      '<div style="color:var(--text-muted); font-size:12px; text-align:center; padding:20px;">No subtree mappings defined yet.</div>';
+    return;
+  }
 
-    list.innerHTML = currentSubtreeMappings.map((m, index) => `
+  list.innerHTML = currentSubtreeMappings
+    .map(
+      (m, index) => `
         <div class="subtree-mapping-row" style="display:flex; gap:12px; align-items:flex-end; background:rgba(255,255,255,0.02); padding:12px; border-radius:6px; border:1px solid var(--border-color); min-width: 0;">
             <div style="flex-shrink:0; align-self:center;">
                 <input type="checkbox" class="mapping-item-cb" data-index="${index}" style="width: 16px; height: 16px; cursor: pointer;">
@@ -3227,878 +4218,1006 @@ function renderSubtreeMappings() {
                 <button class="button button-primary push-subtree-btn" data-index="${index}" style="height:28px; width:28px; padding:0;" title="Push this subtree only">↑</button>
             </div>
         </div>
-    `).join('');
+    `,
+    )
+    .join('');
 
-    // Attach listeners
-    list.querySelectorAll('.mapping-prefix').forEach(input => {
-        input.onchange = (e) => {
-            currentSubtreeMappings[parseInt(e.target.dataset.index)].prefix = e.target.value.trim();
-            saveSubtreeMappings();
-        };
-    });
-    list.querySelectorAll('.mapping-url').forEach(input => {
-        input.onchange = async (e) => {
-            const index = parseInt(e.target.dataset.index);
-            const mapping = currentSubtreeMappings[index];
-            mapping.url = e.target.value.trim();
+  // Attach listeners
+  list.querySelectorAll('.mapping-prefix').forEach((input) => {
+    input.onchange = (e) => {
+      currentSubtreeMappings[parseInt(e.target.dataset.index)].prefix = e.target.value.trim();
+      saveSubtreeMappings();
+    };
+  });
+  list.querySelectorAll('.mapping-url').forEach((input) => {
+    input.onchange = async (e) => {
+      const index = parseInt(e.target.dataset.index);
+      const mapping = currentSubtreeMappings[index];
+      mapping.url = e.target.value.trim();
 
-            // Only auto-match if prefix is empty (likely just added)
-            if (!mapping.prefix) {
-                await attemptAutoMatchMapping(mapping);
-                renderSubtreeMappings();
-            }
-            saveSubtreeMappings();
-        };
-    });
-    list.querySelectorAll('.gh-select-btn').forEach(btn => {
-        btn.onclick = (e) => {
-            showSubtreeGitHubModal(parseInt(btn.dataset.index));
-        };
-    });
-    list.querySelectorAll('.browse-prefix-btn').forEach(btn => {
-        btn.onclick = (e) => {
-            showPrefixPickerModal(parseInt(btn.dataset.index));
-        };
-    });
-    list.querySelectorAll('.mapping-branch').forEach(input => {
-        input.onchange = (e) => {
-            currentSubtreeMappings[parseInt(e.target.dataset.index)].branch = e.target.value.trim();
-            saveSubtreeMappings();
-        };
-    });
-    list.querySelectorAll('.mapping-force').forEach(input => {
-        input.onchange = (e) => {
-            currentSubtreeMappings[parseInt(e.target.dataset.index)].force = e.target.checked;
-            saveSubtreeMappings();
-        };
-    });
-    list.querySelectorAll('.mapping-item-cb').forEach(cb => {
-        cb.onchange = () => updateSubtreeActionButtonsState();
-    });
-    list.querySelectorAll('.remove-mapping-btn').forEach(btn => {
-        btn.onclick = async (e) => {
-            const index = parseInt(e.target.dataset.index);
-            if (await showConfirm(`Remove mapping for "${currentSubtreeMappings[index].prefix}"?`, "Confirm Delete")) {
-                currentSubtreeMappings.splice(index, 1);
-                saveSubtreeMappings();
-                renderSubtreeMappings();
-                updateSubtreeActionButtonsState();
-            }
-        };
-    });
-    list.querySelectorAll('.push-subtree-btn').forEach(btn => {
-        btn.onclick = (e) => {
-            const index = parseInt(e.target.dataset.index);
-            elements.subtreeHubModal.style.display = 'none';
-            handleSubtreePush(currentSubtreeMappings[index]);
-        };
-    });
+      // Only auto-match if prefix is empty (likely just added)
+      if (!mapping.prefix) {
+        await attemptAutoMatchMapping(mapping);
+        renderSubtreeMappings();
+      }
+      saveSubtreeMappings();
+    };
+  });
+  list.querySelectorAll('.gh-select-btn').forEach((btn) => {
+    btn.onclick = (e) => {
+      showSubtreeGitHubModal(parseInt(btn.dataset.index));
+    };
+  });
+  list.querySelectorAll('.browse-prefix-btn').forEach((btn) => {
+    btn.onclick = (e) => {
+      showPrefixPickerModal(parseInt(btn.dataset.index));
+    };
+  });
+  list.querySelectorAll('.mapping-branch').forEach((input) => {
+    input.onchange = (e) => {
+      currentSubtreeMappings[parseInt(e.target.dataset.index)].branch = e.target.value.trim();
+      saveSubtreeMappings();
+    };
+  });
+  list.querySelectorAll('.mapping-force').forEach((input) => {
+    input.onchange = (e) => {
+      currentSubtreeMappings[parseInt(e.target.dataset.index)].force = e.target.checked;
+      saveSubtreeMappings();
+    };
+  });
+  list.querySelectorAll('.mapping-item-cb').forEach((cb) => {
+    cb.onchange = () => updateSubtreeActionButtonsState();
+  });
+  list.querySelectorAll('.remove-mapping-btn').forEach((btn) => {
+    btn.onclick = async (e) => {
+      const index = parseInt(e.target.dataset.index);
+      if (
+        await showConfirm(
+          `Remove mapping for "${currentSubtreeMappings[index].prefix}"?`,
+          'Confirm Delete',
+        )
+      ) {
+        currentSubtreeMappings.splice(index, 1);
+        saveSubtreeMappings();
+        renderSubtreeMappings();
+        updateSubtreeActionButtonsState();
+      }
+    };
+  });
+  list.querySelectorAll('.push-subtree-btn').forEach((btn) => {
+    btn.onclick = (e) => {
+      const index = parseInt(e.target.dataset.index);
+      elements.subtreeHubModal.style.display = 'none';
+      handleSubtreePush(currentSubtreeMappings[index]);
+    };
+  });
 }
 
 async function saveSubtreeMappings() {
-    if (!activeRepo) return;
-    activeRepo.subtrees = currentSubtreeMappings;
+  if (!activeRepo) return;
+  activeRepo.subtrees = currentSubtreeMappings;
 
-    // Persist to main app config
-    window.electronAPI.saveRepositories(repositories);
+  // Persist to main app config
+  window.electronAPI.saveRepositories(repositories);
 
-    try {
-        const mappingPath = `${activeRepo.path}/.gitsubtree.json`;
-        await window.electronAPI.writeFile(mappingPath, JSON.stringify(currentSubtreeMappings, null, 2));
-    } catch (e) {
-        console.error('Failed to save subtree mappings to file:', e);
-    }
+  try {
+    const mappingPath = `${activeRepo.path}/.gitsubtree.json`;
+    await window.electronAPI.writeFile(
+      mappingPath,
+      JSON.stringify(currentSubtreeMappings, null, 2),
+    );
+  } catch (e) {
+    console.error('Failed to save subtree mappings to file:', e);
+  }
 }
 
 elements.addSubtreeBtn.onclick = () => {
-    currentSubtreeMappings.push({ prefix: '', url: '', branch: 'main' });
-    renderSubtreeMappings();
-    updateSubtreeActionButtonsState();
+  currentSubtreeMappings.push({ prefix: '', url: '', branch: 'main' });
+  renderSubtreeMappings();
+  updateSubtreeActionButtonsState();
 };
 
 if (elements.subtreePushSelectedBtn) {
-    elements.subtreePushSelectedBtn.onclick = async () => {
-        const checked = Array.from(elements.subtreeMappingList.querySelectorAll('.mapping-item-cb:checked'));
-        if (checked.length === 0) return;
+  elements.subtreePushSelectedBtn.onclick = async () => {
+    const checked = Array.from(
+      elements.subtreeMappingList.querySelectorAll('.mapping-item-cb:checked'),
+    );
+    if (checked.length === 0) return;
 
-        if (await showConfirm(`Push ${checked.length} selected subtrees to their remotes?`, "Confirm Push")) {
-            elements.subtreeHubModal.style.display = 'none';
-            setTaskState(true);
-            logToConsole(`🚀 Starting Selective Subtree Push sequence...`, 'info');
+    if (
+      await showConfirm(
+        `Push ${checked.length} selected subtrees to their remotes?`,
+        'Confirm Push',
+      )
+    ) {
+      elements.subtreeHubModal.style.display = 'none';
+      setTaskState(true);
+      logToConsole(`🚀 Starting Selective Subtree Push sequence...`, 'info');
 
-            let successCount = 0;
-            for (const cb of checked) {
-                const index = parseInt(cb.dataset.index);
-                const m = currentSubtreeMappings[index];
-                if (!m || !m.prefix || !m.url) continue;
-                const res = await handleSubtreePush(m, true);
-                if (res) successCount++;
-            }
+      let successCount = 0;
+      for (const cb of checked) {
+        const index = parseInt(cb.dataset.index);
+        const m = currentSubtreeMappings[index];
+        if (!m || !m.prefix || !m.url) continue;
+        const res = await handleSubtreePush(m, true);
+        if (res) successCount++;
+      }
 
-            logToConsole(`Selective sequence complete. ${successCount}/${checked.length} successful.`, successCount === checked.length ? 'success' : 'warn');
-            setTaskState(false);
-        }
-    };
+      logToConsole(
+        `Selective sequence complete. ${successCount}/${checked.length} successful.`,
+        successCount === checked.length ? 'success' : 'warn',
+      );
+      setTaskState(false);
+    }
+  };
 }
 
 if (elements.subtreePullSelectedBtn) {
-    elements.subtreePullSelectedBtn.onclick = async () => {
-        const checked = Array.from(elements.subtreeMappingList.querySelectorAll('.mapping-item-cb:checked'));
-        if (checked.length === 0) return;
+  elements.subtreePullSelectedBtn.onclick = async () => {
+    const checked = Array.from(
+      elements.subtreeMappingList.querySelectorAll('.mapping-item-cb:checked'),
+    );
+    if (checked.length === 0) return;
 
-        if (await showConfirm(`Pull updates for ${checked.length} selected subtrees? This will merge remote changes into your local folders.`, "Confirm Pull")) {
-            elements.subtreeHubModal.style.display = 'none';
-            setTaskState(true);
-            logToConsole(`🚀 Starting Selective Subtree Pull sequence...`, 'info');
+    if (
+      await showConfirm(
+        `Pull updates for ${checked.length} selected subtrees? This will merge remote changes into your local folders.`,
+        'Confirm Pull',
+      )
+    ) {
+      elements.subtreeHubModal.style.display = 'none';
+      setTaskState(true);
+      logToConsole(`🚀 Starting Selective Subtree Pull sequence...`, 'info');
 
-            let successCount = 0;
-            for (const cb of checked) {
-                const index = parseInt(cb.dataset.index);
-                const m = currentSubtreeMappings[index];
-                if (!m || !m.prefix || !m.url) continue;
-                const res = await handleSubtreePull(m, true);
-                if (res) successCount++;
-            }
+      let successCount = 0;
+      for (const cb of checked) {
+        const index = parseInt(cb.dataset.index);
+        const m = currentSubtreeMappings[index];
+        if (!m || !m.prefix || !m.url) continue;
+        const res = await handleSubtreePull(m, true);
+        if (res) successCount++;
+      }
 
-            logToConsole(`Selective sequence complete. ${successCount}/${checked.length} successful.`, successCount === checked.length ? 'success' : 'warn');
-            setTaskState(false);
-        }
-    };
+      logToConsole(
+        `Selective sequence complete. ${successCount}/${checked.length} successful.`,
+        successCount === checked.length ? 'success' : 'warn',
+      );
+      setTaskState(false);
+    }
+  };
 }
 
 elements.subtreeModalClose.onclick = () => {
-    elements.subtreeHubModal.style.display = 'none';
+  elements.subtreeHubModal.style.display = 'none';
 };
 
 async function handleSubtreePush(mapping, isBulk = false) {
-    if (!activeRepo) return false;
-    if (!mapping.prefix || !mapping.url) {
-        if (!isBulk) showAlert('Please specify both folder prefix and remote URL.', 'Missing Info');
+  if (!activeRepo) return false;
+  if (!mapping.prefix || !mapping.url) {
+    if (!isBulk) showAlert('Please specify both folder prefix and remote URL.', 'Missing Info');
+    return false;
+  }
+
+  if (!isBulk) setTaskState(true);
+
+  try {
+    // 1. AUTOMATIC SYNC BEFORE PUSH
+    // We must pull first to prevent non-fast-forward rejections
+    logToConsole(`🔄 [${mapping.prefix}]: Pulling remote changes before push...`, 'info');
+    const pullRes = await window.electronAPI.gitSubtreePull(
+      activeRepo.path,
+      mapping.prefix,
+      mapping.url,
+      mapping.branch || 'main',
+    );
+
+    if (!pullRes.success) {
+      // Check if it's just "already up to date" or a real failure
+      if (pullRes.output.includes('up to date') || pullRes.output.includes('no new commits')) {
+        logToConsole(`   ✅ [${mapping.prefix}]: Already up to date.`, 'info');
+      } else {
+        logToConsole(
+          `   ❌ [${mapping.prefix}]: Pull failed. Push aborted to prevent non-fast-forward error.`,
+          'error',
+        );
+        logToConsole(`      Reason: ${pullRes.output}`, 'error');
+        if (!isBulk) showError(pullRes.output, `Pull Failed: ${mapping.prefix}`);
         return false;
+      }
+    } else {
+      logToConsole(`   ✅ [${mapping.prefix}]: Remote changes merged.`, 'success');
     }
 
-    if (!isBulk) setTaskState(true);
+    // 2. THE PUSH
+    logToConsole(`🚀 [${mapping.prefix}]: Pushing to remote...`, 'info');
+    const res = await window.electronAPI.gitSubtreePush(
+      activeRepo.path,
+      mapping.prefix,
+      mapping.url,
+      mapping.branch || 'main',
+      !!mapping.force,
+    );
 
-    try {
-        // 1. AUTOMATIC SYNC BEFORE PUSH
-        // We must pull first to prevent non-fast-forward rejections
-        logToConsole(`🔄 [${mapping.prefix}]: Pulling remote changes before push...`, 'info');
-        const pullRes = await window.electronAPI.gitSubtreePull(
-            activeRepo.path,
-            mapping.prefix,
-            mapping.url,
-            mapping.branch || 'main'
-        );
-
-        if (!pullRes.success) {
-            // Check if it's just "already up to date" or a real failure
-            if (pullRes.output.includes('up to date') || pullRes.output.includes('no new commits')) {
-                logToConsole(`   ✅ [${mapping.prefix}]: Already up to date.`, 'info');
-            } else {
-                logToConsole(`   ❌ [${mapping.prefix}]: Pull failed. Push aborted to prevent non-fast-forward error.`, 'error');
-                logToConsole(`      Reason: ${pullRes.output}`, 'error');
-                if (!isBulk) showError(pullRes.output, `Pull Failed: ${mapping.prefix}`);
-                return false;
-            }
-        } else {
-            logToConsole(`   ✅ [${mapping.prefix}]: Remote changes merged.`, 'success');
-        }
-
-        // 2. THE PUSH
-        logToConsole(`🚀 [${mapping.prefix}]: Pushing to remote...`, 'info');
-        const res = await window.electronAPI.gitSubtreePush(
-            activeRepo.path,
-            mapping.prefix,
-            mapping.url,
-            mapping.branch || 'main',
-            !!mapping.force
-        );
-
-        if (res.success) {
-            logToConsole(`   ✅ [${mapping.prefix}]: Push successful!`, 'success');
-            if (!isBulk) showAlert(`Subtree [${mapping.prefix}] successfully pushed to remote.`, 'Success');
-            return true;
-        } else {
-            logToConsole(`   ❌ [${mapping.prefix}]: Push failed: ${res.output}`, 'error');
-            if (!isBulk) showError(res.output, `Push Failed: ${mapping.prefix}`);
-            return false;
-        }
-    } catch (e) {
-        logToConsole(`⚠️ [${mapping.prefix}]: System Error: ${e.message}`, 'error');
-        return false;
-    } finally {
-        if (!isBulk) setTaskState(false);
+    if (res.success) {
+      logToConsole(`   ✅ [${mapping.prefix}]: Push successful!`, 'success');
+      if (!isBulk)
+        showAlert(`Subtree [${mapping.prefix}] successfully pushed to remote.`, 'Success');
+      return true;
+    } else {
+      logToConsole(`   ❌ [${mapping.prefix}]: Push failed: ${res.output}`, 'error');
+      if (!isBulk) showError(res.output, `Push Failed: ${mapping.prefix}`);
+      return false;
     }
+  } catch (e) {
+    logToConsole(`⚠️ [${mapping.prefix}]: System Error: ${e.message}`, 'error');
+    return false;
+  } finally {
+    if (!isBulk) setTaskState(false);
+  }
 }
 
 async function handleSubtreePull(mapping, isBulk = false) {
-    if (!activeRepo) return false;
-    if (!mapping.prefix || !mapping.url) {
-        if (!isBulk) showAlert('Please specify both folder prefix and remote URL.', 'Missing Info');
-        return false;
+  if (!activeRepo) return false;
+  if (!mapping.prefix || !mapping.url) {
+    if (!isBulk) showAlert('Please specify both folder prefix and remote URL.', 'Missing Info');
+    return false;
+  }
+
+  if (!isBulk) setTaskState(true);
+  logToConsole(`Subtree PULL: [${mapping.prefix}] <- ${mapping.url}...`, 'info');
+
+  try {
+    const res = await window.electronAPI.gitSubtreePull(
+      activeRepo.path,
+      mapping.prefix,
+      mapping.url,
+      mapping.branch || 'main',
+    );
+
+    if (res.success) {
+      logToConsole(`✅ Subtree [${mapping.prefix}] pull successful!`, 'success');
+      if (!isBulk)
+        showAlert(`Subtree [${mapping.prefix}] successfully updated from remote.`, 'Success');
+      await refreshActiveRepoUI();
+      return true;
+    } else {
+      logToConsole(`❌ Subtree [${mapping.prefix}] pull failed: ${res.output}`, 'error');
+      if (!isBulk) showError(res.output, `Pull Failed: ${mapping.prefix}`);
+      return false;
     }
-
-    if (!isBulk) setTaskState(true);
-    logToConsole(`Subtree PULL: [${mapping.prefix}] <- ${mapping.url}...`, 'info');
-
-    try {
-        const res = await window.electronAPI.gitSubtreePull(
-            activeRepo.path,
-            mapping.prefix,
-            mapping.url,
-            mapping.branch || 'main'
-        );
-
-        if (res.success) {
-            logToConsole(`✅ Subtree [${mapping.prefix}] pull successful!`, 'success');
-            if (!isBulk) showAlert(`Subtree [${mapping.prefix}] successfully updated from remote.`, 'Success');
-            await refreshActiveRepoUI();
-            return true;
-        } else {
-            logToConsole(`❌ Subtree [${mapping.prefix}] pull failed: ${res.output}`, 'error');
-            if (!isBulk) showError(res.output, `Pull Failed: ${mapping.prefix}`);
-            return false;
-        }
-    } catch (e) {
-        logToConsole(`System Error during subtree pull: ${e.message}`, 'error');
-        return false;
-    } finally {
-        if (!isBulk) setTaskState(false);
-    }
+  } catch (e) {
+    logToConsole(`System Error during subtree pull: ${e.message}`, 'error');
+    return false;
+  } finally {
+    if (!isBulk) setTaskState(false);
+  }
 }
 
 function normalizeGitUrl(url) {
-    if (!url) return '';
-    let normalized = url.trim();
+  if (!url) return '';
+  let normalized = url.trim();
 
-    // Handle SSH format: git@github.com:user/repo.git -> https://github.com/user/repo
-    if (normalized.startsWith('git@')) {
-        normalized = normalized.replace(':', '/').replace('git@', 'https://');
-    }
+  // Handle SSH format: git@github.com:user/repo.git -> https://github.com/user/repo
+  if (normalized.startsWith('git@')) {
+    normalized = normalized.replace(':', '/').replace('git@', 'https://');
+  }
 
-    // Remove .git suffix if present
-    if (normalized.toLowerCase().endsWith('.git')) {
-        normalized = normalized.substring(0, normalized.length - 4);
-    }
+  // Remove .git suffix if present
+  if (normalized.toLowerCase().endsWith('.git')) {
+    normalized = normalized.substring(0, normalized.length - 4);
+  }
 
-    return normalized;
+  return normalized;
 }
 
 async function handlePublishGitHub() {
-    if (!activeRepo) return;
-    if (!settings.githubToken) {
-        showAlert('Please set your Personal Access Token (PAT) in Settings.', 'Auth Required');
-        showSettings();
-        return;
-    }
+  if (!activeRepo) return;
+  if (!settings.githubToken) {
+    showAlert('Please set your Personal Access Token (PAT) in Settings.', 'Auth Required');
+    showSettings();
+    return;
+  }
 
-    elements.publishGitHubModal.style.display = 'flex';
-    elements.publishRepoName.value = activeRepo.name.replace(/\s+/g, '-'); // Web-safe name
-    elements.publishRepoName.focus();
+  elements.publishGitHubModal.style.display = 'flex';
+  elements.publishRepoName.value = activeRepo.name.replace(/\s+/g, '-'); // Web-safe name
+  elements.publishRepoName.focus();
 
-    elements.publishCancel.onclick = () => elements.publishGitHubModal.style.display = 'none';
+  elements.publishCancel.onclick = () => (elements.publishGitHubModal.style.display = 'none');
 
-    elements.publishConfirm.onclick = async () => {
-        const repoName = elements.publishRepoName.value.trim();
-        const isPrivate = elements.publishRepoPrivate.checked;
+  elements.publishConfirm.onclick = async () => {
+    const repoName = elements.publishRepoName.value.trim();
+    const isPrivate = elements.publishRepoPrivate.checked;
 
-        elements.publishGitHubModal.style.display = 'none';
-        setTaskState(true);
-        logToConsole(`Publishing ${activeRepo.name} to GitHub...`, 'info');
+    elements.publishGitHubModal.style.display = 'none';
+    setTaskState(true);
+    logToConsole(`Publishing ${activeRepo.name} to GitHub...`, 'info');
 
-        try {
-            // 1. Create repo on GitHub via REST API
-            logToConsole(`Creating GitHub repository: ${repoName}...`, 'info');
-            let ghRes;
-            try {
-                ghRes = await window.electronAPI.createGitHubRepo(settings.githubToken, repoName, isPrivate);
-                if (ghRes.expiration) updateTokenExpirationUI(ghRes.expiration);
-                ghRepo = ghRes.repo;
-            } catch (err) {
-                if (err.message.includes('422')) {
-                    logToConsole('Repository already exists on GitHub. Attempting to link and push anyway...', 'warn');
-                    // Fetch the existing repo URL
-                    const userRes = await fetch('https://api.github.com/user', {
-                        headers: { 'Authorization': `token ${settings.githubToken}` }
-                    });
-                    const userData = await userRes.json();
-                    ghRepo = { clone_url: `https://github.com/${userData.login}/${repoName}.git` };
-                } else {
-                    throw err;
-                }
-            }
-
-            const cloneUrl = ghRepo.clone_url;
-            logToConsole(`Target GitHub URL: ${cloneUrl}`, 'success');
-
-            // 2. Perform Link and Push via Robust Git Sequence
-            logToConsole('Starting high-stability Git link & push sequence...', 'info');
-            const publishRes = await window.electronAPI.gitPublishSequence(activeRepo.path, cloneUrl);
-
-            if (publishRes.success) {
-                logToConsole('Project successfully published and pushed to GitHub!', 'success');
-                await refreshActiveRepoUI();
-                showAlert(`Successfully published ${activeRepo.name} to GitHub.`, 'Success');
-            } else {
-                logToConsole(`Push sequence failed: ${publishRes.output}`, 'error');
-                logToConsole('The repository exists on GitHub, but the push failed. You can retry anytime.', 'warn');
-                showError(`Link successful but push failed: ${publishRes.output}`, 'Publish Partially Failed');
-                await refreshActiveRepoUI();
-            }
-        } catch (e) {
-            logToConsole(`Publish failed: ${e.message}`, 'error');
-            let friendlyMsg = e.message;
-            if (e.message.includes('403')) {
-                friendlyMsg = "GitHub API Error 403: Permission Denied.\n\nThis usually means your Personal Access Token (PAT) is missing the 'repo' scope (Classic) or isn't set to 'All Repositories' with 'Administration: Read & Write' (Fine-grained).";
-            }
-            showError(friendlyMsg, 'Error Publishing Project');
-        } finally {
-            setTaskState(false);
+    try {
+      // 1. Create repo on GitHub via REST API
+      logToConsole(`Creating GitHub repository: ${repoName}...`, 'info');
+      let ghRes;
+      try {
+        ghRes = await window.electronAPI.createGitHubRepo(
+          settings.githubToken,
+          repoName,
+          isPrivate,
+        );
+        if (ghRes.expiration) updateTokenExpirationUI(ghRes.expiration);
+        ghRepo = ghRes.repo;
+      } catch (err) {
+        if (err.message.includes('422')) {
+          logToConsole(
+            'Repository already exists on GitHub. Attempting to link and push anyway...',
+            'warn',
+          );
+          // Fetch the existing repo URL
+          const userRes = await fetch('https://api.github.com/user', {
+            headers: { Authorization: `token ${settings.githubToken}` },
+          });
+          const userData = await userRes.json();
+          ghRepo = { clone_url: `https://github.com/${userData.login}/${repoName}.git` };
+        } else {
+          throw err;
         }
-    };
+      }
+
+      const cloneUrl = ghRepo.clone_url;
+      logToConsole(`Target GitHub URL: ${cloneUrl}`, 'success');
+
+      // 2. Perform Link and Push via Robust Git Sequence
+      logToConsole('Starting high-stability Git link & push sequence...', 'info');
+      const publishRes = await window.electronAPI.gitPublishSequence(activeRepo.path, cloneUrl);
+
+      if (publishRes.success) {
+        logToConsole('Project successfully published and pushed to GitHub!', 'success');
+        await refreshActiveRepoUI();
+        showAlert(`Successfully published ${activeRepo.name} to GitHub.`, 'Success');
+      } else {
+        logToConsole(`Push sequence failed: ${publishRes.output}`, 'error');
+        logToConsole(
+          'The repository exists on GitHub, but the push failed. You can retry anytime.',
+          'warn',
+        );
+        showError(
+          `Link successful but push failed: ${publishRes.output}`,
+          'Publish Partially Failed',
+        );
+        await refreshActiveRepoUI();
+      }
+    } catch (e) {
+      logToConsole(`Publish failed: ${e.message}`, 'error');
+      let friendlyMsg = e.message;
+      if (e.message.includes('403')) {
+        friendlyMsg =
+          "GitHub API Error 403: Permission Denied.\n\nThis usually means your Personal Access Token (PAT) is missing the 'repo' scope (Classic) or isn't set to 'All Repositories' with 'Administration: Read & Write' (Fine-grained).";
+      }
+      showError(friendlyMsg, 'Error Publishing Project');
+    } finally {
+      setTaskState(false);
+    }
+  };
 }
 
 async function handleToggleGitHubVisibility() {
-    const btn = elements.githubVisibilityBtn;
-    const owner = btn.dataset.owner;
-    const repo = btn.dataset.repo;
-    const isPrivate = btn.dataset.isPrivate === 'true';
-    const nextPrivate = !isPrivate;
+  const btn = elements.githubVisibilityBtn;
+  const owner = btn.dataset.owner;
+  const repo = btn.dataset.repo;
+  const isPrivate = btn.dataset.isPrivate === 'true';
+  const nextPrivate = !isPrivate;
 
-    const message = nextPrivate
-        ? `Are you sure you want to make the repository "${owner}/${repo}" PRIVATE?\n\nThis will hide it from the public.`
-        : `Are you sure you want to make the repository "${owner}/${repo}" PUBLIC?\n\nThis will make your code visible to everyone on the internet.`;
+  const message = nextPrivate
+    ? `Are you sure you want to make the repository "${owner}/${repo}" PRIVATE?\n\nThis will hide it from the public.`
+    : `Are you sure you want to make the repository "${owner}/${repo}" PUBLIC?\n\nThis will make your code visible to everyone on the internet.`;
 
-    if (await showConfirm(message, nextPrivate ? "Make Private" : "Make Public")) {
-        setTaskState(true);
-        btn.classList.add('btn-loading');
-        try {
-            const res = await window.electronAPI.updateGitHubRepoVisibility(settings.githubToken, owner, repo, nextPrivate);
-            if (res.expiration) updateTokenExpirationUI(res.expiration);
-            logToConsole(`Successfully changed visibility to ${nextPrivate ? 'PRIVATE' : 'PUBLIC'} for ${owner}/${repo}`, 'success');
+  if (await showConfirm(message, nextPrivate ? 'Make Private' : 'Make Public')) {
+    setTaskState(true);
+    btn.classList.add('btn-loading');
+    try {
+      const res = await window.electronAPI.updateGitHubRepoVisibility(
+        settings.githubToken,
+        owner,
+        repo,
+        nextPrivate,
+      );
+      if (res.expiration) updateTokenExpirationUI(res.expiration);
+      logToConsole(
+        `Successfully changed visibility to ${nextPrivate ? 'PRIVATE' : 'PUBLIC'} for ${owner}/${repo}`,
+        'success',
+      );
 
-            // Update Cache immediately
-            if (activeRepo) {
-                repoVisibilityCache.set(activeRepo.path, { owner, repo, isPrivate: nextPrivate });
-            }
+      // Update Cache immediately
+      if (activeRepo) {
+        repoVisibilityCache.set(activeRepo.path, { owner, repo, isPrivate: nextPrivate });
+      }
 
-            await refreshActiveRepoUI(true); // Silent refresh
-        } catch (e) {
-            logToConsole(`Failed to change visibility: ${e.message}`, 'error');
-            showError(e.message, 'GitHub API Error');
-        } finally {
-            setTaskState(false);
-            btn.classList.remove('btn-loading');
-        }
+      await refreshActiveRepoUI(true); // Silent refresh
+    } catch (e) {
+      logToConsole(`Failed to change visibility: ${e.message}`, 'error');
+      showError(e.message, 'GitHub API Error');
+    } finally {
+      setTaskState(false);
+      btn.classList.remove('btn-loading');
     }
+  }
 }
 
 async function handleNukeReinit() {
-    if (!activeRepo) return;
-    const warning = `NUCLEAR OPTION: START FRESH?\n\nThis will PERMANENTLY DELETE the .git folder for ${activeRepo.name}.\n\nYour history will be WIPED and a new repository will be initialized. Local files remain safe.`;
+  if (!activeRepo) return;
+  const warning = `NUCLEAR OPTION: START FRESH?\n\nThis will PERMANENTLY DELETE the .git folder for ${activeRepo.name}.\n\nYour history will be WIPED and a new repository will be initialized. Local files remain safe.`;
 
-    if (await showConfirm(warning, "Start Fresh")) {
-        if (await showConfirm("FINAL WARNING: This cannot be undone. Wipe Git history?", "DANGER: Nuclear Wipe")) {
-            setTaskState(true);
-            logToConsole(`Nuking .git for ${activeRepo.name}...`, 'info');
-            try {
-                const res = await window.electronAPI.gitNukeReinit(activeRepo.path);
-                if (res.success) {
-                    logToConsole(res.output, 'success');
-                    await refreshActiveRepoUI();
-                    renderTree();
-                } else {
-                    logToConsole(`Nuke failed: ${res.output}`, 'error');
-                    showError(res.output, 'Nuke Failed');
-                }
-            } catch (e) {
-                logToConsole(`Nuke error: ${e.message}`, 'error');
-                showError(e.message, 'System Error');
-            } finally { setTaskState(false); }
+  if (await showConfirm(warning, 'Start Fresh')) {
+    if (
+      await showConfirm(
+        'FINAL WARNING: This cannot be undone. Wipe Git history?',
+        'DANGER: Nuclear Wipe',
+      )
+    ) {
+      setTaskState(true);
+      logToConsole(`Nuking .git for ${activeRepo.name}...`, 'info');
+      try {
+        const res = await window.electronAPI.gitNukeReinit(activeRepo.path);
+        if (res.success) {
+          logToConsole(res.output, 'success');
+          await refreshActiveRepoUI();
+          renderTree();
+        } else {
+          logToConsole(`Nuke failed: ${res.output}`, 'error');
+          showError(res.output, 'Nuke Failed');
         }
+      } catch (e) {
+        logToConsole(`Nuke error: ${e.message}`, 'error');
+        showError(e.message, 'System Error');
+      } finally {
+        setTaskState(false);
+      }
     }
+  }
 }
 
 async function renderTree(filter = '') {
-    if (isRendering) return;
-    isRendering = true;
+  if (isRendering) return;
+  isRendering = true;
 
-    try {
-        const search = (filter || '').trim().toLowerCase();
-        if (!elements.repoTree) return;
+  try {
+    const search = (filter || '').trim().toLowerCase();
+    if (!elements.repoTree) return;
 
-        // Performance: Parallel search across all repositories
-        const searchPromises = repositories.map(async repo => {
-            if (!repo || !repo.name) return { repo, fileMatches: [] };
-            let fileMatches = [];
-            if (search.length >= 1) {
-                fileMatches = await window.electronAPI.searchFiles(repo.path, search);
-            }
-            return { repo, fileMatches };
-        });
+    // Performance: Parallel search across all repositories
+    const searchPromises = repositories.map(async (repo) => {
+      if (!repo || !repo.name) return { repo, fileMatches: [] };
+      let fileMatches = [];
+      if (search.length >= 1) {
+        fileMatches = await window.electronAPI.searchFiles(repo.path, search);
+      }
+      return { repo, fileMatches };
+    });
 
-        const results = await Promise.all(searchPromises);
-        const fragment = document.createDocumentFragment();
-        let hasDirectMatches = false;
+    const results = await Promise.all(searchPromises);
+    const fragment = document.createDocumentFragment();
+    let hasDirectMatches = false;
 
-        results.forEach(({ repo, fileMatches }, index) => {
-            let nameMatch = false;
-            if (search.includes('*')) {
-                try {
-                    const regexStr = search.replace(/[.+^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*');
-                    const re = new RegExp(`^${regexStr}$`, 'i');
-                    nameMatch = re.test(repo.name);
-                } catch (e) {
-                    nameMatch = false;
-                }
+    results.forEach(({ repo, fileMatches }, index) => {
+      let nameMatch = false;
+      if (search.includes('*')) {
+        try {
+          const regexStr = search.replace(/[.+^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*');
+          const re = new RegExp(`^${regexStr}$`, 'i');
+          nameMatch = re.test(repo.name);
+        } catch (e) {
+          nameMatch = false;
+        }
+      } else {
+        nameMatch = repo.name.toLowerCase().includes(search);
+      }
+
+      if (!search || nameMatch || fileMatches.length > 0) {
+        hasDirectMatches = true;
+        const nodeContainer = createTreeNode(repo.name, repo.path, true, 0, repo);
+        fragment.appendChild(nodeContainer);
+
+        // If searching and found files, show them as direct children
+        if (search && fileMatches.length > 0) {
+          const childrenContainer = document.createElement('div');
+          childrenContainer.className = 'children-container';
+
+          // Show top 100 matches to keep UI snappy
+          for (const relPath of fileMatches.slice(0, 100)) {
+            const fullPath = `${repo.path}/${relPath}`.replace(/\\/g, '/');
+            // Use the relative path as name so user knows location
+            childrenContainer.appendChild(createTreeNode(relPath, fullPath, false, 1, repo));
+          }
+
+          if (fileMatches.length > 100) {
+            const more = document.createElement('div');
+            more.style.padding = '4px 30px';
+            more.style.fontSize = '10px';
+            more.style.color = 'var(--text-muted)';
+            more.style.fontStyle = 'italic';
+            more.textContent = `+ ${fileMatches.length - 100} more matches...`;
+            childrenContainer.appendChild(more);
+          }
+
+          nodeContainer.appendChild(childrenContainer);
+          const chevron = nodeContainer.querySelector('.chevron');
+          if (chevron) chevron.textContent = '▾';
+        }
+
+        // Metadata hydration (Status dots, missing indicators, online/offline status)
+        // Use staggered delays to prevent saturating the main process with many git status calls at once
+        setTimeout(async () => {
+          try {
+            const exists = await window.electronAPI.pathExists(repo.path);
+            if (!exists) {
+              const nameEl = nodeContainer.querySelector('.node-name');
+              if (nameEl) {
+                nameEl.style.color = 'var(--accent-red)';
+                nameEl.textContent += ' (MISSING)';
+              }
             } else {
-                nameMatch = repo.name.toLowerCase().includes(search);
-            }
+              const [status, remotes] = await Promise.all([
+                window.electronAPI.gitStatus(repo.path),
+                window.electronAPI.getRemotes(repo.path),
+              ]);
 
-            if (!search || nameMatch || fileMatches.length > 0) {
-                hasDirectMatches = true;
-                const nodeContainer = createTreeNode(repo.name, repo.path, true, 0, repo);
-                fragment.appendChild(nodeContainer);
+              const changes = status.details || {
+                staged: [],
+                unstaged: [],
+                untracked: [],
+                deleted: [],
+                ignored: [],
+              };
+              const hasRemotes = remotes.length > 0;
+              const normBase = repo.path.replace(/\\/g, '/').toLowerCase();
+              repo.changedFiles = [
+                ...changes.staged,
+                ...changes.unstaged,
+                ...changes.untracked,
+              ].map((f) => `${normBase}/${f.replace(/\\/g, '/')}`.toLowerCase());
+              repo.notTrackedFiles = [...(changes.untracked || []), ...(changes.ignored || [])].map(
+                (f) => `${normBase}/${f.replace(/\\/g, '/')}`.toLowerCase(),
+              );
 
-                // If searching and found files, show them as direct children
-                if (search && fileMatches.length > 0) {
-                    const childrenContainer = document.createElement('div');
-                    childrenContainer.className = 'children-container';
+              const hasChanges =
+                changes.staged.length + changes.unstaged.length + (changes.untracked || []).length >
+                0;
+              const nameEl = nodeContainer.querySelector('.node-name');
 
-                    // Show top 100 matches to keep UI snappy
-                    for (const relPath of fileMatches.slice(0, 100)) {
-                        const fullPath = `${repo.path}/${relPath}`.replace(/\\/g, '/');
-                        // Use the relative path as name so user knows location
-                        childrenContainer.appendChild(createTreeNode(relPath, fullPath, false, 1, repo));
-                    }
-
-                    if (fileMatches.length > 100) {
-                        const more = document.createElement('div');
-                        more.style.padding = '4px 30px';
-                        more.style.fontSize = '10px';
-                        more.style.color = 'var(--text-muted)';
-                        more.style.fontStyle = 'italic';
-                        more.textContent = `+ ${fileMatches.length - 100} more matches...`;
-                        childrenContainer.appendChild(more);
-                    }
-
-                    nodeContainer.appendChild(childrenContainer);
-                    const chevron = nodeContainer.querySelector('.chevron');
-                    if (chevron) chevron.textContent = '▾';
-                }
-
-                // Metadata hydration (Status dots, missing indicators, online/offline status)
-                // Use staggered delays to prevent saturating the main process with many git status calls at once
-                setTimeout(async () => {
-                    try {
-                        const exists = await window.electronAPI.pathExists(repo.path);
-                        if (!exists) {
-                            const nameEl = nodeContainer.querySelector('.node-name');
-                            if (nameEl) {
-                                nameEl.style.color = 'var(--accent-red)';
-                                nameEl.textContent += ' (MISSING)';
-                            }
-                        } else {
-                            const [status, remotes] = await Promise.all([
-                                window.electronAPI.gitStatus(repo.path),
-                                window.electronAPI.getRemotes(repo.path)
-                            ]);
-
-                            const changes = status.details || { staged: [], unstaged: [], untracked: [], deleted: [], ignored: [] };
-                            const hasRemotes = remotes.length > 0;
-                            const normBase = repo.path.replace(/\\/g, '/').toLowerCase();
-                            repo.changedFiles = [...changes.staged, ...changes.unstaged, ...changes.untracked].map(f => `${normBase}/${f.replace(/\\/g, '/')}`.toLowerCase());
-                            repo.notTrackedFiles = [...(changes.untracked || []), ...(changes.ignored || [])].map(f => `${normBase}/${f.replace(/\\/g, '/')}`.toLowerCase());
-
-                            const hasChanges = (changes.staged.length + changes.unstaged.length + (changes.untracked || []).length) > 0;
-                            const nameEl = nodeContainer.querySelector('.node-name');
-
-                            if (nameEl) {
-                                if (hasChanges) {
-                                    nameEl.style.color = 'var(--accent-red)';
-                                } else if (!hasRemotes) {
-                                    nameEl.style.color = '#e3b341'; // Light yellow for offline/local-only
-                                } else {
-                                    nameEl.style.color = ''; // Reset to default (white) for online/clean
-                                }
-                            }
-                        }
-                    } catch (e) {}
-                }, 50 * index);
-            }
-        });
-
-        if (search && !hasDirectMatches) {
-            const noMatches = document.createElement('div');
-            noMatches.style.padding = '20px';
-            noMatches.style.color = 'var(--text-muted)';
-            noMatches.style.textAlign = 'center';
-            noMatches.style.fontSize = '11px';
-            noMatches.textContent = `No direct matches for "${filter}"`;
-            fragment.appendChild(noMatches);
-        }
-
-        if (fragment.children.length === 0) {
-            elements.repoTree.innerHTML = `<div style="padding:20px; color:var(--text-muted); text-align:center;">No matches for "${filter}"</div>`;
-        } else {
-            // Save scroll position
-            const scrollPos = elements.repoTree.scrollTop;
-
-            elements.repoTree.innerHTML = '';
-            elements.repoTree.appendChild(fragment);
-
-            // Only restore normal tree expansions if NOT searching
-            if (!search) {
-                await restoreAllExpansions();
-
-                // Keep active project visible if requested, otherwise restore scroll
-                if (activeRepo) {
-                    const repoPath = activeRepo.path.replace(/\\/g, '/').toLowerCase();
-                    const repoRoot = Array.from(elements.repoTree.querySelectorAll('.repo-root')).find(el =>
-                        el.dataset.path.replace(/\\/g, '/').toLowerCase() === repoPath
-                    );
-                    if (repoRoot) repoRoot.scrollIntoView({ behavior: 'auto', block: 'nearest' });
+              if (nameEl) {
+                if (hasChanges) {
+                  nameEl.style.color = 'var(--accent-red)';
+                } else if (!hasRemotes) {
+                  nameEl.style.color = '#e3b341'; // Light yellow for offline/local-only
                 } else {
-                    elements.repoTree.scrollTop = scrollPos;
+                  nameEl.style.color = ''; // Reset to default (white) for online/clean
                 }
+              }
             }
+          } catch (e) {}
+        }, 50 * index);
+      }
+    });
 
-            updateTreeSelectionUI();
-        }
-    } catch (fatal) {
-        console.error('FATAL TREE RENDER ERROR:', fatal);
-    } finally {
-        isRendering = false;
+    if (search && !hasDirectMatches) {
+      const noMatches = document.createElement('div');
+      noMatches.style.padding = '20px';
+      noMatches.style.color = 'var(--text-muted)';
+      noMatches.style.textAlign = 'center';
+      noMatches.style.fontSize = '11px';
+      noMatches.textContent = `No direct matches for "${filter}"`;
+      fragment.appendChild(noMatches);
     }
+
+    if (fragment.children.length === 0) {
+      elements.repoTree.innerHTML = `<div style="padding:20px; color:var(--text-muted); text-align:center;">No matches for "${filter}"</div>`;
+    } else {
+      // Save scroll position
+      const scrollPos = elements.repoTree.scrollTop;
+
+      elements.repoTree.innerHTML = '';
+      elements.repoTree.appendChild(fragment);
+
+      // Only restore normal tree expansions if NOT searching
+      if (!search) {
+        await restoreAllExpansions();
+
+        // Keep active project visible if requested, otherwise restore scroll
+        if (activeRepo) {
+          const repoPath = activeRepo.path.replace(/\\/g, '/').toLowerCase();
+          const repoRoot = Array.from(elements.repoTree.querySelectorAll('.repo-root')).find(
+            (el) => el.dataset.path.replace(/\\/g, '/').toLowerCase() === repoPath,
+          );
+          if (repoRoot) repoRoot.scrollIntoView({ behavior: 'auto', block: 'nearest' });
+        } else {
+          elements.repoTree.scrollTop = scrollPos;
+        }
+      }
+
+      updateTreeSelectionUI();
+    }
+  } catch (fatal) {
+    console.error('FATAL TREE RENDER ERROR:', fatal);
+  } finally {
+    isRendering = false;
+  }
 }
 
 function createTreeNode(name, fullPath, isDirectory, depth, repo) {
-    const container = document.createElement('div');
-    container.id = 'node-' + Math.random().toString(36).substr(2, 9);
-    const item = document.createElement('div');
-    const normPath = fullPath.replace(/\\/g, '/').toLowerCase();
-    let isChanged = false;
-    if (repo && repo.changedFiles) {
-        if (!isDirectory) {
-            isChanged = repo.changedFiles.includes(normPath);
-        } else {
-            const normPathWithSlash = normPath.endsWith('/') ? normPath : normPath + '/';
-            isChanged = repo.changedFiles.some(f => f.startsWith(normPathWithSlash));
-        }
-    }
-    item.className = `tree-node ${depth === 0 ? 'repo-root' : ''} ${isDirectory ? 'is-directory' : 'is-file'} ${isChanged ? 'changed-file' : ''}`;
-    item.style.paddingLeft = '8px';
-    if (selectedNodes.has(fullPath)) item.classList.add('active');
-    const ext = name.split('.').pop().toLowerCase();
-    const fileClass = !isDirectory ? `file-type-${ext.replace(/[^a-z0-9]/g, '-')}` : '';
-    item.innerHTML = `<span class="chevron">${isDirectory ? '▸' : ''}</span><span class="node-name ${fileClass}">${name}</span>`;
-
-    // Separate click handler for the expansion arrow (chevron)
-    // This allows toggling expansion without selecting the item or opening the view.
-    const chevron = item.querySelector('.chevron');
-    if (chevron && isDirectory) {
-        chevron.onclick = (e) => {
-            e.stopPropagation();
-            toggleFolder(container, fullPath, depth, repo);
-        };
-    }
-
-    item.dataset.path = fullPath;
-    item.dataset.isDirectory = isDirectory;
-    item.oncontextmenu = async (e) => {
-        e.preventDefault(); e.stopPropagation();
-        if (!selectedNodes.has(fullPath)) { selectedNodes.clear(); selectedNodes.add(fullPath); updateTreeSelectionUI(); }
-
-        const selection = Array.from(selectedNodes);
-        const repoPaths = selection.filter(p => repositories.some(r => r.path.replace(/\\/g, '/').toLowerCase() === p.replace(/\\/g, '/').toLowerCase()));
-        const filePaths = selection.filter(p => !repoPaths.includes(p));
-
-        let isTracked = true;
-        const isRepoRoot = repositories.some(r => r.path.replace(/\\/g, '/').toLowerCase() === fullPath.replace(/\\/g, '/').toLowerCase());
-        let isSubtreeMapped = false;
-
-        if (!isRepoRoot && repo) {
-            const relPath = fullPath.substring(repo.path.length).replace(/^[\\\/]/, '').replace(/\\/g, '/');
-            try {
-                isTracked = await window.electronAPI.gitIsTracked(repo.path, relPath);
-
-                // Check if this folder is a mapped subtree
-                const mappings = await getRepoSubtreeMappings(repo.path);
-                isSubtreeMapped = mappings.some(m => m.prefix === relPath);
-            } catch (err) { isTracked = false; }
-        }
-
-        window.electronAPI.showContextMenu({
-            paths: selection,
-            repoPaths,
-            filePaths,
-            repoPath: repo.path,
-            isTracked,
-            hideIgnoredFiles,
-            isRepoRoot,
-            isDirectory,
-            isSubtreeMapped
-        });
-    };
-    item.onclick = async (e) => {
-        e.stopPropagation();
-
-        if (e.shiftKey && lastSelectedPath) {
-            const nodes = Array.from(document.querySelectorAll('.tree-node'));
-            const lastIdx = nodes.findIndex(n => n.dataset.path === lastSelectedPath);
-            const currIdx = nodes.findIndex(n => n.dataset.path === fullPath);
-
-            if (lastIdx !== -1 && currIdx !== -1) {
-                const start = Math.min(lastIdx, currIdx);
-                const end = Math.max(lastIdx, currIdx);
-                if (!e.ctrlKey) selectedNodes.clear();
-                for (let i = start; i <= end; i++) {
-                    selectedNodes.add(nodes[i].dataset.path);
-                }
-                updateTreeSelectionUI();
-                return;
-            }
-        }
-
-        lastSelectedPath = fullPath;
-
-        if (e.ctrlKey) { if (selectedNodes.has(fullPath)) selectedNodes.delete(fullPath); else selectedNodes.add(fullPath); updateTreeSelectionUI(); return; }
-
-        selectedNodes.clear(); selectedNodes.add(fullPath); updateTreeSelectionUI();
-        if (isDirectory) {
-            if (depth === 0) {
-                // For project roots, ensure it stays expanded if the repo view isn't showing
-                const repoViewShowing = elements.repoView.style.display === 'flex' && activeRepo && activeRepo.path === repo.path;
-                if (!repoViewShowing) {
-                    await toggleFolder(container, fullPath, depth, repo, true);
-                } else {
-                    await toggleFolder(container, fullPath, depth, repo);
-                }
-                await selectRepo(repo, false);
-            } else {
-                toggleFolder(container, fullPath, depth, repo);
-            }
-        } else {
-            await openFileInEditor(fullPath);
-        }
-    };
-    if (isDirectory) {
-        item.ondragover = (e) => { e.preventDefault(); item.style.backgroundColor = 'var(--hover-bg)'; };
-        item.ondragleave = () => item.style.backgroundColor = '';
-        item.ondrop = (e) => {
-            e.preventDefault(); item.style.backgroundColor = '';
-            handleFileDrop(e.dataTransfer.getData('text/plain'), fullPath, container, depth, e.dataTransfer.getData('source-container-id'));
-        };
+  const container = document.createElement('div');
+  container.id = 'node-' + Math.random().toString(36).substr(2, 9);
+  const item = document.createElement('div');
+  const normPath = fullPath.replace(/\\/g, '/').toLowerCase();
+  let isChanged = false;
+  if (repo && repo.changedFiles) {
+    if (!isDirectory) {
+      isChanged = repo.changedFiles.includes(normPath);
     } else {
-        item.draggable = true;
-        item.ondragstart = (e) => {
-            // If the dragged item is part of the selection, drag all selected items
-            // Otherwise, just drag the single item
-            const paths = selectedNodes.has(fullPath) ? Array.from(selectedNodes) : [fullPath];
-            e.dataTransfer.setData('text/plain', JSON.stringify(paths));
-            e.dataTransfer.setData('source-container-id', container.id);
-        };
+      const normPathWithSlash = normPath.endsWith('/') ? normPath : normPath + '/';
+      isChanged = repo.changedFiles.some((f) => f.startsWith(normPathWithSlash));
     }
-    container.appendChild(item); return container;
+  }
+  item.className = `tree-node ${depth === 0 ? 'repo-root' : ''} ${isDirectory ? 'is-directory' : 'is-file'} ${isChanged ? 'changed-file' : ''}`;
+  item.style.paddingLeft = '8px';
+  if (selectedNodes.has(fullPath)) item.classList.add('active');
+  const ext = name.split('.').pop().toLowerCase();
+  const fileClass = !isDirectory ? `file-type-${ext.replace(/[^a-z0-9]/g, '-')}` : '';
+  item.innerHTML = `<span class="chevron">${isDirectory ? '▸' : ''}</span><span class="node-name ${fileClass}">${name}</span>`;
+
+  // Separate click handler for the expansion arrow (chevron)
+  // This allows toggling expansion without selecting the item or opening the view.
+  const chevron = item.querySelector('.chevron');
+  if (chevron && isDirectory) {
+    chevron.onclick = (e) => {
+      e.stopPropagation();
+      toggleFolder(container, fullPath, depth, repo);
+    };
+  }
+
+  item.dataset.path = fullPath;
+  item.dataset.isDirectory = isDirectory;
+  item.oncontextmenu = async (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!selectedNodes.has(fullPath)) {
+      selectedNodes.clear();
+      selectedNodes.add(fullPath);
+      updateTreeSelectionUI();
+    }
+
+    const selection = Array.from(selectedNodes);
+    const repoPaths = selection.filter((p) =>
+      repositories.some(
+        (r) => r.path.replace(/\\/g, '/').toLowerCase() === p.replace(/\\/g, '/').toLowerCase(),
+      ),
+    );
+    const filePaths = selection.filter((p) => !repoPaths.includes(p));
+
+    let isTracked = true;
+    const isRepoRoot = repositories.some(
+      (r) =>
+        r.path.replace(/\\/g, '/').toLowerCase() === fullPath.replace(/\\/g, '/').toLowerCase(),
+    );
+    let isSubtreeMapped = false;
+
+    if (!isRepoRoot && repo) {
+      const relPath = fullPath
+        .substring(repo.path.length)
+        .replace(/^[\\\/]/, '')
+        .replace(/\\/g, '/');
+      try {
+        isTracked = await window.electronAPI.gitIsTracked(repo.path, relPath);
+
+        // Check if this folder is a mapped subtree
+        const mappings = await getRepoSubtreeMappings(repo.path);
+        isSubtreeMapped = mappings.some((m) => m.prefix === relPath);
+      } catch (err) {
+        isTracked = false;
+      }
+    }
+
+    window.electronAPI.showContextMenu({
+      paths: selection,
+      repoPaths,
+      filePaths,
+      repoPath: repo.path,
+      isTracked,
+      hideIgnoredFiles,
+      isRepoRoot,
+      isDirectory,
+      isSubtreeMapped,
+    });
+  };
+  item.onclick = async (e) => {
+    e.stopPropagation();
+
+    if (e.shiftKey && lastSelectedPath) {
+      const nodes = Array.from(document.querySelectorAll('.tree-node'));
+      const lastIdx = nodes.findIndex((n) => n.dataset.path === lastSelectedPath);
+      const currIdx = nodes.findIndex((n) => n.dataset.path === fullPath);
+
+      if (lastIdx !== -1 && currIdx !== -1) {
+        const start = Math.min(lastIdx, currIdx);
+        const end = Math.max(lastIdx, currIdx);
+        if (!e.ctrlKey) selectedNodes.clear();
+        for (let i = start; i <= end; i++) {
+          selectedNodes.add(nodes[i].dataset.path);
+        }
+        updateTreeSelectionUI();
+        return;
+      }
+    }
+
+    lastSelectedPath = fullPath;
+
+    if (e.ctrlKey) {
+      if (selectedNodes.has(fullPath)) selectedNodes.delete(fullPath);
+      else selectedNodes.add(fullPath);
+      updateTreeSelectionUI();
+      return;
+    }
+
+    selectedNodes.clear();
+    selectedNodes.add(fullPath);
+    updateTreeSelectionUI();
+    if (isDirectory) {
+      if (depth === 0) {
+        // For project roots, ensure it stays expanded if the repo view isn't showing
+        const repoViewShowing =
+          elements.repoView.style.display === 'flex' && activeRepo && activeRepo.path === repo.path;
+        if (!repoViewShowing) {
+          await toggleFolder(container, fullPath, depth, repo, true);
+        } else {
+          await toggleFolder(container, fullPath, depth, repo);
+        }
+        await selectRepo(repo, false);
+      } else {
+        toggleFolder(container, fullPath, depth, repo);
+      }
+    } else {
+      await openFileInEditor(fullPath);
+    }
+  };
+  if (isDirectory) {
+    item.ondragover = (e) => {
+      e.preventDefault();
+      item.style.backgroundColor = 'var(--hover-bg)';
+    };
+    item.ondragleave = () => (item.style.backgroundColor = '');
+    item.ondrop = (e) => {
+      e.preventDefault();
+      item.style.backgroundColor = '';
+      handleFileDrop(
+        e.dataTransfer.getData('text/plain'),
+        fullPath,
+        container,
+        depth,
+        e.dataTransfer.getData('source-container-id'),
+      );
+    };
+  } else {
+    item.draggable = true;
+    item.ondragstart = (e) => {
+      // If the dragged item is part of the selection, drag all selected items
+      // Otherwise, just drag the single item
+      const paths = selectedNodes.has(fullPath) ? Array.from(selectedNodes) : [fullPath];
+      e.dataTransfer.setData('text/plain', JSON.stringify(paths));
+      e.dataTransfer.setData('source-container-id', container.id);
+    };
+  }
+  container.appendChild(item);
+  return container;
 }
 
 async function toggleFolder(container, dirPath, depth, repo, forceExpand = false) {
-    const item = container.querySelector('.tree-node');
-    const chevron = item.querySelector('.chevron');
-    const existing = container.querySelector('.children-container');
-    const normPath = dirPath.replace(/\\/g, '/').toLowerCase();
+  const item = container.querySelector('.tree-node');
+  const chevron = item.querySelector('.chevron');
+  const existing = container.querySelector('.children-container');
+  const normPath = dirPath.replace(/\\/g, '/').toLowerCase();
 
-    if (existing) {
-        if (forceExpand) return; // Stay expanded
-        existing.remove();
-        if (chevron) chevron.textContent = '▸';
-        expandedNodes.delete(normPath);
-        return;
+  if (existing) {
+    if (forceExpand) return; // Stay expanded
+    existing.remove();
+    if (chevron) chevron.textContent = '▸';
+    expandedNodes.delete(normPath);
+    return;
+  }
+
+  if (chevron) chevron.textContent = '▾';
+  expandedNodes.add(normPath);
+
+  try {
+    const children = await window.electronAPI.listDirectory(dirPath, !hideIgnoredFiles);
+    const childrenContainer = document.createElement('div');
+    childrenContainer.className = 'children-container';
+    for (const child of children) {
+      childrenContainer.appendChild(
+        await createTreeNode(child.name, child.path, child.isDirectory, depth + 1, repo),
+      );
     }
-
-    if (chevron) chevron.textContent = '▾';
-    expandedNodes.add(normPath);
-
-    try {
-        const children = await window.electronAPI.listDirectory(dirPath, !hideIgnoredFiles);
-        const childrenContainer = document.createElement('div');
-        childrenContainer.className = 'children-container';
-        for (const child of children) {
-            childrenContainer.appendChild(await createTreeNode(child.name, child.path, child.isDirectory, depth + 1, repo));
-        }
-        container.appendChild(childrenContainer);
-    } catch (e) { logToConsole(e.message, 'error'); }
+    container.appendChild(childrenContainer);
+  } catch (e) {
+    logToConsole(e.message, 'error');
+  }
 }
 
 async function revealFileInSidebar(filePath) {
-    if (!elements.repoTree) return;
-    const repo = findRepoForPath(filePath);
-    if (!repo) return;
+  if (!elements.repoTree) return;
+  const repo = findRepoForPath(filePath);
+  if (!repo) return;
 
-    // 1. Locate Repo Root in tree
-    const normRepoPath = repo.path.replace(/\\/g, '/').toLowerCase();
-    let currentContainer = Array.from(elements.repoTree.querySelectorAll(':scope > div')).find(div => {
-        const node = div.querySelector('.tree-node');
-        return node && node.dataset.path.replace(/\\/g, '/').toLowerCase() === normRepoPath;
+  // 1. Locate Repo Root in tree
+  const normRepoPath = repo.path.replace(/\\/g, '/').toLowerCase();
+  let currentContainer = Array.from(elements.repoTree.querySelectorAll(':scope > div')).find(
+    (div) => {
+      const node = div.querySelector('.tree-node');
+      return node && node.dataset.path.replace(/\\/g, '/').toLowerCase() === normRepoPath;
+    },
+  );
+
+  if (!currentContainer) return;
+
+  // 2. Resolve relative path parts
+  const relPath = filePath
+    .substring(repo.path.length)
+    .replace(/^[\\\/]/, '')
+    .replace(/\\/g, '/');
+  if (!relPath) {
+    const node = currentContainer.querySelector('.tree-node');
+    if (node) {
+      selectedNodes.clear();
+      selectedNodes.add(node.dataset.path);
+      updateTreeSelectionUI();
+      node.scrollIntoView({ behavior: 'auto', block: 'nearest' });
+    }
+    return;
+  }
+
+  const parts = relPath.split('/');
+  let builtPath = repo.path.replace(/\\/g, '/');
+
+  for (let i = 0; i < parts.length; i++) {
+    const isLast = i === parts.length - 1;
+    const part = parts[i];
+    builtPath = `${builtPath}/${part}`.replace(/\/+/g, '/');
+
+    // Expand if needed
+    let children = currentContainer.querySelector('.children-container');
+    if (!children) {
+      const node = currentContainer.querySelector('.tree-node');
+      if (node && node.dataset.isDirectory === 'true') {
+        await toggleFolder(currentContainer, node.dataset.path, i, repo);
+        children = currentContainer.querySelector('.children-container');
+      }
+    }
+
+    if (!children) break;
+
+    // Find child node
+    const normBuilt = builtPath.toLowerCase();
+    const nextDiv = Array.from(children.querySelectorAll(':scope > div')).find((div) => {
+      const node = div.querySelector('.tree-node');
+      return node && node.dataset.path.replace(/\\/g, '/').toLowerCase() === normBuilt;
     });
 
-    if (!currentContainer) return;
+    if (!nextDiv) break;
+    currentContainer = nextDiv;
 
-    // 2. Resolve relative path parts
-    const relPath = filePath.substring(repo.path.length).replace(/^[\\\/]/, '').replace(/\\/g, '/');
-    if (!relPath) {
-        const node = currentContainer.querySelector('.tree-node');
-        if (node) {
-            selectedNodes.clear(); selectedNodes.add(node.dataset.path); updateTreeSelectionUI();
-            node.scrollIntoView({ behavior: 'auto', block: 'nearest' });
-        }
-        return;
+    if (isLast) {
+      const node = currentContainer.querySelector('.tree-node');
+      if (node) {
+        selectedNodes.clear();
+        selectedNodes.add(node.dataset.path);
+        updateTreeSelectionUI();
+        node.scrollIntoView({ behavior: 'auto', block: 'nearest' });
+      }
     }
-
-    const parts = relPath.split('/');
-    let builtPath = repo.path.replace(/\\/g, '/');
-
-    for (let i = 0; i < parts.length; i++) {
-        const isLast = i === parts.length - 1;
-        const part = parts[i];
-        builtPath = `${builtPath}/${part}`.replace(/\/+/g, '/');
-
-        // Expand if needed
-        let children = currentContainer.querySelector('.children-container');
-        if (!children) {
-            const node = currentContainer.querySelector('.tree-node');
-            if (node && node.dataset.isDirectory === 'true') {
-                await toggleFolder(currentContainer, node.dataset.path, i, repo);
-                children = currentContainer.querySelector('.children-container');
-            }
-        }
-
-        if (!children) break;
-
-        // Find child node
-        const normBuilt = builtPath.toLowerCase();
-        const nextDiv = Array.from(children.querySelectorAll(':scope > div')).find(div => {
-            const node = div.querySelector('.tree-node');
-            return node && node.dataset.path.replace(/\\/g, '/').toLowerCase() === normBuilt;
-        });
-
-        if (!nextDiv) break;
-        currentContainer = nextDiv;
-
-        if (isLast) {
-            const node = currentContainer.querySelector('.tree-node');
-            if (node) {
-                selectedNodes.clear(); selectedNodes.add(node.dataset.path); updateTreeSelectionUI();
-                node.scrollIntoView({ behavior: 'auto', block: 'nearest' });
-            }
-        }
-    }
+  }
 }
 
 async function restoreAllExpansions() {
-    const rootNodes = Array.from(elements.repoTree.querySelectorAll(':scope > div'));
-    const tasks = rootNodes.map(root => {
-        const node = root.querySelector('.tree-node');
-        if (!node) return Promise.resolve();
-        const repoPath = node.dataset.path;
-        const repo = repositories.find(r => r.path === repoPath);
-        return restoreExpansionRecursive(root, 0, repo);
-    });
-    await Promise.all(tasks);
+  const rootNodes = Array.from(elements.repoTree.querySelectorAll(':scope > div'));
+  const tasks = rootNodes.map((root) => {
+    const node = root.querySelector('.tree-node');
+    if (!node) return Promise.resolve();
+    const repoPath = node.dataset.path;
+    const repo = repositories.find((r) => r.path === repoPath);
+    return restoreExpansionRecursive(root, 0, repo);
+  });
+  await Promise.all(tasks);
 }
 
 async function restoreExpansionRecursive(container, depth, repo) {
-    const node = container.querySelector('.tree-node');
-    if (!node) return;
-    const path = node.dataset.path.replace(/\\/g, '/').toLowerCase();
+  const node = container.querySelector('.tree-node');
+  if (!node) return;
+  const path = node.dataset.path.replace(/\\/g, '/').toLowerCase();
 
-    if (expandedNodes.has(path)) {
-        if (!container.querySelector('.children-container')) {
-            await toggleFolder(container, node.dataset.path, depth, repo);
-        }
-
-        const childrenContainer = container.querySelector('.children-container');
-        if (childrenContainer) {
-            const children = Array.from(childrenContainer.querySelectorAll(':scope > div'));
-            const tasks = children.map(child => restoreExpansionRecursive(child, depth + 1, repo));
-            await Promise.all(tasks);
-        }
+  if (expandedNodes.has(path)) {
+    if (!container.querySelector('.children-container')) {
+      await toggleFolder(container, node.dataset.path, depth, repo);
     }
+
+    const childrenContainer = container.querySelector('.children-container');
+    if (childrenContainer) {
+      const children = Array.from(childrenContainer.querySelectorAll(':scope > div'));
+      const tasks = children.map((child) => restoreExpansionRecursive(child, depth + 1, repo));
+      await Promise.all(tasks);
+    }
+  }
 }
 
 async function showDashboard(forceRefresh = true) {
-    if (!(await setActiveNavItem(elements.navHome))) return;
-    elements.dashboardView.style.display = 'flex';
-    elements.dashboardView.scrollTop = 0;
+  if (!(await setActiveNavItem(elements.navHome))) return;
+  elements.dashboardView.style.display = 'flex';
+  elements.dashboardView.scrollTop = 0;
 
-    // If not a force refresh and we already have content, just filter the UI
-    if (!forceRefresh && elements.dashboardGrid.children.length > 0) {
-        filterDashboardUI();
-        updateDashboardSummary(null); // Just update active state in summary
-        return;
+  // If not a force refresh and we already have content, just filter the UI
+  if (!forceRefresh && elements.dashboardGrid.children.length > 0) {
+    filterDashboardUI();
+    updateDashboardSummary(null); // Just update active state in summary
+    return;
+  }
+
+  elements.dashboardGrid.innerHTML = ''; // Clear and start fresh
+
+  if (elements.dashboardBulkPullBtn)
+    elements.dashboardBulkPullBtn.classList.remove('highlight-pull');
+
+  let stats = { total: repositories.length, attention: 0, sync: 0, local: 0, unborn: 0 };
+  let unbornList = [];
+
+  // Setup Progress Bar
+  const totalRepos = repositories.length;
+  let loadedCount = 0;
+  if (totalRepos > 0) {
+    elements.dashboardProgressContainer.style.display = 'block';
+    elements.dashboardProgressBar.style.width = '0%';
+    elements.dashboardProgressBar.style.opacity = '1';
+  }
+
+  const updateProgressBar = () => {
+    loadedCount++;
+    const percent = Math.min(100, (loadedCount / totalRepos) * 100);
+    elements.dashboardProgressBar.style.width = `${percent}%`;
+
+    if (loadedCount >= totalRepos) {
+      setTimeout(() => {
+        elements.dashboardProgressBar.style.opacity = '0';
+        setTimeout(() => {
+          elements.dashboardProgressContainer.style.display = 'none';
+        }, 500);
+      }, 500);
     }
+  };
 
-    elements.dashboardGrid.innerHTML = ''; // Clear and start fresh
+  // Fetch unborn folder list from root directory (Non-blocking)
+  (async () => {
+    if (settings.rootRepoDir) {
+      try {
+        const wsStats = await window.electronAPI.getWorkspaceStats(settings.rootRepoDir);
+        unbornList = wsStats.unborn || [];
+        stats.unborn = unbornList.length;
 
-    if (elements.dashboardBulkPullBtn) elements.dashboardBulkPullBtn.classList.remove('highlight-pull');
+        // Render Unborn Folders as virtual cards
+        unbornList.forEach((folder) => {
+          const card = createUnbornCard(folder);
+          card.dataset.isUnborn = 'true';
+          elements.dashboardGrid.appendChild(card);
+        });
 
-    let stats = { total: repositories.length, attention: 0, sync: 0, local: 0, unborn: 0 };
-    let unbornList = [];
-
-    // Setup Progress Bar
-    const totalRepos = repositories.length;
-    let loadedCount = 0;
-    if (totalRepos > 0) {
-        elements.dashboardProgressContainer.style.display = 'block';
-        elements.dashboardProgressBar.style.width = '0%';
-        elements.dashboardProgressBar.style.opacity = '1';
+        updateDashboardSummary(stats);
+        filterDashboardUI(); // Apply filter after unborns added
+      } catch (e) {}
     }
+  })();
 
-    const updateProgressBar = () => {
-        loadedCount++;
-        const percent = Math.min(100, (loadedCount / totalRepos) * 100);
-        elements.dashboardProgressBar.style.width = `${percent}%`;
+  const dashboardRepos = [...repositories];
 
-        if (loadedCount >= totalRepos) {
-            setTimeout(() => {
-                elements.dashboardProgressBar.style.opacity = '0';
-                setTimeout(() => {
-                    elements.dashboardProgressContainer.style.display = 'none';
-                }, 500);
-            }, 500);
-        }
-    };
+  // 1. Instant Rendering of Repo Cards
+  dashboardRepos.forEach((repo) => {
+    const card = document.createElement('div');
+    card.className = 'dashboard-card';
+    card.dataset.repoPath = repo.path;
 
-    // Fetch unborn folder list from root directory (Non-blocking)
-    (async () => {
-        if (settings.rootRepoDir) {
-            try {
-                const wsStats = await window.electronAPI.getWorkspaceStats(settings.rootRepoDir);
-                unbornList = wsStats.unborn || [];
-                stats.unborn = unbornList.length;
-
-                // Render Unborn Folders as virtual cards
-                unbornList.forEach(folder => {
-                    const card = createUnbornCard(folder);
-                    card.dataset.isUnborn = 'true';
-                    elements.dashboardGrid.appendChild(card);
-                });
-
-                updateDashboardSummary(stats);
-                filterDashboardUI(); // Apply filter after unborns added
-            } catch (e) {}
-        }
-    })();
-
-    const dashboardRepos = [...repositories];
-
-    // 1. Instant Rendering of Repo Cards
-    dashboardRepos.forEach(repo => {
-        const card = document.createElement('div');
-        card.className = 'dashboard-card';
-        card.dataset.repoPath = repo.path;
-
-        card.innerHTML = `
+    card.innerHTML = `
             <div class="card-header" style="display:flex; justify-content:space-between; align-items:flex-start;">
                 <div class="card-title" style="font-weight:600; color:var(--accent-blue); font-size:15px;">${repo.name}</div>
             </div>
@@ -4108,37 +5227,42 @@ async function showDashboard(forceRefresh = true) {
             </div>
         `;
 
-        elements.dashboardGrid.appendChild(card);
+    elements.dashboardGrid.appendChild(card);
 
-        // 2. Background Hydration (Staggered to prevent rate limiting/login flood)
-        const index = dashboardRepos.indexOf(repo);
-        setTimeout(async () => {
-            try {
-                const exists = await window.electronAPI.pathExists(repo.path);
-                if (!exists) {
-                    card.innerHTML = `<div class="card-header"><span class="card-title">${repo.name}</span></div><p style="color:var(--accent-red); padding:10px;">Directory Missing</p>`;
-                    return;
-                }
+    // 2. Background Hydration (Staggered to prevent rate limiting/login flood)
+    const index = dashboardRepos.indexOf(repo);
+    setTimeout(async () => {
+      try {
+        const exists = await window.electronAPI.pathExists(repo.path);
+        if (!exists) {
+          card.innerHTML = `<div class="card-header"><span class="card-title">${repo.name}</span></div><p style="color:var(--accent-red); padding:10px;">Directory Missing</p>`;
+          return;
+        }
 
-                const status = await window.electronAPI.gitQuickStatus(repo.path);
+        const status = await window.electronAPI.gitQuickStatus(repo.path);
 
-                const isLocal = status.isLocal;
-                const needsSync = (status.ahead || 0) > 0 || (status.behind || 0) > 0;
-                const hasChanges = (status.modified || 0) + (status.not_added || 0) + (status.deleted || 0) + (status.staged || 0) > 0;
+        const isLocal = status.isLocal;
+        const needsSync = (status.ahead || 0) > 0 || (status.behind || 0) > 0;
+        const hasChanges =
+          (status.modified || 0) +
+            (status.not_added || 0) +
+            (status.deleted || 0) +
+            (status.staged || 0) >
+          0;
 
-                if (isLocal) stats.local++;
-                if (hasChanges) stats.attention++;
-                if (needsSync) stats.sync++;
+        if (isLocal) stats.local++;
+        if (hasChanges) stats.attention++;
+        if (needsSync) stats.sync++;
 
-                // Tag the card for filtering
-                card.dataset.hasChanges = hasChanges;
-                card.dataset.needsSync = needsSync;
-                card.dataset.isLocal = isLocal;
-                card.dataset.isUnborn = 'false';
+        // Tag the card for filtering
+        card.dataset.hasChanges = hasChanges;
+        card.dataset.needsSync = needsSync;
+        card.dataset.isLocal = isLocal;
+        card.dataset.isUnborn = 'false';
 
-                card.className = `dashboard-card ${hasChanges || needsSync ? 'has-changes' : 'is-clean'}`;
-                card.onclick = async () => await selectRepo(repo, true);
-                card.innerHTML = `
+        card.className = `dashboard-card ${hasChanges || needsSync ? 'has-changes' : 'is-clean'}`;
+        card.onclick = async () => await selectRepo(repo, true);
+        card.innerHTML = `
                     <div class="card-header" style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:12px;">
                         <div style="flex:1; min-width:0;">
                             <div class="card-title" style="font-weight:600; color:var(--accent-blue); font-size:15px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; margin-bottom: 2px;">${repo.name}</div>
@@ -4171,94 +5295,104 @@ async function showDashboard(forceRefresh = true) {
                         <button class="button quick-btn button-primary push-btn" title="Push" style="flex:1; padding:4px; font-size:11px;">PUSH</button>
                     </div>`;
 
-                const cardPullBtn = card.querySelector('.pull-btn');
-                const cardPushBtn = card.querySelector('.push-btn');
-                const cardCommitBtn = card.querySelector('.commit-btn');
-                if (cardPullBtn) {
-                    cardPullBtn.onclick = (e) => { e.stopPropagation(); handlePull(repo); };
-                }
-                if (cardPushBtn) {
-                    cardPushBtn.onclick = (e) => { e.stopPropagation(); handlePush(repo); };
-                }
-                if (cardCommitBtn) {
-                    cardCommitBtn.onclick = (e) => { e.stopPropagation(); handleQuickCommit(repo); };
-                }
+        const cardPullBtn = card.querySelector('.pull-btn');
+        const cardPushBtn = card.querySelector('.push-btn');
+        const cardCommitBtn = card.querySelector('.commit-btn');
+        if (cardPullBtn) {
+          cardPullBtn.onclick = (e) => {
+            e.stopPropagation();
+            handlePull(repo);
+          };
+        }
+        if (cardPushBtn) {
+          cardPushBtn.onclick = (e) => {
+            e.stopPropagation();
+            handlePush(repo);
+          };
+        }
+        if (cardCommitBtn) {
+          cardCommitBtn.onclick = (e) => {
+            e.stopPropagation();
+            handleQuickCommit(repo);
+          };
+        }
 
-                if ((status.behind || 0) > 0) {
-                    cardPullBtn.classList.add('highlight-pull');
-                    if (elements.dashboardBulkPullBtn) elements.dashboardBulkPullBtn.classList.add('highlight-pull');
-                }
+        if ((status.behind || 0) > 0) {
+          cardPullBtn.classList.add('highlight-pull');
+          if (elements.dashboardBulkPullBtn)
+            elements.dashboardBulkPullBtn.classList.add('highlight-pull');
+        }
 
-                cardPullBtn.onclick = (e) => {
-                    e.stopPropagation();
-                    activeRepo = repo;
-                    quickGitAction('pull');
-                };
+        cardPullBtn.onclick = (e) => {
+          e.stopPropagation();
+          activeRepo = repo;
+          quickGitAction('pull');
+        };
 
-                card.querySelector('.commit-btn').onclick = (e) => {
-                    e.stopPropagation();
-                    handleDashboardCommit(repo);
-                };
+        card.querySelector('.commit-btn').onclick = (e) => {
+          e.stopPropagation();
+          handleDashboardCommit(repo);
+        };
 
-                card.querySelector('.push-btn').onclick = (e) => {
-                    e.stopPropagation();
-                    handleDashboardPush(repo);
-                };
+        card.querySelector('.push-btn').onclick = (e) => {
+          e.stopPropagation();
+          handleDashboardPush(repo);
+        };
 
-                card.querySelector('.restore-btn').onclick = (e) => {
-                    e.stopPropagation();
-                    handleDashboardRestore(repo);
-                };
+        card.querySelector('.restore-btn').onclick = (e) => {
+          e.stopPropagation();
+          handleDashboardRestore(repo);
+        };
 
-                updateDashboardSummary(stats);
-                updateStatusFeed(stats);
-                updateProgressBar();
-                filterDashboardUI(); // Re-apply filter as results come in
+        updateDashboardSummary(stats);
+        updateStatusFeed(stats);
+        updateProgressBar();
+        filterDashboardUI(); // Re-apply filter as results come in
 
-                // Keep Tree View in sync with Dashboard findings (Status dots/colors)
-                updateTreeHighlights(repo.path);
-            } catch (e) {
-                console.error(`Error hydrating dashboard card for ${repo.name}:`, e);
-                updateProgressBar();
-            }
-        }, index * 20); // 20ms stagger between each repo check
-    });
+        // Keep Tree View in sync with Dashboard findings (Status dots/colors)
+        updateTreeHighlights(repo.path);
+      } catch (e) {
+        console.error(`Error hydrating dashboard card for ${repo.name}:`, e);
+        updateProgressBar();
+      }
+    }, index * 20); // 20ms stagger between each repo check
+  });
 
-    if (dashboardRepos.length === 0 && unbornList.length === 0) {
-        elements.dashboardGrid.innerHTML = `<div style="padding:40px; color:var(--text-muted); text-align:center; width:100%;">No projects found. Use the sidebar to add some.</div>`;
-    }
+  if (dashboardRepos.length === 0 && unbornList.length === 0) {
+    elements.dashboardGrid.innerHTML = `<div style="padding:40px; color:var(--text-muted); text-align:center; width:100%;">No projects found. Use the sidebar to add some.</div>`;
+  }
 
-    updateDashboardSummary(stats);
+  updateDashboardSummary(stats);
 }
 
 function filterDashboardUI() {
-    const cards = Array.from(elements.dashboardGrid.children);
-    cards.forEach(card => {
-        const hasChanges = card.dataset.hasChanges === 'true';
-        const needsSync = card.dataset.needsSync === 'true';
-        const isLocal = card.dataset.isLocal === 'true';
-        const isUnborn = card.dataset.isUnborn === 'true';
+  const cards = Array.from(elements.dashboardGrid.children);
+  cards.forEach((card) => {
+    const hasChanges = card.dataset.hasChanges === 'true';
+    const needsSync = card.dataset.needsSync === 'true';
+    const isLocal = card.dataset.isLocal === 'true';
+    const isUnborn = card.dataset.isUnborn === 'true';
 
-        let show = false;
-        if (currentDashboardFilter === 'all') show = true;
-        else if (currentDashboardFilter === 'attention' && hasChanges) show = true;
-        else if (currentDashboardFilter === 'sync' && needsSync) show = true;
-        else if (currentDashboardFilter === 'local' && isLocal) show = true;
-        else if (currentDashboardFilter === 'unborn' && isUnborn) show = true;
+    let show = false;
+    if (currentDashboardFilter === 'all') show = true;
+    else if (currentDashboardFilter === 'attention' && hasChanges) show = true;
+    else if (currentDashboardFilter === 'sync' && needsSync) show = true;
+    else if (currentDashboardFilter === 'local' && isLocal) show = true;
+    else if (currentDashboardFilter === 'unborn' && isUnborn) show = true;
 
-        card.style.display = show ? 'flex' : 'none';
-    });
+    card.style.display = show ? 'flex' : 'none';
+  });
 }
 
 function createUnbornCard(folder) {
-    const card = document.createElement('div');
-    card.className = 'dashboard-card has-changes';
-    card.style.borderTopColor = 'var(--accent-blue)';
+  const card = document.createElement('div');
+  card.className = 'dashboard-card has-changes';
+  card.style.borderTopColor = 'var(--accent-blue)';
 
-    const isRepo = folder.reason.toLowerCase().includes('commits');
-    const btnText = isRepo ? 'DETAILS' : 'INIT GIT';
+  const isRepo = folder.reason.toLowerCase().includes('commits');
+  const btnText = isRepo ? 'DETAILS' : 'INIT GIT';
 
-    card.innerHTML = `
+  card.innerHTML = `
         <div class="card-header">
             <span class="card-title">${folder.name}</span>
             <span class="card-branch" style="color:var(--accent-blue);">UNBORN</span>
@@ -4269,167 +5403,213 @@ function createUnbornCard(folder) {
         </div>
     `;
 
-    const btn = card.querySelector('button');
-    btn.onclick = async (e) => {
-        e.stopPropagation();
-        if (isRepo) {
-            addRepository({ name: folder.name, path: folder.path }, false, false);
-            const repo = repositories.find(r => r.path.replace(/\\/g, '/').toLowerCase() === folder.path.replace(/\\/g, '/').toLowerCase());
-            if (repo) selectRepo(repo);
-        } else {
-            btn.disabled = true;
-            btn.textContent = 'INIT...';
-            const res = await window.electronAPI.gitInit(folder.path);
-            if (res.success) { showDashboard(); }
-            else { btn.disabled = false; btn.textContent = 'RETRY'; }
-        }
-    };
-    return card;
+  const btn = card.querySelector('button');
+  btn.onclick = async (e) => {
+    e.stopPropagation();
+    if (isRepo) {
+      addRepository({ name: folder.name, path: folder.path }, false, false);
+      const repo = repositories.find(
+        (r) =>
+          r.path.replace(/\\/g, '/').toLowerCase() ===
+          folder.path.replace(/\\/g, '/').toLowerCase(),
+      );
+      if (repo) selectRepo(repo);
+    } else {
+      btn.disabled = true;
+      btn.textContent = 'INIT...';
+      const res = await window.electronAPI.gitInit(folder.path);
+      if (res.success) {
+        showDashboard();
+      } else {
+        btn.disabled = false;
+        btn.textContent = 'RETRY';
+      }
+    }
+  };
+  return card;
 }
 
 async function showThemeEditor() {
-    if (!(await setActiveNavItem(elements.navTheme))) return;
-    elements.themeEditorView.style.display = 'flex';
+  if (!(await setActiveNavItem(elements.navTheme))) return;
+  elements.themeEditorView.style.display = 'flex';
 
-    // Intelligence: If the current theme is in the old massive format, offer to clean it
-    let currentIni = settings.obsidianIni || DEFAULT_THEME_INI;
-    if (currentIni.includes('[Common Base]') || currentIni.length > 5000) {
-        const confirm = await showConfirm("Your current theme is in the old complex format. Would you like to migrate it to the new clean format?", "Theme Migration");
-        if (confirm) {
-            currentIni = migrateOldIniToNew(currentIni);
-            settings.obsidianIni = currentIni;
-            window.electronAPI.saveSettings(settings);
-        }
+  // Intelligence: If the current theme is in the old massive format, offer to clean it
+  let currentIni = settings.obsidianIni || DEFAULT_THEME_INI;
+  if (currentIni.includes('[Common Base]') || currentIni.length > 5000) {
+    const confirm = await showConfirm(
+      'Your current theme is in the old complex format. Would you like to migrate it to the new clean format?',
+      'Theme Migration',
+    );
+    if (confirm) {
+      currentIni = migrateOldIniToNew(currentIni);
+      settings.obsidianIni = currentIni;
+      window.electronAPI.saveSettings(settings);
+    }
+  }
+
+  const initOrUpdate = () => {
+    if (!themeEditor && typeof monaco !== 'undefined') {
+      const currentTheme = parseObsidianIni(currentIni);
+      const initialFont =
+        currentTheme.fontFamily && !currentTheme.fontFamily.includes(',')
+          ? `"${currentTheme.fontFamily}", JetBrains Mono, Cascadia Mono, Consolas, monospace`
+          : currentTheme.fontFamily || 'JetBrains Mono, Cascadia Mono, Consolas, monospace';
+
+      themeEditor = monaco.editor.create(elements.themeMonacoContainer, {
+        value: currentIni,
+        language: 'green-latern',
+        theme: 'obsidian',
+        automaticLayout: true,
+        bracketPairColorization: { enabled: true },
+        minimap: { enabled: false },
+        fontFamily: initialFont,
+        fontWeight: currentTheme.fontWeight || 'normal',
+        fontLigatures: true,
+        fontSize: 13,
+        tabFocusMode: false,
+      });
+
+      themeEditor.onDidChangeModelContent(() => {
+        if (isSyncingTheme) return;
+        const val = themeEditor.getValue();
+        renderThemeVisualControls(val, true);
+        applyObsidianTheme(val); // Live preview
+      });
+    } else if (themeEditor) {
+      themeEditor.setValue(currentIni);
+      themeEditor.layout();
     }
 
-    const initOrUpdate = () => {
-        if (!themeEditor && typeof monaco !== 'undefined') {
-            const currentTheme = parseObsidianIni(currentIni);
-            const initialFont = (currentTheme.fontFamily && !currentTheme.fontFamily.includes(','))
-                ? `"${currentTheme.fontFamily}", JetBrains Mono, Cascadia Mono, Consolas, monospace`
-                : (currentTheme.fontFamily || 'JetBrains Mono, Cascadia Mono, Consolas, monospace');
+    renderThemeVisualControls(currentIni);
+    loadThemePresets(); // Load saved presets
+  };
 
-            themeEditor = monaco.editor.create(elements.themeMonacoContainer, {
-                value: currentIni,
-                language: 'green-latern',
-                theme: 'obsidian',
-                automaticLayout: true,
-                bracketPairColorization: { enabled: true },
-                minimap: { enabled: false },
-                fontFamily: initialFont,
-                fontWeight: currentTheme.fontWeight || 'normal',
-                fontLigatures: true,
-                fontSize: 13,
-                tabFocusMode: false
-            });
-
-            themeEditor.onDidChangeModelContent(() => {
-                if (isSyncingTheme) return;
-                const val = themeEditor.getValue();
-                renderThemeVisualControls(val, true);
-                applyObsidianTheme(val); // Live preview
-            });
-        } else if (themeEditor) {
-            themeEditor.setValue(currentIni);
-            themeEditor.layout();
-        }
-
-        renderThemeVisualControls(currentIni);
-        loadThemePresets(); // Load saved presets
-    };
-
-    setTimeout(initOrUpdate, 50);
+  setTimeout(initOrUpdate, 50);
 }
 
 let isSyncingTheme = false;
 
 function renderThemeVisualControls(ini, fromEditor = false) {
-    const container = elements.themeVisualControls;
-    if (!container) return;
+  const container = elements.themeVisualControls;
+  if (!container) return;
 
-    // Defined set of supported keys to keep things clean
-    const supported = {
-        'theme': ['Background', 'Foreground', 'LineNumbers', 'Selection', 'Cursor'],
-        'syntax': ['Integer', 'String', 'Comment', 'Keyword', 'Operator', 'Identifier', 'Preprocessor', 'Tag', 'Attribute', 'Bracket1', 'Bracket2', 'Bracket3']
-    };
+  // Defined set of supported keys to keep things clean
+  const supported = {
+    theme: ['Background', 'Foreground', 'LineNumbers', 'Selection', 'Cursor'],
+    syntax: [
+      'Integer',
+      'String',
+      'Comment',
+      'Keyword',
+      'Operator',
+      'Identifier',
+      'Preprocessor',
+      'Tag',
+      'Attribute',
+      'Bracket1',
+      'Bracket2',
+      'Bracket3',
+    ],
+  };
 
-    // Unified Fallbacks for UI display
-    const fallbacks = {
-        'Background': '#121314', 'Foreground': '#d4d4d4', 'LineNumbers': '#858585', 'Selection': '#264f78', 'Cursor': '#569cd6',
-        'Comment': '#6a9955', 'String': '#ce9178', 'Integer': '#b5cea8', 'Keyword': '#569cd6', 'Operator': '#d4d4d4', 'Identifier': '#9cdcfe',
-        'Preprocessor': '#c586c0', 'Tag': '#569cd6', 'Attribute': '#9cdcfe', 'Bracket1': '#ffd700', 'Bracket2': '#da70d6', 'Bracket3': '#179fff'
-    };
+  // Unified Fallbacks for UI display
+  const fallbacks = {
+    Background: '#121314',
+    Foreground: '#d4d4d4',
+    LineNumbers: '#858585',
+    Selection: '#264f78',
+    Cursor: '#569cd6',
+    Comment: '#6a9955',
+    String: '#ce9178',
+    Integer: '#b5cea8',
+    Keyword: '#569cd6',
+    Operator: '#d4d4d4',
+    Identifier: '#9cdcfe',
+    Preprocessor: '#c586c0',
+    Tag: '#569cd6',
+    Attribute: '#9cdcfe',
+    Bracket1: '#ffd700',
+    Bracket2: '#da70d6',
+    Bracket3: '#179fff',
+  };
 
-    // Parse INI
-    const lines = ini.split('\n');
-    const data = { 'theme': {}, 'syntax': {} };
-    let currentSection = null;
+  // Parse INI
+  const lines = ini.split('\n');
+  const data = { theme: {}, syntax: {} };
+  let currentSection = null;
 
-    lines.forEach(line => {
-        const trimmed = line.trim();
-        if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
-            currentSection = trimmed.substring(1, trimmed.length - 1).toLowerCase();
-        } else if (currentSection && trimmed.includes('=') && !trimmed.startsWith(';') && !trimmed.startsWith('#')) {
-            const eqIdx = trimmed.indexOf('=');
-            const key = trimmed.substring(0, eqIdx).trim();
-            const val = trimmed.substring(eqIdx + 1).trim();
-            const lowerKey = key.toLowerCase();
+  lines.forEach((line) => {
+    const trimmed = line.trim();
+    if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
+      currentSection = trimmed.substring(1, trimmed.length - 1).toLowerCase();
+    } else if (
+      currentSection &&
+      trimmed.includes('=') &&
+      !trimmed.startsWith(';') &&
+      !trimmed.startsWith('#')
+    ) {
+      const eqIdx = trimmed.indexOf('=');
+      const key = trimmed.substring(0, eqIdx).trim();
+      const val = trimmed.substring(eqIdx + 1).trim();
+      const lowerKey = key.toLowerCase();
 
-            // Normalize case for matching
-            const match = (supported[currentSection] || []).find(k => k.toLowerCase() === lowerKey);
-            if (match && val.startsWith('#')) {
-                data[currentSection][match] = val;
-            }
-        }
-    });
+      // Normalize case for matching
+      const match = (supported[currentSection] || []).find((k) => k.toLowerCase() === lowerKey);
+      if (match && val.startsWith('#')) {
+        data[currentSection][match] = val;
+      }
+    }
+  });
 
-    if (fromEditor && container.querySelectorAll('input:focus').length > 0) return;
+  if (fromEditor && container.querySelectorAll('input:focus').length > 0) return;
 
-    const dynamicContainer = elements.themeDynamicControls;
-    if (!dynamicContainer) return;
-    dynamicContainer.innerHTML = '';
+  const dynamicContainer = elements.themeDynamicControls;
+  if (!dynamicContainer) return;
+  dynamicContainer.innerHTML = '';
 
-    const themeData = parseObsidianIni(ini);
-    const fontVal = themeData.fontFamily;
-    const weightVal = themeData.fontWeight;
-    const ligaturesEnabled = themeData.fontLigatures;
+  const themeData = parseObsidianIni(ini);
+  const fontVal = themeData.fontFamily;
+  const weightVal = themeData.fontWeight;
+  const ligaturesEnabled = themeData.fontLigatures;
 
-    const supportedFonts = [
-        'JetBrains Mono',
-        'Cascadia Mono',
-        'JetBrains Mono',
-        'Consolas',
-        'Courier New',
-        'Lucida Console',
-        'Fira Code',
-        'Source Code Pro'
-    ];
+  const supportedFonts = [
+    'JetBrains Mono',
+    'Cascadia Mono',
+    'JetBrains Mono',
+    'Consolas',
+    'Courier New',
+    'Lucida Console',
+    'Fira Code',
+    'Source Code Pro',
+  ];
 
-    const fontSection = document.createElement('div');
-    fontSection.className = 'settings-section';
-    fontSection.style.marginBottom = '20px';
+  const fontSection = document.createElement('div');
+  fontSection.className = 'settings-section';
+  fontSection.style.marginBottom = '20px';
 
-    // Cache availability for this render to ensure consistency between labels and status
-    const availabilityMap = {};
-    supportedFonts.forEach(f => availabilityMap[f] = checkFontAvailability(f));
+  // Cache availability for this render to ensure consistency between labels and status
+  const availabilityMap = {};
+  supportedFonts.forEach((f) => (availabilityMap[f] = checkFontAvailability(f)));
 
-    const optionsHtml = supportedFonts.map(f => {
-        const isAvailable = availabilityMap[f];
-        const label = isAvailable ? f : `${f} (Not Installed)`;
-        const style = isAvailable ? '' : 'opacity: 0.6;';
-        // Case-insensitive check for selection
-        const isSelected = fontVal.trim().toLowerCase() === f.toLowerCase();
-        return `<option value="${f}" ${isSelected ? 'selected' : ''} style="${style} font-family: '${f}', monospace;">${label}</option>`;
-    }).join('');
+  const optionsHtml = supportedFonts
+    .map((f) => {
+      const isAvailable = availabilityMap[f];
+      const label = isAvailable ? f : `${f} (Not Installed)`;
+      const style = isAvailable ? '' : 'opacity: 0.6;';
+      // Case-insensitive check for selection
+      const isSelected = fontVal.trim().toLowerCase() === f.toLowerCase();
+      return `<option value="${f}" ${isSelected ? 'selected' : ''} style="${style} font-family: '${f}', monospace;">${label}</option>`;
+    })
+    .join('');
 
-    fontSection.innerHTML = `
+  fontSection.innerHTML = `
         <h3 style="margin-bottom: 12px; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 1.5px; color: var(--accent-blue);">Workspace Font</h3>
         <select id="theme-font-select" class="settings-input" style="width: 100%;">
             ${optionsHtml}
-            <option value="custom" ${!supportedFonts.some(f => fontVal.includes(f)) ? 'selected' : ''}>-- Custom Font --</option>
+            <option value="custom" ${!supportedFonts.some((f) => fontVal.includes(f)) ? 'selected' : ''}>-- Custom Font --</option>
         </select>
         <div id="font-status-msg" style="font-size: 10px; margin-top: 6px; display: none;"></div>
-        <input type="text" id="theme-font-custom" class="settings-input" style="width: 100%; margin-top: 8px; display: ${supportedFonts.some(f => fontVal.includes(f)) ? 'none' : 'block'};" value="${fontVal}" placeholder="Enter font name...">
+        <input type="text" id="theme-font-custom" class="settings-input" style="width: 100%; margin-top: 8px; display: ${supportedFonts.some((f) => fontVal.includes(f)) ? 'none' : 'block'};" value="${fontVal}" placeholder="Enter font name...">
 
         <div style="margin-top: 12px; display: flex; gap: 16px;">
             <div style="flex: 1;">
@@ -4445,231 +5625,245 @@ function renderThemeVisualControls(ini, fromEditor = false) {
         </div>
     `;
 
-    const fontSelect = fontSection.querySelector('#theme-font-select');
-    const weightSelect = fontSection.querySelector('#theme-weight-select');
-    const fontCustom = fontSection.querySelector('#theme-font-custom');
-    const fontStatus = fontSection.querySelector('#font-status-msg');
+  const fontSelect = fontSection.querySelector('#theme-font-select');
+  const weightSelect = fontSection.querySelector('#theme-weight-select');
+  const fontCustom = fontSection.querySelector('#theme-font-custom');
+  const fontStatus = fontSection.querySelector('#font-status-msg');
 
-    const updateFontStatus = (fontName) => {
-        if (fontName === 'custom') {
-            fontStatus.style.display = 'none';
-            return;
-        }
-        const available = checkFontAvailability(fontName);
-        if (!available) {
-            fontStatus.textContent = '⚠️ This font is not installed on your system. It will fallback to Cascadia Mono or Consolas.';
-            fontStatus.style.color = 'var(--accent-red)';
-            fontStatus.style.display = 'block';
-        } else {
-            fontStatus.textContent = '✓ Font detected and active.';
-            fontStatus.style.color = 'var(--accent-green)';
-            fontStatus.style.display = 'block';
-            // If the UI was showing "Not Installed" but now it's active, force a refresh of the labels
-            if (availabilityMap[fontName] === false) {
-                renderThemeVisualControls(ini);
+  const updateFontStatus = (fontName) => {
+    if (fontName === 'custom') {
+      fontStatus.style.display = 'none';
+      return;
+    }
+    const available = checkFontAvailability(fontName);
+    if (!available) {
+      fontStatus.textContent =
+        '⚠️ This font is not installed on your system. It will fallback to Cascadia Mono or Consolas.';
+      fontStatus.style.color = 'var(--accent-red)';
+      fontStatus.style.display = 'block';
+    } else {
+      fontStatus.textContent = '✓ Font detected and active.';
+      fontStatus.style.color = 'var(--accent-green)';
+      fontStatus.style.display = 'block';
+      // If the UI was showing "Not Installed" but now it's active, force a refresh of the labels
+      if (availabilityMap[fontName] === false) {
+        renderThemeVisualControls(ini);
+      }
+      setTimeout(() => {
+        fontStatus.style.display = 'none';
+      }, 3000);
+    }
+  };
+
+  // Initial check
+  if (supportedFonts.includes(fontVal)) updateFontStatus(fontVal);
+
+  fontSelect.onchange = (e) => {
+    updateFontStatus(e.target.value);
+    if (e.target.value === 'custom') {
+      fontCustom.style.display = 'block';
+      fontCustom.focus();
+    } else {
+      fontCustom.style.display = 'none';
+      updateIniFromGui('Theme', 'Font', e.target.value, false);
+    }
+  };
+
+  fontCustom.oninput = (e) => {
+    updateIniFromGui('Theme', 'Font', e.target.value, false);
+  };
+
+  weightSelect.onchange = (e) => {
+    updateIniFromGui('Theme', 'FontWeight', e.target.value, false);
+  };
+
+  fontCustom.onchange = (e) => {
+    updateIniFromGui('Theme', 'Font', e.target.value, false);
+  };
+
+  dynamicContainer.appendChild(fontSection);
+
+  // 2. Add Color Controls
+  Object.keys(supported).forEach((sectionId) => {
+    const sectionName = sectionId === 'theme' ? 'UI Elements' : 'Syntax Colors';
+    const sectionEl = document.createElement('div');
+    sectionEl.className = 'settings-section';
+    sectionEl.style.marginBottom = '20px';
+    sectionEl.innerHTML = `<h3 style="margin-bottom: 12px; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 1.5px; color: var(--accent-blue);">${sectionName}</h3>`;
+
+    const grid = document.createElement('div');
+    grid.style.display = 'grid';
+    grid.style.gridTemplateColumns = '1fr 1fr';
+    grid.style.gap = '12px';
+
+    supported[sectionId].forEach((key) => {
+      const row = document.createElement('div');
+      row.style.display = 'flex';
+      row.style.flexDirection = 'column';
+      row.style.gap = '4px';
+
+      const label = document.createElement('label');
+      label.style.fontSize = '11px';
+      label.style.color = 'var(--text-muted)';
+      label.textContent = key;
+
+      const input = document.createElement('input');
+      input.type = 'color';
+      input.value = data[sectionId][key] || fallbacks[key] || '#cccccc';
+      input.style.width = '100%';
+      input.style.height = '28px';
+      input.style.padding = '0';
+      input.style.border = '1px solid var(--border-color)';
+      input.style.borderRadius = '4px';
+      input.style.background = 'transparent';
+      input.style.cursor = 'pointer';
+
+      input.oninput = () => {
+        isSyncingTheme = true;
+        const newVal = input.value.toUpperCase();
+        data[sectionId][key] = newVal;
+
+        // Update Monaco
+        const currentVal = themeEditor.getValue();
+        const lines = currentVal.split('\n');
+        let inSection = false;
+
+        const updatedLines = [];
+        const targetKey = key.toLowerCase();
+        const secHeader = `[${sectionId.charAt(0).toUpperCase() + sectionId.slice(1)}]`;
+
+        for (let l of lines) {
+          const t = l.trim();
+          if (t === secHeader) {
+            inSection = true;
+            updatedLines.push(l);
+            continue;
+          } else if (t.startsWith('[') && t.endsWith(']')) {
+            inSection = false;
+            updatedLines.push(l);
+            continue;
+          }
+
+          if (inSection) {
+            const currentLower = t.toLowerCase();
+            // If setting Integer, purge legacy Number/Value lines
+            if (
+              key === 'Integer' &&
+              (currentLower.startsWith('number=') || currentLower.startsWith('value='))
+            ) {
+              continue;
             }
-            setTimeout(() => { fontStatus.style.display = 'none'; }, 3000);
+            if (currentLower.startsWith(targetKey + '=')) {
+              updatedLines.push(`${key}=${newVal}`);
+              continue;
+            }
+          }
+          updatedLines.push(l);
         }
-    };
 
-    // Initial check
-    if (supportedFonts.includes(fontVal)) updateFontStatus(fontVal);
+        const finalIni = updatedLines.join('\n');
+        themeEditor.setValue(finalIni);
+        applyObsidianTheme(finalIni);
+        isSyncingTheme = false;
+      };
 
-    fontSelect.onchange = (e) => {
-        updateFontStatus(e.target.value);
-        if (e.target.value === 'custom') {
-            fontCustom.style.display = 'block';
-            fontCustom.focus();
-        } else {
-            fontCustom.style.display = 'none';
-            updateIniFromGui('Theme', 'Font', e.target.value, false);
-        }
-    };
-
-    fontCustom.oninput = (e) => {
-        updateIniFromGui('Theme', 'Font', e.target.value, false);
-    };
-
-    weightSelect.onchange = (e) => {
-        updateIniFromGui('Theme', 'FontWeight', e.target.value, false);
-    };
-
-    fontCustom.onchange = (e) => {
-        updateIniFromGui('Theme', 'Font', e.target.value, false);
-    };
-
-    dynamicContainer.appendChild(fontSection);
-
-    // 2. Add Color Controls
-    Object.keys(supported).forEach(sectionId => {
-        const sectionName = sectionId === 'theme' ? 'UI Elements' : 'Syntax Colors';
-        const sectionEl = document.createElement('div');
-        sectionEl.className = 'settings-section';
-        sectionEl.style.marginBottom = '20px';
-        sectionEl.innerHTML = `<h3 style="margin-bottom: 12px; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 1.5px; color: var(--accent-blue);">${sectionName}</h3>`;
-
-        const grid = document.createElement('div');
-        grid.style.display = 'grid';
-        grid.style.gridTemplateColumns = '1fr 1fr';
-        grid.style.gap = '12px';
-
-        supported[sectionId].forEach(key => {
-            const row = document.createElement('div');
-            row.style.display = 'flex';
-            row.style.flexDirection = 'column';
-            row.style.gap = '4px';
-
-            const label = document.createElement('label');
-            label.style.fontSize = '11px';
-            label.style.color = 'var(--text-muted)';
-            label.textContent = key;
-
-            const input = document.createElement('input');
-            input.type = 'color';
-            input.value = data[sectionId][key] || fallbacks[key] || '#cccccc';
-            input.style.width = '100%';
-            input.style.height = '28px';
-            input.style.padding = '0';
-            input.style.border = '1px solid var(--border-color)';
-            input.style.borderRadius = '4px';
-            input.style.background = 'transparent';
-            input.style.cursor = 'pointer';
-
-            input.oninput = () => {
-                isSyncingTheme = true;
-                const newVal = input.value.toUpperCase();
-                data[sectionId][key] = newVal;
-
-                // Update Monaco
-                const currentVal = themeEditor.getValue();
-                const lines = currentVal.split('\n');
-                let inSection = false;
-
-                const updatedLines = [];
-                const targetKey = key.toLowerCase();
-                const secHeader = `[${sectionId.charAt(0).toUpperCase() + sectionId.slice(1)}]`;
-
-                for (let l of lines) {
-                    const t = l.trim();
-                    if (t === secHeader) { inSection = true; updatedLines.push(l); continue; }
-                    else if (t.startsWith('[') && t.endsWith(']')) { inSection = false; updatedLines.push(l); continue; }
-
-                    if (inSection) {
-                        const currentLower = t.toLowerCase();
-                        // If setting Integer, purge legacy Number/Value lines
-                        if (key === 'Integer' && (currentLower.startsWith('number=') || currentLower.startsWith('value='))) {
-                            continue;
-                        }
-                        if (currentLower.startsWith(targetKey + '=')) {
-                            updatedLines.push(`${key}=${newVal}`);
-                            continue;
-                        }
-                    }
-                    updatedLines.push(l);
-                }
-
-                const finalIni = updatedLines.join('\n');
-                themeEditor.setValue(finalIni);
-                applyObsidianTheme(finalIni);
-                isSyncingTheme = false;
-            };
-
-            row.appendChild(label);
-            row.appendChild(input);
-            grid.appendChild(row);
-        });
-
-        sectionEl.appendChild(grid);
-        dynamicContainer.appendChild(sectionEl);
+      row.appendChild(label);
+      row.appendChild(input);
+      grid.appendChild(row);
     });
 
-    // Add extra space at the bottom to ensure color pickers don't get cut off by screen edges
-    const spacer = document.createElement('div');
-    spacer.style.height = '100px';
-    dynamicContainer.appendChild(spacer);
+    sectionEl.appendChild(grid);
+    dynamicContainer.appendChild(sectionEl);
+  });
+
+  // Add extra space at the bottom to ensure color pickers don't get cut off by screen edges
+  const spacer = document.createElement('div');
+  spacer.style.height = '100px';
+  dynamicContainer.appendChild(spacer);
 }
 
 function updateIniFromGui(section, key, value, isColor = true) {
-    if (!themeEditor) return;
-    isSyncingTheme = true;
-    let content = themeEditor.getValue();
-    const lines = content.split('\n');
-    let inSection = false;
-    let found = false;
+  if (!themeEditor) return;
+  isSyncingTheme = true;
+  let content = themeEditor.getValue();
+  const lines = content.split('\n');
+  let inSection = false;
+  let found = false;
 
-    const newLines = lines.map(line => {
-        const trimmed = line.trim();
-        if (trimmed.toLowerCase() === `[${section.toLowerCase()}]`) {
-            inSection = true;
-            return line;
-        }
-        if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
-            inSection = false;
-            return line;
-        }
-        if (inSection && trimmed.toLowerCase().startsWith(key.toLowerCase() + '=')) {
-            found = true;
-            return `${line.split('=')[0]}=${value}`;
-        }
-        return line;
-    });
-
-    if (!found) {
-        // Find the section again and append the new key
-        let finalLines = [];
-        let sectionFound = false;
-        for (let i = 0; i < newLines.length; i++) {
-            finalLines.push(newLines[i]);
-            if (newLines[i].trim().toLowerCase() === `[${section.toLowerCase()}]`) {
-                finalLines.push(`${key}=${value}`);
-                sectionFound = true;
-            }
-        }
-        if (!sectionFound) {
-            finalLines.push(`[${section}]`);
-            finalLines.push(`${key}=${value}`);
-        }
-        themeEditor.setValue(finalLines.join('\n'));
-    } else {
-        themeEditor.setValue(newLines.join('\n'));
+  const newLines = lines.map((line) => {
+    const trimmed = line.trim();
+    if (trimmed.toLowerCase() === `[${section.toLowerCase()}]`) {
+      inSection = true;
+      return line;
     }
+    if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
+      inSection = false;
+      return line;
+    }
+    if (inSection && trimmed.toLowerCase().startsWith(key.toLowerCase() + '=')) {
+      found = true;
+      return `${line.split('=')[0]}=${value}`;
+    }
+    return line;
+  });
 
-    applyObsidianTheme(themeEditor.getValue());
-    isSyncingTheme = false;
+  if (!found) {
+    // Find the section again and append the new key
+    let finalLines = [];
+    let sectionFound = false;
+    for (let i = 0; i < newLines.length; i++) {
+      finalLines.push(newLines[i]);
+      if (newLines[i].trim().toLowerCase() === `[${section.toLowerCase()}]`) {
+        finalLines.push(`${key}=${value}`);
+        sectionFound = true;
+      }
+    }
+    if (!sectionFound) {
+      finalLines.push(`[${section}]`);
+      finalLines.push(`${key}=${value}`);
+    }
+    themeEditor.setValue(finalLines.join('\n'));
+  } else {
+    themeEditor.setValue(newLines.join('\n'));
+  }
+
+  applyObsidianTheme(themeEditor.getValue());
+  isSyncingTheme = false;
 }
 
 function migrateOldIniToNew(oldIni) {
-    const lines = oldIni.split('\n');
-    const sections = {};
-    let currentSection = null;
+  const lines = oldIni.split('\n');
+  const sections = {};
+  let currentSection = null;
 
-    for (let line of lines) {
-        line = line.trim();
-        if (!line || line.startsWith('#') || line.startsWith(';')) continue;
-        const sMatch = line.match(/^\[([^\]]+)\]/);
-        if (sMatch) {
-            currentSection = sMatch[1];
-            sections[currentSection] = {};
-            continue;
-        }
-        if (currentSection) {
-            const eqIdx = line.indexOf('=');
-            if (eqIdx !== -1) {
-                const key = line.substring(0, eqIdx).trim();
-                const value = line.substring(eqIdx + 1).trim();
-                sections[currentSection][key] = value;
-            }
-        }
+  for (let line of lines) {
+    line = line.trim();
+    if (!line || line.startsWith('#') || line.startsWith(';')) continue;
+    const sMatch = line.match(/^\[([^\]]+)\]/);
+    if (sMatch) {
+      currentSection = sMatch[1];
+      sections[currentSection] = {};
+      continue;
     }
+    if (currentSection) {
+      const eqIdx = line.indexOf('=');
+      if (eqIdx !== -1) {
+        const key = line.substring(0, eqIdx).trim();
+        const value = line.substring(eqIdx + 1).trim();
+        sections[currentSection][key] = value;
+      }
+    }
+  }
 
-    const getVal = (sec, key) => (sections[sec] || {})[key] || (sections['Common Base'] || {})[key] || '';
-    const getFore = (style) => (style.match(/fore:(#[0-9a-fA-F]{3,6})/) || [null, ''])[1];
-    const getBack = (style) => (style.match(/back:(#[0-9a-fA-F]{3,6})/) || [null, ''])[1];
+  const getVal = (sec, key) =>
+    (sections[sec] || {})[key] || (sections['Common Base'] || {})[key] || '';
+  const getFore = (style) => (style.match(/fore:(#[0-9a-fA-F]{3,6})/) || [null, ''])[1];
+  const getBack = (style) => (style.match(/back:(#[0-9a-fA-F]{3,6})/) || [null, ''])[1];
 
-    let bg = getBack(getVal('Common Base', 'Default Style')) || '#121314';
-    if (bg === '#000000' || bg === '#000') bg = '#121314';
+  let bg = getBack(getVal('Common Base', 'Default Style')) || '#121314';
+  if (bg === '#000000' || bg === '#000') bg = '#121314';
 
-    return `[Theme]
+  return `[Theme]
 ; Essential Workspace Styling
 Font=${getVal('Common Base', 'Default Style').match(/font:([^;]+)/)?.[1] || 'Cascadia Mono'}
 Background=${bg}
@@ -4695,148 +5889,161 @@ Bracket3=${syntax['bracket3'] || '#179fff'}`;
 }
 
 async function saveThemeFromEditor() {
-    if (!themeEditor) return;
-    const newIni = themeEditor.getValue();
-    settings.obsidianIni = newIni;
-    try {
-        await window.electronAPI.saveSettings(settings);
-        applyObsidianTheme(newIni);
-        logToConsole('Theme updated and applied.', 'success');
-    } catch (e) { logToConsole(e.message, 'error'); }
+  if (!themeEditor) return;
+  const newIni = themeEditor.getValue();
+  settings.obsidianIni = newIni;
+  try {
+    await window.electronAPI.saveSettings(settings);
+    applyObsidianTheme(newIni);
+    logToConsole('Theme updated and applied.', 'success');
+  } catch (e) {
+    logToConsole(e.message, 'error');
+  }
 }
 
 async function exportThemeToIni() {
-    if (!themeEditor) return;
-    const content = themeEditor.getValue();
-    const filePath = await window.electronAPI.showSaveDialog({
-        title: 'Export Theme as .ini',
-        defaultPath: 'my_theme.ini',
-        filters: [{ name: 'INI Files', extensions: ['ini'] }]
-    });
+  if (!themeEditor) return;
+  const content = themeEditor.getValue();
+  const filePath = await window.electronAPI.showSaveDialog({
+    title: 'Export Theme as .ini',
+    defaultPath: 'my_theme.ini',
+    filters: [{ name: 'INI Files', extensions: ['ini'] }],
+  });
 
-    if (filePath) {
-        try {
-            await window.electronAPI.writeFile(filePath, content);
-            logToConsole(`Theme exported to ${filePath}`, 'success');
-        } catch (e) { logToConsole(`Export failed: ${e.message}`, 'error'); }
+  if (filePath) {
+    try {
+      await window.electronAPI.writeFile(filePath, content);
+      logToConsole(`Theme exported to ${filePath}`, 'success');
+    } catch (e) {
+      logToConsole(`Export failed: ${e.message}`, 'error');
     }
+  }
 }
 
 async function importThemeFromIni() {
-    const filePath = await window.electronAPI.showOpenDialog({
-        title: 'Import Theme from .ini',
-        filters: [{ name: 'INI Files', extensions: ['ini'] }]
-    });
+  const filePath = await window.electronAPI.showOpenDialog({
+    title: 'Import Theme from .ini',
+    filters: [{ name: 'INI Files', extensions: ['ini'] }],
+  });
 
-    if (filePath) {
-        try {
-            const result = await window.electronAPI.readFile(filePath);
-            const content = result.content;
-            if (themeEditor) {
-                themeEditor.setValue(content);
-                applyObsidianTheme(content);
-                logToConsole(`Theme imported from ${filePath}`, 'success');
-            }
-        } catch (e) { logToConsole(`Import failed: ${e.message}`, 'error'); }
+  if (filePath) {
+    try {
+      const result = await window.electronAPI.readFile(filePath);
+      const content = result.content;
+      if (themeEditor) {
+        themeEditor.setValue(content);
+        applyObsidianTheme(content);
+        logToConsole(`Theme imported from ${filePath}`, 'success');
+      }
+    } catch (e) {
+      logToConsole(`Import failed: ${e.message}`, 'error');
     }
+  }
 }
 
 async function showCustomCommandsView() {
-    if (!(await setActiveNavItem(elements.navCustomCommands))) return;
-    elements.customCommandsView.style.display = 'flex';
+  if (!(await setActiveNavItem(elements.navCustomCommands))) return;
+  elements.customCommandsView.style.display = 'flex';
 
-    if (elements.customCommandSelect) {
-        elements.customCommandSelect.innerHTML = '<option value="new">-- Add New Command --</option>';
+  if (elements.customCommandSelect) {
+    elements.customCommandSelect.innerHTML = '<option value="new">-- Add New Command --</option>';
 
-        try {
-            const settings = await window.electronAPI.getSettings();
-            const commands = settings.customCommands || [];
-            commands.forEach(cmd => {
-                const opt = document.createElement('option');
-                opt.value = cmd.id;
-                opt.textContent = cmd.name;
-                elements.customCommandSelect.appendChild(opt);
-            });
-        } catch (e) {
-            console.error('Failed to load custom commands:', e);
-        }
-
-        elements.customCommandSelect.value = 'new';
-        elements.customCommandName.value = '';
-        elements.customCommandPath.value = '';
-        elements.customCommandArgs.value = '';
-        elements.customCommandCwd.value = '';
-        elements.customCommandAdmin.checked = false;
-        elements.deleteCustomCommandBtn.style.display = 'none';
+    try {
+      const settings = await window.electronAPI.getSettings();
+      const commands = settings.customCommands || [];
+      commands.forEach((cmd) => {
+        const opt = document.createElement('option');
+        opt.value = cmd.id;
+        opt.textContent = cmd.name;
+        elements.customCommandSelect.appendChild(opt);
+      });
+    } catch (e) {
+      console.error('Failed to load custom commands:', e);
     }
+
+    elements.customCommandSelect.value = 'new';
+    elements.customCommandName.value = '';
+    elements.customCommandPath.value = '';
+    elements.customCommandArgs.value = '';
+    elements.customCommandCwd.value = '';
+    elements.customCommandAdmin.checked = false;
+    elements.deleteCustomCommandBtn.style.display = 'none';
+  }
 }
 
 async function showGitConfigView() {
-    if (!(await setActiveNavItem(elements.navGitConfig))) return;
-    elements.gitConfigView.style.display = 'flex';
-    elements.gitConfigSections.innerHTML = '<div style="color: var(--text-muted); padding: 20px;">Loading configuration...</div>';
+  if (!(await setActiveNavItem(elements.navGitConfig))) return;
+  elements.gitConfigView.style.display = 'flex';
+  elements.gitConfigSections.innerHTML =
+    '<div style="color: var(--text-muted); padding: 20px;">Loading configuration...</div>';
 
-    try {
-        const res = await window.electronAPI.getGitConfig();
-        if (res.success) {
-            elements.gitConfigPathDisplay.textContent = res.path;
-            renderGitConfig(res.content);
-        } else {
-            elements.gitConfigSections.innerHTML = `<div style="color: var(--accent-red); padding: 20px;">Error: ${res.error}</div>`;
-        }
-    } catch (e) {
-        elements.gitConfigSections.innerHTML = `<div style="color: var(--accent-red); padding: 20px;">System Error: ${e.message}</div>`;
+  try {
+    const res = await window.electronAPI.getGitConfig();
+    if (res.success) {
+      elements.gitConfigPathDisplay.textContent = res.path;
+      renderGitConfig(res.content);
+    } else {
+      elements.gitConfigSections.innerHTML = `<div style="color: var(--accent-red); padding: 20px;">Error: ${res.error}</div>`;
     }
+  } catch (e) {
+    elements.gitConfigSections.innerHTML = `<div style="color: var(--accent-red); padding: 20px;">System Error: ${e.message}</div>`;
+  }
 }
 
 const RECOMMENDED_GIT_CONFIG = {
-    'user': { 'name': '', 'email': '' },
-    'core': { 'pager': 'less', 'autocrlf': 'true' },
-    'http': {
-        'postBuffer': '524288000',
-        'version': 'HTTP/1.1',
-        'lowSpeedLimit': '0',
-        'lowSpeedTime': '999999'
-    },
-    'init': { 'defaultBranch': 'main' },
-    'pull': { 'rebase': 'true' },
-    'color': { 'ui': 'auto' },
-    'diff': { 'algorithm': 'histogram', 'colorMoved': 'default' },
-    'merge': { 'conflictStyle': 'zdiff3' },
-    'credential': { 'helper': 'manager' },
-    'push': { 'autoSetupRemote': 'true', 'default': 'simple' }
+  user: { name: '', email: '' },
+  core: { pager: 'less', autocrlf: 'true' },
+  http: {
+    postBuffer: '524288000',
+    version: 'HTTP/1.1',
+    lowSpeedLimit: '0',
+    lowSpeedTime: '999999',
+  },
+  init: { defaultBranch: 'main' },
+  pull: { rebase: 'true' },
+  color: { ui: 'auto' },
+  diff: { algorithm: 'histogram', colorMoved: 'default' },
+  merge: { conflictStyle: 'zdiff3' },
+  credential: { helper: 'manager' },
+  push: { autoSetupRemote: 'true', default: 'simple' },
 };
 
 function renderGitConfig(content) {
-    const container = elements.gitConfigSections;
-    container.innerHTML = '';
+  const container = elements.gitConfigSections;
+  container.innerHTML = '';
 
-    const sections = parseGitConfig(content);
+  const sections = parseGitConfig(content);
 
-    // 1. Render Recommendations (Smart Header)
-    const recs = [];
-    Object.keys(RECOMMENDED_GIT_CONFIG).forEach(s => {
-        Object.keys(RECOMMENDED_GIT_CONFIG[s]).forEach(k => {
-            const recommendedVal = RECOMMENDED_GIT_CONFIG[s][k];
-            const existing = sections[s] ? sections[s].find(e => e.key === k) : null;
+  // 1. Render Recommendations (Smart Header)
+  const recs = [];
+  Object.keys(RECOMMENDED_GIT_CONFIG).forEach((s) => {
+    Object.keys(RECOMMENDED_GIT_CONFIG[s]).forEach((k) => {
+      const recommendedVal = RECOMMENDED_GIT_CONFIG[s][k];
+      const existing = sections[s] ? sections[s].find((e) => e.key === k) : null;
 
-            if (!existing) {
-                recs.push({ section: s, key: k, val: recommendedVal, type: 'missing' });
-            } else if (recommendedVal !== '' && existing.val !== recommendedVal) {
-                recs.push({ section: s, key: k, val: recommendedVal, type: 'different', current: existing.val });
-            }
+      if (!existing) {
+        recs.push({ section: s, key: k, val: recommendedVal, type: 'missing' });
+      } else if (recommendedVal !== '' && existing.val !== recommendedVal) {
+        recs.push({
+          section: s,
+          key: k,
+          val: recommendedVal,
+          type: 'different',
+          current: existing.val,
         });
+      }
     });
+  });
 
-    if (recs.length > 0) {
-        const recDiv = document.createElement('div');
-        recDiv.style.padding = '16px';
-        recDiv.style.background = 'rgba(31, 111, 235, 0.1)';
-        recDiv.style.border = '1px solid var(--accent-blue)';
-        recDiv.style.borderRadius = '8px';
-        recDiv.style.marginBottom = '24px';
+  if (recs.length > 0) {
+    const recDiv = document.createElement('div');
+    recDiv.style.padding = '16px';
+    recDiv.style.background = 'rgba(31, 111, 235, 0.1)';
+    recDiv.style.border = '1px solid var(--accent-blue)';
+    recDiv.style.borderRadius = '8px';
+    recDiv.style.marginBottom = '24px';
 
-        recDiv.innerHTML = `
+    recDiv.innerHTML = `
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
                 <h4 style="margin:0; color:#fff; font-size:13px;">💡 Recommended Optimizations</h4>
                 <button id="apply-all-recommended" class="button button-blue" style="font-size:10px;">Apply All Recommendations</button>
@@ -4844,368 +6051,383 @@ function renderGitConfig(content) {
             <div id="recommended-items-list" style="display:grid; grid-template-columns: 1fr 1fr; gap:8px;"></div>
         `;
 
-        const recList = recDiv.querySelector('#recommended-items-list');
-        recs.forEach(r => {
-            const item = document.createElement('div');
-            item.style.fontSize = '11px';
-            item.style.color = 'var(--text-muted)';
-            item.style.display = 'flex';
-            item.style.alignItems = 'center';
-            item.style.justifyContent = 'space-between';
-            item.style.padding = '4px 8px';
-            item.style.background = 'rgba(255,255,255,0.02)';
-            item.style.borderRadius = '4px';
+    const recList = recDiv.querySelector('#recommended-items-list');
+    recs.forEach((r) => {
+      const item = document.createElement('div');
+      item.style.fontSize = '11px';
+      item.style.color = 'var(--text-muted)';
+      item.style.display = 'flex';
+      item.style.alignItems = 'center';
+      item.style.justifyContent = 'space-between';
+      item.style.padding = '4px 8px';
+      item.style.background = 'rgba(255,255,255,0.02)';
+      item.style.borderRadius = '4px';
 
-            const isDiff = r.type === 'different';
-            item.innerHTML = `
+      const isDiff = r.type === 'different';
+      item.innerHTML = `
                 <span>[${r.section}] <b>${r.key}</b> = ${r.val || '(blank)'} ${isDiff ? `<span style="color:var(--accent-red); text-decoration:line-through; margin-left:4px;">(was ${r.current})</span>` : ''}</span>
                 <button class="button" style="height:20px; font-size:9px; padding:0 6px;">${isDiff ? 'Fix' : '+ Add'}</button>
             `;
 
-            item.querySelector('button').onclick = () => {
-                addConfigEntry(r.section, r.key, r.val);
-                item.remove();
-                if (recList.children.length === 0) recDiv.remove();
-            };
+      item.querySelector('button').onclick = () => {
+        addConfigEntry(r.section, r.key, r.val);
+        item.remove();
+        if (recList.children.length === 0) recDiv.remove();
+      };
 
-            recList.appendChild(item);
-        });
+      recList.appendChild(item);
+    });
 
-        recDiv.querySelector('#apply-all-recommended').onclick = () => {
-            recs.forEach(r => addConfigEntry(r.section, r.key, r.val));
-            recDiv.remove();
-        };
+    recDiv.querySelector('#apply-all-recommended').onclick = () => {
+      recs.forEach((r) => addConfigEntry(r.section, r.key, r.val));
+      recDiv.remove();
+    };
 
-        container.appendChild(recDiv);
-    }
+    container.appendChild(recDiv);
+  }
 
-    // 2. Render Existing Sections
-    Object.keys(sections).forEach(sectionName => {
-        const sectionDiv = document.createElement('div');
-        sectionDiv.className = 'config-section';
-        sectionDiv.innerHTML = `
+  // 2. Render Existing Sections
+  Object.keys(sections).forEach((sectionName) => {
+    const sectionDiv = document.createElement('div');
+    sectionDiv.className = 'config-section';
+    sectionDiv.innerHTML = `
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
                 <h3 style="margin: 0; font-size: 14px; color: var(--accent-blue);">[${sectionName}]</h3>
             </div>
             <div class="config-entries"></div>
         `;
 
-        const entriesDiv = sectionDiv.querySelector('.config-entries');
-        sections[sectionName].forEach(entry => {
-            const row = document.createElement('div');
-            row.className = 'config-entry-row';
-            row.innerHTML = `
+    const entriesDiv = sectionDiv.querySelector('.config-entries');
+    sections[sectionName].forEach((entry) => {
+      const row = document.createElement('div');
+      row.className = 'config-entry-row';
+      row.innerHTML = `
                 <div class="config-key">${entry.key}</div>
                 <input type="text" class="settings-input config-val-input" value="${entry.val}" data-section="${sectionName}" data-key="${entry.key}">
                 <button class="button button-danger remove-entry-btn" style="height: 28px; width: 28px; padding: 0;">×</button>
             `;
 
-            row.querySelector('.remove-entry-btn').onclick = () => {
-                row.remove();
-                if (entriesDiv.children.length === 0) sectionDiv.remove();
-            };
+      row.querySelector('.remove-entry-btn').onclick = () => {
+        row.remove();
+        if (entriesDiv.children.length === 0) sectionDiv.remove();
+      };
 
-            entriesDiv.appendChild(row);
-        });
-
-        container.appendChild(sectionDiv);
+      entriesDiv.appendChild(row);
     });
 
-    function addConfigEntry(s, k, v) {
-        let sectionDiv = Array.from(container.querySelectorAll('.config-section')).find(d => d.querySelector('h3').textContent === `[${s}]`);
-        if (!sectionDiv) {
-            sectionDiv = document.createElement('div');
-            sectionDiv.className = 'config-section';
-            sectionDiv.innerHTML = `
+    container.appendChild(sectionDiv);
+  });
+
+  function addConfigEntry(s, k, v) {
+    let sectionDiv = Array.from(container.querySelectorAll('.config-section')).find(
+      (d) => d.querySelector('h3').textContent === `[${s}]`,
+    );
+    if (!sectionDiv) {
+      sectionDiv = document.createElement('div');
+      sectionDiv.className = 'config-section';
+      sectionDiv.innerHTML = `
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
                     <h3 style="margin: 0; font-size: 14px; color: var(--accent-blue);">[${s}]</h3>
                 </div>
                 <div class="config-entries"></div>
             `;
-            container.appendChild(sectionDiv);
-        }
-        const entriesDiv = sectionDiv.querySelector('.config-entries');
+      container.appendChild(sectionDiv);
+    }
+    const entriesDiv = sectionDiv.querySelector('.config-entries');
 
-        // Check if entry already exists in the UI
-        const existingInput = Array.from(entriesDiv.querySelectorAll('.config-val-input')).find(input => input.dataset.key === k);
-        if (existingInput) {
-            existingInput.value = v;
-            existingInput.style.background = 'rgba(31, 111, 235, 0.2)';
-            setTimeout(() => { existingInput.style.background = ''; }, 1000);
-            return;
-        }
+    // Check if entry already exists in the UI
+    const existingInput = Array.from(entriesDiv.querySelectorAll('.config-val-input')).find(
+      (input) => input.dataset.key === k,
+    );
+    if (existingInput) {
+      existingInput.value = v;
+      existingInput.style.background = 'rgba(31, 111, 235, 0.2)';
+      setTimeout(() => {
+        existingInput.style.background = '';
+      }, 1000);
+      return;
+    }
 
-        const row = document.createElement('div');
-        row.className = 'config-entry-row';
-        row.innerHTML = `
+    const row = document.createElement('div');
+    row.className = 'config-entry-row';
+    row.innerHTML = `
             <div class="config-key">${k}</div>
             <input type="text" class="settings-input config-val-input" value="${v}" data-section="${s}" data-key="${k}">
             <button class="button button-danger remove-entry-btn" style="height: 28px; width: 28px; padding: 0;">×</button>
         `;
-        row.querySelector('.remove-entry-btn').onclick = () => {
-            row.remove();
-            if (entriesDiv.children.length === 0) sectionDiv.remove();
-        };
-        entriesDiv.appendChild(row);
+    row.querySelector('.remove-entry-btn').onclick = () => {
+      row.remove();
+      if (entriesDiv.children.length === 0) sectionDiv.remove();
+    };
+    entriesDiv.appendChild(row);
+  }
+
+  // Save Logic
+  elements.saveGitConfigBtn.onclick = async () => {
+    const inputs = Array.from(container.querySelectorAll('.config-val-input'));
+    let newConfig = {};
+
+    inputs.forEach((input) => {
+      const s = input.dataset.section;
+      const k = input.dataset.key;
+      const v = input.value;
+      if (!newConfig[s]) newConfig[s] = [];
+      newConfig[s].push(`${k} = ${v}`);
+    });
+
+    let output = '';
+    Object.keys(newConfig).forEach((s) => {
+      output += `[${s}]\n`;
+      newConfig[s].forEach((line) => {
+        output += `\t${line}\n`;
+      });
+      output += '\n';
+    });
+
+    setTaskState(true);
+    try {
+      const res = await window.electronAPI.saveGitConfig(output);
+      if (res.success) {
+        logToConsole('Global .gitconfig updated successfully.', 'success');
+        showAlert('Global Git configuration has been saved.', 'Success');
+      } else {
+        showError(`Failed to save: ${res.error}`, 'Error');
+      }
+    } catch (e) {
+      showError(`System Error: ${e.message}`, 'Error');
+    } finally {
+      setTaskState(false);
     }
+  };
 
-    // Save Logic
-    elements.saveGitConfigBtn.onclick = async () => {
-        const inputs = Array.from(container.querySelectorAll('.config-val-input'));
-        let newConfig = {};
+  // Add Entry Logic
+  elements.addConfigEntryBtn.onclick = () => {
+    elements.newConfigEntryModal.style.display = 'flex';
+    elements.newConfigSection.value = '';
+    elements.newConfigKey.value = '';
+    elements.newConfigVal.value = '';
+    elements.newConfigSection.focus();
+  };
 
-        inputs.forEach(input => {
-            const s = input.dataset.section;
-            const k = input.dataset.key;
-            const v = input.value;
-            if (!newConfig[s]) newConfig[s] = [];
-            newConfig[s].push(`${k} = ${v}`);
-        });
-
-        let output = '';
-        Object.keys(newConfig).forEach(s => {
-            output += `[${s}]\n`;
-            newConfig[s].forEach(line => {
-                output += `\t${line}\n`;
-            });
-            output += '\n';
-        });
-
-        setTaskState(true);
-        try {
-            const res = await window.electronAPI.saveGitConfig(output);
-            if (res.success) {
-                logToConsole('Global .gitconfig updated successfully.', 'success');
-                showAlert('Global Git configuration has been saved.', 'Success');
-            } else {
-                showError(`Failed to save: ${res.error}`, 'Error');
-            }
-        } catch (e) {
-            showError(`System Error: ${e.message}`, 'Error');
-        } finally {
-            setTaskState(false);
-        }
-    };
-
-    // Add Entry Logic
-    elements.addConfigEntryBtn.onclick = () => {
-        elements.newConfigEntryModal.style.display = 'flex';
-        elements.newConfigSection.value = '';
-        elements.newConfigKey.value = '';
-        elements.newConfigVal.value = '';
-        elements.newConfigSection.focus();
-    };
-
-    elements.newConfigCancel.onclick = () => elements.newConfigEntryModal.style.display = 'none';
-    elements.newConfigConfirm.onclick = () => {
-        const s = elements.newConfigSection.value.trim();
-        const k = elements.newConfigKey.value.trim();
-        const v = elements.newConfigVal.value.trim();
-        if (!s || !k) return showAlert('Section and Key are required.', 'Missing Info');
-        addConfigEntry(s, k, v);
-        elements.newConfigEntryModal.style.display = 'none';
-    };
+  elements.newConfigCancel.onclick = () => (elements.newConfigEntryModal.style.display = 'none');
+  elements.newConfigConfirm.onclick = () => {
+    const s = elements.newConfigSection.value.trim();
+    const k = elements.newConfigKey.value.trim();
+    const v = elements.newConfigVal.value.trim();
+    if (!s || !k) return showAlert('Section and Key are required.', 'Missing Info');
+    addConfigEntry(s, k, v);
+    elements.newConfigEntryModal.style.display = 'none';
+  };
 }
 
 async function checkGitHubTokenLife() {
-    if (!settings.githubToken) return;
-    try {
-        const res = await window.electronAPI.fetchGitHubRepos(settings.githubToken);
-        if (res.expiration) {
-            updateTokenExpirationUI(res.expiration);
-        }
-    } catch (e) {
-        console.warn('Token life check failed:', e);
+  if (!settings.githubToken) return;
+  try {
+    const res = await window.electronAPI.fetchGitHubRepos(settings.githubToken);
+    if (res.expiration) {
+      updateTokenExpirationUI(res.expiration);
     }
+  } catch (e) {
+    console.warn('Token life check failed:', e);
+  }
 }
 
 function updateTokenExpirationUI(expiration) {
-    if (!expiration) return;
-    tokenExpiration = expiration;
-    const date = new Date(expiration);
-    const now = new Date();
-    const timeRemainingMs = date - now;
-    const days = Math.floor(timeRemainingMs / (1000 * 60 * 60 * 24));
+  if (!expiration) return;
+  tokenExpiration = expiration;
+  const date = new Date(expiration);
+  const now = new Date();
+  const timeRemainingMs = date - now;
+  const days = Math.floor(timeRemainingMs / (1000 * 60 * 60 * 24));
 
-    const displayStr = days > 0 ? `${days} days left` : (days === 0 ? 'Expiring today!' : 'Expired!');
-    const fullDateStr = date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
+  const displayStr = days > 0 ? `${days} days left` : days === 0 ? 'Expiring today!' : 'Expired!';
+  const fullDateStr = date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
 
-    // Update Settings UI
-    const containerSettings = document.getElementById('token-expiry-container-settings');
-    const linkSettings = document.getElementById('token-expiry-link-settings');
-    if (containerSettings && linkSettings) {
-        containerSettings.style.display = 'block';
-        linkSettings.textContent = `${displayStr} (${fullDateStr})`;
-        if (days < 7) linkSettings.style.color = 'var(--accent-red)';
-        else linkSettings.style.color = 'var(--accent-blue)';
-    }
+  // Update Settings UI
+  const containerSettings = document.getElementById('token-expiry-container-settings');
+  const linkSettings = document.getElementById('token-expiry-link-settings');
+  if (containerSettings && linkSettings) {
+    containerSettings.style.display = 'block';
+    linkSettings.textContent = `${displayStr} (${fullDateStr})`;
+    if (days < 7) linkSettings.style.color = 'var(--accent-red)';
+    else linkSettings.style.color = 'var(--accent-blue)';
+  }
 
-    // Passively Refresh Feed (don't force a full dashboard refresh)
-    if (elements.dashboardView.style.display !== 'none') {
-        updateStatusFeed();
-    }
+  // Passively Refresh Feed (don't force a full dashboard refresh)
+  if (elements.dashboardView.style.display !== 'none') {
+    updateStatusFeed();
+  }
 }
 
 function updateStatusFeed(stats = null) {
-    const banner = document.getElementById('status-feed-banner');
-    const content = document.getElementById('feed-content-area');
-    const actions = document.getElementById('feed-action-area');
-    if (!banner || !content) return;
+  const banner = document.getElementById('status-feed-banner');
+  const content = document.getElementById('feed-content-area');
+  const actions = document.getElementById('feed-action-area');
+  if (!banner || !content) return;
 
-    if (stats) lastKnownStats = stats;
-    const currentStats = stats || lastKnownStats;
+  if (stats) lastKnownStats = stats;
+  const currentStats = stats || lastKnownStats;
 
-    // 1. Collect potential messages
-    const messages = [];
+  // 1. Collect potential messages
+  const messages = [];
 
-    // GitHub Token (High Priority)
-    if (tokenExpiration) {
-        const date = new Date(tokenExpiration);
-        const days = Math.floor((date - new Date()) / (1000 * 60 * 60 * 24));
-        if (days < 7) {
-            messages.push({
-                text: `⚠ Warning: GitHub token is expiring in ${days === 0 ? 'less than a day' : days + ' days'}!`,
-                color: 'var(--accent-red)',
-                action: { label: 'RENEW NOW', url: 'https://github.com/settings/tokens' }
-            });
-        } else {
-            messages.push({
-                text: `GitHub connection is healthy. Token expires in ${days} days.`,
-                color: 'var(--accent-blue)',
-                action: { label: 'UPDATE', url: 'https://github.com/settings/tokens' }
-            });
-        }
+  // GitHub Token (High Priority)
+  if (tokenExpiration) {
+    const date = new Date(tokenExpiration);
+    const days = Math.floor((date - new Date()) / (1000 * 60 * 60 * 24));
+    if (days < 7) {
+      messages.push({
+        text: `⚠ Warning: GitHub token is expiring in ${days === 0 ? 'less than a day' : days + ' days'}!`,
+        color: 'var(--accent-red)',
+        action: { label: 'RENEW NOW', url: 'https://github.com/settings/tokens' },
+      });
+    } else {
+      messages.push({
+        text: `GitHub connection is healthy. Token expires in ${days} days.`,
+        color: 'var(--accent-blue)',
+        action: { label: 'UPDATE', url: 'https://github.com/settings/tokens' },
+      });
+    }
+  }
+
+  // Project Statuses (Only if stats provided)
+  if (currentStats) {
+    if (currentStats.attention > 0) {
+      messages.push({
+        text: `${currentStats.attention} projects have uncommitted changes that need review.`,
+        color: 'var(--accent-red)',
+        action: { label: 'VIEW ALL', filter: 'attention' },
+      });
+    }
+    if (currentStats.sync > 0) {
+      messages.push({
+        text: `${currentStats.sync} projects are out of sync with their origin remotes.`,
+        color: '#e3b341',
+        action: { label: 'SYNC NOW', filter: 'sync' },
+      });
+    }
+    if (currentStats.local > 0) {
+      messages.push({
+        text: `You have ${currentStats.local} local-only projects that haven't been published yet.`,
+        color: 'var(--accent-green)',
+        action: { label: 'PUBLISH', filter: 'local' },
+      });
     }
 
-    // Project Statuses (Only if stats provided)
-    if (currentStats) {
-        if (currentStats.attention > 0) {
-            messages.push({
-                text: `${currentStats.attention} projects have uncommitted changes that need review.`,
-                color: 'var(--accent-red)',
-                action: { label: 'VIEW ALL', filter: 'attention' }
-            });
-        }
-        if (currentStats.sync > 0) {
-            messages.push({
-                text: `${currentStats.sync} projects are out of sync with their origin remotes.`,
-                color: '#e3b341',
-                action: { label: 'SYNC NOW', filter: 'sync' }
-            });
-        }
-        if (currentStats.local > 0) {
-            messages.push({
-                text: `You have ${currentStats.local} local-only projects that haven't been published yet.`,
-                color: 'var(--accent-green)',
-                action: { label: 'PUBLISH', filter: 'local' }
-            });
-        }
-
-        // Intelligence: Always ensure a "Good News" message if everything is clean/synced
-        if (currentStats.attention === 0 && currentStats.sync === 0) {
-            messages.push({
-                text: "Workspace Status: All tracked projects are clean and synced with remote.",
-                color: 'var(--accent-green)'
-            });
-        }
+    // Intelligence: Always ensure a "Good News" message if everything is clean/synced
+    if (currentStats.attention === 0 && currentStats.sync === 0) {
+      messages.push({
+        text: 'Workspace Status: All tracked projects are clean and synced with remote.',
+        color: 'var(--accent-green)',
+      });
     }
+  }
 
-    // Default if no specific news
-    if (messages.length === 0) {
-        messages.push({ text: "All projects are clean and synced. Good work!", color: 'var(--text-muted)' });
-    }
+  // Default if no specific news
+  if (messages.length === 0) {
+    messages.push({
+      text: 'All projects are clean and synced. Good work!',
+      color: 'var(--text-muted)',
+    });
+  }
 
-    // 2. State Management for Feed
-    feedMessages = messages;
-    if (currentFeedIndex >= feedMessages.length) currentFeedIndex = 0;
+  // 2. State Management for Feed
+  feedMessages = messages;
+  if (currentFeedIndex >= feedMessages.length) currentFeedIndex = 0;
 
-    // 3. Display Logic
-    banner.style.display = 'flex';
+  // 3. Display Logic
+  banner.style.display = 'flex';
 
-    const showMessage = (idx) => {
-        const msg = feedMessages[idx];
+  const showMessage = (idx) => {
+    const msg = feedMessages[idx];
 
-        // Transition: Fade out
-        content.style.opacity = '0';
-        content.style.transform = 'translateY(5px)';
+    // Transition: Fade out
+    content.style.opacity = '0';
+    content.style.transform = 'translateY(5px)';
 
-        setTimeout(() => {
-            content.textContent = msg.text;
-            content.style.color = msg.color || 'var(--text-main)';
+    setTimeout(() => {
+      content.textContent = msg.text;
+      content.style.color = msg.color || 'var(--text-main)';
 
-            // Render Action
-            actions.innerHTML = '';
-            if (msg.action) {
-                const btn = document.createElement('button');
-                btn.className = 'button';
-                btn.style.fontSize = '10px';
-                btn.style.padding = '2px 8px';
-                btn.style.borderColor = msg.color || 'var(--border-color)';
-                btn.style.color = msg.color || 'var(--text-main)';
-                btn.textContent = msg.action.label;
-                btn.onclick = () => {
-                    if (msg.action.url) window.electronAPI.openExternal(msg.action.url);
-                    if (msg.action.filter) {
-                        currentDashboardFilter = msg.action.filter;
-                        showDashboard();
-                    }
-                };
-                actions.appendChild(btn);
-            }
+      // Render Action
+      actions.innerHTML = '';
+      if (msg.action) {
+        const btn = document.createElement('button');
+        btn.className = 'button';
+        btn.style.fontSize = '10px';
+        btn.style.padding = '2px 8px';
+        btn.style.borderColor = msg.color || 'var(--border-color)';
+        btn.style.color = msg.color || 'var(--text-main)';
+        btn.textContent = msg.action.label;
+        btn.onclick = () => {
+          if (msg.action.url) window.electronAPI.openExternal(msg.action.url);
+          if (msg.action.filter) {
+            currentDashboardFilter = msg.action.filter;
+            showDashboard();
+          }
+        };
+        actions.appendChild(btn);
+      }
 
-            // Transition: Fade in
-            content.style.opacity = '1';
-            content.style.transform = 'translateY(0)';
-        }, 300);
-    };
+      // Transition: Fade in
+      content.style.opacity = '1';
+      content.style.transform = 'translateY(0)';
+    }, 300);
+  };
 
-    // Initial show
-    showMessage(currentFeedIndex);
+  // Initial show
+  showMessage(currentFeedIndex);
 
-    // 4. Start Cycling if more than 1 message
-    if (feedTimer) clearInterval(feedTimer);
-    if (feedMessages.length > 1) {
-        feedTimer = setInterval(() => {
-            currentFeedIndex = (currentFeedIndex + 1) % feedMessages.length;
-            showMessage(currentFeedIndex);
-        }, 10000); // 10 seconds per message
-    }
+  // 4. Start Cycling if more than 1 message
+  if (feedTimer) clearInterval(feedTimer);
+  if (feedMessages.length > 1) {
+    feedTimer = setInterval(() => {
+      currentFeedIndex = (currentFeedIndex + 1) % feedMessages.length;
+      showMessage(currentFeedIndex);
+    }, 10000); // 10 seconds per message
+  }
 }
 
 function updateDashboardSummary(stats) {
-    const summary = elements.dashboardSummary;
-    summary.style.display = 'flex';
-    summary.style.padding = '0';
-    summary.style.background = 'transparent';
-    summary.style.border = 'none';
-    summary.style.gap = '12px';
+  const summary = elements.dashboardSummary;
+  summary.style.display = 'flex';
+  summary.style.padding = '0';
+  summary.style.background = 'transparent';
+  summary.style.border = 'none';
+  summary.style.gap = '12px';
 
-    // Use cached UI update if stats not provided (just updating active state)
-    if (!stats) {
-        summary.querySelectorAll('.summary-card').forEach(card => {
-            const isActive = currentDashboardFilter === card.dataset.filter;
-            card.classList.toggle('active', isActive);
-            card.style.borderColor = isActive ? card.dataset.color : 'var(--border-color)';
-            const indicator = card.querySelector('.active-indicator');
-            if (indicator) indicator.style.display = isActive ? 'block' : 'none';
-        });
-        return;
-    }
+  // Use cached UI update if stats not provided (just updating active state)
+  if (!stats) {
+    summary.querySelectorAll('.summary-card').forEach((card) => {
+      const isActive = currentDashboardFilter === card.dataset.filter;
+      card.classList.toggle('active', isActive);
+      card.style.borderColor = isActive ? card.dataset.color : 'var(--border-color)';
+      const indicator = card.querySelector('.active-indicator');
+      if (indicator) indicator.style.display = isActive ? 'block' : 'none';
+    });
+    return;
+  }
 
-    const items = [
-        { id: 'all', label: 'Total Projects', value: stats.total, color: 'var(--accent-blue)' },
-        { id: 'attention', label: 'Needs Attention', value: stats.attention, color: 'var(--accent-red)' },
-        { id: 'sync', label: 'Out of Sync', value: stats.sync, color: '#e3b341' },
-        { id: 'local', label: 'Offline Only', value: stats.local, color: 'var(--accent-green)' },
-        { id: 'unborn', label: 'Empty Repos', value: stats.unborn, color: '#8b949e' }
-    ];
+  const items = [
+    { id: 'all', label: 'Total Projects', value: stats.total, color: 'var(--accent-blue)' },
+    {
+      id: 'attention',
+      label: 'Needs Attention',
+      value: stats.attention,
+      color: 'var(--accent-red)',
+    },
+    { id: 'sync', label: 'Out of Sync', value: stats.sync, color: '#e3b341' },
+    { id: 'local', label: 'Offline Only', value: stats.local, color: 'var(--accent-green)' },
+    { id: 'unborn', label: 'Empty Repos', value: stats.unborn, color: '#8b949e' },
+  ];
 
-    summary.innerHTML = items.map(item => {
-        const isActive = currentDashboardFilter === item.id;
-        const hasValue = (item.value !== 0 && item.value !== '0' && item.value !== '0d');
-        const valColor = hasValue ? item.color : 'var(--text-muted)';
+  summary.innerHTML = items
+    .map((item) => {
+      const isActive = currentDashboardFilter === item.id;
+      const hasValue = item.value !== 0 && item.value !== '0' && item.value !== '0d';
+      const valColor = hasValue ? item.color : 'var(--text-muted)';
 
-        return `
+      return `
             <div class="summary-card ${isActive ? 'active' : ''}" data-filter="${item.id}" data-color="${item.color}"
                  style="flex:1; background:var(--bg-surface); border:1px solid ${isActive ? item.color : 'var(--border-color)'}; border-radius:12px; padding:16px; cursor:pointer; transition:all 0.2s; position:relative; overflow:hidden; min-width: 120px;">
 
@@ -5216,39 +6438,43 @@ function updateDashboardSummary(stats) {
                 <div class="active-indicator" style="position:absolute; bottom:0; left:0; right:0; height:3px; background:${item.color}; display: ${isActive ? 'block' : 'none'};"></div>
             </div>
         `;
-    }).join('');
+    })
+    .join('');
 
-    summary.querySelectorAll('.summary-card').forEach(card => {
-        card.onclick = () => {
-            currentDashboardFilter = card.dataset.filter;
-            showDashboard(true);
-        };
-    });
+  summary.querySelectorAll('.summary-card').forEach((card) => {
+    card.onclick = () => {
+      currentDashboardFilter = card.dataset.filter;
+      showDashboard(true);
+    };
+  });
 }
 
 async function showBulkCommitModal() {
-    elements.bulkCommitModal.style.display = 'flex';
-    elements.bulkCommitMsg.value = '';
-    elements.bulkCommitRepoList.innerHTML = '<div style="color:var(--text-muted); font-size:11px; padding:10px;">Analyzing workspace staged changes...</div>';
+  elements.bulkCommitModal.style.display = 'flex';
+  elements.bulkCommitMsg.value = '';
+  elements.bulkCommitRepoList.innerHTML =
+    '<div style="color:var(--text-muted); font-size:11px; padding:10px;">Analyzing workspace staged changes...</div>';
 
-    // Fetch fresh status for all projects to see who has staged changes
-    const projectsWithStaged = [];
-    for (const repo of repositories) {
-        try {
-            const status = await window.electronAPI.gitStatus(repo.path);
-            if (status.staged > 0) {
-                projectsWithStaged.push({ repo, status });
-            }
-        } catch(e) {}
-    }
+  // Fetch fresh status for all projects to see who has staged changes
+  const projectsWithStaged = [];
+  for (const repo of repositories) {
+    try {
+      const status = await window.electronAPI.gitStatus(repo.path);
+      if (status.staged > 0) {
+        projectsWithStaged.push({ repo, status });
+      }
+    } catch (e) {}
+  }
 
-    if (projectsWithStaged.length === 0) {
-        elements.bulkCommitRepoList.innerHTML = '<div style="color:var(--accent-green); font-size:11px; padding:10px;">No staged changes found. Use Stage All first.</div>';
-        elements.bulkCommitConfirm.disabled = true;
-    } else {
-        elements.bulkCommitConfirm.disabled = false;
-        elements.bulkCommitRepoList.innerHTML = projectsWithStaged.map(({ repo, status }) => {
-            return `
+  if (projectsWithStaged.length === 0) {
+    elements.bulkCommitRepoList.innerHTML =
+      '<div style="color:var(--accent-green); font-size:11px; padding:10px;">No staged changes found. Use Stage All first.</div>';
+    elements.bulkCommitConfirm.disabled = true;
+  } else {
+    elements.bulkCommitConfirm.disabled = false;
+    elements.bulkCommitRepoList.innerHTML = projectsWithStaged
+      .map(({ repo, status }) => {
+        return `
                 <label style="display:flex; align-items:center; gap:8px; cursor:pointer; padding:8px; background:rgba(255,255,255,0.02); border-radius:4px; margin-bottom:4px; border: 1px solid transparent;">
                     <input type="checkbox" class="bulk-commit-item-cb" value="${repo.path}" data-name="${repo.name}" checked>
                     <div style="flex:1; min-width:0;">
@@ -5259,90 +6485,104 @@ async function showBulkCommitModal() {
                     </div>
                 </label>
             `;
-        }).join('');
-    }
+      })
+      .join('');
+  }
 
-    elements.bulkCommitSelectAll.onchange = (e) => {
-        elements.bulkCommitRepoList.querySelectorAll('.bulk-commit-item-cb').forEach(cb => cb.checked = e.target.checked);
-    };
+  elements.bulkCommitSelectAll.onchange = (e) => {
+    elements.bulkCommitRepoList
+      .querySelectorAll('.bulk-commit-item-cb')
+      .forEach((cb) => (cb.checked = e.target.checked));
+  };
 
-    elements.bulkCommitCancel.onclick = () => elements.bulkCommitModal.style.display = 'none';
-    elements.bulkCommitConfirm.onclick = async () => {
-        const selectedCbs = Array.from(elements.bulkCommitRepoList.querySelectorAll('.bulk-commit-item-cb:checked'));
-        if (selectedCbs.length === 0) return showAlert('Select at least one project to commit.', 'Selection Required');
+  elements.bulkCommitCancel.onclick = () => (elements.bulkCommitModal.style.display = 'none');
+  elements.bulkCommitConfirm.onclick = async () => {
+    const selectedCbs = Array.from(
+      elements.bulkCommitRepoList.querySelectorAll('.bulk-commit-item-cb:checked'),
+    );
+    if (selectedCbs.length === 0)
+      return showAlert('Select at least one project to commit.', 'Selection Required');
 
-        const globalMsg = elements.bulkCommitMsg.value.trim();
-        const useAI = elements.bulkCommitAutoMsg.checked;
+    const globalMsg = elements.bulkCommitMsg.value.trim();
+    const useAI = elements.bulkCommitAutoMsg.checked;
 
-        if (!globalMsg && !useAI) return showAlert('Please enter a message or enable AI.', 'Missing Info');
+    if (!globalMsg && !useAI)
+      return showAlert('Please enter a message or enable AI.', 'Missing Info');
 
-        elements.bulkCommitModal.style.display = 'none';
-        logToConsole(`🚀 Launching Bulk Commit for ${selectedCbs.length} projects...`, 'info');
-        setTaskState(true);
+    elements.bulkCommitModal.style.display = 'none';
+    logToConsole(`🚀 Launching Bulk Commit for ${selectedCbs.length} projects...`, 'info');
+    setTaskState(true);
 
-        let successCount = 0;
-        let failCount = 0;
+    let successCount = 0;
+    let failCount = 0;
 
+    try {
+      for (const cb of selectedCbs) {
+        const path = cb.value;
+        const name = cb.dataset.name;
         try {
-            for (const cb of selectedCbs) {
-                const path = cb.value;
-                const name = cb.dataset.name;
-                try {
-                    logToConsole(`📦 [${name}]: Committing...`, 'info');
+          logToConsole(`📦 [${name}]: Committing...`, 'info');
 
-                    let commitMsg = globalMsg;
-                    if (useAI) {
-                        try {
-                            const diff = await window.electronAPI.getStagedDiff(path);
-                            if (diff) commitMsg = await window.electronAPI.generateCommitMsg(diff);
-                        } catch(aiErr) {
-                            console.warn(`AI failed for ${name}:`, aiErr);
-                        }
-                    }
-
-                    const commitRes = await window.electronAPI.gitCommit(path, commitMsg || 'chore: bulk commit');
-                    if (commitRes.success) {
-                        logToConsole(`   ✅ Committed: ${name}`, 'success');
-                        successCount++;
-                    } else {
-                        logToConsole(`   ❌ Commit Failed [${name}]: ${commitRes.output}`, 'error');
-                        failCount++;
-                    }
-                } catch (e) {
-                    logToConsole(`   ⚠️ Error [${name}]: ${e.message}`, 'error');
-                    failCount++;
-                }
+          let commitMsg = globalMsg;
+          if (useAI) {
+            try {
+              const diff = await window.electronAPI.getStagedDiff(path);
+              if (diff) commitMsg = await window.electronAPI.generateCommitMsg(diff);
+            } catch (aiErr) {
+              console.warn(`AI failed for ${name}:`, aiErr);
             }
-            logToConsole(`Bulk Commit Complete. Success: ${successCount}, Failed: ${failCount}`, 'info');
-            await smartRefreshTree();
-            showDashboard();
-        } finally {
-            setTaskState(false);
+          }
+
+          const commitRes = await window.electronAPI.gitCommit(
+            path,
+            commitMsg || 'chore: bulk commit',
+          );
+          if (commitRes.success) {
+            logToConsole(`   ✅ Committed: ${name}`, 'success');
+            successCount++;
+          } else {
+            logToConsole(`   ❌ Commit Failed [${name}]: ${commitRes.output}`, 'error');
+            failCount++;
+          }
+        } catch (e) {
+          logToConsole(`   ⚠️ Error [${name}]: ${e.message}`, 'error');
+          failCount++;
         }
-    };
+      }
+      logToConsole(`Bulk Commit Complete. Success: ${successCount}, Failed: ${failCount}`, 'info');
+      await smartRefreshTree();
+      showDashboard();
+    } finally {
+      setTaskState(false);
+    }
+  };
 }
 
 async function handleBulkStage() {
-    elements.bulkStageModal.style.display = 'flex';
-    elements.bulkStageRepoList.innerHTML = '<div style="color:var(--text-muted); font-size:11px; padding:10px;">Analyzing workspace changes...</div>';
+  elements.bulkStageModal.style.display = 'flex';
+  elements.bulkStageRepoList.innerHTML =
+    '<div style="color:var(--text-muted); font-size:11px; padding:10px;">Analyzing workspace changes...</div>';
 
-    const projectsWithChanges = [];
-    for (const repo of repositories) {
-        try {
-            const status = await window.electronAPI.gitStatus(repo.path);
-            const hasChanges = (status.modified || 0) + (status.not_added || 0) + (status.deleted || 0) > 0;
-            if (hasChanges) projectsWithChanges.push({ repo, status });
-        } catch(e) {}
-    }
+  const projectsWithChanges = [];
+  for (const repo of repositories) {
+    try {
+      const status = await window.electronAPI.gitStatus(repo.path);
+      const hasChanges =
+        (status.modified || 0) + (status.not_added || 0) + (status.deleted || 0) > 0;
+      if (hasChanges) projectsWithChanges.push({ repo, status });
+    } catch (e) {}
+  }
 
-    if (projectsWithChanges.length === 0) {
-        elements.bulkStageRepoList.innerHTML = '<div style="color:var(--accent-green); font-size:11px; padding:10px;">Everything is clean! Nothing to stage.</div>';
-        elements.bulkStageConfirm.disabled = true;
-    } else {
-        elements.bulkStageConfirm.disabled = false;
-        elements.bulkStageRepoList.innerHTML = projectsWithChanges.map(({ repo, status }) => {
-            const total = (status.modified || 0) + (status.not_added || 0) + (status.deleted || 0);
-            return `
+  if (projectsWithChanges.length === 0) {
+    elements.bulkStageRepoList.innerHTML =
+      '<div style="color:var(--accent-green); font-size:11px; padding:10px;">Everything is clean! Nothing to stage.</div>';
+    elements.bulkStageConfirm.disabled = true;
+  } else {
+    elements.bulkStageConfirm.disabled = false;
+    elements.bulkStageRepoList.innerHTML = projectsWithChanges
+      .map(({ repo, status }) => {
+        const total = (status.modified || 0) + (status.not_added || 0) + (status.deleted || 0);
+        return `
                 <label style="display:flex; align-items:center; gap:8px; cursor:pointer; padding:8px; background:rgba(255,255,255,0.02); border-radius:4px; margin-bottom:4px; border: 1px solid transparent;">
                     <input type="checkbox" class="bulk-stage-item-cb" value="${repo.path}" data-name="${repo.name}" checked>
                     <div style="flex:1; min-width:0;">
@@ -5353,67 +6593,79 @@ async function handleBulkStage() {
                     </div>
                 </label>
             `;
-        }).join('');
-    }
+      })
+      .join('');
+  }
 
-    elements.bulkStageSelectAll.onchange = (e) => {
-        elements.bulkStageRepoList.querySelectorAll('.bulk-stage-item-cb').forEach(cb => cb.checked = e.target.checked);
-    };
+  elements.bulkStageSelectAll.onchange = (e) => {
+    elements.bulkStageRepoList
+      .querySelectorAll('.bulk-stage-item-cb')
+      .forEach((cb) => (cb.checked = e.target.checked));
+  };
 
-    elements.bulkStageCancel.onclick = () => elements.bulkStageModal.style.display = 'none';
-    elements.bulkStageConfirm.onclick = async () => {
-        const selectedCbs = Array.from(elements.bulkStageRepoList.querySelectorAll('.bulk-stage-item-cb:checked'));
-        if (selectedCbs.length === 0) return showAlert('Select at least one project to stage.', 'Selection Required');
+  elements.bulkStageCancel.onclick = () => (elements.bulkStageModal.style.display = 'none');
+  elements.bulkStageConfirm.onclick = async () => {
+    const selectedCbs = Array.from(
+      elements.bulkStageRepoList.querySelectorAll('.bulk-stage-item-cb:checked'),
+    );
+    if (selectedCbs.length === 0)
+      return showAlert('Select at least one project to stage.', 'Selection Required');
 
-        elements.bulkStageModal.style.display = 'none';
-        logToConsole(`🚀 Launching Bulk Stage for ${selectedCbs.length} projects...`, 'info');
-        setTaskState(true);
+    elements.bulkStageModal.style.display = 'none';
+    logToConsole(`🚀 Launching Bulk Stage for ${selectedCbs.length} projects...`, 'info');
+    setTaskState(true);
 
-        let success = 0; let fail = 0;
+    let success = 0;
+    let fail = 0;
+    try {
+      for (const cb of selectedCbs) {
+        const path = cb.value;
+        const name = cb.dataset.name;
         try {
-            for (const cb of selectedCbs) {
-                const path = cb.value;
-                const name = cb.dataset.name;
-                try {
-                    await window.electronAPI.gitStageAll(path);
-                    logToConsole(`   ✅ Staged: ${name}`, 'success');
-                    success++;
-                } catch (e) {
-                    logToConsole(`   ❌ Stage Failed [${name}]: ${e.message}`, 'error');
-                    fail++;
-                }
-            }
-            logToConsole(`Bulk Stage Complete. Success: ${success}, Failed: ${fail}`, 'info');
-            await smartRefreshTree();
-            showDashboard();
-        } finally { setTaskState(false); }
-    };
+          await window.electronAPI.gitStageAll(path);
+          logToConsole(`   ✅ Staged: ${name}`, 'success');
+          success++;
+        } catch (e) {
+          logToConsole(`   ❌ Stage Failed [${name}]: ${e.message}`, 'error');
+          fail++;
+        }
+      }
+      logToConsole(`Bulk Stage Complete. Success: ${success}, Failed: ${fail}`, 'info');
+      await smartRefreshTree();
+      showDashboard();
+    } finally {
+      setTaskState(false);
+    }
+  };
 }
 
 async function handleBulkPush() {
-    elements.bulkPushModal.style.display = 'flex';
-    elements.bulkPushRepoList.innerHTML = '<div style="color:var(--text-muted); font-size:11px; padding:10px;">Analyzing remote status...</div>';
+  elements.bulkPushModal.style.display = 'flex';
+  elements.bulkPushRepoList.innerHTML =
+    '<div style="color:var(--text-muted); font-size:11px; padding:10px;">Analyzing remote status...</div>';
 
-    const projectsWithAhead = [];
-    for (const repo of repositories) {
-        try {
-            const [status, remotes] = await Promise.all([
-                window.electronAPI.gitStatus(repo.path),
-                window.electronAPI.getRemotes(repo.path)
-            ]);
-            if ((status.ahead || 0) > 0 && remotes.length > 0) {
-                projectsWithAhead.push({ repo, status });
-            }
-        } catch(e) {}
-    }
+  const projectsWithAhead = [];
+  for (const repo of repositories) {
+    try {
+      const [status, remotes] = await Promise.all([
+        window.electronAPI.gitStatus(repo.path),
+        window.electronAPI.getRemotes(repo.path),
+      ]);
+      if ((status.ahead || 0) > 0 && remotes.length > 0) {
+        projectsWithAhead.push({ repo, status });
+      }
+    } catch (e) {}
+  }
 
-    if (projectsWithAhead.length === 0) {
-        elements.bulkPushRepoList.innerHTML = '<div style="color:var(--text-muted); font-size:11px; padding:10px;">No projects ahead of remote. Nothing to push.</div>';
-        elements.bulkPushConfirm.disabled = true;
-    } else {
-        elements.bulkPushConfirm.disabled = false;
-        elements.bulkPushRepoList.innerHTML = projectsWithAhead.map(({ repo, status }) => {
-            return `
+  if (projectsWithAhead.length === 0) {
+    elements.bulkPushRepoList.innerHTML =
+      '<div style="color:var(--text-muted); font-size:11px; padding:10px;">No projects ahead of remote. Nothing to push.</div>';
+    elements.bulkPushConfirm.disabled = true;
+  } else {
+    elements.bulkPushConfirm.disabled = false;
+    elements.bulkPushRepoList.innerHTML = projectsWithAhead
+      .map(({ repo, status }) => {
+        return `
                 <label style="display:flex; align-items:center; gap:8px; cursor:pointer; padding:8px; background:rgba(255,255,255,0.02); border-radius:4px; margin-bottom:4px; border: 1px solid transparent;">
                     <input type="checkbox" class="bulk-push-item-cb" value="${repo.path}" data-name="${repo.name}" checked>
                     <div style="flex:1; min-width:0;">
@@ -5424,73 +6676,92 @@ async function handleBulkPush() {
                     </div>
                 </label>
             `;
-        }).join('');
-    }
+      })
+      .join('');
+  }
 
-    elements.bulkPushSelectAll.onchange = (e) => {
-        elements.bulkPushRepoList.querySelectorAll('.bulk-push-item-cb').forEach(cb => cb.checked = e.target.checked);
-    };
+  elements.bulkPushSelectAll.onchange = (e) => {
+    elements.bulkPushRepoList
+      .querySelectorAll('.bulk-push-item-cb')
+      .forEach((cb) => (cb.checked = e.target.checked));
+  };
 
-    elements.bulkPushCancel.onclick = () => elements.bulkPushModal.style.display = 'none';
-    elements.bulkPushConfirm.onclick = async () => {
-        const selectedCbs = Array.from(elements.bulkPushRepoList.querySelectorAll('.bulk-push-item-cb:checked'));
-        if (selectedCbs.length === 0) return showAlert('Select at least one project to push.', 'Selection Required');
+  elements.bulkPushCancel.onclick = () => (elements.bulkPushModal.style.display = 'none');
+  elements.bulkPushConfirm.onclick = async () => {
+    const selectedCbs = Array.from(
+      elements.bulkPushRepoList.querySelectorAll('.bulk-push-item-cb:checked'),
+    );
+    if (selectedCbs.length === 0)
+      return showAlert('Select at least one project to push.', 'Selection Required');
 
-        elements.bulkPushModal.style.display = 'none';
-        logToConsole(`🚀 Launching Bulk Push for ${selectedCbs.length} projects...`, 'info');
-        setTaskState(true);
+    elements.bulkPushModal.style.display = 'none';
+    logToConsole(`🚀 Launching Bulk Push for ${selectedCbs.length} projects...`, 'info');
+    setTaskState(true);
 
-        let success = 0; let fail = 0;
+    let success = 0;
+    let fail = 0;
+    try {
+      for (const cb of selectedCbs) {
+        const path = cb.value;
+        const name = cb.dataset.name;
         try {
-            for (const cb of selectedCbs) {
-                const path = cb.value;
-                const name = cb.dataset.name;
-                try {
-                    logToConsole(`   ⬆️ Pushing: ${name}...`, 'info');
-                    const repo = repositories.find(r => r.path === path);
-                    const pushRes = await window.electronAPI.gitPush(path, repo ? repo.gitForce : false);
-                    if (pushRes.success) {
-                        logToConsole(`   🚀 Pushed: ${name}`, 'success');
-                        success++;
-                    } else {
-                        logToConsole(`   ❌ Push Failed [${name}]: ${pushRes.output}`, 'error');
-                        fail++;
-                    }
-                } catch (e) {
-                    logToConsole(`   ⚠️ Error [${name}]: ${e.message}`, 'error');
-                    fail++;
-                }
-            }
-            logToConsole(`Bulk Push Complete. Success: ${success}, Failed: ${fail}`, 'info');
-            showDashboard();
-        } finally { setTaskState(false); }
-    };
+          logToConsole(`   ⬆️ Pushing: ${name}...`, 'info');
+          const repo = repositories.find((r) => r.path === path);
+          const pushRes = await window.electronAPI.gitPush(path, repo ? repo.gitForce : false);
+          if (pushRes.success) {
+            logToConsole(`   🚀 Pushed: ${name}`, 'success');
+            success++;
+          } else {
+            logToConsole(`   ❌ Push Failed [${name}]: ${pushRes.output}`, 'error');
+            fail++;
+          }
+        } catch (e) {
+          logToConsole(`   ⚠️ Error [${name}]: ${e.message}`, 'error');
+          fail++;
+        }
+      }
+      logToConsole(`Bulk Push Complete. Success: ${success}, Failed: ${fail}`, 'info');
+      showDashboard();
+    } finally {
+      setTaskState(false);
+    }
+  };
 }
 
 async function handleBulkRestore() {
-    elements.bulkRestoreModal.style.display = 'flex';
-    elements.bulkRestoreRepoList.innerHTML = '<div style="color:var(--text-muted); font-size:11px; padding:10px;">Analyzing workspace...</div>';
+  elements.bulkRestoreModal.style.display = 'flex';
+  elements.bulkRestoreRepoList.innerHTML =
+    '<div style="color:var(--text-muted); font-size:11px; padding:10px;">Analyzing workspace...</div>';
 
-    // Fetch fresh status for all projects
-    const projectsList = [];
-    for (const repo of repositories) {
-        try {
-            const status = await window.electronAPI.gitStatus(repo.path);
-            projectsList.push({ repo, status });
-        } catch(e) {
-            projectsList.push({ repo, status: { error: true } });
-        }
+  // Fetch fresh status for all projects
+  const projectsList = [];
+  for (const repo of repositories) {
+    try {
+      const status = await window.electronAPI.gitStatus(repo.path);
+      projectsList.push({ repo, status });
+    } catch (e) {
+      projectsList.push({ repo, status: { error: true } });
     }
+  }
 
-    if (projectsList.length === 0) {
-        elements.bulkRestoreRepoList.innerHTML = '<div style="color:var(--text-muted); font-size:11px; padding:10px;">No projects found in workspace.</div>';
-        elements.bulkRestoreConfirm.disabled = true;
-    } else {
-        elements.bulkRestoreConfirm.disabled = false;
-        elements.bulkRestoreRepoList.innerHTML = projectsList.map(({ repo, status }) => {
-            const total = (status.modified || 0) + (status.not_added || 0) + (status.deleted || 0) + (status.staged || 0);
-            const statusText = total > 0 ? `<span style="color:var(--accent-red);">${total} dirty files will be wiped</span>` : `<span style="color:var(--accent-green);">Clean</span>`;
-            return `
+  if (projectsList.length === 0) {
+    elements.bulkRestoreRepoList.innerHTML =
+      '<div style="color:var(--text-muted); font-size:11px; padding:10px;">No projects found in workspace.</div>';
+    elements.bulkRestoreConfirm.disabled = true;
+  } else {
+    elements.bulkRestoreConfirm.disabled = false;
+    elements.bulkRestoreRepoList.innerHTML = projectsList
+      .map(({ repo, status }) => {
+        const total =
+          (status.modified || 0) +
+          (status.not_added || 0) +
+          (status.deleted || 0) +
+          (status.staged || 0);
+        const statusText =
+          total > 0
+            ? `<span style="color:var(--accent-red);">${total} dirty files will be wiped</span>`
+            : `<span style="color:var(--accent-green);">Clean</span>`;
+        return `
                 <label style="display:flex; align-items:center; gap:8px; cursor:pointer; padding:8px; background:rgba(255,255,255,0.02); border-radius:4px; margin-bottom:4px; border: 1px solid ${total > 0 ? 'rgba(218, 54, 51, 0.2)' : 'transparent'};">
                     <input type="checkbox" class="bulk-restore-item-cb" value="${repo.path}" data-name="${repo.name}" ${total > 0 ? 'checked' : ''}>
                     <div style="flex:1; min-width:0;">
@@ -5499,73 +6770,96 @@ async function handleBulkRestore() {
                     </div>
                 </label>
             `;
-        }).join('');
-    }
+      })
+      .join('');
+  }
 
-    elements.bulkRestoreSelectAll.onchange = (e) => {
-        elements.bulkRestoreRepoList.querySelectorAll('.bulk-restore-item-cb').forEach(cb => cb.checked = e.target.checked);
-    };
+  elements.bulkRestoreSelectAll.onchange = (e) => {
+    elements.bulkRestoreRepoList
+      .querySelectorAll('.bulk-restore-item-cb')
+      .forEach((cb) => (cb.checked = e.target.checked));
+  };
 
-    elements.bulkRestoreCancel.onclick = () => elements.bulkRestoreModal.style.display = 'none';
-    elements.bulkRestoreConfirm.onclick = async () => {
-        const selectedCbs = Array.from(elements.bulkRestoreRepoList.querySelectorAll('.bulk-restore-item-cb:checked'));
-        if (selectedCbs.length === 0) return showAlert('Select at least one project to restore.', 'Selection Required');
+  elements.bulkRestoreCancel.onclick = () => (elements.bulkRestoreModal.style.display = 'none');
+  elements.bulkRestoreConfirm.onclick = async () => {
+    const selectedCbs = Array.from(
+      elements.bulkRestoreRepoList.querySelectorAll('.bulk-restore-item-cb:checked'),
+    );
+    if (selectedCbs.length === 0)
+      return showAlert('Select at least one project to restore.', 'Selection Required');
 
-        if (!(await showConfirm(`Are you sure you want to wipe all local changes in ${selectedCbs.length} projects?\n\nThis cannot be undone.`, "Confirm Restore"))) return;
+    if (
+      !(await showConfirm(
+        `Are you sure you want to wipe all local changes in ${selectedCbs.length} projects?\n\nThis cannot be undone.`,
+        'Confirm Restore',
+      ))
+    )
+      return;
 
-        elements.bulkRestoreModal.style.display = 'none';
-        logToConsole(`Launching Restore sequence for ${selectedCbs.length} projects...`, 'info');
-        setTaskState(true);
+    elements.bulkRestoreModal.style.display = 'none';
+    logToConsole(`Launching Restore sequence for ${selectedCbs.length} projects...`, 'info');
+    setTaskState(true);
 
-        let success = 0; let fail = 0;
+    let success = 0;
+    let fail = 0;
+    try {
+      for (const cb of selectedCbs) {
+        const path = cb.value;
+        const name = cb.dataset.name;
         try {
-            for (const cb of selectedCbs) {
-                const path = cb.value;
-                const name = cb.dataset.name;
-                try {
-                    const res = await window.electronAPI.gitRestoreToHead(path);
-                    if (res.success) {
-                        logToConsole(`   ✅ Restored: ${name}`, 'success');
-                        success++;
-                    } else {
-                        logToConsole(`   ❌ Restore Failed [${name}]: ${res.output}`, 'error');
-                        fail++;
-                    }
-                } catch (e) {
-                    logToConsole(`   ⚠️ Error [${name}]: ${e.message}`, 'error');
-                    fail++;
-                }
-            }
-            logToConsole(`Restore Complete. Success: ${success}, Failed: ${fail}`, 'info');
-            await smartRefreshTree();
-            showDashboard();
-        } finally { setTaskState(false); }
-    };
+          const res = await window.electronAPI.gitRestoreToHead(path);
+          if (res.success) {
+            logToConsole(`   ✅ Restored: ${name}`, 'success');
+            success++;
+          } else {
+            logToConsole(`   ❌ Restore Failed [${name}]: ${res.output}`, 'error');
+            fail++;
+          }
+        } catch (e) {
+          logToConsole(`   ⚠️ Error [${name}]: ${e.message}`, 'error');
+          fail++;
+        }
+      }
+      logToConsole(`Restore Complete. Success: ${success}, Failed: ${fail}`, 'info');
+      await smartRefreshTree();
+      showDashboard();
+    } finally {
+      setTaskState(false);
+    }
+  };
 }
 
 async function handleBulkFetch() {
-    if (repositories.length === 0) return showAlert('No projects found in workspace.', 'Action Blocked');
+  if (repositories.length === 0)
+    return showAlert('No projects found in workspace.', 'Action Blocked');
 
-    elements.bulkFetchModal.style.display = 'flex';
-    elements.bulkFetchRepoList.innerHTML = '<div style="color:var(--text-muted); font-size:11px; padding:10px;">Analyzing remotes...</div>';
+  elements.bulkFetchModal.style.display = 'flex';
+  elements.bulkFetchRepoList.innerHTML =
+    '<div style="color:var(--text-muted); font-size:11px; padding:10px;">Analyzing remotes...</div>';
+  elements.bulkFetchConfirm.disabled = true;
+
+  // Filter for projects with remotes
+  const remoteChecks = await Promise.all(
+    repositories.map(async (repo) => {
+      try {
+        const remotes = await window.electronAPI.getRemotes(repo.path);
+        return { repo, hasRemotes: remotes.length > 0 };
+      } catch (e) {
+        return { repo, hasRemotes: false };
+      }
+    }),
+  );
+  const reposWithRemotes = remoteChecks.filter((c) => c.hasRemotes).map((c) => c.repo);
+
+  if (reposWithRemotes.length === 0) {
+    elements.bulkFetchRepoList.innerHTML =
+      '<div style="color:var(--text-muted); font-size:11px; padding:10px;">No projects with remotes found.</div>';
     elements.bulkFetchConfirm.disabled = true;
-
-    // Filter for projects with remotes
-    const remoteChecks = await Promise.all(repositories.map(async repo => {
-        try {
-            const remotes = await window.electronAPI.getRemotes(repo.path);
-            return { repo, hasRemotes: remotes.length > 0 };
-        } catch(e) { return { repo, hasRemotes: false }; }
-    }));
-    const reposWithRemotes = remoteChecks.filter(c => c.hasRemotes).map(c => c.repo);
-
-    if (reposWithRemotes.length === 0) {
-        elements.bulkFetchRepoList.innerHTML = '<div style="color:var(--text-muted); font-size:11px; padding:10px;">No projects with remotes found.</div>';
-        elements.bulkFetchConfirm.disabled = true;
-    } else {
-        elements.bulkFetchConfirm.disabled = false;
-        elements.bulkFetchRepoList.innerHTML = reposWithRemotes.map((repo) => {
-            return `
+  } else {
+    elements.bulkFetchConfirm.disabled = false;
+    elements.bulkFetchRepoList.innerHTML = reposWithRemotes
+      .map((repo) => {
+        return `
                 <label style="display:flex; align-items:center; gap:8px; cursor:pointer; padding:8px; background:rgba(255,255,255,0.02); border-radius:4px; margin-bottom:4px; border: 1px solid transparent;">
                     <input type="checkbox" class="bulk-fetch-item-cb" value="${repo.path}" data-name="${repo.name}" checked>
                     <div style="flex:1; min-width:0;">
@@ -5574,82 +6868,99 @@ async function handleBulkFetch() {
                     </div>
                 </label>
             `;
-        }).join('');
-    }
+      })
+      .join('');
+  }
 
-    elements.bulkFetchSelectAll.checked = true;
-    elements.bulkFetchSelectAll.onchange = (e) => {
-        elements.bulkFetchRepoList.querySelectorAll('.bulk-fetch-item-cb').forEach(cb => cb.checked = e.target.checked);
-    };
+  elements.bulkFetchSelectAll.checked = true;
+  elements.bulkFetchSelectAll.onchange = (e) => {
+    elements.bulkFetchRepoList
+      .querySelectorAll('.bulk-fetch-item-cb')
+      .forEach((cb) => (cb.checked = e.target.checked));
+  };
 
-    elements.bulkFetchCancel.onclick = () => elements.bulkFetchModal.style.display = 'none';
+  elements.bulkFetchCancel.onclick = () => (elements.bulkFetchModal.style.display = 'none');
 
-    elements.bulkFetchConfirm.onclick = async () => {
-        const selectedCbs = Array.from(elements.bulkFetchRepoList.querySelectorAll('.bulk-fetch-item-cb:checked'));
-        if (selectedCbs.length === 0) return showAlert('Select at least one project to fetch.', 'Selection Required');
+  elements.bulkFetchConfirm.onclick = async () => {
+    const selectedCbs = Array.from(
+      elements.bulkFetchRepoList.querySelectorAll('.bulk-fetch-item-cb:checked'),
+    );
+    if (selectedCbs.length === 0)
+      return showAlert('Select at least one project to fetch.', 'Selection Required');
 
-        elements.bulkFetchModal.style.display = 'none';
-        logToConsole(`🚀 Launching Fetch sequence for ${selectedCbs.length} projects...`, 'info');
-        setTaskState(true);
+    elements.bulkFetchModal.style.display = 'none';
+    logToConsole(`🚀 Launching Fetch sequence for ${selectedCbs.length} projects...`, 'info');
+    setTaskState(true);
 
-        let success = 0; let fail = 0;
+    let success = 0;
+    let fail = 0;
+    try {
+      for (const cb of selectedCbs) {
+        const path = cb.value;
+        const name = cb.dataset.name;
         try {
-            for (const cb of selectedCbs) {
-                const path = cb.value;
-                const name = cb.dataset.name;
-                try {
-                    logToConsole(`   📡 Fetching: ${name}...`, 'info');
-                    const res = await window.electronAPI.gitFetch(path);
-                    if (res.success) {
-                        logToConsole(`   ✅ Fetched: ${name}`, 'success');
-                        success++;
-                    } else {
-                        logToConsole(`   ❌ Fetch Failed [${name}]: ${res.output}`, 'error');
-                        fail++;
-                    }
-                } catch (e) {
-                    logToConsole(`   ⚠️ Error [${name}]: ${e.message}`, 'error');
-                    fail++;
-                }
-            }
-            logToConsole(`Fetch Complete. Success: ${success}, Failed: ${fail}`, 'info');
-            showDashboard();
-        } finally { setTaskState(false); }
-    };
+          logToConsole(`   📡 Fetching: ${name}...`, 'info');
+          const res = await window.electronAPI.gitFetch(path);
+          if (res.success) {
+            logToConsole(`   ✅ Fetched: ${name}`, 'success');
+            success++;
+          } else {
+            logToConsole(`   ❌ Fetch Failed [${name}]: ${res.output}`, 'error');
+            fail++;
+          }
+        } catch (e) {
+          logToConsole(`   ⚠️ Error [${name}]: ${e.message}`, 'error');
+          fail++;
+        }
+      }
+      logToConsole(`Fetch Complete. Success: ${success}, Failed: ${fail}`, 'info');
+      showDashboard();
+    } finally {
+      setTaskState(false);
+    }
+  };
 }
 
 async function handleBulkPull() {
-    if (repositories.length === 0) return showAlert('No projects found in workspace.', 'Action Blocked');
+  if (repositories.length === 0)
+    return showAlert('No projects found in workspace.', 'Action Blocked');
 
-    elements.bulkPullModal.style.display = 'flex';
-    elements.bulkPullRepoList.innerHTML = '<div style="color:var(--text-muted); font-size:11px; padding:10px;">Analyzing remote status...</div>';
+  elements.bulkPullModal.style.display = 'flex';
+  elements.bulkPullRepoList.innerHTML =
+    '<div style="color:var(--text-muted); font-size:11px; padding:10px;">Analyzing remote status...</div>';
+  elements.bulkPullConfirm.disabled = true;
+
+  // Fetch status and remotes for all repos in parallel to see who is behind and has remotes
+  const repoStatuses = await Promise.all(
+    repositories.map(async (repo) => {
+      try {
+        const [status, remotes] = await Promise.all([
+          window.electronAPI.gitStatus(repo.path),
+          window.electronAPI.getRemotes(repo.path),
+        ]);
+        return { repo, status, isBehind: (status.behind || 0) > 0, hasRemotes: remotes.length > 0 };
+      } catch (e) {
+        return { repo, status: null, isBehind: false, hasRemotes: false };
+      }
+    }),
+  );
+
+  const filteredStatuses = repoStatuses.filter((s) => s.hasRemotes);
+
+  if (filteredStatuses.length === 0) {
+    elements.bulkPullRepoList.innerHTML =
+      '<div style="color:var(--text-muted); font-size:11px; padding:10px;">No projects with remotes found.</div>';
     elements.bulkPullConfirm.disabled = true;
+  } else {
+    elements.bulkPullConfirm.disabled = false;
+    elements.bulkPullRepoList.innerHTML = filteredStatuses
+      .map(({ repo, status, isBehind }) => {
+        const behindCount = status ? status.behind || 0 : 0;
+        const subtext = isBehind
+          ? `<span style="color:#e3b341;">↓ ${behindCount} incoming commits</span>`
+          : `<span style="color:var(--text-muted);">Up to date</span>`;
 
-    // Fetch status and remotes for all repos in parallel to see who is behind and has remotes
-    const repoStatuses = await Promise.all(repositories.map(async (repo) => {
-        try {
-            const [status, remotes] = await Promise.all([
-                window.electronAPI.gitStatus(repo.path),
-                window.electronAPI.getRemotes(repo.path)
-            ]);
-            return { repo, status, isBehind: (status.behind || 0) > 0, hasRemotes: remotes.length > 0 };
-        } catch (e) {
-            return { repo, status: null, isBehind: false, hasRemotes: false };
-        }
-    }));
-
-    const filteredStatuses = repoStatuses.filter(s => s.hasRemotes);
-
-    if (filteredStatuses.length === 0) {
-        elements.bulkPullRepoList.innerHTML = '<div style="color:var(--text-muted); font-size:11px; padding:10px;">No projects with remotes found.</div>';
-        elements.bulkPullConfirm.disabled = true;
-    } else {
-        elements.bulkPullConfirm.disabled = false;
-        elements.bulkPullRepoList.innerHTML = filteredStatuses.map(({ repo, status, isBehind }) => {
-            const behindCount = status ? (status.behind || 0) : 0;
-            const subtext = isBehind ? `<span style="color:#e3b341;">↓ ${behindCount} incoming commits</span>` : `<span style="color:var(--text-muted);">Up to date</span>`;
-
-            return `
+        return `
                 <label style="display:flex; align-items:center; gap:8px; cursor:pointer; padding:8px; background:rgba(255,255,255,0.02); border-radius:4px; margin-bottom:4px; border: 1px solid ${isBehind ? 'rgba(227, 179, 65, 0.2)' : 'transparent'};">
                     <input type="checkbox" class="bulk-pull-item-cb" value="${repo.path}" data-name="${repo.name}" checked>
                     <div style="flex:1; min-width:0;">
@@ -5658,79 +6969,93 @@ async function handleBulkPull() {
                     </div>
                 </label>
             `;
-        }).join('');
-    }
+      })
+      .join('');
+  }
 
-    elements.bulkPullSelectAll.checked = true;
-    elements.bulkPullSelectAll.onchange = (e) => {
-        elements.bulkPullRepoList.querySelectorAll('.bulk-pull-item-cb').forEach(cb => cb.checked = e.target.checked);
-    };
+  elements.bulkPullSelectAll.checked = true;
+  elements.bulkPullSelectAll.onchange = (e) => {
+    elements.bulkPullRepoList
+      .querySelectorAll('.bulk-pull-item-cb')
+      .forEach((cb) => (cb.checked = e.target.checked));
+  };
 
-    elements.bulkPullCancel.onclick = () => elements.bulkPullModal.style.display = 'none';
+  elements.bulkPullCancel.onclick = () => (elements.bulkPullModal.style.display = 'none');
 
-    elements.bulkPullConfirm.onclick = async () => {
-        const selectedCbs = Array.from(elements.bulkPullRepoList.querySelectorAll('.bulk-pull-item-cb:checked'));
-        if (selectedCbs.length === 0) return showAlert('Select at least one project to pull.', 'Selection Required');
+  elements.bulkPullConfirm.onclick = async () => {
+    const selectedCbs = Array.from(
+      elements.bulkPullRepoList.querySelectorAll('.bulk-pull-item-cb:checked'),
+    );
+    if (selectedCbs.length === 0)
+      return showAlert('Select at least one project to pull.', 'Selection Required');
 
-        elements.bulkPullModal.style.display = 'none';
-        logToConsole(`🚀 Launching Pull sequence for ${selectedCbs.length} projects...`, 'info');
-        setTaskState(true);
+    elements.bulkPullModal.style.display = 'none';
+    logToConsole(`🚀 Launching Pull sequence for ${selectedCbs.length} projects...`, 'info');
+    setTaskState(true);
 
-        let success = 0; let fail = 0;
+    let success = 0;
+    let fail = 0;
+    try {
+      for (const cb of selectedCbs) {
+        const path = cb.value;
+        const name = cb.dataset.name;
         try {
-            for (const cb of selectedCbs) {
-                const path = cb.value;
-                const name = cb.dataset.name;
-                try {
-                    logToConsole(`   📥 Pulling: ${name}...`, 'info');
-                    const repo = repositories.find(r => r.path === path);
-                    const res = await window.electronAPI.gitPull(path, repo ? repo.gitForce : false);
-                    if (res.success) {
-                        logToConsole(`   ✅ Pulled: ${name}`, 'success');
-                        success++;
-                    } else {
-                        logToConsole(`   ❌ Pull Failed [${name}]: ${res.output}`, 'error');
-                        fail++;
-                    }
-                } catch (e) {
-                    logToConsole(`   ⚠️ Error [${name}]: ${e.message}`, 'error');
-                    fail++;
-                }
-            }
-            logToConsole(`Pull Complete. Success: ${success}, Failed: ${fail}`, 'info');
-            await smartRefreshTree();
-            showDashboard();
-        } finally { setTaskState(false); }
-    };
+          logToConsole(`   📥 Pulling: ${name}...`, 'info');
+          const repo = repositories.find((r) => r.path === path);
+          const res = await window.electronAPI.gitPull(path, repo ? repo.gitForce : false);
+          if (res.success) {
+            logToConsole(`   ✅ Pulled: ${name}`, 'success');
+            success++;
+          } else {
+            logToConsole(`   ❌ Pull Failed [${name}]: ${res.output}`, 'error');
+            fail++;
+          }
+        } catch (e) {
+          logToConsole(`   ⚠️ Error [${name}]: ${e.message}`, 'error');
+          fail++;
+        }
+      }
+      logToConsole(`Pull Complete. Success: ${success}, Failed: ${fail}`, 'info');
+      await smartRefreshTree();
+      showDashboard();
+    } finally {
+      setTaskState(false);
+    }
+  };
 }
 
 async function handleProtocolConverter() {
-    if (repositories.length === 0) return showAlert('No projects found in workspace.', 'Action Blocked');
+  if (repositories.length === 0)
+    return showAlert('No projects found in workspace.', 'Action Blocked');
 
-    elements.protocolModal.style.display = 'flex';
-    elements.protocolRepoList.innerHTML = '<div style="color:var(--text-muted); font-size:11px; padding:10px;">Analyzing remotes...</div>';
-    elements.protocolConfirm.disabled = true;
+  elements.protocolModal.style.display = 'flex';
+  elements.protocolRepoList.innerHTML =
+    '<div style="color:var(--text-muted); font-size:11px; padding:10px;">Analyzing remotes...</div>';
+  elements.protocolConfirm.disabled = true;
 
-    // Fetch remotes for all repos
-    const repoRemotes = await Promise.all(repositories.map(async (repo) => {
-        try {
-            const remotes = await window.electronAPI.getRemotes(repo.path);
-            const origin = remotes.find(r => r.name === 'origin') || remotes[0];
-            return { repo, remote: origin };
-        } catch (e) {
-            return { repo, remote: null };
-        }
-    }));
+  // Fetch remotes for all repos
+  const repoRemotes = await Promise.all(
+    repositories.map(async (repo) => {
+      try {
+        const remotes = await window.electronAPI.getRemotes(repo.path);
+        const origin = remotes.find((r) => r.name === 'origin') || remotes[0];
+        return { repo, remote: origin };
+      } catch (e) {
+        return { repo, remote: null };
+      }
+    }),
+  );
 
-    elements.protocolConfirm.disabled = false;
-    elements.protocolRepoList.innerHTML = repoRemotes.map(({ repo, remote }) => {
-        if (!remote) return '';
+  elements.protocolConfirm.disabled = false;
+  elements.protocolRepoList.innerHTML = repoRemotes
+    .map(({ repo, remote }) => {
+      if (!remote) return '';
 
-        const isSSH = remote.url.startsWith('git@') || remote.url.startsWith('ssh://');
-        const isHTTPS = remote.url.startsWith('https://');
-        const type = isSSH ? 'SSH' : isHTTPS ? 'HTTPS' : 'Other';
+      const isSSH = remote.url.startsWith('git@') || remote.url.startsWith('ssh://');
+      const isHTTPS = remote.url.startsWith('https://');
+      const type = isSSH ? 'SSH' : isHTTPS ? 'HTTPS' : 'Other';
 
-        return `
+      return `
             <div class="protocol-item" style="display:flex; flex-direction:column; gap:6px; padding:10px; background:rgba(255,255,255,0.02); border-radius:6px; border: 1px solid var(--border-color);">
                 <div style="display:flex; align-items:center; gap:8px;">
                     <input type="checkbox" class="protocol-item-cb" value="${repo.path}" data-name="${repo.name}" data-url="${remote.url}" checked>
@@ -5749,127 +7074,141 @@ async function handleProtocolConverter() {
                 </div>
             </div>
         `;
-    }).join('');
+    })
+    .join('');
 
-    elements.protocolSelectAll.checked = true;
-    elements.protocolSelectAll.onchange = (e) => {
-        elements.protocolRepoList.querySelectorAll('.protocol-item-cb').forEach(cb => cb.checked = e.target.checked);
-    };
+  elements.protocolSelectAll.checked = true;
+  elements.protocolSelectAll.onchange = (e) => {
+    elements.protocolRepoList
+      .querySelectorAll('.protocol-item-cb')
+      .forEach((cb) => (cb.checked = e.target.checked));
+  };
 
-    elements.protocolSelectSSH.onclick = () => {
-        elements.protocolRepoList.querySelectorAll('input[type="radio"][value="ssh"]').forEach(r => r.checked = true);
-    };
+  elements.protocolSelectSSH.onclick = () => {
+    elements.protocolRepoList
+      .querySelectorAll('input[type="radio"][value="ssh"]')
+      .forEach((r) => (r.checked = true));
+  };
 
-    elements.protocolSelectHTTPS.onclick = () => {
-        elements.protocolRepoList.querySelectorAll('input[type="radio"][value="https"]').forEach(r => r.checked = true);
-    };
+  elements.protocolSelectHTTPS.onclick = () => {
+    elements.protocolRepoList
+      .querySelectorAll('input[type="radio"][value="https"]')
+      .forEach((r) => (r.checked = true));
+  };
 
-    elements.protocolCancel.onclick = () => elements.protocolModal.style.display = 'none';
+  elements.protocolCancel.onclick = () => (elements.protocolModal.style.display = 'none');
 
-    elements.protocolConfirm.onclick = async () => {
-        const checkedBoxes = Array.from(elements.protocolRepoList.querySelectorAll('.protocol-item-cb:checked'));
+  elements.protocolConfirm.onclick = async () => {
+    const checkedBoxes = Array.from(
+      elements.protocolRepoList.querySelectorAll('.protocol-item-cb:checked'),
+    );
 
-        if (checkedBoxes.length === 0) return showAlert('Select at least one project to convert.', 'Selection Required');
+    if (checkedBoxes.length === 0)
+      return showAlert('Select at least one project to convert.', 'Selection Required');
 
-        elements.protocolModal.style.display = 'none';
-        logToConsole(`🚀 Starting Protocol Conversion for ${checkedBoxes.length} projects...`, 'info');
-        setTaskState(true);
+    elements.protocolModal.style.display = 'none';
+    logToConsole(`🚀 Starting Protocol Conversion for ${checkedBoxes.length} projects...`, 'info');
+    setTaskState(true);
 
-        // SSH Fingerprint Trust Check
-        if (elements.protocolTrustGithub.checked) {
-            logToConsole('🔍 Checking GitHub SSH fingerprint trust...', 'info');
-            try {
-                const trustRes = await window.electronAPI.ensureGithubSSHTrust();
-                if (trustRes.success) {
-                    if (trustRes.alreadyTrusted) {
-                        logToConsole('   ✅ GitHub fingerprint is already trusted.', 'info');
-                    } else {
-                        logToConsole('   ✅ Successfully added GitHub fingerprint to known_hosts.', 'success');
-                    }
-                } else {
-                    logToConsole(`   ⚠️ SSH Trust Warning: ${trustRes.error}`, 'error');
-                }
-            } catch (err) {
-                logToConsole(`   ⚠️ SSH Trust System Error: ${err.message}`, 'error');
-            }
+    // SSH Fingerprint Trust Check
+    if (elements.protocolTrustGithub.checked) {
+      logToConsole('🔍 Checking GitHub SSH fingerprint trust...', 'info');
+      try {
+        const trustRes = await window.electronAPI.ensureGithubSSHTrust();
+        if (trustRes.success) {
+          if (trustRes.alreadyTrusted) {
+            logToConsole('   ✅ GitHub fingerprint is already trusted.', 'info');
+          } else {
+            logToConsole('   ✅ Successfully added GitHub fingerprint to known_hosts.', 'success');
+          }
+        } else {
+          logToConsole(`   ⚠️ SSH Trust Warning: ${trustRes.error}`, 'error');
         }
+      } catch (err) {
+        logToConsole(`   ⚠️ SSH Trust System Error: ${err.message}`, 'error');
+      }
+    }
 
-        let success = 0; let fail = 0;
+    let success = 0;
+    let fail = 0;
 
-        for (const cb of checkedBoxes) {
-            const path = cb.value;
-            const name = cb.dataset.name;
-            const oldUrl = cb.dataset.url;
+    for (const cb of checkedBoxes) {
+      const path = cb.value;
+      const name = cb.dataset.name;
+      const oldUrl = cb.dataset.url;
 
-            const targetRadio = elements.protocolRepoList.querySelector(`input[name="protocol-${name}"]:checked`);
-            if (!targetRadio) continue;
+      const targetRadio = elements.protocolRepoList.querySelector(
+        `input[name="protocol-${name}"]:checked`,
+      );
+      if (!targetRadio) continue;
 
-            const targetType = targetRadio.value;
-            const newUrl = convertGitUrl(oldUrl, targetType);
+      const targetType = targetRadio.value;
+      const newUrl = convertGitUrl(oldUrl, targetType);
 
-            if (newUrl === oldUrl) {
-                logToConsole(`   ⏩ Skipping: ${name} (already using ${targetType.toUpperCase()})`, 'info');
-                continue;
-            }
+      if (newUrl === oldUrl) {
+        logToConsole(`   ⏩ Skipping: ${name} (already using ${targetType.toUpperCase()})`, 'info');
+        continue;
+      }
 
-            try {
-                logToConsole(`   🔄 Converting ${name} to ${targetType.toUpperCase()}...`, 'info');
-                const res = await window.electronAPI.setRemoteUrl(path, 'origin', newUrl);
-                if (res.success) {
-                    logToConsole(`   ✅ Success: ${name}`, 'success');
-                    success++;
-                } else {
-                    logToConsole(`   ❌ Failed [${name}]: ${res.output}`, 'error');
-                    fail++;
-                }
-            } catch (e) {
-                logToConsole(`   ⚠️ Error [${name}]: ${e.message}`, 'error');
-                fail++;
-            }
+      try {
+        logToConsole(`   🔄 Converting ${name} to ${targetType.toUpperCase()}...`, 'info');
+        const res = await window.electronAPI.setRemoteUrl(path, 'origin', newUrl);
+        if (res.success) {
+          logToConsole(`   ✅ Success: ${name}`, 'success');
+          success++;
+        } else {
+          logToConsole(`   ❌ Failed [${name}]: ${res.output}`, 'error');
+          fail++;
         }
+      } catch (e) {
+        logToConsole(`   ⚠️ Error [${name}]: ${e.message}`, 'error');
+        fail++;
+      }
+    }
 
-        logToConsole(`Protocol Conversion Complete. Success: ${success}, Failed: ${fail}`, 'info');
-        setTaskState(false);
-        showDashboard();
-    };
+    logToConsole(`Protocol Conversion Complete. Success: ${success}, Failed: ${fail}`, 'info');
+    setTaskState(false);
+    showDashboard();
+  };
 }
 
 function convertGitUrl(url, targetType) {
-    if (targetType === 'ssh') {
-        if (url.startsWith('https://')) {
-            return url.replace(/^https:\/\/([^\/]+)\/(.+)$/, 'git@$1:$2');
-        }
-    } else if (targetType === 'https') {
-        if (url.startsWith('git@')) {
-            return url.replace(/^git@([^:]+):(.+)$/, 'https://$1/$2');
-        } else if (url.startsWith('ssh://git@')) {
-             return url.replace(/^ssh:\/\/git@([^\/]+)\/(.+)$/, 'https://$1/$2');
-        }
+  if (targetType === 'ssh') {
+    if (url.startsWith('https://')) {
+      return url.replace(/^https:\/\/([^\/]+)\/(.+)$/, 'git@$1:$2');
     }
-    return url;
+  } else if (targetType === 'https') {
+    if (url.startsWith('git@')) {
+      return url.replace(/^git@([^:]+):(.+)$/, 'https://$1/$2');
+    } else if (url.startsWith('ssh://git@')) {
+      return url.replace(/^ssh:\/\/git@([^\/]+)\/(.+)$/, 'https://$1/$2');
+    }
+  }
+  return url;
 }
 
 async function showUnbornFoldersModal(unbornList) {
-    elements.unbornFoldersModal.style.display = 'flex';
-    elements.unbornFoldersList.innerHTML = '';
+  elements.unbornFoldersModal.style.display = 'flex';
+  elements.unbornFoldersList.innerHTML = '';
 
-    if (unbornList.length === 0) {
-        elements.unbornFoldersList.innerHTML = '<p style="padding:20px; color:var(--text-muted); text-align:center;">All folders have Git repositories.</p>';
-        return;
-    }
+  if (unbornList.length === 0) {
+    elements.unbornFoldersList.innerHTML =
+      '<p style="padding:20px; color:var(--text-muted); text-align:center;">All folders have Git repositories.</p>';
+    return;
+  }
 
-    unbornList.forEach(folder => {
-        const item = document.createElement('div');
-        item.style.padding = '12px';
-        item.style.borderBottom = '1px solid var(--border-color)';
-        item.style.display = 'flex';
-        item.style.justifyContent = 'space-between';
-        item.style.alignItems = 'center';
+  unbornList.forEach((folder) => {
+    const item = document.createElement('div');
+    item.style.padding = '12px';
+    item.style.borderBottom = '1px solid var(--border-color)';
+    item.style.display = 'flex';
+    item.style.justifyContent = 'space-between';
+    item.style.alignItems = 'center';
 
-        const isRepo = folder.reason.toLowerCase().includes('commits');
-        const btnText = isRepo ? 'PROJECT DETAILS' : 'INITIALIZE GIT';
+    const isRepo = folder.reason.toLowerCase().includes('commits');
+    const btnText = isRepo ? 'PROJECT DETAILS' : 'INITIALIZE GIT';
 
-        item.innerHTML = `
+    item.innerHTML = `
             <div>
                 <div style="font-weight: 600; color: var(--text-main);">${folder.name}</div>
                 <div style="font-size: 11px; color: var(--text-muted);">${folder.reason}</div>
@@ -5877,1598 +7216,1742 @@ async function showUnbornFoldersModal(unbornList) {
             <button class="button ${isRepo ? 'button-secondary' : 'button-primary'}" style="font-size: 10px; padding: 4px 8px;">${btnText}</button>
         `;
 
-        const actionBtn = item.querySelector('button');
-        actionBtn.onclick = async () => {
-            if (isRepo) {
-                // Navigate to details
-                elements.unbornFoldersModal.style.display = 'none';
+    const actionBtn = item.querySelector('button');
+    actionBtn.onclick = async () => {
+      if (isRepo) {
+        // Navigate to details
+        elements.unbornFoldersModal.style.display = 'none';
 
-                // Ensure it's in our tracked repositories list first
-                addRepository({ name: folder.name, path: folder.path }, false, false);
+        // Ensure it's in our tracked repositories list first
+        addRepository({ name: folder.name, path: folder.path }, false, false);
 
-                // Find it in our state (it will be there now)
-                const repo = repositories.find(r => r.path.replace(/\\/g, '/').toLowerCase() === folder.path.replace(/\\/g, '/').toLowerCase());
-                if (repo) selectRepo(repo);
-            } else {
-                // Initialize
-                actionBtn.disabled = true;
-                actionBtn.textContent = 'INIT...';
-                logToConsole(`Initializing Git in ${folder.path}...`, 'info');
-                try {
-                    const res = await window.electronAPI.gitInit(folder.path);
-                    if (res.success) {
-                        logToConsole(`Initialized ${folder.name}`, 'success');
-                        showDashboard();
-                        const wsStats = await window.electronAPI.getWorkspaceStats(settings.rootRepoDir);
-                        showUnbornFoldersModal(wsStats.unborn || []);
-                    } else {
-                        logToConsole(`Failed to init ${folder.name}: ${res.output}`, 'error');
-                        actionBtn.disabled = false;
-                        actionBtn.textContent = 'RETRY';
-                    }
-                } catch (e) {
-                    logToConsole(`Init Error: ${e.message}`, 'error');
-                }
-            }
-        };
+        // Find it in our state (it will be there now)
+        const repo = repositories.find(
+          (r) =>
+            r.path.replace(/\\/g, '/').toLowerCase() ===
+            folder.path.replace(/\\/g, '/').toLowerCase(),
+        );
+        if (repo) selectRepo(repo);
+      } else {
+        // Initialize
+        actionBtn.disabled = true;
+        actionBtn.textContent = 'INIT...';
+        logToConsole(`Initializing Git in ${folder.path}...`, 'info');
+        try {
+          const res = await window.electronAPI.gitInit(folder.path);
+          if (res.success) {
+            logToConsole(`Initialized ${folder.name}`, 'success');
+            showDashboard();
+            const wsStats = await window.electronAPI.getWorkspaceStats(settings.rootRepoDir);
+            showUnbornFoldersModal(wsStats.unborn || []);
+          } else {
+            logToConsole(`Failed to init ${folder.name}: ${res.output}`, 'error');
+            actionBtn.disabled = false;
+            actionBtn.textContent = 'RETRY';
+          }
+        } catch (e) {
+          logToConsole(`Init Error: ${e.message}`, 'error');
+        }
+      }
+    };
 
-        elements.unbornFoldersList.appendChild(item);
-    });
+    elements.unbornFoldersList.appendChild(item);
+  });
 }
 
 async function selectRepo(repo, fromDashboard = false) {
-    if (!(await setActiveNavItem(null))) return;
+  if (!(await setActiveNavItem(null))) return;
 
-    activeRepo = repo;
-    elements.repoView.style.display = 'flex';
+  activeRepo = repo;
+  elements.repoView.style.display = 'flex';
 
-    // Default Layout: Commit message visible, Diffs hidden
-    elements.messageView.style.display = 'flex';
-    elements.diffView.style.display = 'none';
-    elements.statusView.style.display = 'none';
+  // Default Layout: Commit message visible, Diffs hidden
+  elements.messageView.style.display = 'flex';
+  elements.diffView.style.display = 'none';
+  elements.statusView.style.display = 'none';
 
-    document.getElementById('active-repo-name').textContent = repo.name;
+  document.getElementById('active-repo-name').textContent = repo.name;
 
-    if (window.terminal) window.terminal.sendCommand(`cd "${repo.path}"`);
+  if (window.terminal) window.terminal.sendCommand(`cd "${repo.path}"`);
 
-    // Hydrate project-specific toggles
-    if (elements.gitForceToggle) elements.gitForceToggle.checked = !!repo.gitForce;
-    if (elements.commitAmendToggle) elements.commitAmendToggle.checked = false;
+  // Hydrate project-specific toggles
+  if (elements.gitForceToggle) elements.gitForceToggle.checked = !!repo.gitForce;
+  if (elements.commitAmendToggle) elements.commitAmendToggle.checked = false;
 
-    await refreshActiveRepoUI();
-    if (fromDashboard) { selectedNodes.clear(); selectedNodes.add(repo.path); updateTreeSelectionUI(); scrollToRepoInTree(repo.path); }
+  await refreshActiveRepoUI();
+  if (fromDashboard) {
+    selectedNodes.clear();
+    selectedNodes.add(repo.path);
+    updateTreeSelectionUI();
+    scrollToRepoInTree(repo.path);
+  }
 }
 
 async function refreshActiveRepoUI(silent = false) {
-    if (!activeRepo) return;
-    const title = document.getElementById('active-repo-name');
-    const originalText = activeRepo.name;
-    const currentPath = activeRepo.path;
+  if (!activeRepo) return;
+  const title = document.getElementById('active-repo-name');
+  const originalText = activeRepo.name;
+  const currentPath = activeRepo.path;
 
-    // Visual feedback: Syncing state
-    if (title && !silent) title.innerHTML = `${originalText} <span style="font-size: 10px; color: var(--accent-blue); font-weight: normal; margin-left: 8px; opacity: 0.8;">(SYNCING...)</span>`;
+  // Visual feedback: Syncing state
+  if (title && !silent)
+    title.innerHTML = `${originalText} <span style="font-size: 10px; color: var(--accent-blue); font-weight: normal; margin-left: 8px; opacity: 0.8;">(SYNCING...)</span>`;
 
-    try {
-        // Parallelize heavy git calls to prevent sequential blocking
-        // Optimization: gitStatus now returns details, avoiding an extra git call
-        const [status, remotes] = await Promise.all([
-            window.electronAPI.gitStatus(activeRepo.path),
-            window.electronAPI.getRemotes(activeRepo.path)
-        ]);
+  try {
+    // Parallelize heavy git calls to prevent sequential blocking
+    // Optimization: gitStatus now returns details, avoiding an extra git call
+    const [status, remotes] = await Promise.all([
+      window.electronAPI.gitStatus(activeRepo.path),
+      window.electronAPI.getRemotes(activeRepo.path),
+    ]);
 
-        const changes = status.details || { staged: [], unstaged: [], untracked: [], deleted: [], ignored: [] };
+    const changes = status.details || {
+      staged: [],
+      unstaged: [],
+      untracked: [],
+      deleted: [],
+      ignored: [],
+    };
 
-        // Update state
-        activeRepo.changedFiles = [...changes.staged, ...changes.unstaged, ...changes.untracked].map(f => `${activeRepo.path.replace(/\\/g, '/')}/${f.replace(/\\/g, '/')}`.toLowerCase());
+    // Update state
+    activeRepo.changedFiles = [...changes.staged, ...changes.unstaged, ...changes.untracked].map(
+      (f) => `${activeRepo.path.replace(/\\/g, '/')}/${f.replace(/\\/g, '/')}`.toLowerCase(),
+    );
 
-        // Update UI components in parallel
-        await Promise.all([
-            updateRepoStatus(status),
-            updateBranchSelector(activeRepo.path),
-            updateRemoteSelector(activeRepo.path)
-        ]);
+    // Update UI components in parallel
+    await Promise.all([
+      updateRepoStatus(status),
+      updateBranchSelector(activeRepo.path),
+      updateRemoteSelector(activeRepo.path),
+    ]);
 
-        // Smart GitHub Button Visibility
-        const hasAnyRemote = remotes.length > 0;
-        const githubRemote = remotes.find(r => r.url.toLowerCase().includes('github.com'));
-        const hasGitHub = !!githubRemote;
+    // Smart GitHub Button Visibility
+    const hasAnyRemote = remotes.length > 0;
+    const githubRemote = remotes.find((r) => r.url.toLowerCase().includes('github.com'));
+    const hasGitHub = !!githubRemote;
 
-        if (elements.publishGitHubBtn) elements.publishGitHubBtn.style.display = hasAnyRemote ? 'none' : 'inline-flex';
+    if (elements.publishGitHubBtn)
+      elements.publishGitHubBtn.style.display = hasAnyRemote ? 'none' : 'inline-flex';
 
-        if (elements.githubVisibilityBtn) {
-            elements.githubVisibilityBtn.style.display = 'inline-flex';
-            elements.githubVisibilityBtn.classList.remove('button-danger', 'button-blue', 'btn-loading');
-            elements.githubVisibilityBtn.onclick = null;
-            elements.githubVisibilityBtn.disabled = false;
-            elements.githubVisibilityBtn.style.opacity = '1';
+    if (elements.githubVisibilityBtn) {
+      elements.githubVisibilityBtn.style.display = 'inline-flex';
+      elements.githubVisibilityBtn.classList.remove('button-danger', 'button-blue', 'btn-loading');
+      elements.githubVisibilityBtn.onclick = null;
+      elements.githubVisibilityBtn.disabled = false;
+      elements.githubVisibilityBtn.style.opacity = '1';
 
-            if (hasGitHub) {
-                if (!settings.githubToken) {
-                    elements.githubVisibilityBtn.textContent = 'Auth Required';
-                    elements.githubVisibilityBtn.title = 'Set GitHub PAT in Settings to toggle visibility';
-                    elements.githubVisibilityBtn.classList.add('button-danger');
-                    elements.githubVisibilityBtn.onclick = () => showSettings();
-                } else {
-                    elements.githubVisibilityBtn.onclick = () => handleToggleGitHubVisibility();
+      if (hasGitHub) {
+        if (!settings.githubToken) {
+          elements.githubVisibilityBtn.textContent = 'Auth Required';
+          elements.githubVisibilityBtn.title = 'Set GitHub PAT in Settings to toggle visibility';
+          elements.githubVisibilityBtn.classList.add('button-danger');
+          elements.githubVisibilityBtn.onclick = () => showSettings();
+        } else {
+          elements.githubVisibilityBtn.onclick = () => handleToggleGitHubVisibility();
 
-                    const cached = repoVisibilityCache.get(activeRepo.path);
+          const cached = repoVisibilityCache.get(activeRepo.path);
 
-                    if (!cached) {
-                        // NON-BLOCKING BACKGROUND TASK for GitHub API
-                        (async () => {
-                            if (!activeRepo || activeRepo.path !== currentPath) return;
-                            elements.githubVisibilityBtn.classList.add('btn-loading');
-                            elements.githubVisibilityBtn.textContent = 'Checking...';
-                            try {
-                                const url = githubRemote.url.replace(/\.git\/?$/, '');
-                                let match = url.match(/github\.com[\/|:]([^\/]+)\/([^\/]+)$/);
-                                if (match) {
-                                    const owner = match[1];
-                                    const repoName = match[2];
-                                    const res = await window.electronAPI.getGitHubRepo(settings.githubToken, owner, repoName);
-                                    const isPrivate = res.repo.private;
+          if (!cached) {
+            // NON-BLOCKING BACKGROUND TASK for GitHub API
+            (async () => {
+              if (!activeRepo || activeRepo.path !== currentPath) return;
+              elements.githubVisibilityBtn.classList.add('btn-loading');
+              elements.githubVisibilityBtn.textContent = 'Checking...';
+              try {
+                const url = githubRemote.url.replace(/\.git\/?$/, '');
+                let match = url.match(/github\.com[\/|:]([^\/]+)\/([^\/]+)$/);
+                if (match) {
+                  const owner = match[1];
+                  const repoName = match[2];
+                  const res = await window.electronAPI.getGitHubRepo(
+                    settings.githubToken,
+                    owner,
+                    repoName,
+                  );
+                  const isPrivate = res.repo.private;
 
-                                    repoVisibilityCache.set(currentPath, { owner, repo: repoName, isPrivate });
+                  repoVisibilityCache.set(currentPath, { owner, repo: repoName, isPrivate });
 
-                                    // Verify user hasn't switched repos while we were waiting for network
-                                    if (activeRepo && activeRepo.path === currentPath) {
-                                        elements.githubVisibilityBtn.textContent = isPrivate ? 'Private' : 'Public';
-                                        elements.githubVisibilityBtn.title = isPrivate ? 'Click to make Public' : 'Click to make Private';
+                  // Verify user hasn't switched repos while we were waiting for network
+                  if (activeRepo && activeRepo.path === currentPath) {
+                    elements.githubVisibilityBtn.textContent = isPrivate ? 'Private' : 'Public';
+                    elements.githubVisibilityBtn.title = isPrivate
+                      ? 'Click to make Public'
+                      : 'Click to make Private';
 
-                                        // Robust styling: Ensure 'button' class is always present, toggle 'button-blue'
-                                        elements.githubVisibilityBtn.classList.add('button');
-                                        if (isPrivate) {
-                                            elements.githubVisibilityBtn.classList.remove('button-blue');
-                                        } else {
-                                            elements.githubVisibilityBtn.classList.add('button-blue');
-                                        }
-
-                                        elements.githubVisibilityBtn.dataset.owner = owner;
-                                        elements.githubVisibilityBtn.dataset.repo = repoName;
-                                        elements.githubVisibilityBtn.dataset.isPrivate = isPrivate;
-                                    }
-                                } else {
-                                    elements.githubVisibilityBtn.textContent = 'Invalid URL';
-                                    elements.githubVisibilityBtn.disabled = true;
-                                }
-                            } catch (err) {
-                                console.warn('Failed to fetch GitHub repo status:', err);
-                                if (activeRepo && activeRepo.path === currentPath) {
-                                    elements.githubVisibilityBtn.textContent = 'Offline';
-                                    elements.githubVisibilityBtn.title = err.message;
-                                }
-                            } finally {
-                                if (activeRepo && activeRepo.path === currentPath) {
-                                    elements.githubVisibilityBtn.classList.remove('btn-loading');
-                                }
-                            }
-                        })();
+                    // Robust styling: Ensure 'button' class is always present, toggle 'button-blue'
+                    elements.githubVisibilityBtn.classList.add('button');
+                    if (isPrivate) {
+                      elements.githubVisibilityBtn.classList.remove('button-blue');
                     } else {
-                        // Use session-cached state
-                        const { owner, repo: repoName, isPrivate } = cached;
-                        elements.githubVisibilityBtn.textContent = isPrivate ? 'Private' : 'Public';
-                        elements.githubVisibilityBtn.title = isPrivate ? 'Click to make Public' : 'Click to make Private';
-
-                        elements.githubVisibilityBtn.classList.add('button');
-                        if (isPrivate) {
-                            elements.githubVisibilityBtn.classList.remove('button-blue');
-                        } else {
-                            elements.githubVisibilityBtn.classList.add('button-blue');
-                        }
-
-                        elements.githubVisibilityBtn.dataset.owner = owner;
-                        elements.githubVisibilityBtn.dataset.repo = repoName;
-                        elements.githubVisibilityBtn.dataset.isPrivate = isPrivate;
+                      elements.githubVisibilityBtn.classList.add('button-blue');
                     }
-                }
-            } else {
-                elements.githubVisibilityBtn.textContent = 'Local Only';
-                elements.githubVisibilityBtn.title = 'This project is not linked to GitHub';
-                elements.githubVisibilityBtn.disabled = true;
-                elements.githubVisibilityBtn.style.opacity = '0.5';
-            }
-        }
 
-        renderChangesList(activeRepo, changes);
-        await updateTreeHighlights(activeRepo.path);
-    } catch (e) {
-        if (!silent) logToConsole(`Refresh error: ${e.message}`, 'error');
-    } finally {
-        if (title && !silent) title.textContent = originalText;
-        if (elements.editorView.style.display !== 'none') updateEditorButtonStates();
+                    elements.githubVisibilityBtn.dataset.owner = owner;
+                    elements.githubVisibilityBtn.dataset.repo = repoName;
+                    elements.githubVisibilityBtn.dataset.isPrivate = isPrivate;
+                  }
+                } else {
+                  elements.githubVisibilityBtn.textContent = 'Invalid URL';
+                  elements.githubVisibilityBtn.disabled = true;
+                }
+              } catch (err) {
+                console.warn('Failed to fetch GitHub repo status:', err);
+                if (activeRepo && activeRepo.path === currentPath) {
+                  elements.githubVisibilityBtn.textContent = 'Offline';
+                  elements.githubVisibilityBtn.title = err.message;
+                }
+              } finally {
+                if (activeRepo && activeRepo.path === currentPath) {
+                  elements.githubVisibilityBtn.classList.remove('btn-loading');
+                }
+              }
+            })();
+          } else {
+            // Use session-cached state
+            const { owner, repo: repoName, isPrivate } = cached;
+            elements.githubVisibilityBtn.textContent = isPrivate ? 'Private' : 'Public';
+            elements.githubVisibilityBtn.title = isPrivate
+              ? 'Click to make Public'
+              : 'Click to make Private';
+
+            elements.githubVisibilityBtn.classList.add('button');
+            if (isPrivate) {
+              elements.githubVisibilityBtn.classList.remove('button-blue');
+            } else {
+              elements.githubVisibilityBtn.classList.add('button-blue');
+            }
+
+            elements.githubVisibilityBtn.dataset.owner = owner;
+            elements.githubVisibilityBtn.dataset.repo = repoName;
+            elements.githubVisibilityBtn.dataset.isPrivate = isPrivate;
+          }
+        }
+      } else {
+        elements.githubVisibilityBtn.textContent = 'Local Only';
+        elements.githubVisibilityBtn.title = 'This project is not linked to GitHub';
+        elements.githubVisibilityBtn.disabled = true;
+        elements.githubVisibilityBtn.style.opacity = '0.5';
+      }
     }
+
+    renderChangesList(activeRepo, changes);
+    await updateTreeHighlights(activeRepo.path);
+  } catch (e) {
+    if (!silent) logToConsole(`Refresh error: ${e.message}`, 'error');
+  } finally {
+    if (title && !silent) title.textContent = originalText;
+    if (elements.editorView.style.display !== 'none') updateEditorButtonStates();
+  }
 }
 
 function insertMarkdownSnippet(type) {
-    if (!monacoEditor) return;
-    const selection = monacoEditor.getSelection();
-    const model = monacoEditor.getModel();
-    if (!model) return;
+  if (!monacoEditor) return;
+  const selection = monacoEditor.getSelection();
+  const model = monacoEditor.getModel();
+  if (!model) return;
 
-    let range = selection;
-    let snippet = '';
+  let range = selection;
+  let snippet = '';
 
-    if (type === 'image') {
-        const text = model.getValueInRange(selection) || 'alt text';
-        snippet = `![${text}](https://)`;
-        monacoEditor.executeEdits('markdown', [{
-            range: selection,
-            text: snippet,
-            forceMoveMarkers: true
-        }]);
-        // Position cursor inside the parentheses for URL
-        const startLine = selection.startLineNumber;
-        const startCol = selection.startColumn + text.length + 4; // after ![] (
-        monacoEditor.setSelection(new monaco.Selection(startLine, startCol, startLine, startCol));
-
-        const isPreview = elements.editorContainerWrapper.classList.contains('editor-mode-preview');
-        if (!isPreview) {
-            monacoEditor.focus();
-        }
-        return;
-    }
-
-    // For list and task, we process each line in the selection
+  if (type === 'image') {
+    const text = model.getValueInRange(selection) || 'alt text';
+    snippet = `![${text}](https://)`;
+    monacoEditor.executeEdits('markdown', [
+      {
+        range: selection,
+        text: snippet,
+        forceMoveMarkers: true,
+      },
+    ]);
+    // Position cursor inside the parentheses for URL
     const startLine = selection.startLineNumber;
-    const endLine = selection.endLineNumber;
-    const edits = [];
-    const prefix = type === 'list' ? '- ' : '- [ ] ';
-
-    for (let i = startLine; i <= endLine; i++) {
-        const lineText = model.getLineContent(i);
-        // If line already starts with the prefix, maybe toggle it off?
-        // For now, just prepend it if it doesn't exist, or always prepend.
-        // Let's just prepend for simplicity.
-        edits.push({
-            range: new monaco.Range(i, 1, i, 1),
-            text: prefix
-        });
-    }
-
-    monacoEditor.executeEdits('markdown', edits);
+    const startCol = selection.startColumn + text.length + 4; // after ![] (
+    monacoEditor.setSelection(new monaco.Selection(startLine, startCol, startLine, startCol));
 
     const isPreview = elements.editorContainerWrapper.classList.contains('editor-mode-preview');
     if (!isPreview) {
-        monacoEditor.focus();
+      monacoEditor.focus();
     }
+    return;
+  }
+
+  // For list and task, we process each line in the selection
+  const startLine = selection.startLineNumber;
+  const endLine = selection.endLineNumber;
+  const edits = [];
+  const prefix = type === 'list' ? '- ' : '- [ ] ';
+
+  for (let i = startLine; i <= endLine; i++) {
+    const lineText = model.getLineContent(i);
+    // If line already starts with the prefix, maybe toggle it off?
+    // For now, just prepend it if it doesn't exist, or always prepend.
+    // Let's just prepend for simplicity.
+    edits.push({
+      range: new monaco.Range(i, 1, i, 1),
+      text: prefix,
+    });
+  }
+
+  monacoEditor.executeEdits('markdown', edits);
+
+  const isPreview = elements.editorContainerWrapper.classList.contains('editor-mode-preview');
+  if (!isPreview) {
+    monacoEditor.focus();
+  }
 }
 
-async function openFileInEditor(filePath, line = null, col = null, searchQuery = null, isRegex = false) {
-    if (!(await setActiveNavItem(null))) return;
+async function openFileInEditor(
+  filePath,
+  line = null,
+  col = null,
+  searchQuery = null,
+  isRegex = false,
+) {
+  if (!(await setActiveNavItem(null))) return;
 
-    if (!monacoEditor) return;
+  if (!monacoEditor) return;
 
-    // Intelligence: If we opened this from a search, clear the search to restore the full tree
-    if (elements.repoFilter && elements.repoFilter.value) {
-        elements.repoFilter.value = '';
-        if (elements.repoFilterClear) elements.repoFilterClear.style.display = 'none';
-        await renderTree(''); // Restore full tree
+  // Intelligence: If we opened this from a search, clear the search to restore the full tree
+  if (elements.repoFilter && elements.repoFilter.value) {
+    elements.repoFilter.value = '';
+    if (elements.repoFilterClear) elements.repoFilterClear.style.display = 'none';
+    await renderTree(''); // Restore full tree
+  }
+
+  // INTELLIGENCE: Sync active repository context so that closing the file returns us to the correct project
+  const repo = findRepoForPath(filePath);
+  if (repo && activeRepo !== repo) {
+    activeRepo = repo;
+    const title = document.getElementById('active-repo-name');
+    if (title) title.textContent = repo.name;
+    if (window.terminal) window.terminal.sendCommand(`cd "${repo.path}"`);
+    if (elements.gitForceToggle) elements.gitForceToggle.checked = !!repo.gitForce;
+    if (elements.commitAmendToggle) elements.commitAmendToggle.checked = false;
+    refreshActiveRepoUI(true); // Hydrate in background
+  }
+
+  // Reveal the file in the sidebar tree
+  setTimeout(() => revealFileInSidebar(filePath), 100);
+
+  try {
+    const ext = filePath.split('.').pop().toLowerCase();
+    const imageExts = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'ico', 'svg'];
+
+    currentEditingPath = filePath;
+    elements.editorView.style.display = 'flex';
+    elements.editorFileName.textContent = filePath.split(/[\\\/]/).pop();
+
+    // RESET UI States (Relying on classes now)
+    if (elements.mdViewControls) elements.mdViewControls.style.display = 'none';
+    elements.gitignoreScanBtn.style.display = 'none';
+    elements.editorSaveBtn.style.display = 'block';
+
+    // Essential: Clear inline display styles so CSS classes can take over
+    if (elements.monacoContainer) elements.monacoContainer.style.display = '';
+    if (elements.markdownPreview) elements.markdownPreview.style.display = '';
+    if (elements.htmlPreview) elements.htmlPreview.style.display = 'none';
+    if (elements.imagePreview) elements.imagePreview.style.display = 'none';
+
+    if (elements.editorContainerWrapper) {
+      elements.editorContainerWrapper.classList.remove(
+        'editor-mode-code',
+        'editor-mode-split',
+        'editor-mode-preview',
+        'editor-mode-standard',
+      );
     }
 
-    // INTELLIGENCE: Sync active repository context so that closing the file returns us to the correct project
-    const repo = findRepoForPath(filePath);
-    if (repo && activeRepo !== repo) {
-        activeRepo = repo;
-        const title = document.getElementById('active-repo-name');
-        if (title) title.textContent = repo.name;
-        if (window.terminal) window.terminal.sendCommand(`cd "${repo.path}"`);
-        if (elements.gitForceToggle) elements.gitForceToggle.checked = !!repo.gitForce;
-        if (elements.commitAmendToggle) elements.commitAmendToggle.checked = false;
-        refreshActiveRepoUI(true); // Hydrate in background
+    // UPGRADE: Ensure Monaco recalculates its layout once it becomes visible
+    if (monacoEditor) {
+      setTimeout(() => monacoEditor.layout(), 10);
     }
 
-    // Reveal the file in the sidebar tree
-    setTimeout(() => revealFileInSidebar(filePath), 100);
+    // INTELLIGENCE: Reset scroll positions for the new file
+    if (elements.markdownPreview) elements.markdownPreview.scrollTop = 0;
 
-    try {
-        const ext = filePath.split('.').pop().toLowerCase();
-        const imageExts = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'ico', 'svg'];
+    if (imageExts.includes(ext)) {
+      // Handle Image Preview
+      const base64 = await window.electronAPI.readFileBase64(filePath);
+      const mimeMap = {
+        svg: 'image/svg+xml',
+        ico: 'image/x-icon',
+        jpg: 'image/jpeg',
+        jpeg: 'image/jpeg',
+        png: 'image/png',
+        gif: 'image/gif',
+        webp: 'image/webp',
+      };
+      elements.previewImg.src = `data:${mimeMap[ext] || 'image/' + ext};base64,${base64}`;
+      elements.imagePreview.style.display = 'flex';
+      elements.editorSaveBtn.style.display = 'none'; // Can't save images in text editor
+    } else {
+      // Handle Text Editor
+      const result = await window.electronAPI.readFile(filePath);
+      const content = result.content;
+      currentFileEncoding = result.encoding;
 
-        currentEditingPath = filePath;
-        elements.editorView.style.display = 'flex';
-        elements.editorFileName.textContent = filePath.split(/[\\\/]/).pop();
+      // Intelligence: Auto-fix encoding/EOL
+      setTimeout(() => checkAndOfferFixes(filePath, content, currentFileEncoding), 500);
 
-        // RESET UI States (Relying on classes now)
-        if (elements.mdViewControls) elements.mdViewControls.style.display = 'none';
-        elements.gitignoreScanBtn.style.display = 'none';
-        elements.editorSaveBtn.style.display = 'block';
+      // Store for change detection (Normalize line endings to LF)
+      originalFileContent = content ? content.replace(/\r\n/g, '\n') : '';
+      const hasCRLF = content && content.includes('\r\n');
 
-        // Essential: Clear inline display styles so CSS classes can take over
-        if (elements.monacoContainer) elements.monacoContainer.style.display = '';
-        if (elements.markdownPreview) elements.markdownPreview.style.display = '';
-        if (elements.htmlPreview) elements.htmlPreview.style.display = 'none';
-        if (elements.imagePreview) elements.imagePreview.style.display = 'none';
+      // Intelligence: Automatically detect language using Monaco's internal registry
+      // This handles hundreds of extensions and complex cases (e.g. MSBuild variants)
+      let detectedLanguage = 'plaintext';
+      if (typeof monaco !== 'undefined') {
+        const extension = '.' + ext;
+        const languages = monaco.languages.getLanguages();
+        const matchedLang = languages.find(
+          (lang) =>
+            (lang.extensions && lang.extensions.includes(extension)) ||
+            (lang.filenames && lang.filenames.includes(filePath.split(/[\\\/]/).pop())),
+        );
 
-        if (elements.editorContainerWrapper) {
-            elements.editorContainerWrapper.classList.remove('editor-mode-code', 'editor-mode-split', 'editor-mode-preview', 'editor-mode-standard');
+        if (matchedLang) {
+          detectedLanguage = matchedLang.id;
+        } else if (ext === 'ini' || ext === 'inf') {
+          detectedLanguage = 'green-latern';
         }
+      }
 
-        // UPGRADE: Ensure Monaco recalculates its layout once it becomes visible
-        if (monacoEditor) {
-            setTimeout(() => monacoEditor.layout(), 10);
+      const isMarkdown = detectedLanguage === 'markdown';
+      const isHTML = detectedLanguage === 'html';
+      const isRenderable = isMarkdown || isHTML;
+
+      if (elements.mdViewControls)
+        elements.mdViewControls.style.display = isRenderable ? 'flex' : 'none';
+      elements.gitignoreScanBtn.style.display = filePath.endsWith('.gitignore') ? 'block' : 'none';
+
+      const oldModel = monacoEditor.getModel();
+      if (oldModel) oldModel.dispose();
+
+      const model = monaco.editor.createModel(originalFileContent, detectedLanguage);
+      if (hasCRLF) {
+        model.setEOL(1); // 1 = CRLF
+      } else {
+        model.setEOL(0); // 0 = LF
+      }
+      monacoEditor.setModel(model);
+
+      // Re-capture from Monaco to handle any internal normalization (BOM stripping, etc)
+      originalFileContent = monacoEditor.getValue();
+
+      // Intelligence: Now that the content is loaded into the editor, we can safely trigger the preview
+      // Force standard mode if we're jumping to a specific line (e.g. from search)
+      if (isRenderable && line === null) {
+        setMarkdownViewMode('preview');
+      } else {
+        setMarkdownViewMode('standard');
+      }
+
+      // Intelligence: Track changes to enable/disable buttons
+      model.onDidChangeContent(() => {
+        const hasChanges = hasUnsavedChanges();
+        // Delay slightly to ensure Monaco's internal undo stack is updated
+        setTimeout(() => updateEditorButtonStates(hasChanges), 10);
+
+        // Real-time Markdown/HTML Preview
+        if (isRenderable && elements.editorContainerWrapper) {
+          const isShowingPreview =
+            elements.editorContainerWrapper.classList.contains('editor-mode-split') ||
+            elements.editorContainerWrapper.classList.contains('editor-mode-preview');
+          if (isShowingPreview) {
+            updateMarkdownPreviewContent();
+          }
         }
+      });
 
-        // INTELLIGENCE: Reset scroll positions for the new file
-        if (elements.markdownPreview) elements.markdownPreview.scrollTop = 0;
+      // Initial state
+      updateEditorButtonStates(false);
+      updateEditorFileInfo();
 
-        if (imageExts.includes(ext)) {
-            // Handle Image Preview
-            const base64 = await window.electronAPI.readFileBase64(filePath);
-            const mimeMap = { 'svg': 'image/svg+xml', 'ico': 'image/x-icon', 'jpg': 'image/jpeg', 'jpeg': 'image/jpeg', 'png': 'image/png', 'gif': 'image/gif', 'webp': 'image/webp' };
-            elements.previewImg.src = `data:${mimeMap[ext] || 'image/' + ext};base64,${base64}`;
-            elements.imagePreview.style.display = 'flex';
-            elements.editorSaveBtn.style.display = 'none'; // Can't save images in text editor
-        } else {
-            // Handle Text Editor
-            const result = await window.electronAPI.readFile(filePath);
-            const content = result.content;
-            currentFileEncoding = result.encoding;
+      monacoEditor.layout();
 
-            // Intelligence: Auto-fix encoding/EOL
-            setTimeout(() => checkAndOfferFixes(filePath, content, currentFileEncoding), 500);
+      // Intelligence: Scroll to specific line if provided (e.g. from Advanced Search)
+      if (line !== null) {
+        setTimeout(() => {
+          const column = col || 1;
+          monacoEditor.setPosition({ lineNumber: line, column: column });
+          monacoEditor.revealLineInCenter(line, 0); // 0 = ScrollType.Immediate (no animation)
+          monacoEditor.focus();
 
-            // Store for change detection (Normalize line endings to LF)
-            originalFileContent = content ? content.replace(/\r\n/g, '\n') : '';
-            const hasCRLF = content && content.includes('\r\n');
+          // If a search query is provided, highlight the match
+          if (searchQuery) {
+            const model = monacoEditor.getModel();
+            if (model) {
+              const lineContent = model.getLineContent(line);
+              let selectionEndCol = column;
 
-            // Intelligence: Automatically detect language using Monaco's internal registry
-            // This handles hundreds of extensions and complex cases (e.g. MSBuild variants)
-            let detectedLanguage = 'plaintext';
-            if (typeof monaco !== 'undefined') {
-                const extension = '.' + ext;
-                const languages = monaco.languages.getLanguages();
-                const matchedLang = languages.find(lang =>
-                    (lang.extensions && lang.extensions.includes(extension)) ||
-                    (lang.filenames && lang.filenames.includes(filePath.split(/[\\\/]/).pop()))
-                );
+              if (isRegex) {
+                try {
+                  const re = new RegExp(searchQuery, 'i');
+                  const match = lineContent.substring(column - 1).match(re);
+                  if (match) selectionEndCol = column + match[0].length;
+                } catch (e) {}
+              } else {
+                selectionEndCol = column + searchQuery.length;
+              }
 
-                if (matchedLang) {
-                    detectedLanguage = matchedLang.id;
-                } else if (ext === 'ini' || ext === 'inf') {
-                    detectedLanguage = 'green-latern';
-                }
+              monacoEditor.setSelection({
+                startLineNumber: line,
+                startColumn: column,
+                endLineNumber: line,
+                endColumn: selectionEndCol,
+              });
             }
-
-            const isMarkdown = detectedLanguage === 'markdown';
-            const isHTML = detectedLanguage === 'html';
-            const isRenderable = isMarkdown || isHTML;
-
-            if (elements.mdViewControls) elements.mdViewControls.style.display = isRenderable ? 'flex' : 'none';
-            elements.gitignoreScanBtn.style.display = (filePath.endsWith('.gitignore')) ? 'block' : 'none';
-
-            const oldModel = monacoEditor.getModel();
-            if (oldModel) oldModel.dispose();
-
-            const model = monaco.editor.createModel(originalFileContent, detectedLanguage);
-            if (hasCRLF) {
-                model.setEOL(1); // 1 = CRLF
-            } else {
-                model.setEOL(0); // 0 = LF
-            }
-            monacoEditor.setModel(model);
-
-            // Re-capture from Monaco to handle any internal normalization (BOM stripping, etc)
-            originalFileContent = monacoEditor.getValue();
-
-            // Intelligence: Now that the content is loaded into the editor, we can safely trigger the preview
-            // Force standard mode if we're jumping to a specific line (e.g. from search)
-            if (isRenderable && line === null) {
-                setMarkdownViewMode('preview');
-            } else {
-                setMarkdownViewMode('standard');
-            }
-
-            // Intelligence: Track changes to enable/disable buttons
-            model.onDidChangeContent(() => {
-                const hasChanges = hasUnsavedChanges();
-                // Delay slightly to ensure Monaco's internal undo stack is updated
-                setTimeout(() => updateEditorButtonStates(hasChanges), 10);
-
-                // Real-time Markdown/HTML Preview
-                if (isRenderable && elements.editorContainerWrapper) {
-                    const isShowingPreview = elements.editorContainerWrapper.classList.contains('editor-mode-split') ||
-                                           elements.editorContainerWrapper.classList.contains('editor-mode-preview');
-                    if (isShowingPreview) {
-                        updateMarkdownPreviewContent();
-                    }
-                }
-            });
-
-            // Initial state
-            updateEditorButtonStates(false);
-            updateEditorFileInfo();
-
-            monacoEditor.layout();
-
-            // Intelligence: Scroll to specific line if provided (e.g. from Advanced Search)
-            if (line !== null) {
-                setTimeout(() => {
-                    const column = col || 1;
-                    monacoEditor.setPosition({ lineNumber: line, column: column });
-                    monacoEditor.revealLineInCenter(line, 0); // 0 = ScrollType.Immediate (no animation)
-                    monacoEditor.focus();
-
-                    // If a search query is provided, highlight the match
-                    if (searchQuery) {
-                        const model = monacoEditor.getModel();
-                        if (model) {
-                            const lineContent = model.getLineContent(line);
-                            let selectionEndCol = column;
-
-                            if (isRegex) {
-                                try {
-                                    const re = new RegExp(searchQuery, 'i');
-                                    const match = lineContent.substring(column - 1).match(re);
-                                    if (match) selectionEndCol = column + match[0].length;
-                                } catch (e) {}
-                            } else {
-                                selectionEndCol = column + searchQuery.length;
-                            }
-
-                            monacoEditor.setSelection({
-                                startLineNumber: line,
-                                startColumn: column,
-                                endLineNumber: line,
-                                endColumn: selectionEndCol
-                            });
-                        }
-                    }
-                }, 50);
-            }
-        }
-    } catch (e) { logToConsole(e.message, 'error'); }
+          }
+        }, 50);
+      }
+    }
+  } catch (e) {
+    logToConsole(e.message, 'error');
+  }
 }
 
 function updateEditorButtonStates(hasChanges) {
-    if (hasChanges === undefined && monacoEditor) {
-        hasChanges = hasUnsavedChanges();
-    }
+  if (hasChanges === undefined && monacoEditor) {
+    hasChanges = hasUnsavedChanges();
+  }
 
-    const isFileChangedInGit = activeRepo && currentEditingPath &&
-                               activeRepo.changedFiles &&
-                               activeRepo.changedFiles.includes(currentEditingPath.replace(/\\/g, '/').toLowerCase());
+  const isFileChangedInGit =
+    activeRepo &&
+    currentEditingPath &&
+    activeRepo.changedFiles &&
+    activeRepo.changedFiles.includes(currentEditingPath.replace(/\\/g, '/').toLowerCase());
 
-    const canRestore = hasChanges || isFileChangedInGit;
+  const canRestore = hasChanges || isFileChangedInGit;
 
-    const model = monacoEditor ? monacoEditor.getModel() : null;
-    const canUndo = (model && typeof model.canUndo === 'function') ? model.canUndo() : hasChanges;
-    const canRedo = (model && typeof model.canRedo === 'function') ? model.canRedo() : hasChanges;
+  const model = monacoEditor ? monacoEditor.getModel() : null;
+  const canUndo = model && typeof model.canUndo === 'function' ? model.canUndo() : hasChanges;
+  const canRedo = model && typeof model.canRedo === 'function' ? model.canRedo() : hasChanges;
 
-    if (elements.editorSaveBtn) {
-        elements.editorSaveBtn.disabled = !hasChanges;
-        elements.editorSaveBtn.style.opacity = hasChanges ? '1' : '0.5';
-    }
-    if (elements.editorRestoreBtn) {
-        elements.editorRestoreBtn.disabled = !canRestore;
-        elements.editorRestoreBtn.style.opacity = canRestore ? '1' : '0.5';
-    }
-    if (elements.editorUndoBtn) {
-        elements.editorUndoBtn.disabled = !canUndo;
-        elements.editorUndoBtn.style.opacity = canUndo ? '1' : '0.5';
-    }
-    if (elements.editorRedoBtn) {
-        elements.editorRedoBtn.disabled = !canRedo;
-        elements.editorRedoBtn.style.opacity = canRedo ? '1' : '0.5';
-    }
+  if (elements.editorSaveBtn) {
+    elements.editorSaveBtn.disabled = !hasChanges;
+    elements.editorSaveBtn.style.opacity = hasChanges ? '1' : '0.5';
+  }
+  if (elements.editorRestoreBtn) {
+    elements.editorRestoreBtn.disabled = !canRestore;
+    elements.editorRestoreBtn.style.opacity = canRestore ? '1' : '0.5';
+  }
+  if (elements.editorUndoBtn) {
+    elements.editorUndoBtn.disabled = !canUndo;
+    elements.editorUndoBtn.style.opacity = canUndo ? '1' : '0.5';
+  }
+  if (elements.editorRedoBtn) {
+    elements.editorRedoBtn.disabled = !canRedo;
+    elements.editorRedoBtn.style.opacity = canRedo ? '1' : '0.5';
+  }
 }
 
 function updateEditorFileInfo() {
-    if (!monacoEditor || !elements.editorFileInfo) return;
-    const model = monacoEditor.getModel();
-    if (!model) return;
+  if (!monacoEditor || !elements.editorFileInfo) return;
+  const model = monacoEditor.getModel();
+  if (!model) return;
 
-    const eol = model.getEOL();
-    const eolText = eol === '\r\n' ? 'CRLF' : 'LF';
-    elements.editorFileInfo.textContent = `${currentFileEncoding} | ${eolText}`;
+  const eol = model.getEOL();
+  const eolText = eol === '\r\n' ? 'CRLF' : 'LF';
+  elements.editorFileInfo.textContent = `${currentFileEncoding} | ${eolText}`;
 }
 
 function applyTextTransformation(type) {
-    if (!monacoEditor) return;
-    const model = monacoEditor.getModel();
-    if (!model) return;
+  if (!monacoEditor) return;
+  const model = monacoEditor.getModel();
+  if (!model) return;
 
-    if (type === 'crlf') {
-        model.setEOL(1); // 1 = CRLF, 0 = LF
-        logToConsole('Converted line endings to CRLF (\\r\\n)', 'success');
-        updateEditorFileInfo();
-        updateEditorButtonStates(true);
-        return;
-    }
+  if (type === 'crlf') {
+    model.setEOL(1); // 1 = CRLF, 0 = LF
+    logToConsole('Converted line endings to CRLF (\\r\\n)', 'success');
+    updateEditorFileInfo();
+    updateEditorButtonStates(true);
+    return;
+  }
 
-    if (type === 'utf8') {
-        // Intelligence: We already write as UTF-8, but this ensures the editor model and future saves use it.
-        currentFileEncoding = 'UTF-8';
-        logToConsole('File will be saved as UTF-8 encoded.', 'success');
-        updateEditorFileInfo();
-        updateEditorButtonStates(true);
-        return;
-    }
+  if (type === 'utf8') {
+    // Intelligence: We already write as UTF-8, but this ensures the editor model and future saves use it.
+    currentFileEncoding = 'UTF-8';
+    logToConsole('File will be saved as UTF-8 encoded.', 'success');
+    updateEditorFileInfo();
+    updateEditorButtonStates(true);
+    return;
+  }
 
-    const selection = monacoEditor.getSelection();
-    if (selection.isEmpty()) {
-        logToConsole('No text selected for transformation.', 'warn');
-        return;
-    }
+  const selection = monacoEditor.getSelection();
+  if (selection.isEmpty()) {
+    logToConsole('No text selected for transformation.', 'warn');
+    return;
+  }
 
-    const text = model.getValueInRange(selection);
-    let newText = '';
+  const text = model.getValueInRange(selection);
+  let newText = '';
 
-    switch (type) {
-        case 'uppercase':
-            newText = text.toUpperCase();
-            break;
-        case 'lowercase':
-            newText = text.toLowerCase();
-            break;
-        case 'snake':
-            newText = text.replace(/([A-Z])/g, "_$1").toLowerCase().replace(/^_/, "").replace(/\s+/g, "_");
-            break;
-        case 'camel':
-            newText = text.toLowerCase().replace(/[^a-zA-Z0-9]+(.)/g, (m, chr) => chr.toUpperCase());
-            break;
-        case 'sort':
-            newText = text.split(/\r?\n/).sort((a, b) => a.localeCompare(b)).join('\n');
-            break;
-    }
+  switch (type) {
+    case 'uppercase':
+      newText = text.toUpperCase();
+      break;
+    case 'lowercase':
+      newText = text.toLowerCase();
+      break;
+    case 'snake':
+      newText = text
+        .replace(/([A-Z])/g, '_$1')
+        .toLowerCase()
+        .replace(/^_/, '')
+        .replace(/\s+/g, '_');
+      break;
+    case 'camel':
+      newText = text.toLowerCase().replace(/[^a-zA-Z0-9]+(.)/g, (m, chr) => chr.toUpperCase());
+      break;
+    case 'sort':
+      newText = text
+        .split(/\r?\n/)
+        .sort((a, b) => a.localeCompare(b))
+        .join('\n');
+      break;
+  }
 
-    if (newText !== text) {
-        monacoEditor.executeEdits('transform', [
-            { range: selection, text: newText, forceMoveMarkers: true }
-        ]);
-        logToConsole(`Applied transformation: ${type}`, 'info');
-    }
+  if (newText !== text) {
+    monacoEditor.executeEdits('transform', [
+      { range: selection, text: newText, forceMoveMarkers: true },
+    ]);
+    logToConsole(`Applied transformation: ${type}`, 'info');
+  }
 }
 
 async function saveCurrentFile() {
-    if (!currentEditingPath || !monacoEditor) return;
-    try {
-        const newContent = monacoEditor.getValue();
+  if (!currentEditingPath || !monacoEditor) return;
+  try {
+    const newContent = monacoEditor.getValue();
 
-        if (currentEditingPath.startsWith('gist://')) {
-            const parts = currentEditingPath.replace('gist://', '').split('/');
-            const gistId = parts[0];
-            const filename = parts.slice(1).join('/');
+    if (currentEditingPath.startsWith('gist://')) {
+      const parts = currentEditingPath.replace('gist://', '').split('/');
+      const gistId = parts[0];
+      const filename = parts.slice(1).join('/');
 
-            setTaskState(true);
-            logToConsole(`Updating Gist file: ${filename}...`, 'info');
+      setTaskState(true);
+      logToConsole(`Updating Gist file: ${filename}...`, 'info');
 
-            const files = {};
-            files[filename] = { content: newContent };
+      const files = {};
+      files[filename] = { content: newContent };
 
-            const res = await window.electronAPI.updateGitHubGist(settings.githubToken, gistId, null, files);
-            if (res.expiration) updateTokenExpirationUI(res.expiration);
+      const res = await window.electronAPI.updateGitHubGist(
+        settings.githubToken,
+        gistId,
+        null,
+        files,
+      );
+      if (res.expiration) updateTokenExpirationUI(res.expiration);
 
-            // Intelligence: Sync the temp file if it was previously opened in Chrome
-            // This allows the user to refresh the Chrome tab and see the latest saved changes
-            await window.electronAPI.openContentInChrome({
-                content: newContent,
-                filename: filename,
-                identifier: currentEditingPath,
-                skipOpen: true
-            });
+      // Intelligence: Sync the temp file if it was previously opened in Chrome
+      // This allows the user to refresh the Chrome tab and see the latest saved changes
+      await window.electronAPI.openContentInChrome({
+        content: newContent,
+        filename: filename,
+        identifier: currentEditingPath,
+        skipOpen: true,
+      });
 
-            logToConsole(`Gist file saved successfully.`, 'success');
-        } else {
-            await window.electronAPI.writeFile(currentEditingPath, newContent);
-            logToConsole('Saved.', 'success');
-        }
-
-        // Reset original content to new saved state
-        originalFileContent = newContent;
-        updateEditorButtonStates(false);
-
-        if (!currentEditingPath.startsWith('gist://')) {
-            updateTreeHighlights();
-        }
-    } catch (e) {
-        logToConsole(e.message, 'error');
-        showError(e.message, 'Save Failed');
-    } finally {
-        if (currentEditingPath.startsWith('gist://')) setTaskState(false);
+      logToConsole(`Gist file saved successfully.`, 'success');
+    } else {
+      await window.electronAPI.writeFile(currentEditingPath, newContent);
+      logToConsole('Saved.', 'success');
     }
+
+    // Reset original content to new saved state
+    originalFileContent = newContent;
+    updateEditorButtonStates(false);
+
+    if (!currentEditingPath.startsWith('gist://')) {
+      updateTreeHighlights();
+    }
+  } catch (e) {
+    logToConsole(e.message, 'error');
+    showError(e.message, 'Save Failed');
+  } finally {
+    if (currentEditingPath.startsWith('gist://')) setTaskState(false);
+  }
 }
 
 async function closeEditor() {
-    const wasGist = currentEditingPath && currentEditingPath.startsWith('gist://');
-    if (!(await setActiveNavItem(null))) return;
+  const wasGist = currentEditingPath && currentEditingPath.startsWith('gist://');
+  if (!(await setActiveNavItem(null))) return;
 
-    if (wasGist) {
-        await showGistView();
-    } else if (activeRepo) {
-        elements.repoView.style.display = 'flex';
-    } else {
-        await showDashboard();
-    }
+  if (wasGist) {
+    await showGistView();
+  } else if (activeRepo) {
+    elements.repoView.style.display = 'flex';
+  } else {
+    await showDashboard();
+  }
 }
 
 function logToConsole(msg, type = 'info') {
-    if (!elements.consoleOutput) return;
-    const timestamp = new Date().toLocaleTimeString();
-    const entry = document.createElement('div');
-    entry.className = `log-entry log-${type}`;
-    entry.textContent = `[${timestamp}] ${msg}`;
-    elements.consoleOutput.appendChild(entry);
-    elements.consoleOutput.scrollTop = elements.consoleOutput.scrollHeight;
+  if (!elements.consoleOutput) return;
+  const timestamp = new Date().toLocaleTimeString();
+  const entry = document.createElement('div');
+  entry.className = `log-entry log-${type}`;
+  entry.textContent = `[${timestamp}] ${msg}`;
+  elements.consoleOutput.appendChild(entry);
+  elements.consoleOutput.scrollTop = elements.consoleOutput.scrollHeight;
 }
 
-function updateTreeSelectionUI() { document.querySelectorAll('.tree-node').forEach(n => { if (selectedNodes.has(n.dataset.path)) n.classList.add('active'); else n.classList.remove('active'); }); }
+function updateTreeSelectionUI() {
+  document.querySelectorAll('.tree-node').forEach((n) => {
+    if (selectedNodes.has(n.dataset.path)) n.classList.add('active');
+    else n.classList.remove('active');
+  });
+}
 
 async function updateTreeHighlights(specificRepoPath = null) {
-    const allNodes = Array.from(document.querySelectorAll('.tree-node'));
+  const allNodes = Array.from(document.querySelectorAll('.tree-node'));
 
-    const normSpecific = specificRepoPath ? specificRepoPath.replace(/\\/g, '/').toLowerCase() : null;
-    const targetRepos = normSpecific
-        ? repositories.filter(r => r.path.replace(/\\/g, '/').toLowerCase() === normSpecific)
-        : repositories;
+  const normSpecific = specificRepoPath ? specificRepoPath.replace(/\\/g, '/').toLowerCase() : null;
+  const targetRepos = normSpecific
+    ? repositories.filter((r) => r.path.replace(/\\/g, '/').toLowerCase() === normSpecific)
+    : repositories;
 
-    for (const repo of targetRepos) {
-        try {
-            const [changes, remotes] = await Promise.all([
-                window.electronAPI.getDetailedChanges(repo.path),
-                window.electronAPI.getRemotes(repo.path)
-            ]);
+  for (const repo of targetRepos) {
+    try {
+      const [changes, remotes] = await Promise.all([
+        window.electronAPI.getDetailedChanges(repo.path),
+        window.electronAPI.getRemotes(repo.path),
+      ]);
 
-            const hasRemotes = remotes.length > 0;
-            const normBase = repo.path.replace(/\\/g, '/').toLowerCase();
-            const normBaseSlash = normBase.endsWith('/') ? normBase : normBase + '/';
-            repo.changedFiles = [...changes.staged, ...changes.unstaged, ...changes.untracked].map(f => `${normBase}/${f.replace(/\\/g, '/')}`.toLowerCase());
-            repo.notTrackedFiles = [...(changes.untracked || []), ...(changes.ignored || [])].map(f => `${normBase}/${f.replace(/\\/g, '/')}`.toLowerCase());
+      const hasRemotes = remotes.length > 0;
+      const normBase = repo.path.replace(/\\/g, '/').toLowerCase();
+      const normBaseSlash = normBase.endsWith('/') ? normBase : normBase + '/';
+      repo.changedFiles = [...changes.staged, ...changes.unstaged, ...changes.untracked].map((f) =>
+        `${normBase}/${f.replace(/\\/g, '/')}`.toLowerCase(),
+      );
+      repo.notTrackedFiles = [...(changes.untracked || []), ...(changes.ignored || [])].map((f) =>
+        `${normBase}/${f.replace(/\\/g, '/')}`.toLowerCase(),
+      );
 
-            const isRepoChanged = (changes.staged.length + changes.unstaged.length + (changes.untracked || []).length) > 0;
+      const isRepoChanged =
+        changes.staged.length + changes.unstaged.length + (changes.untracked || []).length > 0;
 
-            allNodes.forEach(node => {
-                const nodePath = node.dataset.path.replace(/\\/g, '/').toLowerCase();
-                const nameEl = node.querySelector('.node-name');
+      allNodes.forEach((node) => {
+        const nodePath = node.dataset.path.replace(/\\/g, '/').toLowerCase();
+        const nameEl = node.querySelector('.node-name');
 
-                if (nodePath === normBase) {
-                    // Update the root repo node
-                    const exists = changes.current !== 'missing';
+        if (nodePath === normBase) {
+          // Update the root repo node
+          const exists = changes.current !== 'missing';
 
-                    if (!exists) {
-                        node.classList.add('changed-file');
-                        if (nameEl) {
-                            nameEl.style.color = 'var(--accent-red)';
-                            if (!nameEl.textContent.includes('(MISSING)')) {
-                                nameEl.textContent += ' (MISSING)';
-                            }
-                        }
-                    } else if (isRepoChanged) {
-                        node.classList.add('changed-file');
-                        if (nameEl) nameEl.style.color = 'var(--accent-red)';
-                    } else {
-                        node.classList.remove('changed-file');
-                        if (nameEl) {
-                            nameEl.textContent = repo.name;
-                            if (!hasRemotes) {
-                                nameEl.style.color = '#e3b341';
-                            } else {
-                                nameEl.style.color = '';
-                            }
-                        }
-                    }
-                } else if (nodePath.startsWith(normBaseSlash)) {
-                    // Update children (files/folders inside)
-                    const isDir = node.classList.contains('is-directory');
+          if (!exists) {
+            node.classList.add('changed-file');
+            if (nameEl) {
+              nameEl.style.color = 'var(--accent-red)';
+              if (!nameEl.textContent.includes('(MISSING)')) {
+                nameEl.textContent += ' (MISSING)';
+              }
+            }
+          } else if (isRepoChanged) {
+            node.classList.add('changed-file');
+            if (nameEl) nameEl.style.color = 'var(--accent-red)';
+          } else {
+            node.classList.remove('changed-file');
+            if (nameEl) {
+              nameEl.textContent = repo.name;
+              if (!hasRemotes) {
+                nameEl.style.color = '#e3b341';
+              } else {
+                nameEl.style.color = '';
+              }
+            }
+          }
+        } else if (nodePath.startsWith(normBaseSlash)) {
+          // Update children (files/folders inside)
+          const isDir = node.classList.contains('is-directory');
 
-                    // Normalize notTrackedFiles to remove trailing slashes for exact matching
-                    const cleanNotTracked = repo.notTrackedFiles.map(f => f.replace(/\/$/, ''));
+          // Normalize notTrackedFiles to remove trailing slashes for exact matching
+          const cleanNotTracked = repo.notTrackedFiles.map((f) => f.replace(/\/$/, ''));
 
-                    const isDirectlyChanged = repo.changedFiles.includes(nodePath);
-                    const containsChangedFile = isDir && repo.changedFiles.some(f => f.startsWith(nodePath + '/'));
+          const isDirectlyChanged = repo.changedFiles.includes(nodePath);
+          const containsChangedFile =
+            isDir && repo.changedFiles.some((f) => f.startsWith(nodePath + '/'));
 
-                    const isNotTracked = cleanNotTracked.includes(nodePath);
-                    // A folder is only considered "untracked" if IT is in the list,
-                    // not just because it contains something untracked.
+          const isNotTracked = cleanNotTracked.includes(nodePath);
+          // A folder is only considered "untracked" if IT is in the list,
+          // not just because it contains something untracked.
 
-                    if (isDirectlyChanged || containsChangedFile) {
-                        node.classList.add('changed-file');
-                        if (nameEl) nameEl.style.color = 'var(--accent-red)';
-                    } else if (isNotTracked) {
-                        node.classList.remove('changed-file');
-                        if (nameEl) nameEl.style.color = '#aaaaaa';
-                    } else {
-                        node.classList.remove('changed-file');
-                        if (nameEl) nameEl.style.color = '';
-                    }
-                }
-            });
-        } catch (e) {}
-    }
-    if (elements.editorView.style.display !== 'none') updateEditorButtonStates();
+          if (isDirectlyChanged || containsChangedFile) {
+            node.classList.add('changed-file');
+            if (nameEl) nameEl.style.color = 'var(--accent-red)';
+          } else if (isNotTracked) {
+            node.classList.remove('changed-file');
+            if (nameEl) nameEl.style.color = '#aaaaaa';
+          } else {
+            node.classList.remove('changed-file');
+            if (nameEl) nameEl.style.color = '';
+          }
+        }
+      });
+    } catch (e) {}
+  }
+  if (elements.editorView.style.display !== 'none') updateEditorButtonStates();
 }
 
 async function smartRefreshTree() {
-    logToConsole('Syncing tree structure...', 'info');
+  logToConsole('Syncing tree structure...', 'info');
 
-    // 1. Re-scan root directory if configured to catch new folders/repos
-    if (settings.rootRepoDir) {
-        await autoImportFromRoot(settings.rootRepoDir);
-    }
+  // 1. Re-scan root directory if configured to catch new folders/repos
+  if (settings.rootRepoDir) {
+    await autoImportFromRoot(settings.rootRepoDir);
+  }
 
-    const savedSelection = Array.from(selectedNodes);
-    const savedExpansion = Array.from(expandedNodes);
+  const savedSelection = Array.from(selectedNodes);
+  const savedExpansion = Array.from(expandedNodes);
 
-    // 2. Full re-render of root nodes
-    await renderTree(elements.repoFilter ? elements.repoFilter.value : '');
+  // 2. Full re-render of root nodes
+  await renderTree(elements.repoFilter ? elements.repoFilter.value : '');
 
-    // 3. Restore Expansion
-    // We sort by depth (number of slashes) to expand parents before children
-    const sortedExpansion = savedExpansion.sort((a, b) => a.length - b.length);
-    for (const path of sortedExpansion) {
-        try {
-            const node = Array.from(document.querySelectorAll('.tree-node')).find(n => n.dataset.path.replace(/\\/g, '/').toLowerCase() === path);
-            if (node && node.dataset.isDirectory === 'true') {
-                const container = node.parentElement;
-                const existing = container.querySelector('.children-container');
-                if (!existing) {
-                    const depth = parseInt(node.style.paddingLeft) / 12 - 1.33;
-                    const repo = findRepoForPath(path);
-                    await toggleFolder(container, path, isNaN(depth) ? 0 : depth, repo);
-                }
-            }
-        } catch (e) {}
-    }
+  // 3. Restore Expansion
+  // We sort by depth (number of slashes) to expand parents before children
+  const sortedExpansion = savedExpansion.sort((a, b) => a.length - b.length);
+  for (const path of sortedExpansion) {
+    try {
+      const node = Array.from(document.querySelectorAll('.tree-node')).find(
+        (n) => n.dataset.path.replace(/\\/g, '/').toLowerCase() === path,
+      );
+      if (node && node.dataset.isDirectory === 'true') {
+        const container = node.parentElement;
+        const existing = container.querySelector('.children-container');
+        if (!existing) {
+          const depth = parseInt(node.style.paddingLeft) / 12 - 1.33;
+          const repo = findRepoForPath(path);
+          await toggleFolder(container, path, isNaN(depth) ? 0 : depth, repo);
+        }
+      }
+    } catch (e) {}
+  }
 
-    // 4. Restore Selection
-    for (const path of savedSelection) {
-        try {
-            const exists = await window.electronAPI.pathExists(path);
-            if (exists) {
-                await revealInTree(path);
-            }
-        } catch (e) {}
-    }
+  // 4. Restore Selection
+  for (const path of savedSelection) {
+    try {
+      const exists = await window.electronAPI.pathExists(path);
+      if (exists) {
+        await revealInTree(path);
+      }
+    } catch (e) {}
+  }
 }
 
 async function handleContextMenuCommand({ command, paths, path, repoPath }) {
-    const targets = paths || [path];
-    if (command === 'new-file') handleNewItem('file', targets[0]);
-    else if (command === 'new-folder') handleNewItem('folder', targets[0]);
-    else if (command === 'execute') window.electronAPI.openPath(targets[0]);
-    else if (command === 'execute-admin') window.electronAPI.openPathAdmin(targets[0]);
-    else if (command === 'open-vscode') targets.forEach(p => window.electronAPI.openVSCode(p));
-    else if (command === 'open-android-studio') targets.forEach(p => window.electronAPI.openAndroidStudio(p));
-    else if (command === 'open-visual-studio') targets.forEach(p => window.electronAPI.openVisualStudio(p));
-    else if (command === 'open-default') targets.forEach(p => window.electronAPI.openPath(p));
-    else if (command === 'reveal-in-explorer') targets.forEach(p => window.electronAPI.revealInExplorer(p));
-    else if (command === 'open-editor') await openFileInEditor(targets[0]);
-    else if (command === 'rename') handleRename(targets[0]);
-    else if (command === 'convert-lf') await handleConvertFile(targets[0], 'lf');
-    else if (command === 'convert-crlf') await handleConvertFile(targets[0], 'crlf');
-    else if (command === 'convert-utf8') await handleConvertFile(targets[0], 'utf8');
-    else if (command === 'convert-project-lf') await handleConvertProject(targets[0], 'lf');
-    else if (command === 'convert-project-crlf') await handleConvertProject(targets[0], 'crlf');
-    else if (command === 'manage-subtrees') {
-        const repo = repositories.find(r => targets[0].toLowerCase().startsWith(r.path.toLowerCase()));
-        if (repo) activeRepo = repo;
-        showSubtreeHubModal();
+  const targets = paths || [path];
+  if (command === 'new-file') handleNewItem('file', targets[0]);
+  else if (command === 'new-folder') handleNewItem('folder', targets[0]);
+  else if (command === 'execute') window.electronAPI.openPath(targets[0]);
+  else if (command === 'execute-admin') window.electronAPI.openPathAdmin(targets[0]);
+  else if (command === 'open-vscode') targets.forEach((p) => window.electronAPI.openVSCode(p));
+  else if (command === 'open-android-studio')
+    targets.forEach((p) => window.electronAPI.openAndroidStudio(p));
+  else if (command === 'open-visual-studio')
+    targets.forEach((p) => window.electronAPI.openVisualStudio(p));
+  else if (command === 'open-default') targets.forEach((p) => window.electronAPI.openPath(p));
+  else if (command === 'reveal-in-explorer')
+    targets.forEach((p) => window.electronAPI.revealInExplorer(p));
+  else if (command === 'open-editor') await openFileInEditor(targets[0]);
+  else if (command === 'rename') handleRename(targets[0]);
+  else if (command === 'convert-lf') await handleConvertFile(targets[0], 'lf');
+  else if (command === 'convert-crlf') await handleConvertFile(targets[0], 'crlf');
+  else if (command === 'convert-utf8') await handleConvertFile(targets[0], 'utf8');
+  else if (command === 'convert-project-lf') await handleConvertProject(targets[0], 'lf');
+  else if (command === 'convert-project-crlf') await handleConvertProject(targets[0], 'crlf');
+  else if (command === 'manage-subtrees') {
+    const repo = repositories.find((r) =>
+      targets[0].toLowerCase().startsWith(r.path.toLowerCase()),
+    );
+    if (repo) activeRepo = repo;
+    showSubtreeHubModal();
+  } else if (command === 'add-subtree') handleAddSubtreeFromTree(targets[0]);
+  else if (command === 'apply-patch') showPatchModal(targets[0]);
+  else if (command === 'unstage-all') {
+    const repo = repositories.find(
+      (r) =>
+        targets[0].replace(/\\/g, '/').toLowerCase() === r.path.replace(/\\/g, '/').toLowerCase(),
+    );
+    if (repo) {
+      activeRepo = repo;
+      handleUnstageAll();
     }
-    else if (command === 'add-subtree') handleAddSubtreeFromTree(targets[0]);
-    else if (command === 'apply-patch') showPatchModal(targets[0]);
-    else if (command === 'unstage-all') {
-        const repo = repositories.find(r => targets[0].replace(/\\/g, '/').toLowerCase() === r.path.replace(/\\/g, '/').toLowerCase());
-        if (repo) {
-            activeRepo = repo;
-            handleUnstageAll();
-        }
-    }
-    else if (command === 'see-changes') await showFileDiff(targets[0]);
-    else if (command === 'privacy-search') showSearchHub('privacy');
-    else if (command === 'create-readme') handleCreateReadme(targets[0]);
-    else if (command === 'generate-gitignore') handleGenerateGitignore(targets[0]);
-    else if (command === 'add-license') handleAddLicense(targets[0]);
-    else if (command === 'delete') showDeleteModal(targets);
-    else if (command === 'stop-tracking') handleStopTracking(targets[0], repoPath);
-    else if (command === 'start-tracking') handleStartTracking(targets[0], repoPath);
-    else if (command === 'remove') {
-        logToConsole(`Context Menu: Removing ${targets.length} items...`, 'info');
-        removeRepositories(targets);
-    }
+  } else if (command === 'see-changes') await showFileDiff(targets[0]);
+  else if (command === 'privacy-search') showSearchHub('privacy');
+  else if (command === 'create-readme') handleCreateReadme(targets[0]);
+  else if (command === 'generate-gitignore') handleGenerateGitignore(targets[0]);
+  else if (command === 'add-license') handleAddLicense(targets[0]);
+  else if (command === 'delete') showDeleteModal(targets);
+  else if (command === 'stop-tracking') handleStopTracking(targets[0], repoPath);
+  else if (command === 'start-tracking') handleStartTracking(targets[0], repoPath);
+  else if (command === 'remove') {
+    logToConsole(`Context Menu: Removing ${targets.length} items...`, 'info');
+    removeRepositories(targets);
+  }
 }
 
 async function handleCreateReadme(repoPath) {
-    const name = repoPath.split(/[\\\/]/).pop();
-    const readmePath = `${repoPath}/README.md`.replace(/\\/g, '/');
+  const name = repoPath.split(/[\\\/]/).pop();
+  const readmePath = `${repoPath}/README.md`.replace(/\\/g, '/');
 
-    try {
-        const exists = await window.electronAPI.pathExists(readmePath);
-        if (exists) {
-            if (!(await showConfirm('README.md already exists. Overwrite?', 'File Exists'))) return;
-        }
-
-        const content = `# ${name}`;
-        await window.electronAPI.writeFile(readmePath, content);
-        logToConsole(`Created README.md for ${name}`, 'success');
-
-        renderTree(elements.repoFilter.value);
-        openFileInEditor(readmePath);
-    } catch (e) {
-        logToConsole(`Failed to create README: ${e.message}`, 'error');
-        showError(e.message, 'Create README Failed');
+  try {
+    const exists = await window.electronAPI.pathExists(readmePath);
+    if (exists) {
+      if (!(await showConfirm('README.md already exists. Overwrite?', 'File Exists'))) return;
     }
+
+    const content = `# ${name}`;
+    await window.electronAPI.writeFile(readmePath, content);
+    logToConsole(`Created README.md for ${name}`, 'success');
+
+    renderTree(elements.repoFilter.value);
+    openFileInEditor(readmePath);
+  } catch (e) {
+    logToConsole(`Failed to create README: ${e.message}`, 'error');
+    showError(e.message, 'Create README Failed');
+  }
 }
 
 async function handleGenerateGitignore(repoPath) {
-    const modal = document.getElementById('gitignore-modal');
-    const list = document.getElementById('gitignore-list');
-    const search = document.getElementById('gitignore-search');
-    const confirmBtn = document.getElementById('gitignore-confirm');
-    const cancelBtn = document.getElementById('gitignore-cancel');
-    const blankBtn = document.getElementById('gitignore-blank');
-    const blankConfigBtn = document.getElementById('gitignore-blank-config');
+  const modal = document.getElementById('gitignore-modal');
+  const list = document.getElementById('gitignore-list');
+  const search = document.getElementById('gitignore-search');
+  const confirmBtn = document.getElementById('gitignore-confirm');
+  const cancelBtn = document.getElementById('gitignore-cancel');
+  const blankBtn = document.getElementById('gitignore-blank');
+  const blankConfigBtn = document.getElementById('gitignore-blank-config');
 
-    modal.style.display = 'flex';
-    list.innerHTML = '<p style="padding:20px; color:var(--text-muted); text-align:center;">Loading GitHub templates...</p>';
-    confirmBtn.disabled = true;
-    search.value = '';
+  modal.style.display = 'flex';
+  list.innerHTML =
+    '<p style="padding:20px; color:var(--text-muted); text-align:center;">Loading GitHub templates...</p>';
+  confirmBtn.disabled = true;
+  search.value = '';
 
-    const createBlankFile = async (filename) => {
-        const filePath = `${repoPath}/${filename}`.replace(/\\/g, '/');
-        const exists = await window.electronAPI.pathExists(filePath);
-        if (exists) {
-            if (!(await showConfirm(`${filename} already exists. Overwrite with a blank file?`, 'File Exists'))) return;
-        }
-
-        modal.style.display = 'none';
-        try {
-            await window.electronAPI.writeFile(filePath, '');
-            logToConsole(`Successfully generated blank ${filename}`, 'success');
-            renderTree(elements.repoFilter.value);
-            openFileInEditor(filePath);
-        } catch (err) {
-            logToConsole(`Failed to create blank file: ${err.message}`, 'error');
-            showError(err.message, 'File Creation Failed');
-        }
-    };
-
-    blankBtn.onclick = () => createBlankFile('.gitignore');
-    blankConfigBtn.onclick = () => createBlankFile('.gitconfig');
-
-
-
-    let templates = [];
-    let selectedTemplate = null;
-
-    try {
-        templates = await window.electronAPI.fetchGitignoreTemplates();
-
-        const renderList = (filter = '') => {
-            list.innerHTML = '';
-            const filtered = templates.filter(t => t.toLowerCase().includes(filter.toLowerCase()));
-
-            filtered.forEach(name => {
-                const item = document.createElement('div');
-                item.className = 'tree-node';
-                item.style.padding = '8px 12px';
-                item.style.borderBottom = '1px solid var(--border-color)';
-                item.textContent = name;
-
-                item.onclick = () => {
-                    Array.from(list.children).forEach(el => el.classList.remove('active'));
-                    item.classList.add('active');
-                    selectedTemplate = name;
-                    confirmBtn.disabled = false;
-                };
-
-                list.appendChild(item);
-            });
-        };
-
-        renderList();
-        search.oninput = () => renderList(search.value);
-        search.focus();
-
-        confirmBtn.onclick = async () => {
-            if (!selectedTemplate) return;
-
-            const gitignorePath = `${repoPath}/.gitignore`.replace(/\\/g, '/');
-            const exists = await window.electronAPI.pathExists(gitignorePath);
-            if (exists) {
-                if (!(await showConfirm('A .gitignore already exists. Overwrite with official template?', 'File Exists'))) return;
-            }
-
-            modal.style.display = 'none';
-            setTaskState(true);
-            logToConsole(`Downloading ${selectedTemplate} template...`, 'info');
-
-            try {
-                const content = await window.electronAPI.fetchGitignoreContent(selectedTemplate);
-                await window.electronAPI.writeFile(gitignorePath, content);
-                logToConsole(`Successfully generated official .gitignore for ${selectedTemplate}`, 'success');
-
-                renderTree(elements.repoFilter.value);
-                openFileInEditor(gitignorePath);
-            } catch (err) {
-                logToConsole(`Failed to fetch template: ${err.message}`, 'error');
-                showError(err.message, 'Template Fetch Failed');
-            } finally {
-                setTaskState(false);
-            }
-        };
-
-    } catch (e) {
-        logToConsole(`GitHub API error: ${e.message}`, 'error');
-        list.innerHTML = `<p style="padding:20px; color:var(--accent-red); text-align:center;">Error: ${e.message}</p>`;
+  const createBlankFile = async (filename) => {
+    const filePath = `${repoPath}/${filename}`.replace(/\\/g, '/');
+    const exists = await window.electronAPI.pathExists(filePath);
+    if (exists) {
+      if (
+        !(await showConfirm(
+          `${filename} already exists. Overwrite with a blank file?`,
+          'File Exists',
+        ))
+      )
+        return;
     }
 
-    cancelBtn.onclick = () => modal.style.display = 'none';
+    modal.style.display = 'none';
+    try {
+      await window.electronAPI.writeFile(filePath, '');
+      logToConsole(`Successfully generated blank ${filename}`, 'success');
+      renderTree(elements.repoFilter.value);
+      openFileInEditor(filePath);
+    } catch (err) {
+      logToConsole(`Failed to create blank file: ${err.message}`, 'error');
+      showError(err.message, 'File Creation Failed');
+    }
+  };
+
+  blankBtn.onclick = () => createBlankFile('.gitignore');
+  blankConfigBtn.onclick = () => createBlankFile('.gitconfig');
+
+  let templates = [];
+  let selectedTemplate = null;
+
+  try {
+    templates = await window.electronAPI.fetchGitignoreTemplates();
+
+    const renderList = (filter = '') => {
+      list.innerHTML = '';
+      const filtered = templates.filter((t) => t.toLowerCase().includes(filter.toLowerCase()));
+
+      filtered.forEach((name) => {
+        const item = document.createElement('div');
+        item.className = 'tree-node';
+        item.style.padding = '8px 12px';
+        item.style.borderBottom = '1px solid var(--border-color)';
+        item.textContent = name;
+
+        item.onclick = () => {
+          Array.from(list.children).forEach((el) => el.classList.remove('active'));
+          item.classList.add('active');
+          selectedTemplate = name;
+          confirmBtn.disabled = false;
+        };
+
+        list.appendChild(item);
+      });
+    };
+
+    renderList();
+    search.oninput = () => renderList(search.value);
+    search.focus();
+
+    confirmBtn.onclick = async () => {
+      if (!selectedTemplate) return;
+
+      const gitignorePath = `${repoPath}/.gitignore`.replace(/\\/g, '/');
+      const exists = await window.electronAPI.pathExists(gitignorePath);
+      if (exists) {
+        if (
+          !(await showConfirm(
+            'A .gitignore already exists. Overwrite with official template?',
+            'File Exists',
+          ))
+        )
+          return;
+      }
+
+      modal.style.display = 'none';
+      setTaskState(true);
+      logToConsole(`Downloading ${selectedTemplate} template...`, 'info');
+
+      try {
+        const content = await window.electronAPI.fetchGitignoreContent(selectedTemplate);
+        await window.electronAPI.writeFile(gitignorePath, content);
+        logToConsole(
+          `Successfully generated official .gitignore for ${selectedTemplate}`,
+          'success',
+        );
+
+        renderTree(elements.repoFilter.value);
+        openFileInEditor(gitignorePath);
+      } catch (err) {
+        logToConsole(`Failed to fetch template: ${err.message}`, 'error');
+        showError(err.message, 'Template Fetch Failed');
+      } finally {
+        setTaskState(false);
+      }
+    };
+  } catch (e) {
+    logToConsole(`GitHub API error: ${e.message}`, 'error');
+    list.innerHTML = `<p style="padding:20px; color:var(--accent-red); text-align:center;">Error: ${e.message}</p>`;
+  }
+
+  cancelBtn.onclick = () => (modal.style.display = 'none');
 }
 
 async function handleAddLicense(repoPath) {
-    const modal = elements.licenseModal;
-    const list = elements.licenseList;
-    const search = elements.licenseSearch;
-    const confirmBtn = elements.licenseConfirm;
-    const cancelBtn = elements.licenseCancel;
+  const modal = elements.licenseModal;
+  const list = elements.licenseList;
+  const search = elements.licenseSearch;
+  const confirmBtn = elements.licenseConfirm;
+  const cancelBtn = elements.licenseCancel;
 
-    modal.style.display = 'flex';
-    list.innerHTML = '<p style="padding:20px; color:var(--text-muted); text-align:center;">Loading GitHub licenses...</p>';
-    confirmBtn.disabled = true;
-    search.value = '';
+  modal.style.display = 'flex';
+  list.innerHTML =
+    '<p style="padding:20px; color:var(--text-muted); text-align:center;">Loading GitHub licenses...</p>';
+  confirmBtn.disabled = true;
+  search.value = '';
 
-    let licenses = [];
-    let selectedLicense = null;
+  let licenses = [];
+  let selectedLicense = null;
 
-    try {
-        licenses = await window.electronAPI.fetchLicenseTemplates();
+  try {
+    licenses = await window.electronAPI.fetchLicenseTemplates();
 
-        const renderList = (filter = '') => {
-            list.innerHTML = '';
-            const filtered = licenses.filter(l =>
-                l.name.toLowerCase().includes(filter.toLowerCase()) ||
-                l.key.toLowerCase().includes(filter.toLowerCase())
-            );
+    const renderList = (filter = '') => {
+      list.innerHTML = '';
+      const filtered = licenses.filter(
+        (l) =>
+          l.name.toLowerCase().includes(filter.toLowerCase()) ||
+          l.key.toLowerCase().includes(filter.toLowerCase()),
+      );
 
-            filtered.forEach(license => {
-                const item = document.createElement('div');
-                item.className = 'tree-node';
-                item.style.padding = '8px 12px';
-                item.style.borderBottom = '1px solid var(--border-color)';
-                item.textContent = license.name;
+      filtered.forEach((license) => {
+        const item = document.createElement('div');
+        item.className = 'tree-node';
+        item.style.padding = '8px 12px';
+        item.style.borderBottom = '1px solid var(--border-color)';
+        item.textContent = license.name;
 
-                item.onclick = () => {
-                    Array.from(list.children).forEach(el => el.classList.remove('active'));
-                    item.classList.add('active');
-                    selectedLicense = license;
-                    confirmBtn.disabled = false;
-                };
-
-                list.appendChild(item);
-            });
+        item.onclick = () => {
+          Array.from(list.children).forEach((el) => el.classList.remove('active'));
+          item.classList.add('active');
+          selectedLicense = license;
+          confirmBtn.disabled = false;
         };
 
-        renderList();
-        search.oninput = () => renderList(search.value);
-        search.focus();
+        list.appendChild(item);
+      });
+    };
 
-        confirmBtn.onclick = async () => {
-            if (!selectedLicense) return;
+    renderList();
+    search.oninput = () => renderList(search.value);
+    search.focus();
 
-            const licensePath = `${repoPath}/LICENSE`.replace(/\\/g, '/');
-            const exists = await window.electronAPI.pathExists(licensePath);
-            if (exists) {
-                if (!(await showConfirm('A LICENSE file already exists. Overwrite with official template?', 'File Exists'))) return;
-            }
+    confirmBtn.onclick = async () => {
+      if (!selectedLicense) return;
 
-            modal.style.display = 'none';
-            setTaskState(true);
-            logToConsole(`Downloading ${selectedLicense.name} license...`, 'info');
+      const licensePath = `${repoPath}/LICENSE`.replace(/\\/g, '/');
+      const exists = await window.electronAPI.pathExists(licensePath);
+      if (exists) {
+        if (
+          !(await showConfirm(
+            'A LICENSE file already exists. Overwrite with official template?',
+            'File Exists',
+          ))
+        )
+          return;
+      }
 
-            try {
-                const content = await window.electronAPI.fetchLicenseContent(selectedLicense.key);
-                await window.electronAPI.writeFile(licensePath, content);
-                logToConsole(`Successfully added LICENSE: ${selectedLicense.name}`, 'success');
+      modal.style.display = 'none';
+      setTaskState(true);
+      logToConsole(`Downloading ${selectedLicense.name} license...`, 'info');
 
-                renderTree(elements.repoFilter.value);
-                openFileInEditor(licensePath);
-            } catch (err) {
-                logToConsole(`Failed to fetch license: ${err.message}`, 'error');
-                showError(err.message, 'License Fetch Failed');
-            } finally {
-                setTaskState(false);
-            }
-        };
+      try {
+        const content = await window.electronAPI.fetchLicenseContent(selectedLicense.key);
+        await window.electronAPI.writeFile(licensePath, content);
+        logToConsole(`Successfully added LICENSE: ${selectedLicense.name}`, 'success');
 
-    } catch (e) {
-        logToConsole(`GitHub API error: ${e.message}`, 'error');
-        list.innerHTML = `<p style="padding:20px; color:var(--accent-red); text-align:center;">Error: ${e.message}</p>`;
-    }
+        renderTree(elements.repoFilter.value);
+        openFileInEditor(licensePath);
+      } catch (err) {
+        logToConsole(`Failed to fetch license: ${err.message}`, 'error');
+        showError(err.message, 'License Fetch Failed');
+      } finally {
+        setTaskState(false);
+      }
+    };
+  } catch (e) {
+    logToConsole(`GitHub API error: ${e.message}`, 'error');
+    list.innerHTML = `<p style="padding:20px; color:var(--accent-red); text-align:center;">Error: ${e.message}</p>`;
+  }
 
-    cancelBtn.onclick = () => modal.style.display = 'none';
+  cancelBtn.onclick = () => (modal.style.display = 'none');
 }
 
 async function handleStopTracking(fullPath, providedRepoPath = null) {
-    // 1. Determine the repository
-    let repo = null;
-    if (providedRepoPath) {
-        repo = repositories.find(r => r.path === providedRepoPath);
-    }
+  // 1. Determine the repository
+  let repo = null;
+  if (providedRepoPath) {
+    repo = repositories.find((r) => r.path === providedRepoPath);
+  }
 
-    // Fallback: search by path with normalization
-    if (!repo) {
-        const normFull = fullPath.replace(/\\/g, '/').toLowerCase();
-        repo = repositories.find(r => {
-            const normRepo = r.path.replace(/\\/g, '/').toLowerCase();
-            return normFull.startsWith(normRepo);
-        });
-    }
-
-    if (!repo) {
-        logToConsole(`Stop Tracking Failed: Could not find repo for ${fullPath}`, 'error');
-        showAlert('Could not determine the repository for this item.', 'Error');
-        return;
-    }
-
-    // 2. Calculate relative path with normalization
+  // Fallback: search by path with normalization
+  if (!repo) {
     const normFull = fullPath.replace(/\\/g, '/').toLowerCase();
-    const normRepo = repo.path.replace(/\\/g, '/').toLowerCase();
+    repo = repositories.find((r) => {
+      const normRepo = r.path.replace(/\\/g, '/').toLowerCase();
+      return normFull.startsWith(normRepo);
+    });
+  }
 
-    // Ensure we take the relative part from the original path to preserve casing if possible
-    // though git usually doesn't care much about casing on Windows for relative paths
-    const relativePath = fullPath.substring(repo.path.length).replace(/^[\\\/]/, '').replace(/\\/g, '/');
+  if (!repo) {
+    logToConsole(`Stop Tracking Failed: Could not find repo for ${fullPath}`, 'error');
+    showAlert('Could not determine the repository for this item.', 'Error');
+    return;
+  }
 
-    if (!(await showConfirm(`Stop tracking "${relativePath}"?\n\nThis will remove it from Git (cached) but keep the physical file, and add it to your .gitignore.`, 'Stop Tracking'))) {
-        return;
+  // 2. Calculate relative path with normalization
+  const normFull = fullPath.replace(/\\/g, '/').toLowerCase();
+  const normRepo = repo.path.replace(/\\/g, '/').toLowerCase();
+
+  // Ensure we take the relative part from the original path to preserve casing if possible
+  // though git usually doesn't care much about casing on Windows for relative paths
+  const relativePath = fullPath
+    .substring(repo.path.length)
+    .replace(/^[\\\/]/, '')
+    .replace(/\\/g, '/');
+
+  if (
+    !(await showConfirm(
+      `Stop tracking "${relativePath}"?\n\nThis will remove it from Git (cached) but keep the physical file, and add it to your .gitignore.`,
+      'Stop Tracking',
+    ))
+  ) {
+    return;
+  }
+
+  try {
+    setTaskState(true);
+    const res = await window.electronAPI.gitStopTracking(repo.path, relativePath);
+    if (res.success) {
+      logToConsole(res.output, 'success');
+      await smartRefreshTree();
+    } else {
+      showAlert(`Failed to stop tracking: ${res.output}`, 'Git Error');
     }
-
-    try {
-        setTaskState(true);
-        const res = await window.electronAPI.gitStopTracking(repo.path, relativePath);
-        if (res.success) {
-            logToConsole(res.output, 'success');
-            await smartRefreshTree();
-        } else {
-            showAlert(`Failed to stop tracking: ${res.output}`, 'Git Error');
-        }
-    } catch (e) {
-        logToConsole(`Stop Tracking Error: ${e.message}`, 'error');
-    } finally {
-        setTaskState(false);
-    }
+  } catch (e) {
+    logToConsole(`Stop Tracking Error: ${e.message}`, 'error');
+  } finally {
+    setTaskState(false);
+  }
 }
 
 async function handleStartTracking(fullPath, providedRepoPath = null) {
-    let repo = null;
-    if (providedRepoPath) {
-        repo = repositories.find(r => r.path === providedRepoPath);
-    }
+  let repo = null;
+  if (providedRepoPath) {
+    repo = repositories.find((r) => r.path === providedRepoPath);
+  }
 
-    if (!repo) {
-        const normFull = fullPath.replace(/\\/g, '/').toLowerCase();
-        repo = repositories.find(r => r.path.replace(/\\/g, '/').toLowerCase().startsWith(normFull));
-    }
+  if (!repo) {
+    const normFull = fullPath.replace(/\\/g, '/').toLowerCase();
+    repo = repositories.find((r) => r.path.replace(/\\/g, '/').toLowerCase().startsWith(normFull));
+  }
 
-    if (!repo) {
-        showAlert('Could not determine the repository for this item.', 'Error');
-        return;
-    }
+  if (!repo) {
+    showAlert('Could not determine the repository for this item.', 'Error');
+    return;
+  }
 
-    const relativePath = fullPath.substring(repo.path.length).replace(/^[\\\/]/, '').replace(/\\/g, '/');
+  const relativePath = fullPath
+    .substring(repo.path.length)
+    .replace(/^[\\\/]/, '')
+    .replace(/\\/g, '/');
 
-    try {
-        setTaskState(true);
-        const res = await window.electronAPI.gitStartTracking(repo.path, relativePath);
-        if (res.success) {
-            logToConsole(res.output, 'success');
-            await smartRefreshTree();
-        } else {
-            showAlert(`Failed to start tracking: ${res.output}`, 'Git Error');
-        }
-    } catch (e) {
-        logToConsole(`Start Tracking Error: ${e.message}`, 'error');
-    } finally {
-        setTaskState(false);
+  try {
+    setTaskState(true);
+    const res = await window.electronAPI.gitStartTracking(repo.path, relativePath);
+    if (res.success) {
+      logToConsole(res.output, 'success');
+      await smartRefreshTree();
+    } else {
+      showAlert(`Failed to start tracking: ${res.output}`, 'Git Error');
     }
+  } catch (e) {
+    logToConsole(`Start Tracking Error: ${e.message}`, 'error');
+  } finally {
+    setTaskState(false);
+  }
 }
 
 function parseGitConfig(content) {
-    const lines = content.split(/\r?\n/);
-    let currentSection = null;
-    let sections = {};
+  const lines = content.split(/\r?\n/);
+  let currentSection = null;
+  let sections = {};
 
-    lines.forEach(line => {
-        line = line.trim();
-        if (!line || line.startsWith('#') || line.startsWith(';')) return;
+  lines.forEach((line) => {
+    line = line.trim();
+    if (!line || line.startsWith('#') || line.startsWith(';')) return;
 
-        const sectionMatch = line.match(/^\[(.+)\]$/);
-        if (sectionMatch) {
-            currentSection = sectionMatch[1].trim();
-            if (!sections[currentSection]) sections[currentSection] = [];
-            return;
-        }
+    const sectionMatch = line.match(/^\[(.+)\]$/);
+    if (sectionMatch) {
+      currentSection = sectionMatch[1].trim();
+      if (!sections[currentSection]) sections[currentSection] = [];
+      return;
+    }
 
-        if (currentSection) {
-            const eqIdx = line.indexOf('=');
-            if (eqIdx !== -1) {
-                const key = line.substring(0, eqIdx).trim();
-                const val = line.substring(eqIdx + 1).trim();
-                sections[currentSection].push({ key, val });
-            }
-        }
-    });
-    return sections;
+    if (currentSection) {
+      const eqIdx = line.indexOf('=');
+      if (eqIdx !== -1) {
+        const key = line.substring(0, eqIdx).trim();
+        const val = line.substring(eqIdx + 1).trim();
+        sections[currentSection].push({ key, val });
+      }
+    }
+  });
+  return sections;
 }
 
 function getGitConfigValue(sections, section, key) {
-    if (!sections[section]) return null;
-    const entry = sections[section].find(e => e.key === key);
-    return entry ? entry.val : null;
+  if (!sections[section]) return null;
+  const entry = sections[section].find((e) => e.key === key);
+  return entry ? entry.val : null;
 }
 
 async function checkAndOfferFixes(filePath, rawContent, encoding) {
-    if (!filePath || !rawContent || !elements.editorFileInfo) return;
+  if (!filePath || !rawContent || !elements.editorFileInfo) return;
 
-    elements.editorFileInfo.classList.remove('status-red', 'status-green');
-    elements.editorFileInfo.onclick = null;
-    elements.editorFileInfo.title = '';
+  elements.editorFileInfo.classList.remove('status-red', 'status-green');
+  elements.editorFileInfo.onclick = null;
+  elements.editorFileInfo.title = '';
 
-    const binaryEncodings = ['binary', 'base64', 'hex'];
-    const isUtf8 = encoding === 'UTF-8';
-    const isBinary = binaryEncodings.includes(encoding.toLowerCase());
+  const binaryEncodings = ['binary', 'base64', 'hex'];
+  const isUtf8 = encoding === 'UTF-8';
+  const isBinary = binaryEncodings.includes(encoding.toLowerCase());
 
-    // 1. Check Encoding
-    if (!isUtf8 && !isBinary) {
+  // 1. Check Encoding
+  if (!isUtf8 && !isBinary) {
+    elements.editorFileInfo.classList.add('status-red');
+    elements.editorFileInfo.title = `Encoding is ${encoding}. Click to convert to UTF-8.`;
+    elements.editorFileInfo.onclick = () => handleConvertFile(filePath, 'utf8');
+    return;
+  }
+
+  // 2. Check EOL
+  const hasCRLF = rawContent.includes('\r\n');
+  const hasLF = !hasCRLF && rawContent.includes('\n');
+
+  try {
+    const gitConfigRes = await window.electronAPI.getGitConfig();
+    if (gitConfigRes && gitConfigRes.success) {
+      const config = parseGitConfig(gitConfigRes.content);
+      const autocrlf = getGitConfigValue(config, 'core', 'autocrlf');
+
+      let expected = null;
+      if (autocrlf === 'true') expected = 'crlf';
+      else if (autocrlf === 'input') expected = 'lf';
+
+      let eolMatch = true;
+      let eolMsg = '';
+      let targetEol = '';
+
+      if (expected === 'crlf' && hasLF && !hasCRLF) {
+        eolMatch = false;
+        eolMsg = `File uses LF but git expects CRLF. Click to fix.`;
+        targetEol = 'crlf';
+      } else if (expected === 'lf' && hasCRLF) {
+        eolMatch = false;
+        eolMsg = `File uses CRLF but git expects LF. Click to fix.`;
+        targetEol = 'lf';
+      }
+
+      if (!eolMatch) {
         elements.editorFileInfo.classList.add('status-red');
-        elements.editorFileInfo.title = `Encoding is ${encoding}. Click to convert to UTF-8.`;
-        elements.editorFileInfo.onclick = () => handleConvertFile(filePath, 'utf8');
-        return;
-    }
-
-    // 2. Check EOL
-    const hasCRLF = rawContent.includes('\r\n');
-    const hasLF = !hasCRLF && rawContent.includes('\n');
-
-    try {
-        const gitConfigRes = await window.electronAPI.getGitConfig();
-        if (gitConfigRes && gitConfigRes.success) {
-            const config = parseGitConfig(gitConfigRes.content);
-            const autocrlf = getGitConfigValue(config, 'core', 'autocrlf');
-
-            let expected = null;
-            if (autocrlf === 'true') expected = 'crlf';
-            else if (autocrlf === 'input') expected = 'lf';
-
-            let eolMatch = true;
-            let eolMsg = '';
-            let targetEol = '';
-
-            if (expected === 'crlf' && hasLF && !hasCRLF) {
-                eolMatch = false;
-                eolMsg = `File uses LF but git expects CRLF. Click to fix.`;
-                targetEol = 'crlf';
-            } else if (expected === 'lf' && hasCRLF) {
-                eolMatch = false;
-                eolMsg = `File uses CRLF but git expects LF. Click to fix.`;
-                targetEol = 'lf';
-            }
-
-            if (!eolMatch) {
-                elements.editorFileInfo.classList.add('status-red');
-                elements.editorFileInfo.title = eolMsg;
-                elements.editorFileInfo.onclick = () => handleConvertFile(filePath, targetEol);
-            } else {
-                elements.editorFileInfo.classList.add('status-green');
-                elements.editorFileInfo.title = 'File format is correct (UTF-8 + Correct EOL)';
-            }
-        }
-    } catch (e) {
-        console.warn('Could not check git config for EOL suggestion:', e);
-        // Fallback to green if we can't check, as long as it's UTF-8
+        elements.editorFileInfo.title = eolMsg;
+        elements.editorFileInfo.onclick = () => handleConvertFile(filePath, targetEol);
+      } else {
         elements.editorFileInfo.classList.add('status-green');
+        elements.editorFileInfo.title = 'File format is correct (UTF-8 + Correct EOL)';
+      }
     }
+  } catch (e) {
+    console.warn('Could not check git config for EOL suggestion:', e);
+    // Fallback to green if we can't check, as long as it's UTF-8
+    elements.editorFileInfo.classList.add('status-green');
+  }
 }
 
 async function handleConvertFile(filePath, type) {
-    const fileName = filePath.split(/[\\\/]/).pop();
-    let title = '';
-    let message = '';
+  const fileName = filePath.split(/[\\\/]/).pop();
+  let title = '';
+  let message = '';
 
-    if (type === 'utf8') {
-        title = 'Encoding Conversion';
-        message = `Convert "${fileName}" to UTF-8?`;
-    } else {
-        title = 'Line Ending Conversion';
-        const eolName = type === 'lf' ? 'LF (Unix)' : 'CRLF (Windows)';
-        message = `Convert "${fileName}" to ${eolName} line endings?`;
+  if (type === 'utf8') {
+    title = 'Encoding Conversion';
+    message = `Convert "${fileName}" to UTF-8?`;
+  } else {
+    title = 'Line Ending Conversion';
+    const eolName = type === 'lf' ? 'LF (Unix)' : 'CRLF (Windows)';
+    message = `Convert "${fileName}" to ${eolName} line endings?`;
+  }
+
+  if (!(await showConfirm(message, title))) return;
+
+  setTaskState(true);
+  try {
+    const result = await window.electronAPI.readFile(filePath);
+    let content = result.content;
+    let msg = '';
+
+    if (type === 'lf') {
+      content = content.replace(/\r\n/g, '\n');
+      msg = 'Converted to LF (Unix) line endings.';
+    } else if (type === 'crlf') {
+      content = content.replace(/\r\n/g, '\n').replace(/\n/g, '\r\n');
+      msg = 'Converted to CRLF (Windows) line endings.';
+    } else if (type === 'utf8') {
+      msg = 'Converted to UTF-8.';
     }
 
-    if (!(await showConfirm(message, title))) return;
+    await window.electronAPI.writeFile(filePath, content);
+    logToConsole(`${msg} [${filePath}]`, 'success');
 
-    setTaskState(true);
-    try {
-        const result = await window.electronAPI.readFile(filePath);
-        let content = result.content;
-        let msg = '';
-
-        if (type === 'lf') {
-            content = content.replace(/\r\n/g, '\n');
-            msg = 'Converted to LF (Unix) line endings.';
-        } else if (type === 'crlf') {
-            content = content.replace(/\r\n/g, '\n').replace(/\n/g, '\r\n');
-            msg = 'Converted to CRLF (Windows) line endings.';
-        } else if (type === 'utf8') {
-            msg = 'Converted to UTF-8.';
-        }
-
-        await window.electronAPI.writeFile(filePath, content);
-        logToConsole(`${msg} [${filePath}]`, 'success');
-
-        // If the file is currently open in the editor, reload it
-        if (currentEditingPath === filePath) {
-            await openFileInEditor(filePath);
-        }
-    } catch (e) {
-        logToConsole(`Conversion failed: ${e.message}`, 'error');
-        showError(e.message, 'Conversion Failed');
-    } finally {
-        setTaskState(false);
+    // If the file is currently open in the editor, reload it
+    if (currentEditingPath === filePath) {
+      await openFileInEditor(filePath);
     }
+  } catch (e) {
+    logToConsole(`Conversion failed: ${e.message}`, 'error');
+    showError(e.message, 'Conversion Failed');
+  } finally {
+    setTaskState(false);
+  }
 }
 
 async function handleConvertProject(dirPath, type) {
-    const dirName = dirPath.split(/[\\\/]/).pop() || dirPath;
-    const eolName = type === 'lf' ? 'LF (Unix)' : 'CRLF (Windows)';
-    const message = `This will recursively convert ALL text files in "${dirName}" to ${eolName} line endings. This may take a moment. Proceed?`;
+  const dirName = dirPath.split(/[\\\/]/).pop() || dirPath;
+  const eolName = type === 'lf' ? 'LF (Unix)' : 'CRLF (Windows)';
+  const message = `This will recursively convert ALL text files in "${dirName}" to ${eolName} line endings. This may take a moment. Proceed?`;
 
-    if (!(await showConfirm(message, "Bulk EOL Conversion"))) return;
+  if (!(await showConfirm(message, 'Bulk EOL Conversion'))) return;
 
-    setTaskState(true);
-    try {
-        logToConsole(`Starting bulk EOL conversion for ${dirPath}...`, 'info');
-        const res = await window.electronAPI.fixLineEndings(dirPath, type);
+  setTaskState(true);
+  try {
+    logToConsole(`Starting bulk EOL conversion for ${dirPath}...`, 'info');
+    const res = await window.electronAPI.fixLineEndings(dirPath, type);
 
-        if (res.success) {
-            logToConsole(`Successfully converted files in ${dirName} to ${eolName}.`, 'success');
-            // If a file from this project is open, we might want to reload it,
-            // but for simplicity we'll just log success.
-            if (currentEditingPath && currentEditingPath.startsWith(dirPath)) {
-                await openFileInEditor(currentEditingPath);
-            }
-        } else {
-            throw new Error(res.error);
-        }
-    } catch (e) {
-        logToConsole(`Bulk conversion failed: ${e.message}`, 'error');
-        showError(e.message, 'Bulk Conversion Failed');
-    } finally {
-        setTaskState(false);
+    if (res.success) {
+      logToConsole(`Successfully converted files in ${dirName} to ${eolName}.`, 'success');
+      // If a file from this project is open, we might want to reload it,
+      // but for simplicity we'll just log success.
+      if (currentEditingPath && currentEditingPath.startsWith(dirPath)) {
+        await openFileInEditor(currentEditingPath);
+      }
+    } else {
+      throw new Error(res.error);
     }
+  } catch (e) {
+    logToConsole(`Bulk conversion failed: ${e.message}`, 'error');
+    showError(e.message, 'Bulk Conversion Failed');
+  } finally {
+    setTaskState(false);
+  }
 }
 
 async function handleRename(oldPath) {
-    const fileName = oldPath.split(/[\\\/]/).pop();
-    elements.renameModal.style.display = 'flex';
-    elements.renamePathDisplay.textContent = fileName;
-    elements.renameNewName.value = fileName;
-    elements.renameNewName.focus();
-    elements.renameNewName.select();
+  const fileName = oldPath.split(/[\\\/]/).pop();
+  elements.renameModal.style.display = 'flex';
+  elements.renamePathDisplay.textContent = fileName;
+  elements.renameNewName.value = fileName;
+  elements.renameNewName.focus();
+  elements.renameNewName.select();
 
-    elements.renameNewName.onkeydown = (e) => {
-        if (e.key === 'Enter') {
-            elements.renameConfirm.click();
-        } else if (e.key === 'Escape') {
-            elements.renameModal.style.display = 'none';
+  elements.renameNewName.onkeydown = (e) => {
+    if (e.key === 'Enter') {
+      elements.renameConfirm.click();
+    } else if (e.key === 'Escape') {
+      elements.renameModal.style.display = 'none';
+    }
+  };
+
+  elements.renameConfirm.onclick = async () => {
+    const newName = elements.renameNewName.value.trim();
+    if (!newName || newName === fileName) {
+      elements.renameModal.style.display = 'none';
+      return;
+    }
+
+    const parentDir = oldPath.substring(
+      0,
+      Math.max(oldPath.lastIndexOf('/'), oldPath.lastIndexOf('\\')),
+    );
+    const newPath = `${parentDir}/${newName}`.replace(/\\/g, '/');
+
+    try {
+      const res = await window.electronAPI.renameItem(oldPath, newPath);
+      if (res.success) {
+        logToConsole(`Renamed ${fileName} to ${newName}`, 'success');
+
+        // Intelligence: If this was a project root, update our internal repositories list
+        const repoIndex = repositories.findIndex((r) => r.path === oldPath);
+        if (repoIndex !== -1) {
+          repositories[repoIndex].path = newPath;
+          repositories[repoIndex].name = newName;
+          window.electronAPI.saveRepositories(repositories);
         }
-    };
 
-    elements.renameConfirm.onclick = async () => {
-        const newName = elements.renameNewName.value.trim();
-        if (!newName || newName === fileName) {
-            elements.renameModal.style.display = 'none';
-            return;
+        // If it was the active repo, update the reference and UI
+        if (activeRepo && activeRepo.path === oldPath) {
+          activeRepo.path = newPath;
+          activeRepo.name = newName;
+          const title = document.getElementById('active-repo-name');
+          if (title) title.textContent = newName;
         }
 
-        const parentDir = oldPath.substring(0, Math.max(oldPath.lastIndexOf('/'), oldPath.lastIndexOf('\\')));
-        const newPath = `${parentDir}/${newName}`.replace(/\\/g, '/');
-
-        try {
-            const res = await window.electronAPI.renameItem(oldPath, newPath);
-            if (res.success) {
-                logToConsole(`Renamed ${fileName} to ${newName}`, 'success');
-
-                // Intelligence: If this was a project root, update our internal repositories list
-                const repoIndex = repositories.findIndex(r => r.path === oldPath);
-                if (repoIndex !== -1) {
-                    repositories[repoIndex].path = newPath;
-                    repositories[repoIndex].name = newName;
-                    window.electronAPI.saveRepositories(repositories);
-                }
-
-                // If it was the active repo, update the reference and UI
-                if (activeRepo && activeRepo.path === oldPath) {
-                    activeRepo.path = newPath;
-                    activeRepo.name = newName;
-                    const title = document.getElementById('active-repo-name');
-                    if (title) title.textContent = newName;
-                }
-
-                elements.renameModal.style.display = 'none';
-                selectedNodes.clear();
-                selectedNodes.add(newPath); // Stay on the renamed item
-                await smartRefreshTree();
-            } else {
-                logToConsole(`Rename failed: ${res.error}`, 'error');
-                showAlert(`Error renaming: ${res.error}`, 'Error');
-            }
-        } catch (e) {
-            logToConsole(`Rename error: ${e.message}`, 'error');
-        }
-    };
+        elements.renameModal.style.display = 'none';
+        selectedNodes.clear();
+        selectedNodes.add(newPath); // Stay on the renamed item
+        await smartRefreshTree();
+      } else {
+        logToConsole(`Rename failed: ${res.error}`, 'error');
+        showAlert(`Error renaming: ${res.error}`, 'Error');
+      }
+    } catch (e) {
+      logToConsole(`Rename error: ${e.message}`, 'error');
+    }
+  };
 }
 
 function sortRepositories() {
-    if (!repositories || !Array.isArray(repositories)) return;
-    repositories.sort((a, b) => {
-        const nameA = (a && a.name) ? String(a.name) : '';
-        const nameB = (b && b.name) ? String(b.name) : '';
-        return nameA.localeCompare(nameB, undefined, { numeric: true });
-    });
+  if (!repositories || !Array.isArray(repositories)) return;
+  repositories.sort((a, b) => {
+    const nameA = a && a.name ? String(a.name) : '';
+    const nameB = b && b.name ? String(b.name) : '';
+    return nameA.localeCompare(nameB, undefined, { numeric: true });
+  });
 }
 
 async function revealInTree(fullPath) {
-    const repo = findRepoForPath(fullPath);
-    if (!repo) return;
+  const repo = findRepoForPath(fullPath);
+  if (!repo) return;
 
-    const normTarget = fullPath.replace(/\\/g, '/').toLowerCase();
+  const normTarget = fullPath.replace(/\\/g, '/').toLowerCase();
 
-    // 1. Ensure the repo itself is selected and visible
-    const repoPath = repo.path.replace(/\\/g, '/');
-    const repoNode = Array.from(document.querySelectorAll('.repo-root')).find(n => n.dataset.path.replace(/\\/g, '/').toLowerCase() === repoPath.toLowerCase());
-    if (!repoNode) return;
+  // 1. Ensure the repo itself is selected and visible
+  const repoPath = repo.path.replace(/\\/g, '/');
+  const repoNode = Array.from(document.querySelectorAll('.repo-root')).find(
+    (n) => n.dataset.path.replace(/\\/g, '/').toLowerCase() === repoPath.toLowerCase(),
+  );
+  if (!repoNode) return;
 
-    repoNode.scrollIntoView({ behavior: 'auto', block: 'start' });
+  repoNode.scrollIntoView({ behavior: 'auto', block: 'start' });
 
-    // 2. Break down the relative path into segments
-    const relPath = normTarget.replace(repoPath.toLowerCase(), '');
-    const segments = relPath.split('/').filter(s => s);
+  // 2. Break down the relative path into segments
+  const relPath = normTarget.replace(repoPath.toLowerCase(), '');
+  const segments = relPath.split('/').filter((s) => s);
 
-    let currentPath = repoPath;
-    let currentContainer = repoNode.parentElement; // The container holding the .tree-node
+  let currentPath = repoPath;
+  let currentContainer = repoNode.parentElement; // The container holding the .tree-node
 
-    for (const segment of segments) {
-        // Expand the current folder if not already expanded
-        const treeNode = currentContainer.querySelector('.tree-node');
-        if (!treeNode) break;
+  for (const segment of segments) {
+    // Expand the current folder if not already expanded
+    const treeNode = currentContainer.querySelector('.tree-node');
+    if (!treeNode) break;
 
-        const existingChildren = currentContainer.querySelector('.children-container');
+    const existingChildren = currentContainer.querySelector('.children-container');
 
-        if (!existingChildren) {
-            // Find current path from the node's dataset
-            const nodePath = treeNode.dataset.path;
-            const depth = parseInt(treeNode.style.paddingLeft) / 12 - 1.33;
-            await toggleFolder(currentContainer, nodePath, isNaN(depth) ? 0 : depth, repo);
-        }
-
-        // Find the next segment's container
-        // We look for a direct child div that contains the node with the matching segment name
-        const nextContainer = Array.from(currentContainer.querySelectorAll(':scope > .children-container > div')).find(div => {
-            const node = div.querySelector('.tree-node');
-            if (!node) return false;
-            const parts = node.dataset.path.replace(/\\/g, '/').split('/');
-            return parts.pop().toLowerCase() === segment.toLowerCase();
-        });
-
-        if (!nextContainer) break;
-
-        currentContainer = nextContainer;
-        currentPath = currentContainer.querySelector('.tree-node').dataset.path;
+    if (!existingChildren) {
+      // Find current path from the node's dataset
+      const nodePath = treeNode.dataset.path;
+      const depth = parseInt(treeNode.style.paddingLeft) / 12 - 1.33;
+      await toggleFolder(currentContainer, nodePath, isNaN(depth) ? 0 : depth, repo);
     }
 
-    // Highlight and Scroll to the final node
-    const finalNode = currentContainer.querySelector('.tree-node');
-    if (finalNode) {
-        selectedNodes.clear();
-        selectedNodes.add(finalNode.dataset.path);
-        updateTreeSelectionUI();
-        finalNode.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-    }
+    // Find the next segment's container
+    // We look for a direct child div that contains the node with the matching segment name
+    const nextContainer = Array.from(
+      currentContainer.querySelectorAll(':scope > .children-container > div'),
+    ).find((div) => {
+      const node = div.querySelector('.tree-node');
+      if (!node) return false;
+      const parts = node.dataset.path.replace(/\\/g, '/').split('/');
+      return parts.pop().toLowerCase() === segment.toLowerCase();
+    });
+
+    if (!nextContainer) break;
+
+    currentContainer = nextContainer;
+    currentPath = currentContainer.querySelector('.tree-node').dataset.path;
+  }
+
+  // Highlight and Scroll to the final node
+  const finalNode = currentContainer.querySelector('.tree-node');
+  if (finalNode) {
+    selectedNodes.clear();
+    selectedNodes.add(finalNode.dataset.path);
+    updateTreeSelectionUI();
+    finalNode.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
 }
 
 function scrollToRepoInTree(path) {
-    const node = Array.from(document.querySelectorAll('.repo-root')).find(n => n.dataset.path.replace(/\\/g, '/').toLowerCase() === path.replace(/\\/g, '/').toLowerCase());
-    if (node) node.scrollIntoView({ behavior: 'auto', block: 'start' });
+  const node = Array.from(document.querySelectorAll('.repo-root')).find(
+    (n) =>
+      n.dataset.path.replace(/\\/g, '/').toLowerCase() === path.replace(/\\/g, '/').toLowerCase(),
+  );
+  if (node) node.scrollIntoView({ behavior: 'auto', block: 'start' });
 }
 
-async function updateBranchSelector(path) { try { const res = await window.electronAPI.getBranches(path); elements.branchSelect.innerHTML = res.all.map(b => `<option value="${b}" ${b === res.current ? 'selected' : ''}>${b}</option>`).join(''); } catch(e) {} }
+async function updateBranchSelector(path) {
+  try {
+    const res = await window.electronAPI.getBranches(path);
+    elements.branchSelect.innerHTML = res.all
+      .map((b) => `<option value="${b}" ${b === res.current ? 'selected' : ''}>${b}</option>`)
+      .join('');
+  } catch (e) {}
+}
 
 async function updateRemoteSelector(path) {
-    try {
-        const remotes = await window.electronAPI.getRemotes(path);
+  try {
+    const remotes = await window.electronAPI.getRemotes(path);
 
-        if (remotes.length === 0) {
-            elements.remoteSelect.innerHTML = '<option value="">none</option>';
-            if (elements.openRemoteBtn) elements.openRemoteBtn.style.display = 'none';
-        } else {
-            elements.remoteSelect.innerHTML = remotes.map(r => `<option value="${r.name}" data-url="${r.url}">${r.name}</option>`).join('');
+    if (remotes.length === 0) {
+      elements.remoteSelect.innerHTML = '<option value="">none</option>';
+      if (elements.openRemoteBtn) elements.openRemoteBtn.style.display = 'none';
+    } else {
+      elements.remoteSelect.innerHTML = remotes
+        .map((r) => `<option value="${r.name}" data-url="${r.url}">${r.name}</option>`)
+        .join('');
 
-            const updateZone = () => {
-                const selected = elements.remoteSelect.options[elements.remoteSelect.selectedIndex];
-                const url = selected ? selected.getAttribute('data-url') : '';
-                if (elements.openRemoteBtn) {
-                    elements.openRemoteBtn.style.display = url ? 'block' : 'none';
-                }
-            };
-
-            elements.remoteSelect.onchange = updateZone;
-            updateZone(); // Initial check
+      const updateZone = () => {
+        const selected = elements.remoteSelect.options[elements.remoteSelect.selectedIndex];
+        const url = selected ? selected.getAttribute('data-url') : '';
+        if (elements.openRemoteBtn) {
+          elements.openRemoteBtn.style.display = url ? 'block' : 'none';
         }
-    } catch(e) {}
+      };
+
+      elements.remoteSelect.onchange = updateZone;
+      updateZone(); // Initial check
+    }
+  } catch (e) {}
 }
 
 async function updateRepoStatus(providedStatus) {
-    if (!activeRepo) return;
-    const status = providedStatus || await window.electronAPI.gitStatus(activeRepo.path);
+  if (!activeRepo) return;
+  const status = providedStatus || (await window.electronAPI.gitStatus(activeRepo.path));
 
-    // Highlight Pull button if behind
-    const pullBtn = document.querySelector('.git-btn[data-action="pull"]');
-    if (pullBtn) {
-        if (status.behind > 0) {
-            pullBtn.classList.add('highlight-pull');
-            pullBtn.title = `Pull ${status.behind} incoming commits`;
-        } else {
-            pullBtn.classList.remove('highlight-pull');
-            pullBtn.title = 'Pull changes';
-        }
+  // Highlight Pull button if behind
+  const pullBtn = document.querySelector('.git-btn[data-action="pull"]');
+  if (pullBtn) {
+    if (status.behind > 0) {
+      pullBtn.classList.add('highlight-pull');
+      pullBtn.title = `Pull ${status.behind} incoming commits`;
+    } else {
+      pullBtn.classList.remove('highlight-pull');
+      pullBtn.title = 'Pull changes';
     }
+  }
 }
 
 function renderChangesList(repo, detailedChanges) {
-    const { staged, unstaged, untracked } = detailedChanges;
+  const { staged, unstaged, untracked } = detailedChanges;
 
-    // Clear lists
-    elements.stagedList.innerHTML = '';
-    elements.unstagedList.innerHTML = '';
+  // Clear lists
+  elements.stagedList.innerHTML = '';
+  elements.unstagedList.innerHTML = '';
 
-    // Helper to add items
-    const createChangeItem = (file, type) => {
-        const item = document.createElement('div');
-        item.className = 'change-item';
-        const isUntracked = type === 'untracked';
-        const isStaged = type === 'staged';
+  // Helper to add items
+  const createChangeItem = (file, type) => {
+    const item = document.createElement('div');
+    item.className = 'change-item';
+    const isUntracked = type === 'untracked';
+    const isStaged = type === 'staged';
 
-        item.innerHTML = `
+    item.innerHTML = `
             <span class="change-icon">${isUntracked ? '➕' : '📄'}</span>
             <span class="change-name" title="${file}">${file}</span>
             <div class="change-actions">
-                ${isStaged ?
-                    `<button class="button mini-action-btn btn-unstage" title="Unstage">⊖</button>` :
-                    `<button class="button mini-action-btn btn-stage" title="Stage">⊕</button>`
+                ${
+                  isStaged
+                    ? `<button class="button mini-action-btn btn-unstage" title="Unstage">⊖</button>`
+                    : `<button class="button mini-action-btn btn-stage" title="Stage">⊕</button>`
                 }
                 <button class="button mini-action-btn btn-restore" title="${isUntracked ? 'Delete' : 'Restore'}">✕</button>
             </div>
         `;
 
-        item.onclick = () => {
-            document.querySelectorAll('.change-item').forEach(el => el.classList.remove('active'));
-            item.classList.add('active');
-            showFileDiff(`${repo.path}/${file}`);
-        };
-
-        const actionBtn = item.querySelector(isStaged ? '.btn-unstage' : '.btn-stage');
-        actionBtn.onclick = async (e) => {
-            e.stopPropagation();
-            setTaskState(true);
-            try {
-                const res = isStaged ?
-                    await window.electronAPI.gitUnstageFile(repo.path, file) :
-                    await window.electronAPI.gitStageFile(repo.path, file);
-                if (res.success) await refreshActiveRepoUI();
-                else logToConsole(res.output, 'error');
-            } catch(err) { logToConsole(err.message, 'error'); }
-            finally { setTaskState(false); }
-        };
-
-        const restoreBtn = item.querySelector('.btn-restore');
-        restoreBtn.onclick = async (e) => {
-            e.stopPropagation();
-            const action = isUntracked ? 'Permanently DELETE' : 'RESTORE (wipe changes)';
-            if (await showConfirm(`${action} ${file}?`, 'Confirm Restoration')) {
-                setTaskState(true);
-                try {
-                    const res = await window.electronAPI.gitRestoreFile(repo.path, file);
-                    if (res.success) {
-                        await smartRefreshTree();
-                        await refreshActiveRepoUI();
-                    }
-                    else logToConsole(res.output, 'error');
-                } catch(err) { logToConsole(err.message, 'error'); }
-                finally { setTaskState(false); }
-            }
-        };
-
-        return item;
+    item.onclick = () => {
+      document.querySelectorAll('.change-item').forEach((el) => el.classList.remove('active'));
+      item.classList.add('active');
+      showFileDiff(`${repo.path}/${file}`);
     };
 
-    staged.forEach(f => elements.stagedList.appendChild(createChangeItem(f, 'staged')));
-    unstaged.forEach(f => elements.unstagedList.appendChild(createChangeItem(f, 'unstaged')));
-    untracked.forEach(f => elements.unstagedList.appendChild(createChangeItem(f, 'untracked')));
+    const actionBtn = item.querySelector(isStaged ? '.btn-unstage' : '.btn-stage');
+    actionBtn.onclick = async (e) => {
+      e.stopPropagation();
+      setTaskState(true);
+      try {
+        const res = isStaged
+          ? await window.electronAPI.gitUnstageFile(repo.path, file)
+          : await window.electronAPI.gitStageFile(repo.path, file);
+        if (res.success) await refreshActiveRepoUI();
+        else logToConsole(res.output, 'error');
+      } catch (err) {
+        logToConsole(err.message, 'error');
+      } finally {
+        setTaskState(false);
+      }
+    };
 
-    // Show/Hide sections if empty
-    document.getElementById('staged-section').style.display = staged.length ? 'flex' : 'none';
-    if (!staged.length && !unstaged.length && !untracked.length) {
-        elements.unstagedList.innerHTML = '<div class="empty-state" style="padding:20px;">No changes detected. Workspace is clean.</div>';
-    }
+    const restoreBtn = item.querySelector('.btn-restore');
+    restoreBtn.onclick = async (e) => {
+      e.stopPropagation();
+      const action = isUntracked ? 'Permanently DELETE' : 'RESTORE (wipe changes)';
+      if (await showConfirm(`${action} ${file}?`, 'Confirm Restoration')) {
+        setTaskState(true);
+        try {
+          const res = await window.electronAPI.gitRestoreFile(repo.path, file);
+          if (res.success) {
+            await smartRefreshTree();
+            await refreshActiveRepoUI();
+          } else logToConsole(res.output, 'error');
+        } catch (err) {
+          logToConsole(err.message, 'error');
+        } finally {
+          setTaskState(false);
+        }
+      }
+    };
+
+    return item;
+  };
+
+  staged.forEach((f) => elements.stagedList.appendChild(createChangeItem(f, 'staged')));
+  unstaged.forEach((f) => elements.unstagedList.appendChild(createChangeItem(f, 'unstaged')));
+  untracked.forEach((f) => elements.unstagedList.appendChild(createChangeItem(f, 'untracked')));
+
+  // Show/Hide sections if empty
+  document.getElementById('staged-section').style.display = staged.length ? 'flex' : 'none';
+  if (!staged.length && !unstaged.length && !untracked.length) {
+    elements.unstagedList.innerHTML =
+      '<div class="empty-state" style="padding:20px;">No changes detected. Workspace is clean.</div>';
+  }
 }
 
 async function showGitStatus() {
-    if (!activeRepo) return;
+  if (!activeRepo) return;
 
-    // Switch right panel to Status View
-    elements.messageView.style.display = 'none';
-    elements.diffView.style.display = 'none';
-    elements.statusView.style.display = 'flex';
-    elements.statusContainer.textContent = 'Fetching status...';
+  // Switch right panel to Status View
+  elements.messageView.style.display = 'none';
+  elements.diffView.style.display = 'none';
+  elements.statusView.style.display = 'flex';
+  elements.statusContainer.textContent = 'Fetching status...';
 
-    try {
-        const res = await window.electronAPI.gitRawStatus(activeRepo.path);
-        if (res.success) {
-            elements.statusContainer.textContent = res.output || 'No status output.';
-        } else {
-            elements.statusContainer.textContent = 'Error fetching status: ' + res.output;
-        }
-    } catch (e) {
-        elements.statusContainer.textContent = 'System Error: ' + e.message;
+  try {
+    const res = await window.electronAPI.gitRawStatus(activeRepo.path);
+    if (res.success) {
+      elements.statusContainer.textContent = res.output || 'No status output.';
+    } else {
+      elements.statusContainer.textContent = 'Error fetching status: ' + res.output;
     }
+  } catch (e) {
+    elements.statusContainer.textContent = 'System Error: ' + e.message;
+  }
 }
 
-
 async function handleStashModal() {
-    if (!activeRepo) return;
-    elements.stashModal.style.display = 'flex';
-    elements.stashMessageInput.value = '';
-    await listStashes();
+  if (!activeRepo) return;
+  elements.stashModal.style.display = 'flex';
+  elements.stashMessageInput.value = '';
+  await listStashes();
 }
 
 async function saveStash() {
-    if (!activeRepo) return;
-    const msg = elements.stashMessageInput.value.trim();
+  if (!activeRepo) return;
+  const msg = elements.stashMessageInput.value.trim();
 
-    logToConsole(`Saving stash for ${activeRepo.name}...`, 'info');
-    setTaskState(true);
-    try {
-        const res = await window.electronAPI.gitStashSave(activeRepo.path, msg);
-        if (res.success) {
-            logToConsole('Stash saved successfully.', 'success');
-            elements.stashMessageInput.value = '';
-            await listStashes();
-            await refreshActiveRepoUI();
-        } else {
-            showAlert(`Stash failed: ${res.output}`, 'Error');
-        }
-    } catch (e) {
-        logToConsole(`Stash Error: ${e.message}`, 'error');
-    } finally {
-        setTaskState(false);
+  logToConsole(`Saving stash for ${activeRepo.name}...`, 'info');
+  setTaskState(true);
+  try {
+    const res = await window.electronAPI.gitStashSave(activeRepo.path, msg);
+    if (res.success) {
+      logToConsole('Stash saved successfully.', 'success');
+      elements.stashMessageInput.value = '';
+      await listStashes();
+      await refreshActiveRepoUI();
+    } else {
+      showAlert(`Stash failed: ${res.output}`, 'Error');
     }
+  } catch (e) {
+    logToConsole(`Stash Error: ${e.message}`, 'error');
+  } finally {
+    setTaskState(false);
+  }
 }
 
 async function listStashes() {
-    if (!activeRepo) return;
-    const container = elements.stashListContainer;
-    container.innerHTML = '<div style="padding:10px; color:var(--text-muted);">Loading stashes...</div>';
+  if (!activeRepo) return;
+  const container = elements.stashListContainer;
+  container.innerHTML =
+    '<div style="padding:10px; color:var(--text-muted);">Loading stashes...</div>';
 
-    try {
-        const res = await window.electronAPI.gitStashList(activeRepo.path);
-        if (!res.success) throw new Error(res.output);
+  try {
+    const res = await window.electronAPI.gitStashList(activeRepo.path);
+    if (!res.success) throw new Error(res.output);
 
-        container.innerHTML = '';
-        if (res.stashes.length === 0) {
-            container.innerHTML = '<div style="padding:20px; color:var(--text-muted); text-align:center;">No stashes found for this project.</div>';
-            return;
-        }
+    container.innerHTML = '';
+    if (res.stashes.length === 0) {
+      container.innerHTML =
+        '<div style="padding:20px; color:var(--text-muted); text-align:center;">No stashes found for this project.</div>';
+      return;
+    }
 
-        res.stashes.forEach((s, idx) => {
-            const div = document.createElement('div');
-            div.style.padding = '10px 12px';
-            div.style.borderBottom = '1px solid rgba(255,255,255,0.03)';
-            div.style.display = 'flex';
-            div.style.alignItems = 'center';
-            div.style.justifyContent = 'space-between';
+    res.stashes.forEach((s, idx) => {
+      const div = document.createElement('div');
+      div.style.padding = '10px 12px';
+      div.style.borderBottom = '1px solid rgba(255,255,255,0.03)';
+      div.style.display = 'flex';
+      div.style.alignItems = 'center';
+      div.style.justifyContent = 'space-between';
 
-            div.innerHTML = `
+      div.innerHTML = `
                 <div style="flex:1; overflow:hidden;">
                     <div style="font-size:12px; color:#fff; font-weight:600; white-space:nowrap; text-overflow:ellipsis; overflow:hidden;">${s.message}</div>
-                    <div style="font-size:10px; color:var(--text-muted); margin-top:2px;">${s.hash.substring(0,7)} • stash@{${idx}}</div>
+                    <div style="font-size:10px; color:var(--text-muted); margin-top:2px;">${s.hash.substring(0, 7)} • stash@{${idx}}</div>
                 </div>
                 <div style="display:flex; gap:6px;">
                     <button class="button apply-btn" style="font-size:10px; height:24px;" title="Apply changes but keep stash">Apply</button>
@@ -7477,617 +8960,723 @@ async function listStashes() {
                 </div>
             `;
 
-            div.querySelector('.apply-btn').onclick = async () => {
-                logToConsole(`Applying stash@{${idx}}...`, 'info');
-                const res = await window.electronAPI.gitStashApply(activeRepo.path, idx);
-                if (res.success) { logToConsole('Stash applied.', 'success'); await refreshActiveRepoUI(); }
-                else showError(res.output, 'Apply Error');
-            };
+      div.querySelector('.apply-btn').onclick = async () => {
+        logToConsole(`Applying stash@{${idx}}...`, 'info');
+        const res = await window.electronAPI.gitStashApply(activeRepo.path, idx);
+        if (res.success) {
+          logToConsole('Stash applied.', 'success');
+          await refreshActiveRepoUI();
+        } else showError(res.output, 'Apply Error');
+      };
 
-            div.querySelector('.pop-btn').onclick = async () => {
-                logToConsole(`Popping stash@{${idx}}...`, 'info');
-                const res = await window.electronAPI.gitStashPop(activeRepo.path, idx);
-                if (res.success) {
-                    logToConsole('Stash popped.', 'success');
-                    await listStashes();
-                    await refreshActiveRepoUI();
-                } else showError(res.output, 'Pop Error');
-            };
+      div.querySelector('.pop-btn').onclick = async () => {
+        logToConsole(`Popping stash@{${idx}}...`, 'info');
+        const res = await window.electronAPI.gitStashPop(activeRepo.path, idx);
+        if (res.success) {
+          logToConsole('Stash popped.', 'success');
+          await listStashes();
+          await refreshActiveRepoUI();
+        } else showError(res.output, 'Pop Error');
+      };
 
-            div.querySelector('.drop-btn').onclick = async () => {
-                if (await showConfirm(`Delete stash@{${idx}} permanently?`, 'Confirm Drop')) {
-                    const res = await window.electronAPI.gitStashDrop(activeRepo.path, idx);
-                    if (res.success) await listStashes();
-                    else showError(res.output, 'Drop Error');
-                }
-            };
+      div.querySelector('.drop-btn').onclick = async () => {
+        if (await showConfirm(`Delete stash@{${idx}} permanently?`, 'Confirm Drop')) {
+          const res = await window.electronAPI.gitStashDrop(activeRepo.path, idx);
+          if (res.success) await listStashes();
+          else showError(res.output, 'Drop Error');
+        }
+      };
 
-            container.appendChild(div);
-        });
-    } catch (e) {
-        container.innerHTML = `<div style="color:var(--accent-red); padding:10px;">${e.message}</div>`;
-    }
+      container.appendChild(div);
+    });
+  } catch (e) {
+    container.innerHTML = `<div style="color:var(--accent-red); padding:10px;">${e.message}</div>`;
+  }
 }
 
 async function showFileDiff(filePath) {
-    if (!(await setActiveNavItem(null))) return;
+  if (!(await setActiveNavItem(null))) return;
 
-    const repo = findRepoForPath(filePath);
-    if (!repo) return;
+  const repo = findRepoForPath(filePath);
+  if (!repo) return;
 
-    // INTELLIGENCE: Sync active repository context
-    if (activeRepo !== repo) {
-        activeRepo = repo;
-        const title = document.getElementById('active-repo-name');
-        if (title) title.textContent = repo.name;
-        if (window.terminal) window.terminal.sendCommand(`cd "${repo.path}"`);
-        if (elements.gitForceToggle) elements.gitForceToggle.checked = !!repo.gitForce;
-        if (elements.commitAmendToggle) elements.commitAmendToggle.checked = false;
-        refreshActiveRepoUI(true);
-    }
+  // INTELLIGENCE: Sync active repository context
+  if (activeRepo !== repo) {
+    activeRepo = repo;
+    const title = document.getElementById('active-repo-name');
+    if (title) title.textContent = repo.name;
+    if (window.terminal) window.terminal.sendCommand(`cd "${repo.path}"`);
+    if (elements.gitForceToggle) elements.gitForceToggle.checked = !!repo.gitForce;
+    if (elements.commitAmendToggle) elements.commitAmendToggle.checked = false;
+    refreshActiveRepoUI(true);
+  }
 
-    currentEditingPath = filePath;
+  currentEditingPath = filePath;
 
-    // Ensure we are in Repo View and hide Editor
-    elements.editorView.style.display = 'none';
-    elements.repoView.style.display = 'flex';
+  // Ensure we are in Repo View and hide Editor
+  elements.editorView.style.display = 'none';
+  elements.repoView.style.display = 'flex';
 
-    // Switch right panel to Diff View
-    elements.messageView.style.display = 'none';
-    elements.statusView.style.display = 'none';
-    elements.diffView.style.display = 'flex';
-    elements.diffFileName.textContent = filePath.split(/[\\\/]/).pop();
+  // Switch right panel to Diff View
+  elements.messageView.style.display = 'none';
+  elements.statusView.style.display = 'none';
+  elements.diffView.style.display = 'flex';
+  elements.diffFileName.textContent = filePath.split(/[\\\/]/).pop();
 
-    try {
-        const repoBase = repo.path.replace(/\\/g, '/');
-        const fPath = filePath.replace(/\\/g, '/');
-        let relPath = fPath.substring(repoBase.length);
-        if (relPath.startsWith('/')) relPath = relPath.substring(1);
+  try {
+    const repoBase = repo.path.replace(/\\/g, '/');
+    const fPath = filePath.replace(/\\/g, '/');
+    let relPath = fPath.substring(repoBase.length);
+    if (relPath.startsWith('/')) relPath = relPath.substring(1);
 
-        const diffLines = await window.electronAPI.getFileDiff(repo.path, relPath);
-        elements.diffContainer.innerHTML = diffLines.length ? '' : '<div class="diff-line info" style="padding:20px;">No uncommitted changes to show. This file might be staged or identical to HEAD.</div>';
+    const diffLines = await window.electronAPI.getFileDiff(repo.path, relPath);
+    elements.diffContainer.innerHTML = diffLines.length
+      ? ''
+      : '<div class="diff-line info" style="padding:20px;">No uncommitted changes to show. This file might be staged or identical to HEAD.</div>';
 
-        diffLines.forEach(line => {
-            const el = document.createElement('div');
-            el.className = `diff-line ${line.type}`;
-            el.textContent = line.text || ' ';
-            elements.diffContainer.appendChild(el);
-        });
-    } catch (e) {
-        logToConsole(e.message, 'error');
-    }
+    diffLines.forEach((line) => {
+      const el = document.createElement('div');
+      el.className = `diff-line ${line.type}`;
+      el.textContent = line.text || ' ';
+      elements.diffContainer.appendChild(el);
+    });
+  } catch (e) {
+    logToConsole(e.message, 'error');
+  }
 }
 
 async function showCommitDiff(hash, message) {
-    if (!activeRepo) return;
-    const modal = document.getElementById('commit-diff-modal');
-    const container = document.getElementById('commit-diff-container');
-    const title = document.getElementById('commit-diff-title');
+  if (!activeRepo) return;
+  const modal = document.getElementById('commit-diff-modal');
+  const container = document.getElementById('commit-diff-container');
+  const title = document.getElementById('commit-diff-title');
 
-    if (!modal || !container || !title) return;
+  if (!modal || !container || !title) return;
 
-    title.textContent = `Diff: ${hash.substring(0, 7)} - ${message}`;
-    container.innerHTML = '<p style="padding: 20px; color: var(--text-muted); text-align: center;">Loading diff...</p>';
-    modal.style.display = 'flex';
+  title.textContent = `Diff: ${hash.substring(0, 7)} - ${message}`;
+  container.innerHTML =
+    '<p style="padding: 20px; color: var(--text-muted); text-align: center;">Loading diff...</p>';
+  modal.style.display = 'flex';
 
-    try {
-        const diffLines = await window.electronAPI.getCommitDiff(activeRepo.path, hash);
-        container.innerHTML = diffLines.length ? '' : '<div class="diff-line info" style="padding:20px;">No changes found in this commit.</div>';
+  try {
+    const diffLines = await window.electronAPI.getCommitDiff(activeRepo.path, hash);
+    container.innerHTML = diffLines.length
+      ? ''
+      : '<div class="diff-line info" style="padding:20px;">No changes found in this commit.</div>';
 
-        diffLines.forEach(line => {
-            const el = document.createElement('div');
-            el.className = `diff-line ${line.type}`;
-            el.textContent = line.text || ' ';
-            container.appendChild(el);
-        });
-    } catch (e) {
-        container.innerHTML = `<div class="diff-line deletion" style="padding:20px;">Error: ${e.message}</div>`;
-        logToConsole(e.message, 'error');
-    }
+    diffLines.forEach((line) => {
+      const el = document.createElement('div');
+      el.className = `diff-line ${line.type}`;
+      el.textContent = line.text || ' ';
+      container.appendChild(el);
+    });
+  } catch (e) {
+    container.innerHTML = `<div class="diff-line deletion" style="padding:20px;">Error: ${e.message}</div>`;
+    logToConsole(e.message, 'error');
+  }
 }
 
 async function runGitignoreScan() {
-    if (!currentEditingPath || !monacoEditor) return;
-    const projectPath = currentEditingPath.substring(0, Math.max(currentEditingPath.lastIndexOf('/'), currentEditingPath.lastIndexOf('\\')));
-    try {
-        const children = await window.electronAPI.listDirectory(projectPath, true);
-        const currentContent = monacoEditor.getValue();
-        let newRules = [];
-        const patterns = { 'node_modules': 'node_modules/', '.idea': '.idea/', '.vscode': '.vscode/', 'dist': 'dist/', 'build': 'build/', 'out': 'out/', '.env': '.env', 'package-lock.json': 'package-lock.json', '.DS_Store': '.DS_Store', 'thumbs.db': 'thumbs.db' };
-        for (const child of children) { if (patterns[child.name] && !currentContent.includes(patterns[child.name])) newRules.push(patterns[child.name]); }
-        if (newRules.length > 0) { monacoEditor.setValue(currentContent.trim() + (currentContent.trim() ? '\n\n' : '') + '# Auto-detected\n' + newRules.join('\n')); logToConsole('Rules added.', 'success'); }
-    } catch (e) { logToConsole(e.message, 'error'); }
+  if (!currentEditingPath || !monacoEditor) return;
+  const projectPath = currentEditingPath.substring(
+    0,
+    Math.max(currentEditingPath.lastIndexOf('/'), currentEditingPath.lastIndexOf('\\')),
+  );
+  try {
+    const children = await window.electronAPI.listDirectory(projectPath, true);
+    const currentContent = monacoEditor.getValue();
+    let newRules = [];
+    const patterns = {
+      node_modules: 'node_modules/',
+      '.idea': '.idea/',
+      '.vscode': '.vscode/',
+      dist: 'dist/',
+      build: 'build/',
+      out: 'out/',
+      '.env': '.env',
+      'package-lock.json': 'package-lock.json',
+      '.DS_Store': '.DS_Store',
+      'thumbs.db': 'thumbs.db',
+    };
+    for (const child of children) {
+      if (patterns[child.name] && !currentContent.includes(patterns[child.name]))
+        newRules.push(patterns[child.name]);
+    }
+    if (newRules.length > 0) {
+      monacoEditor.setValue(
+        currentContent.trim() +
+          (currentContent.trim() ? '\n\n' : '') +
+          '# Auto-detected\n' +
+          newRules.join('\n'),
+      );
+      logToConsole('Rules added.', 'success');
+    }
+  } catch (e) {
+    logToConsole(e.message, 'error');
+  }
 }
 
 async function handleNewItem(type, parentPath) {
-    const targetDir = parentPath || (activeRepo ? activeRepo.path : null);
-    if (!targetDir) return;
-    elements.newItemModal.style.display = 'flex';
-    elements.newItemPathDisplay.textContent = targetDir;
-    elements.newItemName.value = '';
-    elements.newItemName.focus();
+  const targetDir = parentPath || (activeRepo ? activeRepo.path : null);
+  if (!targetDir) return;
+  elements.newItemModal.style.display = 'flex';
+  elements.newItemPathDisplay.textContent = targetDir;
+  elements.newItemName.value = '';
+  elements.newItemName.focus();
 
-    document.getElementById('new-item-title').textContent = `New ${type.charAt(0).toUpperCase() + type.slice(1)}`;
+  document.getElementById('new-item-title').textContent =
+    `New ${type.charAt(0).toUpperCase() + type.slice(1)}`;
 
-    const confirmBtn = document.getElementById('new-item-confirm');
-    const cancelBtn = document.getElementById('new-item-cancel');
+  const confirmBtn = document.getElementById('new-item-confirm');
+  const cancelBtn = document.getElementById('new-item-cancel');
 
-    const execute = async () => {
-        const name = elements.newItemName.value.trim();
-        if (!name) return;
-        const full = `${targetDir}/${name}`.replace(/\\/g, '/');
+  const execute = async () => {
+    const name = elements.newItemName.value.trim();
+    if (!name) return;
+    const full = `${targetDir}/${name}`.replace(/\\/g, '/');
 
-        // Ensure parent is in expandedNodes so it stays open after refresh
-        expandedNodes.add(targetDir.replace(/\\/g, '/').toLowerCase());
+    // Ensure parent is in expandedNodes so it stays open after refresh
+    expandedNodes.add(targetDir.replace(/\\/g, '/').toLowerCase());
 
-        try {
-            setTaskState(true);
-            if (type === 'file') {
-                await window.electronAPI.writeFile(full, '');
-                elements.newItemModal.style.display = 'none';
-                await renderTree(elements.repoFilter.value);
-                openFileInEditor(full);
-            } else {
-                const res = await window.electronAPI.createDirectory(full);
-                if (res.success) {
-                    elements.newItemModal.style.display = 'none';
-                    // Force the new folder itself to be expanded too so user sees it empty
-                    expandedNodes.add(full.toLowerCase());
-                    await renderTree(elements.repoFilter.value);
-                } else {
-                    showError(res.error, 'Folder Creation Failed');
-                }
-            }
-        } catch (e) {
-            logToConsole(e.message, 'error');
-            showError(e.message, 'System Error');
-        } finally {
-            setTaskState(false);
+    try {
+      setTaskState(true);
+      if (type === 'file') {
+        await window.electronAPI.writeFile(full, '');
+        elements.newItemModal.style.display = 'none';
+        await renderTree(elements.repoFilter.value);
+        openFileInEditor(full);
+      } else {
+        const res = await window.electronAPI.createDirectory(full);
+        if (res.success) {
+          elements.newItemModal.style.display = 'none';
+          // Force the new folder itself to be expanded too so user sees it empty
+          expandedNodes.add(full.toLowerCase());
+          await renderTree(elements.repoFilter.value);
+        } else {
+          showError(res.error, 'Folder Creation Failed');
         }
-    };
+      }
+    } catch (e) {
+      logToConsole(e.message, 'error');
+      showError(e.message, 'System Error');
+    } finally {
+      setTaskState(false);
+    }
+  };
 
-    confirmBtn.onclick = execute;
-    cancelBtn.onclick = () => elements.newItemModal.style.display = 'none';
+  confirmBtn.onclick = execute;
+  cancelBtn.onclick = () => (elements.newItemModal.style.display = 'none');
 
-    elements.newItemName.onkeydown = (e) => {
-        if (e.key === 'Enter') execute();
-        if (e.key === 'Escape') elements.newItemModal.style.display = 'none';
-    };
+  elements.newItemName.onkeydown = (e) => {
+    if (e.key === 'Enter') execute();
+    if (e.key === 'Escape') elements.newItemModal.style.display = 'none';
+  };
 }
 
 function showImportChoiceModal() {
-    elements.importChoiceModal.style.display = 'flex';
+  elements.importChoiceModal.style.display = 'flex';
 }
 
 function showServerImportModal() {
-    elements.serverImportUrl.value = '';
-    elements.serverImportModal.style.display = 'flex';
-    setTimeout(() => elements.serverImportUrl.focus(), 10);
+  elements.serverImportUrl.value = '';
+  elements.serverImportModal.style.display = 'flex';
+  setTimeout(() => elements.serverImportUrl.focus(), 10);
 }
 
 async function executeServerImport() {
-    const url = elements.serverImportUrl.value.trim();
-    if (!url) return showAlert('Please enter a valid Git URL.', 'Missing URL');
-    if (!settings.rootRepoDir) return showAlert('Set a Root Repository Folder in Settings.', 'Config Missing');
+  const url = elements.serverImportUrl.value.trim();
+  if (!url) return showAlert('Please enter a valid Git URL.', 'Missing URL');
+  if (!settings.rootRepoDir)
+    return showAlert('Set a Root Repository Folder in Settings.', 'Config Missing');
 
-    // Extract repo name from URL
-    let name = url.split('/').pop().replace(/\.git$/, '') || 'imported-repo';
+  // Extract repo name from URL
+  let name =
+    url
+      .split('/')
+      .pop()
+      .replace(/\.git$/, '') || 'imported-repo';
 
-    elements.serverImportModal.style.display = 'none';
-    const dest = `${settings.rootRepoDir}/${name}`.replace(/\\/g, '/');
+  elements.serverImportModal.style.display = 'none';
+  const dest = `${settings.rootRepoDir}/${name}`.replace(/\\/g, '/');
 
-    logToConsole(`Cloning from ${url}...`, 'info');
-    setTaskState(true);
+  logToConsole(`Cloning from ${url}...`, 'info');
+  setTaskState(true);
 
-    try {
-        const res = await window.electronAPI.gitClone(url, dest);
-        if (res.success) {
-            logToConsole(`Successfully cloned ${name}`, 'success');
-            addRepository({ type: 'single', path: dest, name: name });
-            sortRepositories();
-            window.electronAPI.saveRepositories(repositories);
-            renderTree();
-        } else {
-            showError(res.output || 'Failed to clone repository.', 'Clone Error');
-        }
-    } catch (e) {
-        showError(e.message, 'System Error');
-    } finally {
-        setTaskState(false);
+  try {
+    const res = await window.electronAPI.gitClone(url, dest);
+    if (res.success) {
+      logToConsole(`Successfully cloned ${name}`, 'success');
+      addRepository({ type: 'single', path: dest, name: name });
+      sortRepositories();
+      window.electronAPI.saveRepositories(repositories);
+      renderTree();
+    } else {
+      showError(res.output || 'Failed to clone repository.', 'Clone Error');
     }
+  } catch (e) {
+    showError(e.message, 'System Error');
+  } finally {
+    setTaskState(false);
+  }
 }
 
 async function handleAddRepo() {
-    const path = await window.electronAPI.openDirectory();
-    if (path) { const res = await window.electronAPI.scanDirectory(path); if (res.type === 'multiple') showMultiRepoModal(res.repos); else showAddChoiceModal(path, res.type === 'single'); }
+  const path = await window.electronAPI.openDirectory();
+  if (path) {
+    const res = await window.electronAPI.scanDirectory(path);
+    if (res.type === 'multiple') showMultiRepoModal(res.repos);
+    else showAddChoiceModal(path, res.type === 'single');
+  }
 }
 
 function showAddChoiceModal(path, isRepo) {
-    const modal = document.getElementById('add-choice-modal'); modal.style.display = 'flex';
-    document.getElementById('choice-single').onclick = () => { addRepository({ type: 'single', path, name: path.split(/[\\\/]/).pop() }); modal.style.display = 'none'; };
-    document.getElementById('choice-bulk').onclick = async () => {
-        modal.style.display = 'none'; const children = await window.electronAPI.listDirectory(path); const gitRepos = [];
-        for (const dir of children.filter(c => c.isDirectory)) { const scan = await window.electronAPI.scanDirectory(dir.path); gitRepos.push(scan.type === 'single' ? scan : { type: 'single', path: dir.path, name: dir.name }); }
-        if (gitRepos.length > 0) showMultiRepoModal(gitRepos);
-    };
-    document.getElementById('choice-cancel').onclick = () => modal.style.display = 'none';
+  const modal = document.getElementById('add-choice-modal');
+  modal.style.display = 'flex';
+  document.getElementById('choice-single').onclick = () => {
+    addRepository({ type: 'single', path, name: path.split(/[\\\/]/).pop() });
+    modal.style.display = 'none';
+  };
+  document.getElementById('choice-bulk').onclick = async () => {
+    modal.style.display = 'none';
+    const children = await window.electronAPI.listDirectory(path);
+    const gitRepos = [];
+    for (const dir of children.filter((c) => c.isDirectory)) {
+      const scan = await window.electronAPI.scanDirectory(dir.path);
+      gitRepos.push(
+        scan.type === 'single' ? scan : { type: 'single', path: dir.path, name: dir.name },
+      );
+    }
+    if (gitRepos.length > 0) showMultiRepoModal(gitRepos);
+  };
+  document.getElementById('choice-cancel').onclick = () => (modal.style.display = 'none');
 }
 
 function showMultiRepoModal(repos) {
-    const modal = document.getElementById('multi-repo-modal'); const list = document.getElementById('repo-list-container');
-    const selectAll = document.getElementById('multi-repo-select-all');
-    list.innerHTML = ''; repos.forEach((r, i) => { const div = document.createElement('div'); div.innerHTML = `<label style="display:flex; align-items:center; gap:8px; cursor:pointer;"><input type="checkbox" value="${i}" checked> ${r.name}</label>`; list.appendChild(div); });
+  const modal = document.getElementById('multi-repo-modal');
+  const list = document.getElementById('repo-list-container');
+  const selectAll = document.getElementById('multi-repo-select-all');
+  list.innerHTML = '';
+  repos.forEach((r, i) => {
+    const div = document.createElement('div');
+    div.innerHTML = `<label style="display:flex; align-items:center; gap:8px; cursor:pointer;"><input type="checkbox" value="${i}" checked> ${r.name}</label>`;
+    list.appendChild(div);
+  });
 
-    if (selectAll) {
-        selectAll.checked = true;
-        selectAll.onchange = () => {
-            list.querySelectorAll('input[type="checkbox"]').forEach(i => i.checked = selectAll.checked);
-        };
-    }
-
-    document.getElementById('modal-add').onclick = async () => {
-        const checked = Array.from(list.querySelectorAll('input:checked')).map(i => repos[parseInt(i.value)]);
-        checked.forEach(r => addRepository(r, true, true)); // skip individual renders
-        sortRepositories();
-        window.electronAPI.saveRepositories(repositories);
-
-        // Final UI sync
-        modal.style.display = 'none';
-        await renderTree(elements.repoFilter.value);
-        if (elements.dashboardView.style.display !== 'none') showDashboard();
+  if (selectAll) {
+    selectAll.checked = true;
+    selectAll.onchange = () => {
+      list
+        .querySelectorAll('input[type="checkbox"]')
+        .forEach((i) => (i.checked = selectAll.checked));
     };
-    document.getElementById('modal-cancel').onclick = () => modal.style.display = 'none'; modal.style.display = 'flex';
+  }
+
+  document.getElementById('modal-add').onclick = async () => {
+    const checked = Array.from(list.querySelectorAll('input:checked')).map(
+      (i) => repos[parseInt(i.value)],
+    );
+    checked.forEach((r) => addRepository(r, true, true)); // skip individual renders
+    sortRepositories();
+    window.electronAPI.saveRepositories(repositories);
+
+    // Final UI sync
+    modal.style.display = 'none';
+    await renderTree(elements.repoFilter.value);
+    if (elements.dashboardView.style.display !== 'none') showDashboard();
+  };
+  document.getElementById('modal-cancel').onclick = () => (modal.style.display = 'none');
+  modal.style.display = 'flex';
 }
 
 async function showGitHubImportModal() {
-    if (!settings.githubToken) {
-        showAlert('Please set your Personal Access Token (PAT) in Settings.', 'Auth Required');
-        showSettings();
-        return;
-    }
-    const modal = document.getElementById('github-import-modal'); const list = document.getElementById('github-repo-list');
-    modal.style.display = 'flex'; list.innerHTML = '<p>Connecting...</p>';
-    try {
-        const res = await window.electronAPI.fetchGitHubRepos(settings.githubToken);
-        const repos = res.repos || [];
-        if (res.expiration) updateTokenExpirationUI(res.expiration);
+  if (!settings.githubToken) {
+    showAlert('Please set your Personal Access Token (PAT) in Settings.', 'Auth Required');
+    showSettings();
+    return;
+  }
+  const modal = document.getElementById('github-import-modal');
+  const list = document.getElementById('github-repo-list');
+  modal.style.display = 'flex';
+  list.innerHTML = '<p>Connecting...</p>';
+  try {
+    const res = await window.electronAPI.fetchGitHubRepos(settings.githubToken);
+    const repos = res.repos || [];
+    if (res.expiration) updateTokenExpirationUI(res.expiration);
 
-        list.innerHTML = ''; repos.forEach(r => { const div = document.createElement('div'); div.style.padding = '8px'; div.style.borderBottom = '1px solid var(--border-color)'; div.innerHTML = `<label style="display: flex; justify-content: space-between; align-items: center; cursor: pointer;"><div><div style="font-weight: 600; color: var(--text-main);">${r.full_name}</div><div style="font-size: 11px; color: var(--text-muted);">${r.description || 'No description'}</div></div><input type="checkbox" name="github-repo" value="${r.clone_url}" data-name="${r.name}"></label>`; list.appendChild(div); });
-        document.getElementById('import-confirm').disabled = false;
-        document.getElementById('import-confirm').onclick = async () => {
-            const selected = Array.from(list.querySelectorAll('input:checked'));
-            if (selected.length === 0) return showAlert('Select at least one repository.', 'Selection Required');
-            if (!settings.rootRepoDir) return showAlert('Set a Root Repository Folder in Settings.', 'Config Missing');
-            modal.style.display = 'none';
-            for (const input of selected) { const dest = `${settings.rootRepoDir}/${input.dataset.name}`; logToConsole(`Cloning ${input.dataset.name}...`, 'info'); await window.electronAPI.gitClone(input.value, dest); addRepository({ type: 'single', path: dest, name: input.dataset.name }, true); }
-            sortRepositories(); window.electronAPI.saveRepositories(repositories); renderTree();
-        };
-    } catch (e) {
-        logToConsole(e.message, 'error');
-        showError(e.message, 'GitHub API Error');
-    }
-    document.getElementById('import-cancel').onclick = () => modal.style.display = 'none';
+    list.innerHTML = '';
+    repos.forEach((r) => {
+      const div = document.createElement('div');
+      div.style.padding = '8px';
+      div.style.borderBottom = '1px solid var(--border-color)';
+      div.innerHTML = `<label style="display: flex; justify-content: space-between; align-items: center; cursor: pointer;"><div><div style="font-weight: 600; color: var(--text-main);">${r.full_name}</div><div style="font-size: 11px; color: var(--text-muted);">${r.description || 'No description'}</div></div><input type="checkbox" name="github-repo" value="${r.clone_url}" data-name="${r.name}"></label>`;
+      list.appendChild(div);
+    });
+    document.getElementById('import-confirm').disabled = false;
+    document.getElementById('import-confirm').onclick = async () => {
+      const selected = Array.from(list.querySelectorAll('input:checked'));
+      if (selected.length === 0)
+        return showAlert('Select at least one repository.', 'Selection Required');
+      if (!settings.rootRepoDir)
+        return showAlert('Set a Root Repository Folder in Settings.', 'Config Missing');
+      modal.style.display = 'none';
+      for (const input of selected) {
+        const dest = `${settings.rootRepoDir}/${input.dataset.name}`;
+        logToConsole(`Cloning ${input.dataset.name}...`, 'info');
+        await window.electronAPI.gitClone(input.value, dest);
+        addRepository({ type: 'single', path: dest, name: input.dataset.name }, true);
+      }
+      sortRepositories();
+      window.electronAPI.saveRepositories(repositories);
+      renderTree();
+    };
+  } catch (e) {
+    logToConsole(e.message, 'error');
+    showError(e.message, 'GitHub API Error');
+  }
+  document.getElementById('import-cancel').onclick = () => (modal.style.display = 'none');
 }
 
 function showCreateRepoModal() {
-    const modal = document.getElementById('create-repo-modal');
-    if (settings.rootRepoDir) document.getElementById('new-repo-path').value = settings.rootRepoDir;
-    modal.style.display = 'flex';
+  const modal = document.getElementById('create-repo-modal');
+  if (settings.rootRepoDir) document.getElementById('new-repo-path').value = settings.rootRepoDir;
+  modal.style.display = 'flex';
 
-    document.getElementById('browse-new-repo-path').onclick = async () => {
-        const p = await window.electronAPI.openDirectory();
-        if (p) document.getElementById('new-repo-path').value = p;
-    };
+  document.getElementById('browse-new-repo-path').onclick = async () => {
+    const p = await window.electronAPI.openDirectory();
+    if (p) document.getElementById('new-repo-path').value = p;
+  };
 
-    document.getElementById('create-confirm').onclick = async () => {
-        const name = document.getElementById('new-repo-name').value.trim();
-        const parent = document.getElementById('new-repo-path').value.trim();
-        const skipRemote = document.getElementById('skip-remote').checked;
+  document.getElementById('create-confirm').onclick = async () => {
+    const name = document.getElementById('new-repo-name').value.trim();
+    const parent = document.getElementById('new-repo-path').value.trim();
+    const skipRemote = document.getElementById('skip-remote').checked;
 
-        if (!name || !parent) return showAlert('Repository name and parent path are required.', 'Missing Fields');
-        const full = `${parent}/${name}`.replace(/\\/g, '/');
+    if (!name || !parent)
+      return showAlert('Repository name and parent path are required.', 'Missing Fields');
+    const full = `${parent}/${name}`.replace(/\\/g, '/');
 
-        modal.style.display = 'none';
-        logToConsole(`Creating repository: ${name}...`, 'info');
-        setTaskState(true);
+    modal.style.display = 'none';
+    logToConsole(`Creating repository: ${name}...`, 'info');
+    setTaskState(true);
 
-        try {
-            // 1. Initialize Git Locally
-            const res = await window.electronAPI.gitInit(full);
-            if (res.success) {
-                logToConsole(`Successfully initialized Git in ${full}`, 'success');
+    try {
+      // 1. Initialize Git Locally
+      const res = await window.electronAPI.gitInit(full);
+      if (res.success) {
+        logToConsole(`Successfully initialized Git in ${full}`, 'success');
 
-                // 2. Initial Staging and Commit (to have something to push)
-                logToConsole('Performing initial local commit...', 'info');
-                await window.electronAPI.gitCommit(full, 'Initial commit');
+        // 2. Initial Staging and Commit (to have something to push)
+        logToConsole('Performing initial local commit...', 'info');
+        await window.electronAPI.gitCommit(full, 'Initial commit');
 
-                // 3. Add to GitScope Workspace
-                const newRepo = { type: 'single', path: full, name: name };
-                addRepository(newRepo);
-                await smartRefreshTree();
+        // 3. Add to GitScope Workspace
+        const newRepo = { type: 'single', path: full, name: name };
+        addRepository(newRepo);
+        await smartRefreshTree();
 
-                // 4. Handle GitHub Upload if requested
-                if (!skipRemote) {
-                    logToConsole('Unchecked "Skip remote" - Opening GitHub Wizard...', 'info');
-                    // We must select it as active first so handlePublishGitHub knows what to target
-                    const repoObj = repositories.find(r => r.path.toLowerCase() === full.toLowerCase());
-                    if (repoObj) {
-                        await selectRepo(repoObj, true);
-                        await handlePublishGitHub();
-                    }
-                }
-            } else {
-                logToConsole(`Failed to create repository: ${res.output}`, 'error');
-                showError(`Error creating repository: ${res.output}`, 'Error');
-            }
-        } catch (e) {
-            logToConsole(`Creation Error: ${e.message}`, 'error');
-            showError(e.message, 'System Error');
-        } finally {
-            setTaskState(false);
+        // 4. Handle GitHub Upload if requested
+        if (!skipRemote) {
+          logToConsole('Unchecked "Skip remote" - Opening GitHub Wizard...', 'info');
+          // We must select it as active first so handlePublishGitHub knows what to target
+          const repoObj = repositories.find((r) => r.path.toLowerCase() === full.toLowerCase());
+          if (repoObj) {
+            await selectRepo(repoObj, true);
+            await handlePublishGitHub();
+          }
         }
-    };
-    document.getElementById('create-cancel').onclick = () => modal.style.display = 'none';
+      } else {
+        logToConsole(`Failed to create repository: ${res.output}`, 'error');
+        showError(`Error creating repository: ${res.output}`, 'Error');
+      }
+    } catch (e) {
+      logToConsole(`Creation Error: ${e.message}`, 'error');
+      showError(e.message, 'System Error');
+    } finally {
+      setTaskState(false);
+    }
+  };
+  document.getElementById('create-cancel').onclick = () => (modal.style.display = 'none');
 }
 
 async function showPatchModal(sourcePath) {
-    const modal = document.getElementById('patch-modal');
-    const list = document.getElementById('patch-repo-list');
-    const selectAll = document.getElementById('patch-select-all');
-    list.innerHTML = '';
+  const modal = document.getElementById('patch-modal');
+  const list = document.getElementById('patch-repo-list');
+  const selectAll = document.getElementById('patch-select-all');
+  list.innerHTML = '';
 
-    repositories.forEach(r => {
-        const div = document.createElement('div');
-        div.innerHTML = `<label style="display:flex; align-items:center; gap:8px; cursor:pointer; padding:2px 0;"><input type="checkbox" value="${r.path}" data-name="${r.name}"> <span style="font-size:12px;">${r.name}</span></label>`;
-        list.appendChild(div);
-    });
+  repositories.forEach((r) => {
+    const div = document.createElement('div');
+    div.innerHTML = `<label style="display:flex; align-items:center; gap:8px; cursor:pointer; padding:2px 0;"><input type="checkbox" value="${r.path}" data-name="${r.name}"> <span style="font-size:12px;">${r.name}</span></label>`;
+    list.appendChild(div);
+  });
 
-    if (selectAll) {
-        selectAll.checked = false;
-        selectAll.onchange = () => {
-            list.querySelectorAll('input[type="checkbox"]').forEach(i => i.checked = selectAll.checked);
-        };
-    }
-
-    document.getElementById('patch-apply').onclick = async () => {
-        const targets = Array.from(list.querySelectorAll('input:checked')).map(i => i.value);
-        if (targets.length === 0) return showAlert('Select at least one project.', 'Selection Required');
-
-        modal.style.display = 'none';
-        logToConsole(`Extracting patch from ${sourcePath.split(/[\\\/]/).pop()}...`, 'info');
-
-        try {
-            // Find which repo this file belongs to
-            const normPath = sourcePath.replace(/\\/g, '/').toLowerCase();
-            const sourceRepo = findRepoForPath(sourcePath);
-            if (!sourceRepo) throw new Error('Source repository not found.');
-
-            const repoBase = sourceRepo.path.replace(/\\/g, '/').toLowerCase();
-            let relPath = normPath.replace(repoBase, '');
-            if (relPath.startsWith('/')) relPath = relPath.substring(1);
-
-            const patch = await window.electronAPI.getFilePatch(sourceRepo.path, relPath);
-            if (!patch || patch.trim() === '') throw new Error('File has no uncommitted changes to patch.');
-
-            for (const targetPath of targets) {
-                logToConsole(`Applying patch to ${targetPath}...`, 'info');
-                const res = await window.electronAPI.applyPatch(targetPath, patch);
-                if (res.success) logToConsole(`Applied to ${targetPath}`, 'success');
-                else logToConsole(`Fail on ${targetPath}: ${res.output}`, 'error');
-            }
-            await smartRefreshTree();
-        } catch (e) {
-            logToConsole(e.message, 'error');
-            showError(e.message, 'Patch Failed');
-        }
+  if (selectAll) {
+    selectAll.checked = false;
+    selectAll.onchange = () => {
+      list
+        .querySelectorAll('input[type="checkbox"]')
+        .forEach((i) => (i.checked = selectAll.checked));
     };
+  }
 
-    document.getElementById('patch-cancel').onclick = () => modal.style.display = 'none';
-    modal.style.display = 'flex';
+  document.getElementById('patch-apply').onclick = async () => {
+    const targets = Array.from(list.querySelectorAll('input:checked')).map((i) => i.value);
+    if (targets.length === 0)
+      return showAlert('Select at least one project.', 'Selection Required');
+
+    modal.style.display = 'none';
+    logToConsole(`Extracting patch from ${sourcePath.split(/[\\\/]/).pop()}...`, 'info');
+
+    try {
+      // Find which repo this file belongs to
+      const normPath = sourcePath.replace(/\\/g, '/').toLowerCase();
+      const sourceRepo = findRepoForPath(sourcePath);
+      if (!sourceRepo) throw new Error('Source repository not found.');
+
+      const repoBase = sourceRepo.path.replace(/\\/g, '/').toLowerCase();
+      let relPath = normPath.replace(repoBase, '');
+      if (relPath.startsWith('/')) relPath = relPath.substring(1);
+
+      const patch = await window.electronAPI.getFilePatch(sourceRepo.path, relPath);
+      if (!patch || patch.trim() === '')
+        throw new Error('File has no uncommitted changes to patch.');
+
+      for (const targetPath of targets) {
+        logToConsole(`Applying patch to ${targetPath}...`, 'info');
+        const res = await window.electronAPI.applyPatch(targetPath, patch);
+        if (res.success) logToConsole(`Applied to ${targetPath}`, 'success');
+        else logToConsole(`Fail on ${targetPath}: ${res.output}`, 'error');
+      }
+      await smartRefreshTree();
+    } catch (e) {
+      logToConsole(e.message, 'error');
+      showError(e.message, 'Patch Failed');
+    }
+  };
+
+  document.getElementById('patch-cancel').onclick = () => (modal.style.display = 'none');
+  modal.style.display = 'flex';
 }
 
 async function handleFileDrop(data, destDir, destContainer, depth, sourceId) {
-    let srcPaths = [];
-    try {
-        srcPaths = JSON.parse(data);
-    } catch (e) {
-        srcPaths = [data]; // Fallback for single path
-    }
+  let srcPaths = [];
+  try {
+    srcPaths = JSON.parse(data);
+  } catch (e) {
+    srcPaths = [data]; // Fallback for single path
+  }
 
-    if (!Array.isArray(srcPaths)) srcPaths = [srcPaths];
+  if (!Array.isArray(srcPaths)) srcPaths = [srcPaths];
 
-    // INTELLIGENCE: Sync active repository context to the destination
-    const repo = findRepoForPath(destDir);
-    if (repo && activeRepo !== repo) {
-        activeRepo = repo;
-        const title = document.getElementById('active-repo-name');
-        if (title) title.textContent = repo.name;
-        if (window.terminal) window.terminal.sendCommand(`cd "${repo.path}"`);
-        if (elements.gitForceToggle) elements.gitForceToggle.checked = !!repo.gitForce;
-        if (elements.commitAmendToggle) elements.commitAmendToggle.checked = false;
-        refreshActiveRepoUI(true);
-    }
+  // INTELLIGENCE: Sync active repository context to the destination
+  const repo = findRepoForPath(destDir);
+  if (repo && activeRepo !== repo) {
+    activeRepo = repo;
+    const title = document.getElementById('active-repo-name');
+    if (title) title.textContent = repo.name;
+    if (window.terminal) window.terminal.sendCommand(`cd "${repo.path}"`);
+    if (elements.gitForceToggle) elements.gitForceToggle.checked = !!repo.gitForce;
+    if (elements.commitAmendToggle) elements.commitAmendToggle.checked = false;
+    refreshActiveRepoUI(true);
+  }
 
-    const modal = document.getElementById('drop-action-modal');
-    modal.style.display = 'flex';
+  const modal = document.getElementById('drop-action-modal');
+  modal.style.display = 'flex';
 
-    const perform = async (type) => {
-        modal.style.display = 'none';
-        setTaskState(true);
+  const perform = async (type) => {
+    modal.style.display = 'none';
+    setTaskState(true);
 
-        for (const srcPath of srcPaths) {
-            const fileName = srcPath.split(/[\\\/]/).pop();
-            const destPath = `${destDir}/${fileName}`;
-            if (srcPath === destPath) continue;
+    for (const srcPath of srcPaths) {
+      const fileName = srcPath.split(/[\\\/]/).pop();
+      const destPath = `${destDir}/${fileName}`;
+      if (srcPath === destPath) continue;
 
-            try {
-                let res = type === 'move' ?
-                    await window.electronAPI.moveFile(srcPath, destPath) :
-                    await window.electronAPI.copyFile(srcPath, destPath);
+      try {
+        let res =
+          type === 'move'
+            ? await window.electronAPI.moveFile(srcPath, destPath)
+            : await window.electronAPI.copyFile(srcPath, destPath);
 
-                if (!res.success && res.error === 'exists') {
-                    if (await showConfirm(`"${fileName}" already exists. Overwrite?`, "File Conflict")) {
-                        res = type === 'move' ?
-                            await window.electronAPI.moveFileForce(srcPath, destPath) :
-                            await window.electronAPI.copyFileForce(srcPath, destPath);
-                    } else {
-                        continue; // Skip this file
-                    }
-                }
-
-                if (!res.success) {
-                    showError(res.error || 'Unknown Error', `${type.charAt(0).toUpperCase() + type.slice(1)} Failed`);
-                    break; // Stop on error
-                }
-            } catch (e) {
-                showError(e.message, 'System Error');
-                break;
-            }
+        if (!res.success && res.error === 'exists') {
+          if (await showConfirm(`"${fileName}" already exists. Overwrite?`, 'File Conflict')) {
+            res =
+              type === 'move'
+                ? await window.electronAPI.moveFileForce(srcPath, destPath)
+                : await window.electronAPI.copyFileForce(srcPath, destPath);
+          } else {
+            continue; // Skip this file
+          }
         }
 
-        setTaskState(false);
-        renderTree();
-    };
+        if (!res.success) {
+          showError(
+            res.error || 'Unknown Error',
+            `${type.charAt(0).toUpperCase() + type.slice(1)} Failed`,
+          );
+          break; // Stop on error
+        }
+      } catch (e) {
+        showError(e.message, 'System Error');
+        break;
+      }
+    }
 
-    document.getElementById('drop-move').onclick = () => perform('move');
-    document.getElementById('drop-copy').onclick = () => perform('copy');
-    document.getElementById('drop-cancel').onclick = () => modal.style.display = 'none';
+    setTaskState(false);
+    renderTree();
+  };
+
+  document.getElementById('drop-move').onclick = () => perform('move');
+  document.getElementById('drop-copy').onclick = () => perform('copy');
+  document.getElementById('drop-cancel').onclick = () => (modal.style.display = 'none');
 }
 
 function setMarkdownViewMode(mode) {
-    if (!elements.editorContainerWrapper) return;
+  if (!elements.editorContainerWrapper) return;
 
-    const ext = currentEditingPath ? currentEditingPath.split('.').pop().toLowerCase() : '';
-    const isHTML = ext === 'html' || ext === 'htm';
+  const ext = currentEditingPath ? currentEditingPath.split('.').pop().toLowerCase() : '';
+  const isHTML = ext === 'html' || ext === 'htm';
 
-    // Reset classes
-    [elements.editorView, elements.editorContainerWrapper].forEach(el => {
-        if (el) {
-            el.classList.remove('editor-mode-code', 'editor-mode-split', 'editor-mode-preview', 'editor-mode-standard');
-            el.classList.add(`editor-mode-${mode}`);
-        }
-    });
+  // Reset classes
+  [elements.editorView, elements.editorContainerWrapper].forEach((el) => {
+    if (el) {
+      el.classList.remove(
+        'editor-mode-code',
+        'editor-mode-split',
+        'editor-mode-preview',
+        'editor-mode-standard',
+      );
+      el.classList.add(`editor-mode-${mode}`);
+    }
+  });
 
-    // Intelligence: Specific visibility for HTML iframe vs Markdown div
-    if (mode === 'preview' || mode === 'split') {
-        if (isHTML) {
-            if (elements.markdownPreview) elements.markdownPreview.style.display = 'none';
-            if (elements.htmlPreview) {
-                elements.htmlPreview.style.display = 'block';
-                elements.htmlPreview.style.flex = '1';
-            }
-        } else {
-            if (elements.markdownPreview) {
-                elements.markdownPreview.style.display = 'block';
-                elements.markdownPreview.style.flex = '1';
-            }
-            if (elements.htmlPreview) elements.htmlPreview.style.display = 'none';
-        }
+  // Intelligence: Specific visibility for HTML iframe vs Markdown div
+  if (mode === 'preview' || mode === 'split') {
+    if (isHTML) {
+      if (elements.markdownPreview) elements.markdownPreview.style.display = 'none';
+      if (elements.htmlPreview) {
+        elements.htmlPreview.style.display = 'block';
+        elements.htmlPreview.style.flex = '1';
+      }
     } else {
-        if (elements.markdownPreview) elements.markdownPreview.style.display = 'none';
-        if (elements.htmlPreview) elements.htmlPreview.style.display = 'none';
+      if (elements.markdownPreview) {
+        elements.markdownPreview.style.display = 'block';
+        elements.markdownPreview.style.flex = '1';
+      }
+      if (elements.htmlPreview) elements.htmlPreview.style.display = 'none';
     }
+  } else {
+    if (elements.markdownPreview) elements.markdownPreview.style.display = 'none';
+    if (elements.htmlPreview) elements.htmlPreview.style.display = 'none';
+  }
 
-    // Update button states
-    [elements.mdViewCodeBtn, elements.mdViewSplitBtn, elements.mdViewPreviewBtn].forEach(btn => {
-        if (btn) btn.classList.remove('active', 'button-primary');
-    });
+  // Update button states
+  [elements.mdViewCodeBtn, elements.mdViewSplitBtn, elements.mdViewPreviewBtn].forEach((btn) => {
+    if (btn) btn.classList.remove('active', 'button-primary');
+  });
 
-    const activeBtn = mode === 'code' ? elements.mdViewCodeBtn : (mode === 'split' ? elements.mdViewSplitBtn : (mode === 'preview' ? elements.mdViewPreviewBtn : null));
-    if (activeBtn) {
-        activeBtn.classList.add('active', 'button-primary');
+  const activeBtn =
+    mode === 'code'
+      ? elements.mdViewCodeBtn
+      : mode === 'split'
+        ? elements.mdViewSplitBtn
+        : mode === 'preview'
+          ? elements.mdViewPreviewBtn
+          : null;
+  if (activeBtn) {
+    activeBtn.classList.add('active', 'button-primary');
+  }
+
+  // INTELLIGENCE: Disable non-functional buttons in preview mode
+  const isPreview = mode === 'preview';
+  const toolbarButtons = {
+    editorWrapBtn: !isPreview,
+    mdListBtn: !isPreview,
+    mdTaskBtn: !isPreview,
+    mdImageBtn: !isPreview,
+    editorFormatBtn: !isPreview,
+    editorFindBtn: true, // INTELLIGENCE: Keep find enabled to support preview search
+    editorTransformBtn: !isPreview,
+  };
+
+  Object.entries(toolbarButtons).forEach(([key, enabled]) => {
+    const btn = elements[key];
+    if (btn) {
+      btn.disabled = !enabled;
+      btn.style.opacity = enabled ? '1' : '0.4';
+      btn.style.pointerEvents = enabled ? 'auto' : 'none';
     }
+  });
 
-    // INTELLIGENCE: Disable non-functional buttons in preview mode
-    const isPreview = mode === 'preview';
-    const toolbarButtons = {
-        'editorWrapBtn': !isPreview,
-        'mdListBtn': !isPreview,
-        'mdTaskBtn': !isPreview,
-        'mdImageBtn': !isPreview,
-        'editorFormatBtn': !isPreview,
-        'editorFindBtn': true, // INTELLIGENCE: Keep find enabled to support preview search
-        'editorTransformBtn': !isPreview
-    };
+  // If we closed preview, close the preview find widget too
+  if (mode === 'code' || mode === 'standard') {
+    closePreviewFind();
+  }
 
-    Object.entries(toolbarButtons).forEach(([key, enabled]) => {
-        const btn = elements[key];
-        if (btn) {
-            btn.disabled = !enabled;
-            btn.style.opacity = enabled ? '1' : '0.4';
-            btn.style.pointerEvents = enabled ? 'auto' : 'none';
-        }
-    });
+  if (mode === 'split' || mode === 'preview') {
+    updateMarkdownPreviewContent();
+  }
 
-    // If we closed preview, close the preview find widget too
-    if (mode === 'code' || mode === 'standard') {
-        closePreviewFind();
-    }
-
-    if (mode === 'split' || mode === 'preview') {
-        updateMarkdownPreviewContent();
-    }
-
-    if (monacoEditor) {
-        // Essential: Layout the editor after view switch to prevent blank space
-        // We handle this manually now to avoid ResizeObserver loops
-        setTimeout(() => monacoEditor.layout(), 10);
-    }
+  if (monacoEditor) {
+    // Essential: Layout the editor after view switch to prevent blank space
+    // We handle this manually now to avoid ResizeObserver loops
+    setTimeout(() => monacoEditor.layout(), 10);
+  }
 }
 
 // PREVIEW FIND LOGIC
 function showPreviewFind() {
-    if (!elements.previewFindWidget) return;
-    elements.previewFindWidget.style.display = 'flex';
-    elements.previewFindInput.focus();
-    elements.previewFindInput.select();
+  if (!elements.previewFindWidget) return;
+  elements.previewFindWidget.style.display = 'flex';
+  elements.previewFindInput.focus();
+  elements.previewFindInput.select();
 }
 
 function closePreviewFind() {
-    if (!elements.previewFindWidget) return;
-    elements.previewFindWidget.style.display = 'none';
-    // Clear selection when closing
-    if (window.getSelection) {
-        window.getSelection().removeAllRanges();
-    }
+  if (!elements.previewFindWidget) return;
+  elements.previewFindWidget.style.display = 'none';
+  // Clear selection when closing
+  if (window.getSelection) {
+    window.getSelection().removeAllRanges();
+  }
 }
 
 function performPreviewFind(backwards = false) {
-    const text = elements.previewFindInput.value;
-    if (!text) return;
+  const text = elements.previewFindInput.value;
+  if (!text) return;
 
-    const ext = currentEditingPath ? currentEditingPath.split('.').pop().toLowerCase() : '';
-    const isHTML = ext === 'html' || ext === 'htm';
+  const ext = currentEditingPath ? currentEditingPath.split('.').pop().toLowerCase() : '';
+  const isHTML = ext === 'html' || ext === 'htm';
 
-    try {
-        if (isHTML && elements.htmlPreview) {
-            elements.htmlPreview.contentWindow.find(text, false, backwards, true);
-        } else {
-            // Search in the main window (markdown-preview div)
-            window.find(text, false, backwards, true);
-        }
-    } catch (e) {
-        console.warn('Find failed:', e);
+  try {
+    if (isHTML && elements.htmlPreview) {
+      elements.htmlPreview.contentWindow.find(text, false, backwards, true);
+    } else {
+      // Search in the main window (markdown-preview div)
+      window.find(text, false, backwards, true);
     }
+  } catch (e) {
+    console.warn('Find failed:', e);
+  }
 }
 
 // Initialize Preview Find Widget Listeners
 function initPreviewFind() {
-    if (!elements.previewFindInput) return;
+  if (!elements.previewFindInput) return;
 
-    elements.previewFindInput.onkeydown = (e) => {
-        if (e.key === 'Enter') {
-            e.preventDefault();
-            performPreviewFind(e.shiftKey);
-        } else if (e.key === 'Escape') {
-            e.preventDefault();
-            closePreviewFind();
-        }
-    };
+  elements.previewFindInput.onkeydown = (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      performPreviewFind(e.shiftKey);
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      closePreviewFind();
+    }
+  };
 
-    if (elements.previewFindNext) elements.previewFindNext.onclick = () => performPreviewFind(false);
-    if (elements.previewFindPrev) elements.previewFindPrev.onclick = () => performPreviewFind(true);
-    if (elements.previewFindClose) elements.previewFindClose.onclick = () => closePreviewFind();
+  if (elements.previewFindNext) elements.previewFindNext.onclick = () => performPreviewFind(false);
+  if (elements.previewFindPrev) elements.previewFindPrev.onclick = () => performPreviewFind(true);
+  if (elements.previewFindClose) elements.previewFindClose.onclick = () => closePreviewFind();
 }
 
 const PREVIEW_STYLES = `
@@ -8155,153 +9744,170 @@ const PREVIEW_STYLES = `
 `;
 
 function getPreviewContentArea() {
-    if (!elements.markdownPreview) return null;
+  if (!elements.markdownPreview) return null;
 
-    if (!elements.markdownPreview.shadowRoot) {
-        const shadow = elements.markdownPreview.attachShadow({ mode: 'open' });
-        const style = document.createElement('style');
-        style.textContent = PREVIEW_STYLES;
-        const content = document.createElement('div');
-        content.id = 'content';
-        content.contentEditable = 'true';
+  if (!elements.markdownPreview.shadowRoot) {
+    const shadow = elements.markdownPreview.attachShadow({ mode: 'open' });
+    const style = document.createElement('style');
+    style.textContent = PREVIEW_STYLES;
+    const content = document.createElement('div');
+    content.id = 'content';
+    content.contentEditable = 'true';
 
-        let previewSyncTimeout = null;
-        let lastSyncTime = 0;
-        content.oninput = (e) => {
-            if (previewSyncTimeout) clearTimeout(previewSyncTimeout);
-            const now = Date.now();
+    let previewSyncTimeout = null;
+    let lastSyncTime = 0;
+    content.oninput = (e) => {
+      if (previewSyncTimeout) clearTimeout(previewSyncTimeout);
+      const now = Date.now();
 
-            // Intelligence: Force immediate sync on space/enter to create undo "stages"
-            const isBoundary = e.inputType === 'insertLineBreak' || e.inputType === 'insertParagraph' || (e.data === ' ');
+      // Intelligence: Force immediate sync on space/enter to create undo "stages"
+      const isBoundary =
+        e.inputType === 'insertLineBreak' || e.inputType === 'insertParagraph' || e.data === ' ';
 
-            if (isBoundary || now - lastSyncTime > 1000) {
-                syncPreviewToEditor();
-                lastSyncTime = now;
-            } else {
-                previewSyncTimeout = setTimeout(() => {
-                    syncPreviewToEditor();
-                    lastSyncTime = Date.now();
-                }, 200);
-            }
-        };
+      if (isBoundary || now - lastSyncTime > 1000) {
+        syncPreviewToEditor();
+        lastSyncTime = now;
+      } else {
+        previewSyncTimeout = setTimeout(() => {
+          syncPreviewToEditor();
+          lastSyncTime = Date.now();
+        }, 200);
+      }
+    };
 
-        // Tab and Shortcut handling
-        content.onkeydown = (e) => {
-            if (e.ctrlKey || e.metaKey) {
-                if (e.key.toLowerCase() === 'z') {
-                    e.preventDefault();
-                    if (e.shiftKey) {
-                        if (monacoEditor) monacoEditor.trigger('source', 'redo');
-                    } else {
-                        if (monacoEditor) monacoEditor.trigger('source', 'undo');
-                    }
-                } else if (e.key.toLowerCase() === 'y') {
-                    e.preventDefault();
-                    if (monacoEditor) monacoEditor.trigger('source', 'redo');
-                } else if (e.key.toLowerCase() === 's') {
-                    e.preventDefault();
-                    saveCurrentFile();
-                }
-            }
-        };
+    // Tab and Shortcut handling
+    content.onkeydown = (e) => {
+      if (e.ctrlKey || e.metaKey) {
+        if (e.key.toLowerCase() === 'z') {
+          e.preventDefault();
+          if (e.shiftKey) {
+            if (monacoEditor) monacoEditor.trigger('source', 'redo');
+          } else {
+            if (monacoEditor) monacoEditor.trigger('source', 'undo');
+          }
+        } else if (e.key.toLowerCase() === 'y') {
+          e.preventDefault();
+          if (monacoEditor) monacoEditor.trigger('source', 'redo');
+        } else if (e.key.toLowerCase() === 's') {
+          e.preventDefault();
+          saveCurrentFile();
+        }
+      }
+    };
 
-        shadow.appendChild(style);
-        shadow.appendChild(content);
+    shadow.appendChild(style);
+    shadow.appendChild(content);
 
-        // Disable contenteditable on the host itself
-        elements.markdownPreview.contentEditable = 'false';
-        elements.markdownPreview.style.padding = '0'; // Shadow content handles padding
-    }
+    // Disable contenteditable on the host itself
+    elements.markdownPreview.contentEditable = 'false';
+    elements.markdownPreview.style.padding = '0'; // Shadow content handles padding
+  }
 
-    return elements.markdownPreview.shadowRoot.getElementById('content');
+  return elements.markdownPreview.shadowRoot.getElementById('content');
 }
 
 function updateMarkdownPreviewContent() {
-    if (!monacoEditor || isSyncingFromPreview) return;
+  if (!monacoEditor || isSyncingFromPreview) return;
 
-    const content = monacoEditor.getValue();
-    const ext = currentEditingPath ? currentEditingPath.split('.').pop().toLowerCase() : '';
-    const isHTML = ext === 'html' || ext === 'htm';
+  const content = monacoEditor.getValue();
+  const ext = currentEditingPath ? currentEditingPath.split('.').pop().toLowerCase() : '';
+  const isHTML = ext === 'html' || ext === 'htm';
 
-    if (isHTML) {
-        if (!elements.htmlPreview) return;
+  if (isHTML) {
+    if (!elements.htmlPreview) return;
 
-        // INTELLIGENCE: Inject content into iframe with base href for local resources
-        const lastSlash = Math.max(currentEditingPath.lastIndexOf('/'), currentEditingPath.lastIndexOf('\\'));
-        const dir = currentEditingPath.substring(0, lastSlash);
-        const baseUrl = 'file:///' + dir.replace(/\\/g, '/') + '/';
+    // INTELLIGENCE: Inject content into iframe with base href for local resources
+    const lastSlash = Math.max(
+      currentEditingPath.lastIndexOf('/'),
+      currentEditingPath.lastIndexOf('\\'),
+    );
+    const dir = currentEditingPath.substring(0, lastSlash);
+    const baseUrl = 'file:///' + dir.replace(/\\/g, '/') + '/';
 
-        let fullHtml = content;
-        if (!content.toLowerCase().includes('<html')) {
-            fullHtml = `<!DOCTYPE html><html><head><base href="${baseUrl}"></head><body>${content}</body></html>`;
-        } else if (!content.toLowerCase().includes('<base')) {
-            // Robust injection: Try head, then html, then prepend
-            if (/<head>/i.test(fullHtml)) {
-                fullHtml = fullHtml.replace(/<head>/i, `<head><base href="${baseUrl}">`);
-            } else if (/<html>/i.test(fullHtml)) {
-                fullHtml = fullHtml.replace(/<html>/i, `<html><head><base href="${baseUrl}"></head>`);
-            } else {
-                fullHtml = `<base href="${baseUrl}">${fullHtml}`;
-            }
-        }
-
-        elements.htmlPreview.srcdoc = fullHtml;
-
-        // Intelligence: Immediately try to attach context menu for Copy/Paste in HTML preview
-        // This is a backup for the onload listener
-        try {
-            const doc = elements.htmlPreview.contentDocument || elements.htmlPreview.contentWindow.document;
-            if (doc) {
-                doc.oncontextmenu = (e) => {
-                    e.preventDefault();
-                    window.electronAPI.showContextMenu({ type: 'preview-readonly', path: currentEditingPath });
-                };
-            }
-        } catch(e) {}
-
-        return;
+    let fullHtml = content;
+    if (!content.toLowerCase().includes('<html')) {
+      fullHtml = `<!DOCTYPE html><html><head><base href="${baseUrl}"></head><body>${content}</body></html>`;
+    } else if (!content.toLowerCase().includes('<base')) {
+      // Robust injection: Try head, then html, then prepend
+      if (/<head>/i.test(fullHtml)) {
+        fullHtml = fullHtml.replace(/<head>/i, `<head><base href="${baseUrl}">`);
+      } else if (/<html>/i.test(fullHtml)) {
+        fullHtml = fullHtml.replace(/<html>/i, `<html><head><base href="${baseUrl}"></head>`);
+      } else {
+        fullHtml = `<base href="${baseUrl}">${fullHtml}`;
+      }
     }
 
-    const contentArea = getPreviewContentArea();
-    if (!contentArea) return;
+    elements.htmlPreview.srcdoc = fullHtml;
 
-    let html = typeof marked !== 'undefined' ? marked.parse(content) : '<p>Parser fail.</p>';
+    // Intelligence: Immediately try to attach context menu for Copy/Paste in HTML preview
+    // This is a backup for the onload listener
+    try {
+      const doc =
+        elements.htmlPreview.contentDocument || elements.htmlPreview.contentWindow.document;
+      if (doc) {
+        doc.oncontextmenu = (e) => {
+          e.preventDefault();
+          window.electronAPI.showContextMenu({
+            type: 'preview-readonly',
+            path: currentEditingPath,
+          });
+        };
+      }
+    } catch (e) {}
 
-    // INTELLIGENCE: Use DOMParser for safer path resolution and to isolate body content if needed
-    const parser = new DOMParser();
-    const doc = parser.parseFromString(html, 'text/html');
+    return;
+  }
 
-    if (currentEditingPath) {
-        const lastSlash = Math.max(currentEditingPath.lastIndexOf('/'), currentEditingPath.lastIndexOf('\\'));
-        const dir = currentEditingPath.substring(0, lastSlash);
+  const contentArea = getPreviewContentArea();
+  if (!contentArea) return;
 
-        doc.querySelectorAll('img').forEach(img => {
-            const src = img.getAttribute('src');
-            if (src && !src.startsWith('http') && !src.startsWith('data:') && !src.startsWith('file:')) {
-                const absolutePath = dir + '/' + src;
-                img.src = 'file:///' + absolutePath.replace(/\\/g, '/');
-            }
-        });
+  let html = typeof marked !== 'undefined' ? marked.parse(content) : '<p>Parser fail.</p>';
 
-        doc.querySelectorAll('a').forEach(link => {
-            const href = link.getAttribute('href');
-            if (href && !href.startsWith('http') && !href.startsWith('mailto:') && !href.startsWith('tel:') && !href.startsWith('#')) {
-                const absolutePath = dir + '/' + href;
-                link.href = 'file:///' + absolutePath.replace(/\\/g, '/');
-            }
-        });
-    }
+  // INTELLIGENCE: Use DOMParser for safer path resolution and to isolate body content if needed
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(html, 'text/html');
 
-    // If it's a full HTML page, we only want the body content for the editable area
-    // but we can also inject styles if they exist.
-    if (isHTML) {
-        // Move styles from head to body so they live in our shadow root content area
-        const headStyles = doc.querySelectorAll('head style, head link[rel="stylesheet"]');
-        headStyles.forEach(s => doc.body.prepend(s));
-        contentArea.innerHTML = doc.body.innerHTML;
-    } else {
-        contentArea.innerHTML = doc.body.innerHTML;
-    }
+  if (currentEditingPath) {
+    const lastSlash = Math.max(
+      currentEditingPath.lastIndexOf('/'),
+      currentEditingPath.lastIndexOf('\\'),
+    );
+    const dir = currentEditingPath.substring(0, lastSlash);
+
+    doc.querySelectorAll('img').forEach((img) => {
+      const src = img.getAttribute('src');
+      if (src && !src.startsWith('http') && !src.startsWith('data:') && !src.startsWith('file:')) {
+        const absolutePath = dir + '/' + src;
+        img.src = 'file:///' + absolutePath.replace(/\\/g, '/');
+      }
+    });
+
+    doc.querySelectorAll('a').forEach((link) => {
+      const href = link.getAttribute('href');
+      if (
+        href &&
+        !href.startsWith('http') &&
+        !href.startsWith('mailto:') &&
+        !href.startsWith('tel:') &&
+        !href.startsWith('#')
+      ) {
+        const absolutePath = dir + '/' + href;
+        link.href = 'file:///' + absolutePath.replace(/\\/g, '/');
+      }
+    });
+  }
+
+  // If it's a full HTML page, we only want the body content for the editable area
+  // but we can also inject styles if they exist.
+  if (isHTML) {
+    // Move styles from head to body so they live in our shadow root content area
+    const headStyles = doc.querySelectorAll('head style, head link[rel="stylesheet"]');
+    headStyles.forEach((s) => doc.body.prepend(s));
+    contentArea.innerHTML = doc.body.innerHTML;
+  } else {
+    contentArea.innerHTML = doc.body.innerHTML;
+  }
 }
 
 /**
@@ -8309,659 +9915,717 @@ function updateMarkdownPreviewContent() {
  * Since we don't have Turndown, we use a basic recursive HTML-to-MD converter.
  */
 function syncPreviewToEditor() {
+  const ext = currentEditingPath ? currentEditingPath.split('.').pop().toLowerCase() : '';
+  if (ext === 'html' || ext === 'htm') return; // Don't sync from HTML preview iframe
+
+  const contentArea = getPreviewContentArea();
+  if (!monacoEditor || !contentArea) return;
+  isSyncingFromPreview = true;
+
+  try {
     const ext = currentEditingPath ? currentEditingPath.split('.').pop().toLowerCase() : '';
-    if (ext === 'html' || ext === 'htm') return; // Don't sync from HTML preview iframe
+    const isHTML = ext === 'html' || ext === 'htm';
 
-    const contentArea = getPreviewContentArea();
-    if (!monacoEditor || !contentArea) return;
-    isSyncingFromPreview = true;
-
-    try {
-        const ext = currentEditingPath ? currentEditingPath.split('.').pop().toLowerCase() : '';
-        const isHTML = ext === 'html' || ext === 'htm';
-
-        let finalValue = '';
-        if (isHTML) {
-            finalValue = contentArea.innerHTML;
-        } else {
-            const toMarkdown = (node) => {
-                if (node.nodeType === 3) {
-                    const text = node.textContent.replace(/\u00A0/g, ' ').replace(/\u200B/g, '');
-                    // Intelligence: Ignore whitespace-only text nodes between block elements in lists
-                    const parentTag = node.parentNode ? node.parentNode.tagName.toLowerCase() : '';
-                    if (['ul', 'ol'].includes(parentTag) && !text.trim()) return '';
-                    return text;
-                }
-                if (node.nodeType !== 1) return '';
-
-                const tag = node.tagName.toLowerCase();
-                const children = Array.from(node.childNodes).map(toMarkdown).join('');
-
-                switch(tag) {
-                    case 'h1': return `# ${children.trim()}\n\n`;
-                    case 'h2': return `## ${children.trim()}\n\n`;
-                    case 'h3': return `### ${children.trim()}\n\n`;
-                    case 'h4': return `#### ${children.trim()}\n\n`;
-                    case 'p': return `${children.trim()}\n\n`;
-                    case 'strong': case 'b': return `**${children}**`;
-                    case 'em': case 'i': return `*${children}*`;
-                    case 'ul': return children.trim() + '\n\n';
-                    case 'ol': return children.trim() + '\n\n';
-                    case 'li': {
-                        const parent = node.parentNode ? node.parentNode.tagName.toLowerCase() : '';
-                        if (parent === 'ul') return `- ${children.trim()}\n`;
-                        if (parent === 'ol') {
-                            const idx = Array.from(node.parentNode.children).indexOf(node) + 1;
-                            return `${idx}. ${children.trim()}\n`;
-                        }
-                        return `- ${children.trim()}\n`;
-                    }
-                    case 'a': {
-                        const href = node.getAttribute('href');
-                        // Strip the file:/// prefix if we added it for previewing
-                        const cleanHref = (href && href.startsWith('file:///')) ? href.substring(8) : href;
-                        return `[${children}](${cleanHref || ''})`;
-                    }
-                    case 'img': {
-                        const src = node.getAttribute('src');
-                        const cleanSrc = (src && src.startsWith('file:///')) ? src.substring(8) : src;
-                        return `![${node.getAttribute('alt') || ''}](${cleanSrc || ''})`;
-                    }
-                    case 'code': return `\`${children}\``;
-                    case 'pre': return `\`\`\`\n${children}\n\`\`\`\n\n`;
-                    case 'blockquote': return `> ${children.replace(/\n/g, '\n> ')}\n\n`;
-                    case 'br': return '\n';
-                    case 'div': return `${children}\n`;
-                    default: return children;
-                }
-            };
-
-            finalValue = Array.from(contentArea.childNodes).map(toMarkdown).join('');
-            // Clean up excessive newlines
-            finalValue = finalValue.replace(/\n{3,}/g, '\n\n').trim();
+    let finalValue = '';
+    if (isHTML) {
+      finalValue = contentArea.innerHTML;
+    } else {
+      const toMarkdown = (node) => {
+        if (node.nodeType === 3) {
+          const text = node.textContent.replace(/\u00A0/g, ' ').replace(/\u200B/g, '');
+          // Intelligence: Ignore whitespace-only text nodes between block elements in lists
+          const parentTag = node.parentNode ? node.parentNode.tagName.toLowerCase() : '';
+          if (['ul', 'ol'].includes(parentTag) && !text.trim()) return '';
+          return text;
         }
+        if (node.nodeType !== 1) return '';
 
-        const model = monacoEditor.getModel();
-        if (model) {
-            // Force a new undo point before applying the preview sync
-            monacoEditor.pushUndoStop();
+        const tag = node.tagName.toLowerCase();
+        const children = Array.from(node.childNodes).map(toMarkdown).join('');
 
-            // Apply as a single edit to preserve undo stack as much as possible
-            model.pushEditOperations([], [{
-                range: model.getFullModelRange(),
-                text: finalValue
-            }], () => null);
-
-            // Push another stop after to ensure the next typing starts a new element
-            monacoEditor.pushUndoStop();
+        switch (tag) {
+          case 'h1':
+            return `# ${children.trim()}\n\n`;
+          case 'h2':
+            return `## ${children.trim()}\n\n`;
+          case 'h3':
+            return `### ${children.trim()}\n\n`;
+          case 'h4':
+            return `#### ${children.trim()}\n\n`;
+          case 'p':
+            return `${children.trim()}\n\n`;
+          case 'strong':
+          case 'b':
+            return `**${children}**`;
+          case 'em':
+          case 'i':
+            return `*${children}*`;
+          case 'ul':
+            return children.trim() + '\n\n';
+          case 'ol':
+            return children.trim() + '\n\n';
+          case 'li': {
+            const parent = node.parentNode ? node.parentNode.tagName.toLowerCase() : '';
+            if (parent === 'ul') return `- ${children.trim()}\n`;
+            if (parent === 'ol') {
+              const idx = Array.from(node.parentNode.children).indexOf(node) + 1;
+              return `${idx}. ${children.trim()}\n`;
+            }
+            return `- ${children.trim()}\n`;
+          }
+          case 'a': {
+            const href = node.getAttribute('href');
+            // Strip the file:/// prefix if we added it for previewing
+            const cleanHref = href && href.startsWith('file:///') ? href.substring(8) : href;
+            return `[${children}](${cleanHref || ''})`;
+          }
+          case 'img': {
+            const src = node.getAttribute('src');
+            const cleanSrc = src && src.startsWith('file:///') ? src.substring(8) : src;
+            return `![${node.getAttribute('alt') || ''}](${cleanSrc || ''})`;
+          }
+          case 'code':
+            return `\`${children}\``;
+          case 'pre':
+            return `\`\`\`\n${children}\n\`\`\`\n\n`;
+          case 'blockquote':
+            return `> ${children.replace(/\n/g, '\n> ')}\n\n`;
+          case 'br':
+            return '\n';
+          case 'div':
+            return `${children}\n`;
+          default:
+            return children;
         }
-    } catch (e) {
-        console.error('Preview sync failed:', e);
-    } finally {
-        // Intelligence: Shorter delay and check if we actually need it
-        // 50ms is usually enough to let Monaco events settle
-        setTimeout(() => { isSyncingFromPreview = false; }, 50);
+      };
+
+      finalValue = Array.from(contentArea.childNodes).map(toMarkdown).join('');
+      // Clean up excessive newlines
+      finalValue = finalValue.replace(/\n{3,}/g, '\n\n').trim();
     }
+
+    const model = monacoEditor.getModel();
+    if (model) {
+      // Force a new undo point before applying the preview sync
+      monacoEditor.pushUndoStop();
+
+      // Apply as a single edit to preserve undo stack as much as possible
+      model.pushEditOperations(
+        [],
+        [
+          {
+            range: model.getFullModelRange(),
+            text: finalValue,
+          },
+        ],
+        () => null,
+      );
+
+      // Push another stop after to ensure the next typing starts a new element
+      monacoEditor.pushUndoStop();
+    }
+  } catch (e) {
+    console.error('Preview sync failed:', e);
+  } finally {
+    // Intelligence: Shorter delay and check if we actually need it
+    // 50ms is usually enough to let Monaco events settle
+    setTimeout(() => {
+      isSyncingFromPreview = false;
+    }, 50);
+  }
 }
 
 /**
  * INTELLIGENCE: Unified Tab/Shift-Tab handler for Editors and Preview
  */
 function handleIndentationAction(e, targetType) {
-    e.preventDefault();
-    if (e.stopImmediatePropagation) e.stopImmediatePropagation();
+  e.preventDefault();
+  if (e.stopImmediatePropagation) e.stopImmediatePropagation();
 
-    const isShift = e.shiftKey;
-    const model = monacoEditor ? monacoEditor.getModel() : null;
-    const tabSize = model ? model.getOptions().tabSize : 4;
-    const spaces = ' '.repeat(tabSize);
+  const isShift = e.shiftKey;
+  const model = monacoEditor ? monacoEditor.getModel() : null;
+  const tabSize = model ? model.getOptions().tabSize : 4;
+  const spaces = ' '.repeat(tabSize);
 
-    if (targetType === 'monaco' || targetType === 'theme') {
-        const editor = targetType === 'monaco' ? monacoEditor : themeEditor;
-        if (editor) {
-            if (isShift) {
-                editor.trigger('keyboard', 'outdent', null);
-            } else {
-                editor.trigger('keyboard', 'tab', null);
-            }
-        }
+  if (targetType === 'monaco' || targetType === 'theme') {
+    const editor = targetType === 'monaco' ? monacoEditor : themeEditor;
+    if (editor) {
+      if (isShift) {
+        editor.trigger('keyboard', 'outdent', null);
+      } else {
+        editor.trigger('keyboard', 'tab', null);
+      }
     }
+  }
 }
 
 function addRepository(repo, skipSave = false, skipRender = false) {
-    const normNew = repo.path.replace(/\\/g, '/').toLowerCase();
-    const exists = repositories.find(r => r.path.replace(/\\/g, '/').toLowerCase() === normNew);
-    if (!exists) {
-        repositories.push({ ...repo, path: repo.path.replace(/\\/g, '/'), expanded: false });
-        sortRepositories();
-        if (!skipSave) window.electronAPI.saveRepositories(repositories);
-        if (!skipRender) renderTree(elements.repoFilter ? elements.repoFilter.value : '');
-    } else {
-        logToConsole(`Skipped duplicate project: ${repo.name}`, 'info');
-    }
+  const normNew = repo.path.replace(/\\/g, '/').toLowerCase();
+  const exists = repositories.find((r) => r.path.replace(/\\/g, '/').toLowerCase() === normNew);
+  if (!exists) {
+    repositories.push({ ...repo, path: repo.path.replace(/\\/g, '/'), expanded: false });
+    sortRepositories();
+    if (!skipSave) window.electronAPI.saveRepositories(repositories);
+    if (!skipRender) renderTree(elements.repoFilter ? elements.repoFilter.value : '');
+  } else {
+    logToConsole(`Skipped duplicate project: ${repo.name}`, 'info');
+  }
 }
 
 async function removeRepositories(paths, skipConfirm = false) {
-    const targets = Array.isArray(paths) ? paths : [paths];
+  const targets = Array.isArray(paths) ? paths : [paths];
 
-    const count = targets.length;
-    const msg = count === 1 ? `Remove this project from the workspace?\n\n(It will remain on your computer)` : `Remove ${count} projects from the workspace?\n\n(They will remain on your computer)`;
+  const count = targets.length;
+  const msg =
+    count === 1
+      ? `Remove this project from the workspace?\n\n(It will remain on your computer)`
+      : `Remove ${count} projects from the workspace?\n\n(They will remain on your computer)`;
 
-    if (!skipConfirm && !(await showConfirm(msg, 'Remove from Workspace'))) return;
+  if (!skipConfirm && !(await showConfirm(msg, 'Remove from Workspace'))) return;
 
-    let removedAny = false;
-    targets.forEach(path => {
-        const normPath = String(path || '').replace(/\\/g, '/').toLowerCase();
-        logToConsole(`Attempting to remove project at: ${normPath}`, 'info');
+  let removedAny = false;
+  targets.forEach((path) => {
+    const normPath = String(path || '')
+      .replace(/\\/g, '/')
+      .toLowerCase();
+    logToConsole(`Attempting to remove project at: ${normPath}`, 'info');
 
-        const idx = repositories.findIndex(r => String(r.path || '').replace(/\\/g, '/').toLowerCase() === normPath);
-        if (idx !== -1) {
-            const removed = repositories.splice(idx, 1)[0];
-            removedAny = true;
-            if (activeRepo && activeRepo.path.replace(/\\/g, '/').toLowerCase() === normPath) {
-                activeRepo = null;
-            }
-            logToConsole(`Successfully removed ${removed.name} from workspace configuration.`, 'success');
-        } else {
-            logToConsole(`Could not find project matching path: ${normPath}`, 'warn');
-        }
-    });
-
-    if (removedAny) {
-        if (!activeRepo && elements.repoView.style.display !== 'none') {
-            showDashboard();
-        }
-        window.electronAPI.saveRepositories(repositories);
-        renderTree();
-        if (elements.dashboardView.style.display !== 'none') showDashboard();
+    const idx = repositories.findIndex(
+      (r) =>
+        String(r.path || '')
+          .replace(/\\/g, '/')
+          .toLowerCase() === normPath,
+    );
+    if (idx !== -1) {
+      const removed = repositories.splice(idx, 1)[0];
+      removedAny = true;
+      if (activeRepo && activeRepo.path.replace(/\\/g, '/').toLowerCase() === normPath) {
+        activeRepo = null;
+      }
+      logToConsole(`Successfully removed ${removed.name} from workspace configuration.`, 'success');
+    } else {
+      logToConsole(`Could not find project matching path: ${normPath}`, 'warn');
     }
+  });
+
+  if (removedAny) {
+    if (!activeRepo && elements.repoView.style.display !== 'none') {
+      showDashboard();
+    }
+    window.electronAPI.saveRepositories(repositories);
+    renderTree();
+    if (elements.dashboardView.style.display !== 'none') showDashboard();
+  }
 }
 
 function showDeleteModal(paths) {
-    const modal = document.getElementById('delete-modal');
-    const pathDisplay = document.getElementById('delete-item-path');
-    pathDisplay.textContent = paths.length > 1 ? `${paths.length} items` : paths[0];
-    modal.style.display = 'flex';
+  const modal = document.getElementById('delete-modal');
+  const pathDisplay = document.getElementById('delete-item-path');
+  pathDisplay.textContent = paths.length > 1 ? `${paths.length} items` : paths[0];
+  modal.style.display = 'flex';
 
-    document.getElementById('delete-confirm').onclick = async () => {
-        logToConsole(`Moving ${paths.length} items to Recycle Bin...`, 'info');
-        let successCount = 0;
-        for (const p of paths) {
-            const res = await window.electronAPI.trashItem(p);
-            if (res.success) {
-                successCount++;
-            } else {
-                logToConsole(`Failed to delete ${p}: ${res.error}`, 'error');
-                showError(`Failed to delete ${p}: ${res.error}`, 'Delete Error');
-            }
-        }
-        if (successCount > 0) logToConsole(`Successfully moved ${successCount} items to Recycle Bin.`, 'success');
-        modal.style.display = 'none';
-        selectedNodes.clear();
-        await smartRefreshTree();
-    };
-    document.getElementById('delete-cancel').onclick = () => modal.style.display = 'none';
+  document.getElementById('delete-confirm').onclick = async () => {
+    logToConsole(`Moving ${paths.length} items to Recycle Bin...`, 'info');
+    let successCount = 0;
+    for (const p of paths) {
+      const res = await window.electronAPI.trashItem(p);
+      if (res.success) {
+        successCount++;
+      } else {
+        logToConsole(`Failed to delete ${p}: ${res.error}`, 'error');
+        showError(`Failed to delete ${p}: ${res.error}`, 'Delete Error');
+      }
+    }
+    if (successCount > 0)
+      logToConsole(`Successfully moved ${successCount} items to Recycle Bin.`, 'success');
+    modal.style.display = 'none';
+    selectedNodes.clear();
+    await smartRefreshTree();
+  };
+  document.getElementById('delete-cancel').onclick = () => (modal.style.display = 'none');
 }
 
 // INTELLIGENCE: Force Tab key indentation/outdent for ALL editors
 // We use the Capture Phase (true) to intercept the event before the browser steals it for focus cycling
-window.addEventListener('keydown', (e) => {
+window.addEventListener(
+  'keydown',
+  (e) => {
     // Ctrl+Shift+F: Open Advanced Search Hub
     if (e.ctrlKey && e.shiftKey && (e.key === 'F' || e.key === 'f')) {
-        e.preventDefault();
-        showSearchHub('advanced');
-        if (elements.advSearchQuery) {
-            elements.advSearchQuery.focus();
-            elements.advSearchQuery.select();
-        }
-        return;
+      e.preventDefault();
+      showSearchHub('advanced');
+      if (elements.advSearchQuery) {
+        elements.advSearchQuery.focus();
+        elements.advSearchQuery.select();
+      }
+      return;
     }
 
     // Ctrl+F: Find (Monaco or Preview)
     if (e.ctrlKey && !e.shiftKey && (e.key === 'F' || e.key === 'f')) {
-        const isPreview = elements.editorContainerWrapper.classList.contains('editor-mode-preview') ||
-                         elements.editorContainerWrapper.classList.contains('editor-mode-split');
+      const isPreview =
+        elements.editorContainerWrapper.classList.contains('editor-mode-preview') ||
+        elements.editorContainerWrapper.classList.contains('editor-mode-split');
 
-        if (isPreview && !document.activeElement.closest('.monaco-editor')) {
-            e.preventDefault();
-            showPreviewFind();
-            return;
-        }
-        // Monaco handles its own Ctrl+F if focused
+      if (isPreview && !document.activeElement.closest('.monaco-editor')) {
+        e.preventDefault();
+        showPreviewFind();
+        return;
+      }
+      // Monaco handles its own Ctrl+F if focused
     }
 
     if (e.key === 'Control') {
-        const preview = elements.markdownPreview;
-        if (preview) preview.classList.add('ctrl-active');
+      const preview = elements.markdownPreview;
+      if (preview) preview.classList.add('ctrl-active');
     }
     if (e.key === 'Tab') {
-        if (document.activeElement.closest('#monaco-container')) {
-            handleIndentationAction(e, 'monaco');
-        } else if (document.activeElement.closest('#theme-monaco-container')) {
-            handleIndentationAction(e, 'theme');
-        }
+      if (document.activeElement.closest('#monaco-container')) {
+        handleIndentationAction(e, 'monaco');
+      } else if (document.activeElement.closest('#theme-monaco-container')) {
+        handleIndentationAction(e, 'theme');
+      }
     }
-}, true);
+  },
+  true,
+);
 
 window.addEventListener('keyup', (e) => {
-    if (e.key === 'Control') {
-        const preview = elements.markdownPreview;
-        if (preview) preview.classList.remove('ctrl-active');
-    }
+  if (e.key === 'Control') {
+    const preview = elements.markdownPreview;
+    if (preview) preview.classList.remove('ctrl-active');
+  }
 });
 
 window.addEventListener('blur', () => {
-    const preview = elements.markdownPreview;
-    if (preview) preview.classList.remove('ctrl-active');
+  const preview = elements.markdownPreview;
+  if (preview) preview.classList.remove('ctrl-active');
 });
 
 function showSearchHub(tab = 'advanced', projectPath = null) {
-    elements.searchHubModal.style.display = 'flex';
-    switchSearchTab(tab, projectPath);
+  elements.searchHubModal.style.display = 'flex';
+  switchSearchTab(tab, projectPath);
 }
 
 function switchSearchTab(tab, projectPath = null) {
-    if (tab === 'advanced') {
-        elements.tabAdvanced.classList.add('active');
-        elements.tabPrivacy.classList.remove('active');
-        elements.contentAdvanced.classList.add('active');
-        elements.contentPrivacy.classList.remove('active');
-        populateAdvSearchProjects();
-        if (projectPath) elements.advSearchProject.value = projectPath;
-    } else {
-        elements.tabAdvanced.classList.remove('active');
-        elements.tabPrivacy.classList.add('active');
-        elements.contentAdvanced.classList.remove('active');
-        elements.contentPrivacy.classList.add('active');
-        showPrivacySearchModal(projectPath);
-    }
+  if (tab === 'advanced') {
+    elements.tabAdvanced.classList.add('active');
+    elements.tabPrivacy.classList.remove('active');
+    elements.contentAdvanced.classList.add('active');
+    elements.contentPrivacy.classList.remove('active');
+    populateAdvSearchProjects();
+    if (projectPath) elements.advSearchProject.value = projectPath;
+  } else {
+    elements.tabAdvanced.classList.remove('active');
+    elements.tabPrivacy.classList.add('active');
+    elements.contentAdvanced.classList.remove('active');
+    elements.contentPrivacy.classList.add('active');
+    showPrivacySearchModal(projectPath);
+  }
 }
 
 function populateAdvSearchProjects() {
-    if (!elements.advSearchProject) return;
-    const currentVal = elements.advSearchProject.value;
-    elements.advSearchProject.innerHTML = '<option value="all">All Projects</option>';
-    repositories.forEach(repo => {
-        const opt = document.createElement('option');
-        opt.value = repo.path;
-        opt.textContent = repo.name;
-        elements.advSearchProject.appendChild(opt);
-    });
+  if (!elements.advSearchProject) return;
+  const currentVal = elements.advSearchProject.value;
+  elements.advSearchProject.innerHTML = '<option value="all">All Projects</option>';
+  repositories.forEach((repo) => {
+    const opt = document.createElement('option');
+    opt.value = repo.path;
+    opt.textContent = repo.name;
+    elements.advSearchProject.appendChild(opt);
+  });
 
-    // Auto-select active project if no selection yet
-    if (activeRepo && (!currentVal || currentVal === 'all')) {
-        elements.advSearchProject.value = activeRepo.path;
-    } else {
-        elements.advSearchProject.value = currentVal || 'all';
-    }
+  // Auto-select active project if no selection yet
+  if (activeRepo && (!currentVal || currentVal === 'all')) {
+    elements.advSearchProject.value = activeRepo.path;
+  } else {
+    elements.advSearchProject.value = currentVal || 'all';
+  }
 }
 
 let isAdvancedSearching = false;
 let stopAdvancedSearchRequested = false;
 
 async function executeAdvancedSearch() {
-    if (isAdvancedSearching) {
-        stopAdvancedSearchRequested = true;
-        if (elements.advSearchExecute) {
-            elements.advSearchExecute.textContent = 'Stopping...';
-            elements.advSearchExecute.disabled = true;
-        }
-        return;
-    }
-
-    const query = (elements.advSearchQuery.value || '').trim();
-    if (!query) return;
-
-    isAdvancedSearching = true;
-    stopAdvancedSearchRequested = false;
-
+  if (isAdvancedSearching) {
+    stopAdvancedSearchRequested = true;
     if (elements.advSearchExecute) {
-        elements.advSearchExecute.textContent = 'Stop';
-        elements.advSearchExecute.classList.add('button-danger');
+      elements.advSearchExecute.textContent = 'Stopping...';
+      elements.advSearchExecute.disabled = true;
+    }
+    return;
+  }
+
+  const query = (elements.advSearchQuery.value || '').trim();
+  if (!query) return;
+
+  isAdvancedSearching = true;
+  stopAdvancedSearchRequested = false;
+
+  if (elements.advSearchExecute) {
+    elements.advSearchExecute.textContent = 'Stop';
+    elements.advSearchExecute.classList.add('button-danger');
+  }
+
+  elements.advSearchResults.innerHTML =
+    '<div style="padding: 60px; text-align: center; color: var(--text-muted);"><div class="spinner"></div> Searching...</div>';
+  if (elements.advSearchExport) elements.advSearchExport.style.display = 'none';
+  if (elements.advSearchExportMd) elements.advSearchExportMd.style.display = 'none';
+  if (elements.advSearchReplaceBtn) elements.advSearchReplaceBtn.style.display = 'none';
+  if (elements.advSearchSelectAll) elements.advSearchSelectAll.style.display = 'none';
+  if (elements.advSearchDeselectAll) elements.advSearchDeselectAll.style.display = 'none';
+  lastAdvancedSearchResults = [];
+
+  const projectPath = elements.advSearchProject.value;
+  let targetRepos = [];
+  if (projectPath === 'all') {
+    targetRepos = repositories.map((r) => ({ name: r.name, path: r.path }));
+  } else {
+    const repo = repositories.find((r) => r.path === projectPath);
+    if (repo) targetRepos = [{ name: repo.name, path: repo.path }];
+  }
+
+  const options = {
+    query,
+    isRegex: elements.advSearchRegex.checked,
+    searchContent: elements.advSearchContent.checked,
+    searchFiles: elements.advSearchFiles.checked,
+  };
+  lastAdvancedSearchOptions = options;
+
+  let totalResults = 0;
+  elements.advSearchResults.innerHTML = ''; // Clear spinner
+
+  try {
+    for (const repo of targetRepos) {
+      if (stopAdvancedSearchRequested) break;
+
+      const results = await window.electronAPI.searchAdvanced(repo, options);
+      if (results && results.length > 0) {
+        totalResults += results.length;
+        lastAdvancedSearchResults.push(...results);
+        renderAdvancedSearchResultsIncremental(results, options.query, options.isRegex);
+      }
     }
 
-    elements.advSearchResults.innerHTML = '<div style="padding: 60px; text-align: center; color: var(--text-muted);"><div class="spinner"></div> Searching...</div>';
-    if (elements.advSearchExport) elements.advSearchExport.style.display = 'none';
-    if (elements.advSearchExportMd) elements.advSearchExportMd.style.display = 'none';
-    if (elements.advSearchReplaceBtn) elements.advSearchReplaceBtn.style.display = 'none';
-    if (elements.advSearchSelectAll) elements.advSearchSelectAll.style.display = 'none';
-    if (elements.advSearchDeselectAll) elements.advSearchDeselectAll.style.display = 'none';
-    lastAdvancedSearchResults = [];
-
-    const projectPath = elements.advSearchProject.value;
-    let targetRepos = [];
-    if (projectPath === 'all') {
-        targetRepos = repositories.map(r => ({ name: r.name, path: r.path }));
+    if (totalResults === 0 && !stopAdvancedSearchRequested) {
+      elements.advSearchResults.innerHTML =
+        '<div style="padding: 60px; text-align: center; color: var(--text-muted);">No results found.</div>';
     } else {
-        const repo = repositories.find(r => r.path === projectPath);
-        if (repo) targetRepos = [{ name: repo.name, path: repo.path }];
+      if (elements.advSearchExport) elements.advSearchExport.style.display = 'block';
+      if (elements.advSearchExportMd) elements.advSearchExportMd.style.display = 'block';
+      if (elements.advSearchReplaceBtn) elements.advSearchReplaceBtn.style.display = 'block';
+      if (elements.advSearchSelectAll) elements.advSearchSelectAll.style.display = 'inline';
+      if (elements.advSearchDeselectAll) elements.advSearchDeselectAll.style.display = 'inline';
+      if (stopAdvancedSearchRequested) {
+        const stopMsg = document.createElement('div');
+        stopMsg.style.padding = '15px';
+        stopMsg.style.textAlign = 'center';
+        stopMsg.style.color = 'var(--accent-yellow)';
+        stopMsg.style.borderTop = '1px solid var(--border-color)';
+        stopMsg.style.background = 'rgba(0,0,0,0.2)';
+        stopMsg.textContent = `Search stopped. Found ${totalResults} matches so far.`;
+        elements.advSearchResults.appendChild(stopMsg);
+      }
     }
-
-    const options = {
-        query,
-        isRegex: elements.advSearchRegex.checked,
-        searchContent: elements.advSearchContent.checked,
-        searchFiles: elements.advSearchFiles.checked
-    };
-    lastAdvancedSearchOptions = options;
-
-    let totalResults = 0;
-    elements.advSearchResults.innerHTML = ''; // Clear spinner
-
-    try {
-        for (const repo of targetRepos) {
-            if (stopAdvancedSearchRequested) break;
-
-            const results = await window.electronAPI.searchAdvanced(repo, options);
-            if (results && results.length > 0) {
-                totalResults += results.length;
-                lastAdvancedSearchResults.push(...results);
-                renderAdvancedSearchResultsIncremental(results, options.query, options.isRegex);
-            }
-        }
-
-        if (totalResults === 0 && !stopAdvancedSearchRequested) {
-            elements.advSearchResults.innerHTML = '<div style="padding: 60px; text-align: center; color: var(--text-muted);">No results found.</div>';
-        } else {
-            if (elements.advSearchExport) elements.advSearchExport.style.display = 'block';
-            if (elements.advSearchExportMd) elements.advSearchExportMd.style.display = 'block';
-            if (elements.advSearchReplaceBtn) elements.advSearchReplaceBtn.style.display = 'block';
-            if (elements.advSearchSelectAll) elements.advSearchSelectAll.style.display = 'inline';
-            if (elements.advSearchDeselectAll) elements.advSearchDeselectAll.style.display = 'inline';
-            if (stopAdvancedSearchRequested) {
-                const stopMsg = document.createElement('div');
-                stopMsg.style.padding = '15px';
-                stopMsg.style.textAlign = 'center';
-                stopMsg.style.color = 'var(--accent-yellow)';
-                stopMsg.style.borderTop = '1px solid var(--border-color)';
-                stopMsg.style.background = 'rgba(0,0,0,0.2)';
-                stopMsg.textContent = `Search stopped. Found ${totalResults} matches so far.`;
-                elements.advSearchResults.appendChild(stopMsg);
-            }
-        }
-    } catch (e) {
-        elements.advSearchResults.innerHTML = `<div style="padding: 60px; text-align: center; color: var(--accent-red);">Search failed: ${e.message}</div>`;
-    } finally {
-        isAdvancedSearching = false;
-        stopAdvancedSearchRequested = false;
-        if (elements.advSearchExecute) {
-            elements.advSearchExecute.textContent = 'Search';
-            elements.advSearchExecute.classList.remove('button-danger');
-            elements.advSearchExecute.disabled = false;
-        }
+  } catch (e) {
+    elements.advSearchResults.innerHTML = `<div style="padding: 60px; text-align: center; color: var(--accent-red);">Search failed: ${e.message}</div>`;
+  } finally {
+    isAdvancedSearching = false;
+    stopAdvancedSearchRequested = false;
+    if (elements.advSearchExecute) {
+      elements.advSearchExecute.textContent = 'Search';
+      elements.advSearchExecute.classList.remove('button-danger');
+      elements.advSearchExecute.disabled = false;
     }
+  }
 }
 
 function renderAdvancedSearchResultsIncremental(results, searchQuery = null, isRegex = false) {
-    const fragment = document.createDocumentFragment();
+  const fragment = document.createDocumentFragment();
 
-    results.forEach((res, index) => {
-        const item = document.createElement('div');
-        item.className = 'search-result-item';
-        item.style.padding = '10px 15px';
-        item.style.borderBottom = '1px solid var(--border-color)';
-        item.style.cursor = 'pointer';
-        item.style.fontSize = '12px';
-        item.style.transition = 'background 0.2s';
-        item.style.display = 'flex';
-        item.style.gap = '12px';
+  results.forEach((res, index) => {
+    const item = document.createElement('div');
+    item.className = 'search-result-item';
+    item.style.padding = '10px 15px';
+    item.style.borderBottom = '1px solid var(--border-color)';
+    item.style.cursor = 'pointer';
+    item.style.fontSize = '12px';
+    item.style.transition = 'background 0.2s';
+    item.style.display = 'flex';
+    item.style.gap = '12px';
 
-        // Checkbox for selection
-        const checkContainer = document.createElement('div');
-        checkContainer.style.display = 'flex';
-        checkContainer.style.alignItems = 'flex-start';
-        checkContainer.style.paddingTop = '2px';
-        checkContainer.onclick = (e) => e.stopPropagation();
+    // Checkbox for selection
+    const checkContainer = document.createElement('div');
+    checkContainer.style.display = 'flex';
+    checkContainer.style.alignItems = 'flex-start';
+    checkContainer.style.paddingTop = '2px';
+    checkContainer.onclick = (e) => e.stopPropagation();
 
-        const checkbox = document.createElement('input');
-        checkbox.type = 'checkbox';
-        checkbox.className = 'adv-res-checkbox';
-        checkbox.checked = true;
-        // The index in lastAdvancedSearchResults is (total - results.length + current_index)
-        checkbox.dataset.index = lastAdvancedSearchResults.length - results.length + index;
-        checkContainer.appendChild(checkbox);
-        item.appendChild(checkContainer);
+    const checkbox = document.createElement('input');
+    checkbox.type = 'checkbox';
+    checkbox.className = 'adv-res-checkbox';
+    checkbox.checked = true;
+    // The index in lastAdvancedSearchResults is (total - results.length + current_index)
+    checkbox.dataset.index = lastAdvancedSearchResults.length - results.length + index;
+    checkContainer.appendChild(checkbox);
+    item.appendChild(checkContainer);
 
-        const contentWrapper = document.createElement('div');
-        contentWrapper.style.flex = '1';
-        contentWrapper.style.minWidth = '0';
+    const contentWrapper = document.createElement('div');
+    contentWrapper.style.flex = '1';
+    contentWrapper.style.minWidth = '0';
 
-        const header = document.createElement('div');
-        header.style.display = 'flex';
-        header.style.justifyContent = 'space-between';
-        header.style.marginBottom = '6px';
-        header.style.alignItems = 'center';
+    const header = document.createElement('div');
+    header.style.display = 'flex';
+    header.style.justifyContent = 'space-between';
+    header.style.marginBottom = '6px';
+    header.style.alignItems = 'center';
 
-        const pathEl = document.createElement('span');
-        pathEl.style.overflow = 'hidden';
-        pathEl.style.textOverflow = 'ellipsis';
-        pathEl.style.whiteSpace = 'nowrap';
-        pathEl.innerHTML = `<span style="color: var(--accent-blue); font-weight: 800; font-family: var(--font-sans);">[${res.repoName}]</span> <span style="color: var(--text-main);">${res.path}</span>`;
-        header.appendChild(pathEl);
+    const pathEl = document.createElement('span');
+    pathEl.style.overflow = 'hidden';
+    pathEl.style.textOverflow = 'ellipsis';
+    pathEl.style.whiteSpace = 'nowrap';
+    pathEl.innerHTML = `<span style="color: var(--accent-blue); font-weight: 800; font-family: var(--font-sans);">[${res.repoName}]</span> <span style="color: var(--text-main);">${res.path}</span>`;
+    header.appendChild(pathEl);
 
-        if (res.line) {
-            const lineEl = document.createElement('span');
-            lineEl.style.color = 'var(--text-muted)';
-            lineEl.style.fontSize = '10px';
-            lineEl.style.flexShrink = '0';
-            lineEl.textContent = `LINE ${res.line}`;
-            header.appendChild(lineEl);
-        }
+    if (res.line) {
+      const lineEl = document.createElement('span');
+      lineEl.style.color = 'var(--text-muted)';
+      lineEl.style.fontSize = '10px';
+      lineEl.style.flexShrink = '0';
+      lineEl.textContent = `LINE ${res.line}`;
+      header.appendChild(lineEl);
+    }
 
-        contentWrapper.appendChild(header);
+    contentWrapper.appendChild(header);
 
-        if (res.text) {
-            const textEl = document.createElement('div');
-            textEl.style.color = 'var(--text-muted)';
-            textEl.style.fontSize = '11px';
-            textEl.style.whiteSpace = 'pre';
-            textEl.style.overflow = 'hidden';
-            textEl.style.textOverflow = 'ellipsis';
-            textEl.style.background = 'rgba(0,0,0,0.2)';
-            textEl.style.padding = '6px 10px';
-            textEl.style.borderRadius = '3px';
-            textEl.style.borderLeft = '2px solid var(--accent-blue)';
-            textEl.textContent = res.text;
-            contentWrapper.appendChild(textEl);
-        }
+    if (res.text) {
+      const textEl = document.createElement('div');
+      textEl.style.color = 'var(--text-muted)';
+      textEl.style.fontSize = '11px';
+      textEl.style.whiteSpace = 'pre';
+      textEl.style.overflow = 'hidden';
+      textEl.style.textOverflow = 'ellipsis';
+      textEl.style.background = 'rgba(0,0,0,0.2)';
+      textEl.style.padding = '6px 10px';
+      textEl.style.borderRadius = '3px';
+      textEl.style.borderLeft = '2px solid var(--accent-blue)';
+      textEl.textContent = res.text;
+      contentWrapper.appendChild(textEl);
+    }
 
-        item.appendChild(contentWrapper);
+    item.appendChild(contentWrapper);
 
-        item.onclick = () => {
-            const fullPath = `${res.repoPath}/${res.path}`.replace(/\\/g, '/');
-            openFileInEditor(fullPath, res.line, res.column, searchQuery, isRegex);
-            elements.searchHubModal.style.display = 'none';
-        };
+    item.onclick = () => {
+      const fullPath = `${res.repoPath}/${res.path}`.replace(/\\/g, '/');
+      openFileInEditor(fullPath, res.line, res.column, searchQuery, isRegex);
+      elements.searchHubModal.style.display = 'none';
+    };
 
-        fragment.appendChild(item);
-    });
+    fragment.appendChild(item);
+  });
 
-    elements.advSearchResults.appendChild(fragment);
+  elements.advSearchResults.appendChild(fragment);
 }
 
 function renderAdvancedSearchResults(results) {
-    if (results.length === 0) {
-        elements.advSearchResults.innerHTML = '<div style="padding: 60px; text-align: center; color: var(--text-muted);">No results found.</div>';
-        return;
-    }
+  if (results.length === 0) {
+    elements.advSearchResults.innerHTML =
+      '<div style="padding: 60px; text-align: center; color: var(--text-muted);">No results found.</div>';
+    return;
+  }
 
-    elements.advSearchResults.innerHTML = '';
-    renderAdvancedSearchResultsIncremental(results);
+  elements.advSearchResults.innerHTML = '';
+  renderAdvancedSearchResultsIncremental(results);
 }
 
 async function handleAdvancedReplace() {
-    if (!lastAdvancedSearchOptions) return;
+  if (!lastAdvancedSearchOptions) return;
 
-    const replaceText = elements.advSearchReplace.value;
-    const query = lastAdvancedSearchOptions.query;
-    const isRegex = lastAdvancedSearchOptions.isRegex;
+  const replaceText = elements.advSearchReplace.value;
+  const query = lastAdvancedSearchOptions.query;
+  const isRegex = lastAdvancedSearchOptions.isRegex;
 
-    const checkboxes = Array.from(elements.advSearchResults.querySelectorAll('.adv-res-checkbox:checked'));
-    if (checkboxes.length === 0) {
-        logToConsole('No results selected for replacement.', 'warn');
-        return;
-    }
+  const checkboxes = Array.from(
+    elements.advSearchResults.querySelectorAll('.adv-res-checkbox:checked'),
+  );
+  if (checkboxes.length === 0) {
+    logToConsole('No results selected for replacement.', 'warn');
+    return;
+  }
 
-    const selectedIndices = checkboxes.map(cb => parseInt(cb.dataset.index));
-    const selectedResults = selectedIndices.map(idx => lastAdvancedSearchResults[idx]);
+  const selectedIndices = checkboxes.map((cb) => parseInt(cb.dataset.index));
+  const selectedResults = selectedIndices.map((idx) => lastAdvancedSearchResults[idx]);
 
-    // Group by file
-    const fileGroups = new Map();
-    selectedResults.forEach(res => {
-        if (res.type !== 'content') return;
-        const fullPath = `${res.repoPath}/${res.path}`.replace(/\\/g, '/');
-        if (!fileGroups.has(fullPath)) fileGroups.set(fullPath, []);
-        fileGroups.get(fullPath).push(res);
-    });
+  // Group by file
+  const fileGroups = new Map();
+  selectedResults.forEach((res) => {
+    if (res.type !== 'content') return;
+    const fullPath = `${res.repoPath}/${res.path}`.replace(/\\/g, '/');
+    if (!fileGroups.has(fullPath)) fileGroups.set(fullPath, []);
+    fileGroups.get(fullPath).push(res);
+  });
 
-    if (fileGroups.size === 0) {
-        logToConsole('No content matches selected for replacement.', 'warn');
-        return;
-    }
+  if (fileGroups.size === 0) {
+    logToConsole('No content matches selected for replacement.', 'warn');
+    return;
+  }
 
-    const confirmMsg = `Replace selected occurrences of "${query}" with "${replaceText}" in ${selectedResults.length} locations across ${fileGroups.size} files?`;
-    if (!(await showConfirm(confirmMsg, 'Confirm Bulk Replace'))) return;
+  const confirmMsg = `Replace selected occurrences of "${query}" with "${replaceText}" in ${selectedResults.length} locations across ${fileGroups.size} files?`;
+  if (!(await showConfirm(confirmMsg, 'Confirm Bulk Replace'))) return;
 
-    elements.advSearchReplaceBtn.disabled = true;
-    elements.advSearchReplaceBtn.textContent = 'Replacing...';
+  elements.advSearchReplaceBtn.disabled = true;
+  elements.advSearchReplaceBtn.textContent = 'Replacing...';
 
-    let successCount = 0;
-    let errorCount = 0;
+  let successCount = 0;
+  let errorCount = 0;
 
-    try {
-        for (const [fullPath, matches] of fileGroups.entries()) {
+  try {
+    for (const [fullPath, matches] of fileGroups.entries()) {
+      try {
+        const fileData = await window.electronAPI.readFile(fullPath);
+        if (!fileData || fileData.content === undefined) {
+          console.error(`Could not read file for replacement: ${fullPath}`);
+          errorCount++;
+          continue;
+        }
+
+        let lines = fileData.content.split(/\r?\n/);
+        const linesToRemove = new Set();
+
+        // Sort matches by line descending, then column descending
+        matches.sort((a, b) => {
+          if (a.line !== b.line) return b.line - a.line;
+          return b.column - a.column;
+        });
+
+        matches.forEach((match) => {
+          const lineIndex = match.line - 1;
+          if (lineIndex < 0 || lineIndex >= lines.length) return;
+
+          const originalLine = lines[lineIndex];
+          const col = match.column - 1;
+          let newLine = originalLine;
+
+          if (isRegex) {
             try {
-                const fileData = await window.electronAPI.readFile(fullPath);
-                if (!fileData || fileData.content === undefined) {
-                    console.error(`Could not read file for replacement: ${fullPath}`);
-                    errorCount++;
-                    continue;
+              const re = new RegExp(query, 'gi');
+              let m;
+              let found = false;
+              while ((m = re.exec(originalLine)) !== null) {
+                if (m.index <= col && m.index + m[0].length >= col) {
+                  // If we are replacing the entire line with nothing, mark for removal
+                  if (replaceText === '' && m.index === 0 && m[0].length === originalLine.length) {
+                    linesToRemove.add(lineIndex);
+                    found = true;
+                  } else {
+                    newLine =
+                      originalLine.substring(0, m.index) +
+                      replaceText +
+                      originalLine.substring(m.index + m[0].length);
+                    found = true;
+                  }
+                  break;
                 }
-
-                let lines = fileData.content.split(/\r?\n/);
-                const linesToRemove = new Set();
-
-                // Sort matches by line descending, then column descending
-                matches.sort((a, b) => {
-                    if (a.line !== b.line) return b.line - a.line;
-                    return b.column - a.column;
-                });
-
-                matches.forEach(match => {
-                    const lineIndex = match.line - 1;
-                    if (lineIndex < 0 || lineIndex >= lines.length) return;
-
-                    const originalLine = lines[lineIndex];
-                    const col = match.column - 1;
-                    let newLine = originalLine;
-
-                    if (isRegex) {
-                        try {
-                            const re = new RegExp(query, 'gi');
-                            let m;
-                            let found = false;
-                            while ((m = re.exec(originalLine)) !== null) {
-                                if (m.index <= col && (m.index + m[0].length) >= col) {
-                                    // If we are replacing the entire line with nothing, mark for removal
-                                    if (replaceText === "" && m.index === 0 && m[0].length === originalLine.length) {
-                                        linesToRemove.add(lineIndex);
-                                        found = true;
-                                    } else {
-                                        newLine = originalLine.substring(0, m.index) + replaceText + originalLine.substring(m.index + m[0].length);
-                                        found = true;
-                                    }
-                                    break;
-                                }
-                            }
-                            if (!found) {
-                                // Fallback: literal or simple replace if col match failed
-                                if (replaceText === "" && new RegExp(`^${query}$`, 'i').test(originalLine)) {
-                                    linesToRemove.add(lineIndex);
-                                } else {
-                                    newLine = originalLine.replace(new RegExp(query, 'i'), replaceText);
-                                }
-                            }
-                        } catch(e) {
-                            newLine = originalLine.replace(query, replaceText);
-                        }
-                    } else {
-                        const lowerQuery = query.toLowerCase();
-                        const lowerLine = originalLine.toLowerCase();
-
-                        let searchPattern = lowerQuery;
-                        let isWildcard = false;
-                        if (lowerQuery.includes('*')) {
-                            searchPattern = lowerQuery.replace(/[.+^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*');
-                            isWildcard = true;
-                        }
-
-                        if (isWildcard) {
-                            const re = new RegExp(searchPattern, 'gi');
-                            let m;
-                            let found = false;
-                            while ((m = re.exec(originalLine)) !== null) {
-                                if (m.index <= col && (m.index + m[0].length) >= col) {
-                                    if (replaceText === "" && m.index === 0 && m[0].length === originalLine.length) {
-                                        linesToRemove.add(lineIndex);
-                                        found = true;
-                                    } else {
-                                        newLine = originalLine.substring(0, m.index) + replaceText + originalLine.substring(m.index + m[0].length);
-                                        found = true;
-                                    }
-                                    break;
-                                }
-                            }
-                        } else {
-                            const index = lowerLine.indexOf(lowerQuery, col);
-                            if (index !== -1) {
-                                if (replaceText === "" && index === 0 && query.length === originalLine.length) {
-                                    linesToRemove.add(lineIndex);
-                                } else {
-                                    newLine = originalLine.substring(0, index) + replaceText + originalLine.substring(index + query.length);
-                                }
-                            }
-                        }
-                    }
-                    lines[lineIndex] = newLine;
-                });
-
-                // Remove lines that were marked for removal (bottom-to-top to maintain indices)
-                const sortedToRemove = Array.from(linesToRemove).sort((a, b) => b - a);
-                sortedToRemove.forEach(idx => {
-                    lines.splice(idx, 1);
-                });
-
-                const separator = fileData.content.includes('\r\n') ? '\r\n' : '\n';
-                await window.electronAPI.writeFile(fullPath, lines.join(separator));
-                successCount += matches.length;
-            } catch (err) {
-                console.error(`Failed to replace in ${fullPath}:`, err);
-                errorCount++;
+              }
+              if (!found) {
+                // Fallback: literal or simple replace if col match failed
+                if (replaceText === '' && new RegExp(`^${query}$`, 'i').test(originalLine)) {
+                  linesToRemove.add(lineIndex);
+                } else {
+                  newLine = originalLine.replace(new RegExp(query, 'i'), replaceText);
+                }
+              }
+            } catch (e) {
+              newLine = originalLine.replace(query, replaceText);
             }
-        }
+          } else {
+            const lowerQuery = query.toLowerCase();
+            const lowerLine = originalLine.toLowerCase();
 
-        logToConsole(`Replacement complete: ${successCount} matches processed.`, errorCount > 0 ? 'error' : 'success');
-        if (successCount > 0) {
-            showAlert(`Successfully replaced ${successCount} occurrences.`, 'Bulk Replace Success');
-        }
+            let searchPattern = lowerQuery;
+            let isWildcard = false;
+            if (lowerQuery.includes('*')) {
+              searchPattern = lowerQuery.replace(/[.+^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*');
+              isWildcard = true;
+            }
 
-        // Refresh search to show updated content
-        executeAdvancedSearch();
-    } catch (globalErr) {
-        logToConsole(`Replacement failed: ${globalErr.message}`, 'error');
-        showError(`Bulk replace failed: ${globalErr.message}`, 'Replace Error');
-    } finally {
-        elements.advSearchReplaceBtn.disabled = false;
-        elements.advSearchReplaceBtn.textContent = 'Replace';
+            if (isWildcard) {
+              const re = new RegExp(searchPattern, 'gi');
+              let m;
+              let found = false;
+              while ((m = re.exec(originalLine)) !== null) {
+                if (m.index <= col && m.index + m[0].length >= col) {
+                  if (replaceText === '' && m.index === 0 && m[0].length === originalLine.length) {
+                    linesToRemove.add(lineIndex);
+                    found = true;
+                  } else {
+                    newLine =
+                      originalLine.substring(0, m.index) +
+                      replaceText +
+                      originalLine.substring(m.index + m[0].length);
+                    found = true;
+                  }
+                  break;
+                }
+              }
+            } else {
+              const index = lowerLine.indexOf(lowerQuery, col);
+              if (index !== -1) {
+                if (replaceText === '' && index === 0 && query.length === originalLine.length) {
+                  linesToRemove.add(lineIndex);
+                } else {
+                  newLine =
+                    originalLine.substring(0, index) +
+                    replaceText +
+                    originalLine.substring(index + query.length);
+                }
+              }
+            }
+          }
+          lines[lineIndex] = newLine;
+        });
+
+        // Remove lines that were marked for removal (bottom-to-top to maintain indices)
+        const sortedToRemove = Array.from(linesToRemove).sort((a, b) => b - a);
+        sortedToRemove.forEach((idx) => {
+          lines.splice(idx, 1);
+        });
+
+        const separator = fileData.content.includes('\r\n') ? '\r\n' : '\n';
+        await window.electronAPI.writeFile(fullPath, lines.join(separator));
+        successCount += matches.length;
+      } catch (err) {
+        console.error(`Failed to replace in ${fullPath}:`, err);
+        errorCount++;
+      }
     }
+
+    logToConsole(
+      `Replacement complete: ${successCount} matches processed.`,
+      errorCount > 0 ? 'error' : 'success',
+    );
+    if (successCount > 0) {
+      showAlert(`Successfully replaced ${successCount} occurrences.`, 'Bulk Replace Success');
+    }
+
+    // Refresh search to show updated content
+    executeAdvancedSearch();
+  } catch (globalErr) {
+    logToConsole(`Replacement failed: ${globalErr.message}`, 'error');
+    showError(`Bulk replace failed: ${globalErr.message}`, 'Replace Error');
+  } finally {
+    elements.advSearchReplaceBtn.disabled = false;
+    elements.advSearchReplaceBtn.textContent = 'Replace';
+  }
 }
 
 function updateClearButtonVisibility() {
-    if (!elements.repoFilter || !elements.repoFilterClear) return;
-    const isFocused = document.activeElement === elements.repoFilter;
-    const hasValue = !!elements.repoFilter.value;
-    // Show 'X' if the input is focused (blinking cursor) OR if it has text
-    elements.repoFilterClear.style.display = (isFocused || hasValue) ? 'block' : 'none';
+  if (!elements.repoFilter || !elements.repoFilterClear) return;
+  const isFocused = document.activeElement === elements.repoFilter;
+  const hasValue = !!elements.repoFilter.value;
+  // Show 'X' if the input is focused (blinking cursor) OR if it has text
+  elements.repoFilterClear.style.display = isFocused || hasValue ? 'block' : 'none';
 }
 
 console.log('GitScope Professional logic loaded.');
@@ -8973,98 +10637,108 @@ let stopPrivacyScanRequested = false;
 let activePrivacyPatterns = [];
 
 function showPrivacySearchModal(projectPath = null) {
-    if (!activePrivacyPatterns || activePrivacyPatterns.length === 0) {
-        activePrivacyPatterns = PRIVACY_PATTERNS.map((p, idx) => ({ ...p, id: 'p-' + idx }));
+  if (!activePrivacyPatterns || activePrivacyPatterns.length === 0) {
+    activePrivacyPatterns = PRIVACY_PATTERNS.map((p, idx) => ({ ...p, id: 'p-' + idx }));
+  }
+  renderPrivacyPatterns();
+
+  // Populate project dropdown
+  const projectSelect = elements.privacySearchProject;
+  projectSelect.innerHTML =
+    '<option value="all">All Projects</option>' +
+    repositories.map((r) => `<option value="${r.path}">${r.name}</option>`).join('');
+
+  if (projectPath) {
+    projectSelect.value = projectPath;
+  } else {
+    projectSelect.value = lastPrivacyScanProject;
+  }
+
+  // Restore results
+  const resultsContainer = elements.privacyResults;
+  if (lastPrivacyScanResults.length > 0) {
+    resultsContainer.innerHTML = '';
+    lastPrivacyScanResults.forEach((match) => renderPrivacyMatch(match, true));
+    elements.privacyScanStatus.textContent = `Last scan: ${lastPrivacyScanResults.length} matches found`;
+    elements.privacyBulkGitRm.disabled = false;
+    elements.privacyBulkIgnore.disabled = false;
+    if (elements.privacyExportCsv) elements.privacyExportCsv.style.display = 'block';
+    if (elements.privacyExportMd) elements.privacyExportMd.style.display = 'block';
+    filterPrivacyResults();
+  } else {
+    resultsContainer.innerHTML =
+      '<div style="padding: 60px; text-align: center; color: var(--text-muted);">Configure patterns and click Start Scan to detect sensitive data.</div>';
+    elements.privacyScanStatus.textContent = '';
+    elements.privacyBulkGitRm.disabled = true;
+    elements.privacyBulkIgnore.disabled = true;
+  }
+
+  elements.privacyScanStart.onclick = () => {
+    if (isPrivacyScanning) {
+      stopPrivacyScanRequested = true;
+      elements.privacyScanStart.textContent = 'Stopping...';
+      elements.privacyScanStart.disabled = true;
+    } else {
+      const selectedPath = elements.privacySearchProject.value;
+      lastPrivacyScanProject = selectedPath;
+      startPrivacyScan(selectedPath === 'all' ? null : selectedPath);
     }
+  };
+
+  elements.privacyAddPattern.onclick = () => {
+    activePrivacyPatterns.push({
+      id: 'p-' + Date.now(),
+      name: 'New Pattern',
+      regex: '',
+      enabled: true,
+    });
     renderPrivacyPatterns();
+    elements.privacyPatternsList.scrollTop = elements.privacyPatternsList.scrollHeight;
+  };
 
-    // Populate project dropdown
-    const projectSelect = elements.privacySearchProject;
-    projectSelect.innerHTML = '<option value="all">All Projects</option>' +
-        repositories.map(r => `<option value="${r.path}">${r.name}</option>`).join('');
-
-    if (projectPath) {
-        projectSelect.value = projectPath;
-    } else {
-        projectSelect.value = lastPrivacyScanProject;
-    }
-
-    // Restore results
-    const resultsContainer = elements.privacyResults;
-    if (lastPrivacyScanResults.length > 0) {
-        resultsContainer.innerHTML = '';
-        lastPrivacyScanResults.forEach(match => renderPrivacyMatch(match, true));
-        elements.privacyScanStatus.textContent = `Last scan: ${lastPrivacyScanResults.length} matches found`;
-        elements.privacyBulkGitRm.disabled = false;
-        elements.privacyBulkIgnore.disabled = false;
-        if (elements.privacyExportCsv) elements.privacyExportCsv.style.display = 'block';
-        if (elements.privacyExportMd) elements.privacyExportMd.style.display = 'block';
-        filterPrivacyResults();
-    } else {
-        resultsContainer.innerHTML = '<div style="padding: 60px; text-align: center; color: var(--text-muted);">Configure patterns and click Start Scan to detect sensitive data.</div>';
-        elements.privacyScanStatus.textContent = '';
-        elements.privacyBulkGitRm.disabled = true;
-        elements.privacyBulkIgnore.disabled = true;
-    }
-
-    elements.privacyScanStart.onclick = () => {
-        if (isPrivacyScanning) {
-            stopPrivacyScanRequested = true;
-            elements.privacyScanStart.textContent = 'Stopping...';
-            elements.privacyScanStart.disabled = true;
-        } else {
-            const selectedPath = elements.privacySearchProject.value;
-            lastPrivacyScanProject = selectedPath;
-            startPrivacyScan(selectedPath === 'all' ? null : selectedPath);
-        }
+  if (elements.privacyPatternsSelectAll) {
+    elements.privacyPatternsSelectAll.onclick = () => {
+      const allEnabled = activePrivacyPatterns.every((p) => p.enabled);
+      const newState = !allEnabled;
+      activePrivacyPatterns.forEach((p) => (p.enabled = newState));
+      renderPrivacyPatterns();
+      filterPrivacyResults();
     };
+  }
 
-    elements.privacyAddPattern.onclick = () => {
-        activePrivacyPatterns.push({ id: 'p-' + Date.now(), name: 'New Pattern', regex: '', enabled: true });
-        renderPrivacyPatterns();
-        elements.privacyPatternsList.scrollTop = elements.privacyPatternsList.scrollHeight;
+  elements.privacyBulkGitRm.onclick = handlePrivacyBulkGitRm;
+  elements.privacyBulkIgnore.onclick = handlePrivacyBulkIgnore;
+  if (elements.privacyExportCsv) {
+    elements.privacyExportCsv.onclick = exportPrivacySearchResults;
+  }
+  if (elements.privacyExportMd) {
+    elements.privacyExportMd.onclick = exportPrivacySearchResultsMarkdown;
+  }
+
+  elements.privacyResults.onclick = (e) => {
+    if (e.target.classList.contains('match-select')) {
+      updateResultsSelectAllToggle();
+    }
+  };
+
+  if (elements.privacyResultsSelectAll) {
+    elements.privacyResultsSelectAll.onclick = () => {
+      const items = Array.from(
+        elements.privacyResults.querySelectorAll('.privacy-match-item'),
+      ).filter((i) => i.style.display !== 'none');
+      const allChecked = items.every((i) => i.querySelector('.match-select').checked);
+      const newState = !allChecked;
+      items.forEach((i) => (i.querySelector('.match-select').checked = newState));
+      updateResultsSelectAllToggle();
     };
-
-    if (elements.privacyPatternsSelectAll) {
-        elements.privacyPatternsSelectAll.onclick = () => {
-            const allEnabled = activePrivacyPatterns.every(p => p.enabled);
-            const newState = !allEnabled;
-            activePrivacyPatterns.forEach(p => p.enabled = newState);
-            renderPrivacyPatterns();
-            filterPrivacyResults();
-        };
-    }
-
-    elements.privacyBulkGitRm.onclick = handlePrivacyBulkGitRm;
-    elements.privacyBulkIgnore.onclick = handlePrivacyBulkIgnore;
-    if (elements.privacyExportCsv) {
-        elements.privacyExportCsv.onclick = exportPrivacySearchResults;
-    }
-    if (elements.privacyExportMd) {
-        elements.privacyExportMd.onclick = exportPrivacySearchResultsMarkdown;
-    }
-
-    elements.privacyResults.onclick = (e) => {
-        if (e.target.classList.contains('match-select')) {
-            updateResultsSelectAllToggle();
-        }
-    };
-
-    if (elements.privacyResultsSelectAll) {
-        elements.privacyResultsSelectAll.onclick = () => {
-            const items = Array.from(elements.privacyResults.querySelectorAll('.privacy-match-item'))
-                .filter(i => i.style.display !== 'none');
-            const allChecked = items.every(i => i.querySelector('.match-select').checked);
-            const newState = !allChecked;
-            items.forEach(i => i.querySelector('.match-select').checked = newState);
-            updateResultsSelectAllToggle();
-        };
-    }
+  }
 }
 
 function renderPrivacyPatterns() {
-    const list = elements.privacyPatternsList;
-    list.innerHTML = activePrivacyPatterns.map((p, index) => `
+  const list = elements.privacyPatternsList;
+  list.innerHTML = activePrivacyPatterns
+    .map(
+      (p, index) => `
         <div class="privacy-pattern-item" data-id="${p.id}" style="background: rgba(255,255,255,0.02); padding: 8px; border-radius: 4px; border: 1px solid var(--border-color);">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
                 <input type="text" class="settings-input pattern-name" data-index="${index}" value="${p.name}" style="font-size: 11px; font-weight: 800; background: transparent; border: none; padding: 0; color: var(--text-main); flex: 1;">
@@ -9075,228 +10749,249 @@ function renderPrivacyPatterns() {
             </div>
             <textarea class="settings-input pattern-regex" data-index="${index}" style="width: 100%; font-size: 10px; font-family: var(--font-mono); height: 40px; margin-top: 4px; resize: vertical; border-color: rgba(255,255,255,0.05);">${p.regex}</textarea>
         </div>
-    `).join('');
+    `,
+    )
+    .join('');
 
-    // Update Select All toggle text
-    if (elements.privacyPatternsSelectAll) {
-        const allEnabled = activePrivacyPatterns.every(p => p.enabled);
-        elements.privacyPatternsSelectAll.textContent = allEnabled ? 'Deselect All' : 'Select All';
-    }
+  // Update Select All toggle text
+  if (elements.privacyPatternsSelectAll) {
+    const allEnabled = activePrivacyPatterns.every((p) => p.enabled);
+    elements.privacyPatternsSelectAll.textContent = allEnabled ? 'Deselect All' : 'Select All';
+  }
 
-    list.querySelectorAll('.pattern-name').forEach(input => {
-        input.onchange = (e) => activePrivacyPatterns[e.target.dataset.index].name = e.target.value;
-    });
-    list.querySelectorAll('.pattern-enabled').forEach(input => {
-        input.onchange = (e) => {
-            activePrivacyPatterns[e.target.dataset.index].enabled = e.target.checked;
-            filterPrivacyResults();
-        };
-    });
-    list.querySelectorAll('.pattern-regex').forEach(input => {
-        input.onchange = (e) => activePrivacyPatterns[e.target.dataset.index].regex = e.target.value;
-    });
-    list.querySelectorAll('.pattern-remove').forEach(btn => {
-        btn.onclick = (e) => {
-            activePrivacyPatterns.splice(e.target.dataset.index, 1);
-            renderPrivacyPatterns();
-            filterPrivacyResults();
-        };
-    });
+  list.querySelectorAll('.pattern-name').forEach((input) => {
+    input.onchange = (e) => (activePrivacyPatterns[e.target.dataset.index].name = e.target.value);
+  });
+  list.querySelectorAll('.pattern-enabled').forEach((input) => {
+    input.onchange = (e) => {
+      activePrivacyPatterns[e.target.dataset.index].enabled = e.target.checked;
+      filterPrivacyResults();
+    };
+  });
+  list.querySelectorAll('.pattern-regex').forEach((input) => {
+    input.onchange = (e) => (activePrivacyPatterns[e.target.dataset.index].regex = e.target.value);
+  });
+  list.querySelectorAll('.pattern-remove').forEach((btn) => {
+    btn.onclick = (e) => {
+      activePrivacyPatterns.splice(e.target.dataset.index, 1);
+      renderPrivacyPatterns();
+      filterPrivacyResults();
+    };
+  });
 }
 
 function filterPrivacyResults() {
-    const items = elements.privacyResults.querySelectorAll('.privacy-match-item');
-    items.forEach(item => {
-        const patternId = item.dataset.patternId;
-        const pattern = activePrivacyPatterns.find(p => p.id === patternId);
-        if (pattern && pattern.enabled) {
-            item.style.display = 'flex';
-        } else {
-            item.style.display = 'none';
-        }
-    });
-
-    // Update status based on visible items
-    const visibleCount = Array.from(items).filter(i => i.style.display !== 'none').length;
-    const statusEl = elements.privacyScanStatus;
-    if (statusEl.textContent.includes('Complete') || statusEl.textContent.includes('Last scan')) {
-        statusEl.textContent = `Matches found: ${visibleCount} (Filtered from ${items.length})`;
+  const items = elements.privacyResults.querySelectorAll('.privacy-match-item');
+  items.forEach((item) => {
+    const patternId = item.dataset.patternId;
+    const pattern = activePrivacyPatterns.find((p) => p.id === patternId);
+    if (pattern && pattern.enabled) {
+      item.style.display = 'flex';
+    } else {
+      item.style.display = 'none';
     }
+  });
 
-    updateResultsSelectAllToggle();
+  // Update status based on visible items
+  const visibleCount = Array.from(items).filter((i) => i.style.display !== 'none').length;
+  const statusEl = elements.privacyScanStatus;
+  if (statusEl.textContent.includes('Complete') || statusEl.textContent.includes('Last scan')) {
+    statusEl.textContent = `Matches found: ${visibleCount} (Filtered from ${items.length})`;
+  }
+
+  updateResultsSelectAllToggle();
 }
 
 async function startPrivacyScan(rootPath = null) {
-    isPrivacyScanning = true;
-    stopPrivacyScanRequested = false;
-    lastPrivacyScanResults = []; // Clear previous results
-    if (elements.privacyExportCsv) elements.privacyExportCsv.style.display = 'none';
-    if (elements.privacyExportMd) elements.privacyExportMd.style.display = 'none';
+  isPrivacyScanning = true;
+  stopPrivacyScanRequested = false;
+  lastPrivacyScanResults = []; // Clear previous results
+  if (elements.privacyExportCsv) elements.privacyExportCsv.style.display = 'none';
+  if (elements.privacyExportMd) elements.privacyExportMd.style.display = 'none';
 
-    const startBtn = elements.privacyScanStart;
-    startBtn.textContent = 'Stop Scan';
-    startBtn.classList.add('button-danger');
+  const startBtn = elements.privacyScanStart;
+  startBtn.textContent = 'Stop Scan';
+  startBtn.classList.add('button-danger');
+  startBtn.disabled = false;
+
+  elements.privacyResults.innerHTML = '';
+  const statusEl = elements.privacyScanStatus;
+  statusEl.textContent = 'Initializing...';
+
+  const enabledPatterns = activePrivacyPatterns.filter((p) => p.enabled && p.regex);
+  const compiledPatterns = [];
+
+  enabledPatterns.forEach((p) => {
+    try {
+      // Handle (?i) by converting it to 'i' flag if it's at the start
+      let regexStr = p.regex;
+      let flags = 'g';
+      if (regexStr.startsWith('(?i)')) {
+        regexStr = regexStr.substring(4);
+        flags += 'i';
+      }
+      compiledPatterns.push({ id: p.id, name: p.name, re: new RegExp(regexStr, flags) });
+    } catch (e) {
+      logToConsole(`Privacy Scan: Failed to compile regex "${p.name}": ${e.message}`, 'error');
+    }
+  });
+
+  if (compiledPatterns.length === 0) {
+    statusEl.textContent = 'No active patterns.';
+    isPrivacyScanning = false;
+    startBtn.textContent = 'Start Scan';
+    startBtn.classList.remove('button-danger');
+    return;
+  }
+
+  statusEl.textContent = 'Scanning files...';
+  let matchCount = 0;
+
+  try {
+    const targets = rootPath ? [rootPath] : repositories.map((r) => r.path);
+
+    for (const target of targets) {
+      if (stopPrivacyScanRequested) break;
+      await scanRecursive(target, compiledPatterns, (match) => {
+        matchCount++;
+        lastPrivacyScanResults.push(match);
+        renderPrivacyMatch(match);
+      });
+    }
+  } catch (e) {
+    logToConsole(`Privacy Scan: Scan failed: ${e.message}`, 'error');
+  } finally {
+    isPrivacyScanning = false;
+    startBtn.textContent = 'Start Scan';
+    startBtn.classList.remove('button-danger');
     startBtn.disabled = false;
 
-    elements.privacyResults.innerHTML = '';
-    const statusEl = elements.privacyScanStatus;
-    statusEl.textContent = 'Initializing...';
+    filterPrivacyResults(); // Ensure final visibility is correct
 
-    const enabledPatterns = activePrivacyPatterns.filter(p => p.enabled && p.regex);
-    const compiledPatterns = [];
-
-    enabledPatterns.forEach(p => {
-        try {
-            // Handle (?i) by converting it to 'i' flag if it's at the start
-            let regexStr = p.regex;
-            let flags = 'g';
-            if (regexStr.startsWith('(?i)')) {
-                regexStr = regexStr.substring(4);
-                flags += 'i';
-            }
-            compiledPatterns.push({ id: p.id, name: p.name, re: new RegExp(regexStr, flags) });
-        } catch (e) {
-            logToConsole(`Privacy Scan: Failed to compile regex "${p.name}": ${e.message}`, 'error');
-        }
-    });
-
-    if (compiledPatterns.length === 0) {
-        statusEl.textContent = 'No active patterns.';
-        isPrivacyScanning = false;
-        startBtn.textContent = 'Start Scan';
-        startBtn.classList.remove('button-danger');
-        return;
+    if (stopPrivacyScanRequested) {
+      statusEl.textContent = 'Scan Stopped';
+    } else {
+      statusEl.textContent = `Scan Complete: ${matchCount} matches found`;
     }
 
-    statusEl.textContent = 'Scanning files...';
-    let matchCount = 0;
-
-    try {
-        const targets = rootPath ? [rootPath] : repositories.map(r => r.path);
-
-        for (const target of targets) {
-            if (stopPrivacyScanRequested) break;
-            await scanRecursive(target, compiledPatterns, (match) => {
-                matchCount++;
-                lastPrivacyScanResults.push(match);
-                renderPrivacyMatch(match);
-            });
-        }
-    } catch (e) {
-        logToConsole(`Privacy Scan: Scan failed: ${e.message}`, 'error');
-    } finally {
-        isPrivacyScanning = false;
-        startBtn.textContent = 'Start Scan';
-        startBtn.classList.remove('button-danger');
-        startBtn.disabled = false;
-
-        filterPrivacyResults(); // Ensure final visibility is correct
-
-        if (stopPrivacyScanRequested) {
-            statusEl.textContent = 'Scan Stopped';
-        } else {
-            statusEl.textContent = `Scan Complete: ${matchCount} matches found`;
-        }
-
-        if (matchCount > 0 && elements.privacyExportCsv) {
-            elements.privacyExportCsv.style.display = 'block';
-        }
-        if (matchCount > 0 && elements.privacyExportMd) {
-            elements.privacyExportMd.style.display = 'block';
-        }
-
-        elements.privacyBulkGitRm.disabled = matchCount === 0;
-        elements.privacyBulkIgnore.disabled = matchCount === 0;
+    if (matchCount > 0 && elements.privacyExportCsv) {
+      elements.privacyExportCsv.style.display = 'block';
     }
+    if (matchCount > 0 && elements.privacyExportMd) {
+      elements.privacyExportMd.style.display = 'block';
+    }
+
+    elements.privacyBulkGitRm.disabled = matchCount === 0;
+    elements.privacyBulkIgnore.disabled = matchCount === 0;
+  }
 }
 
 async function scanRecursive(dir, patterns, onMatch) {
-    if (stopPrivacyScanRequested) return;
+  if (stopPrivacyScanRequested) return;
 
-    try {
-        const items = await window.electronAPI.listDirectory(dir, false);
-        for (const item of items) {
-            if (stopPrivacyScanRequested) return;
+  try {
+    const items = await window.electronAPI.listDirectory(dir, false);
+    for (const item of items) {
+      if (stopPrivacyScanRequested) return;
 
-            if (item.isDirectory) {
-                await scanRecursive(item.path, patterns, onMatch);
-            } else {
-                await scanFileForPrivacy(item.path, patterns, onMatch);
-            }
-        }
-    } catch (e) {
-        console.error(`Privacy Scan: Error reading directory ${dir}:`, e);
+      if (item.isDirectory) {
+        await scanRecursive(item.path, patterns, onMatch);
+      } else {
+        await scanFileForPrivacy(item.path, patterns, onMatch);
+      }
     }
+  } catch (e) {
+    console.error(`Privacy Scan: Error reading directory ${dir}:`, e);
+  }
 }
 
 async function scanFileForPrivacy(filePath, patterns, onMatch) {
-    try {
-        const ext = filePath.split('.').pop().toLowerCase();
-        const binaryExts = ['png', 'jpg', 'jpeg', 'gif', 'pdf', 'exe', 'dll', 'zip', 'tar', 'gz', 'ico', 'woff', 'woff2', 'ttf', 'eot', 'mp3', 'mp4', 'wav'];
-        if (binaryExts.includes(ext)) return;
+  try {
+    const ext = filePath.split('.').pop().toLowerCase();
+    const binaryExts = [
+      'png',
+      'jpg',
+      'jpeg',
+      'gif',
+      'pdf',
+      'exe',
+      'dll',
+      'zip',
+      'tar',
+      'gz',
+      'ico',
+      'woff',
+      'woff2',
+      'ttf',
+      'eot',
+      'mp3',
+      'mp4',
+      'wav',
+    ];
+    if (binaryExts.includes(ext)) return;
 
-        const result = await window.electronAPI.readFile(filePath);
-        const content = result.content;
-        const lines = content.split(/\r?\n/);
+    const result = await window.electronAPI.readFile(filePath);
+    const content = result.content;
+    const lines = content.split(/\r?\n/);
 
-        const repo = findRepoForPath(filePath);
-        const repoName = repo ? repo.name : 'Unknown';
+    const repo = findRepoForPath(filePath);
+    const repoName = repo ? repo.name : 'Unknown';
 
-        lines.forEach((line, index) => {
-            patterns.forEach(p => {
-                try {
-                    let match;
-                    p.re.lastIndex = 0; // Reset lastIndex for global regex
-                    while ((match = p.re.exec(line)) !== null) {
-                        onMatch({
-                            patternId: p.id,
-                            patternName: p.name,
-                            repoName,
-                            filePath,
-                            lineText: line.trim(),
-                            lineNumber: index + 1,
-                            matchedText: match[0]
-                        });
-                        if (!p.re.global) break;
-                    }
-                } catch (e) {
-                    // Ignore execution errors for specific regex
-                }
+    lines.forEach((line, index) => {
+      patterns.forEach((p) => {
+        try {
+          let match;
+          p.re.lastIndex = 0; // Reset lastIndex for global regex
+          while ((match = p.re.exec(line)) !== null) {
+            onMatch({
+              patternId: p.id,
+              patternName: p.name,
+              repoName,
+              filePath,
+              lineText: line.trim(),
+              lineNumber: index + 1,
+              matchedText: match[0],
             });
-        });
-    } catch (e) {
-        // Skip files that can't be read (binary, permissions, etc.)
-    }
+            if (!p.re.global) break;
+          }
+        } catch (e) {
+          // Ignore execution errors for specific regex
+        }
+      });
+    });
+  } catch (e) {
+    // Skip files that can't be read (binary, permissions, etc.)
+  }
 }
 
 function renderPrivacyMatch(match, skipScroll = false) {
-    const container = elements.privacyResults;
-    const item = document.createElement('div');
-    item.className = 'privacy-match-item';
-    item.dataset.patternId = match.patternId;
-    item.style.padding = '10px';
-    item.style.borderBottom = '1px solid var(--border-color)';
-    item.style.display = 'flex';
-    item.style.flexDirection = 'column';
-    item.style.gap = '4px';
+  const container = elements.privacyResults;
+  const item = document.createElement('div');
+  item.className = 'privacy-match-item';
+  item.dataset.patternId = match.patternId;
+  item.style.padding = '10px';
+  item.style.borderBottom = '1px solid var(--border-color)';
+  item.style.display = 'flex';
+  item.style.flexDirection = 'column';
+  item.style.gap = '4px';
 
-    // Check if pattern is enabled, if not hide it immediately
-    const pattern = activePrivacyPatterns.find(p => p.id === match.patternId);
-    if (pattern && !pattern.enabled) {
-        item.style.display = 'none';
-    }
+  // Check if pattern is enabled, if not hide it immediately
+  const pattern = activePrivacyPatterns.find((p) => p.id === match.patternId);
+  if (pattern && !pattern.enabled) {
+    item.style.display = 'none';
+  }
 
-    const escapedLine = match.lineText
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;');
+  const escapedLine = match.lineText
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
 
-    const escapedMatch = match.matchedText
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;');
+  const escapedMatch = match.matchedText
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
 
-    item.innerHTML = `
+  item.innerHTML = `
         <div style="display: flex; justify-content: space-between; align-items: flex-start;">
             <div style="display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0;">
                 <div style="display: flex; align-items: center; gap: 6px;">
@@ -9319,324 +11014,376 @@ function renderPrivacyMatch(match, skipScroll = false) {
         </div>
     `;
 
-    item.querySelector('.privacy-edit-btn').onclick = () => {
-        openFileInEditor(match.filePath, match.lineNumber, 1, match.matchedText);
-        elements.searchHubModal.style.display = 'none';
-    };
+  item.querySelector('.privacy-edit-btn').onclick = () => {
+    openFileInEditor(match.filePath, match.lineNumber, 1, match.matchedText);
+    elements.searchHubModal.style.display = 'none';
+  };
 
-    item.querySelector('.privacy-tree-btn').onclick = async () => {
-        elements.searchHubModal.style.display = 'none';
-        await revealFileInSidebar(match.filePath);
-    };
+  item.querySelector('.privacy-tree-btn').onclick = async () => {
+    elements.searchHubModal.style.display = 'none';
+    await revealFileInSidebar(match.filePath);
+  };
 
-    item.querySelector('.privacy-reveal-btn').onclick = () => {
-        window.electronAPI.revealInExplorer(match.filePath);
-    };
+  item.querySelector('.privacy-reveal-btn').onclick = () => {
+    window.electronAPI.revealInExplorer(match.filePath);
+  };
 
-    item.querySelector('.privacy-delete-btn').onclick = async () => {
-        const fileName = match.filePath.split(/[\\\/]/).pop();
-        if (await showConfirm(`Delete ${fileName} to Recycle Bin?`, "Confirm Delete")) {
-            const res = await window.electronAPI.trashItem(match.filePath);
-            if (res.success) {
-                logToConsole(`Deleted ${match.filePath}`, 'info');
-                // Remove all matches for this file from the results
-                const allMatchesForFile = elements.privacyResults.querySelectorAll(`.privacy-match-item [data-path="${match.filePath}"]`);
-                allMatchesForFile.forEach(el => el.closest('.privacy-match-item').remove());
-                filterPrivacyResults();
-            } else {
-                showError(res.error, "Delete Failed");
-            }
-        }
-    };
+  item.querySelector('.privacy-delete-btn').onclick = async () => {
+    const fileName = match.filePath.split(/[\\\/]/).pop();
+    if (await showConfirm(`Delete ${fileName} to Recycle Bin?`, 'Confirm Delete')) {
+      const res = await window.electronAPI.trashItem(match.filePath);
+      if (res.success) {
+        logToConsole(`Deleted ${match.filePath}`, 'info');
+        // Remove all matches for this file from the results
+        const allMatchesForFile = elements.privacyResults.querySelectorAll(
+          `.privacy-match-item [data-path="${match.filePath}"]`,
+        );
+        allMatchesForFile.forEach((el) => el.closest('.privacy-match-item').remove());
+        filterPrivacyResults();
+      } else {
+        showError(res.error, 'Delete Failed');
+      }
+    }
+  };
 
-    container.appendChild(item);
-    if (!skipScroll) container.scrollTop = container.scrollHeight;
+  container.appendChild(item);
+  if (!skipScroll) container.scrollTop = container.scrollHeight;
 
-    updateResultsSelectAllToggle();
+  updateResultsSelectAllToggle();
 }
 
 function updateResultsSelectAllToggle() {
-    if (!elements.privacyResultsSelectAll) return;
-    const items = Array.from(elements.privacyResults.querySelectorAll('.privacy-match-item')).filter(i => i.style.display !== 'none');
-    if (items.length === 0) {
-        elements.privacyResultsSelectAll.style.display = 'none';
-        return;
-    }
-    elements.privacyResultsSelectAll.style.display = 'inline';
-    const allChecked = items.every(i => i.querySelector('.match-select').checked);
-    elements.privacyResultsSelectAll.textContent = allChecked ? 'Deselect All' : 'Select All';
+  if (!elements.privacyResultsSelectAll) return;
+  const items = Array.from(elements.privacyResults.querySelectorAll('.privacy-match-item')).filter(
+    (i) => i.style.display !== 'none',
+  );
+  if (items.length === 0) {
+    elements.privacyResultsSelectAll.style.display = 'none';
+    return;
+  }
+  elements.privacyResultsSelectAll.style.display = 'inline';
+  const allChecked = items.every((i) => i.querySelector('.match-select').checked);
+  elements.privacyResultsSelectAll.textContent = allChecked ? 'Deselect All' : 'Select All';
 }
 
 async function handlePrivacyBulkGitRm() {
-    const checked = Array.from(elements.privacyResults.querySelectorAll('.match-select:checked'))
-        .filter(cb => cb.closest('.privacy-match-item').style.display !== 'none');
-    const paths = Array.from(new Set(checked.map(cb => cb.dataset.path)));
+  const checked = Array.from(
+    elements.privacyResults.querySelectorAll('.match-select:checked'),
+  ).filter((cb) => cb.closest('.privacy-match-item').style.display !== 'none');
+  const paths = Array.from(new Set(checked.map((cb) => cb.dataset.path)));
 
-    if (paths.length === 0) return showAlert('Select at least one file.', 'Selection Required');
+  if (paths.length === 0) return showAlert('Select at least one file.', 'Selection Required');
 
-    if (await showConfirm(`Run "git rm --cached" on ${paths.length} files?\n\nThis will stop Git from tracking them but keep the local files on disk.`, "Confirm Git Action")) {
-        setTaskState(true);
-        try {
-            for (const fullPath of paths) {
-                const repo = findRepoForPath(fullPath);
-                if (repo) {
-                    const relPath = fullPath.substring(repo.path.length).replace(/^[\\\/]/, '').replace(/\\/g, '/');
-                    await window.electronAPI.gitStopTracking(repo.path, relPath);
-                }
-            }
-            logToConsole(`Privacy: Removed ${paths.length} files from Git cache.`, 'success');
-            showAlert(`Successfully removed ${paths.length} files from Git tracking.`, 'Success');
-            await smartRefreshTree();
-        } catch (e) {
-            logToConsole(`Privacy Action Failed: ${e.message}`, 'error');
-            showError(e.message, 'Action Failed');
-        } finally {
-            setTaskState(false);
+  if (
+    await showConfirm(
+      `Run "git rm --cached" on ${paths.length} files?\n\nThis will stop Git from tracking them but keep the local files on disk.`,
+      'Confirm Git Action',
+    )
+  ) {
+    setTaskState(true);
+    try {
+      for (const fullPath of paths) {
+        const repo = findRepoForPath(fullPath);
+        if (repo) {
+          const relPath = fullPath
+            .substring(repo.path.length)
+            .replace(/^[\\\/]/, '')
+            .replace(/\\/g, '/');
+          await window.electronAPI.gitStopTracking(repo.path, relPath);
         }
+      }
+      logToConsole(`Privacy: Removed ${paths.length} files from Git cache.`, 'success');
+      showAlert(`Successfully removed ${paths.length} files from Git tracking.`, 'Success');
+      await smartRefreshTree();
+    } catch (e) {
+      logToConsole(`Privacy Action Failed: ${e.message}`, 'error');
+      showError(e.message, 'Action Failed');
+    } finally {
+      setTaskState(false);
     }
+  }
 }
 
 async function handlePrivacyBulkIgnore() {
-    const checked = Array.from(elements.privacyResults.querySelectorAll('.match-select:checked'))
-        .filter(cb => cb.closest('.privacy-match-item').style.display !== 'none');
-    const paths = Array.from(new Set(checked.map(cb => cb.dataset.path)));
+  const checked = Array.from(
+    elements.privacyResults.querySelectorAll('.match-select:checked'),
+  ).filter((cb) => cb.closest('.privacy-match-item').style.display !== 'none');
+  const paths = Array.from(new Set(checked.map((cb) => cb.dataset.path)));
 
-    if (paths.length === 0) return showAlert('Select at least one file.', 'Selection Required');
+  if (paths.length === 0) return showAlert('Select at least one file.', 'Selection Required');
 
-    if (await showConfirm(`Add ${paths.length} files to their respective .gitignore files?`, "Confirm Ignore")) {
-        setTaskState(true);
-        try {
-            for (const fullPath of paths) {
-                const repo = findRepoForPath(fullPath);
-                if (repo) {
-                    const relPath = fullPath.substring(repo.path.length).replace(/^[\\\/]/, '').replace(/\\/g, '/');
-                    const gitignorePath = `${repo.path}/.gitignore`.replace(/\\/g, '/');
+  if (
+    await showConfirm(
+      `Add ${paths.length} files to their respective .gitignore files?`,
+      'Confirm Ignore',
+    )
+  ) {
+    setTaskState(true);
+    try {
+      for (const fullPath of paths) {
+        const repo = findRepoForPath(fullPath);
+        if (repo) {
+          const relPath = fullPath
+            .substring(repo.path.length)
+            .replace(/^[\\\/]/, '')
+            .replace(/\\/g, '/');
+          const gitignorePath = `${repo.path}/.gitignore`.replace(/\\/g, '/');
 
-                    let content = '';
-                    const exists = await window.electronAPI.pathExists(gitignorePath);
-                    if (exists) {
-                        const result = await window.electronAPI.readFile(gitignorePath);
-                        content = result.content;
-                        if (content && !content.endsWith('\n')) content += '\n';
-                    }
+          let content = '';
+          const exists = await window.electronAPI.pathExists(gitignorePath);
+          if (exists) {
+            const result = await window.electronAPI.readFile(gitignorePath);
+            content = result.content;
+            if (content && !content.endsWith('\n')) content += '\n';
+          }
 
-                    if (!content.includes(relPath)) {
-                        content += `${relPath}\n`;
-                        await window.electronAPI.writeFile(gitignorePath, content);
-                    }
-                }
-            }
-            logToConsole(`Privacy: Added ${paths.length} files to .gitignore.`, 'success');
-            showAlert(`Successfully added ${paths.length} files to .gitignore.`, 'Success');
-            await smartRefreshTree();
-        } catch (e) {
-            logToConsole(`Privacy Action Failed: ${e.message}`, 'error');
-            showError(e.message, 'Action Failed');
-        } finally {
-            setTaskState(false);
+          if (!content.includes(relPath)) {
+            content += `${relPath}\n`;
+            await window.electronAPI.writeFile(gitignorePath, content);
+          }
         }
+      }
+      logToConsole(`Privacy: Added ${paths.length} files to .gitignore.`, 'success');
+      showAlert(`Successfully added ${paths.length} files to .gitignore.`, 'Success');
+      await smartRefreshTree();
+    } catch (e) {
+      logToConsole(`Privacy Action Failed: ${e.message}`, 'error');
+      showError(e.message, 'Action Failed');
+    } finally {
+      setTaskState(false);
     }
+  }
 }
 
 async function exportAdvancedSearchResults() {
-    if (lastAdvancedSearchResults.length === 0) return;
+  if (lastAdvancedSearchResults.length === 0) return;
 
-    try {
-        const query = (elements.advSearchQuery.value || '').trim();
-        const headers = ['projectName', 'filePath', 'absolutePath', 'lineNumber', 'searchTerm', 'lineSnippet'];
+  try {
+    const query = (elements.advSearchQuery.value || '').trim();
+    const headers = [
+      'projectName',
+      'filePath',
+      'absolutePath',
+      'lineNumber',
+      'searchTerm',
+      'lineSnippet',
+    ];
 
-        const mappedData = lastAdvancedSearchResults.map(item => {
-            const absPath = `${item.repoPath}/${item.path}`.replace(/\\/g, '/').replace(/\/+/g, '/');
-            return {
-                projectName: item.repoName,
-                filePath: item.path,
-                absolutePath: absPath,
-                lineNumber: item.line || 0,
-                searchTerm: query,
-                lineSnippet: (item.text || '').trim().substring(0, 200)
-            };
-        });
+    const mappedData = lastAdvancedSearchResults.map((item) => {
+      const absPath = `${item.repoPath}/${item.path}`.replace(/\\/g, '/').replace(/\/+/g, '/');
+      return {
+        projectName: item.repoName,
+        filePath: item.path,
+        absolutePath: absPath,
+        lineNumber: item.line || 0,
+        searchTerm: query,
+        lineSnippet: (item.text || '').trim().substring(0, 200),
+      };
+    });
 
-        const csvContent = convertToCSV(mappedData, headers);
+    const csvContent = convertToCSV(mappedData, headers);
 
-        const filePath = await window.electronAPI.showSaveDialog({
-            title: 'Export Advanced Search Results',
-            defaultPath: 'search_results.csv',
-            filters: [{ name: 'CSV Files', extensions: ['csv'] }]
-        });
+    const filePath = await window.electronAPI.showSaveDialog({
+      title: 'Export Advanced Search Results',
+      defaultPath: 'search_results.csv',
+      filters: [{ name: 'CSV Files', extensions: ['csv'] }],
+    });
 
-        if (filePath) {
-            await window.electronAPI.writeFile(filePath, csvContent);
-            logToConsole(`Results exported to ${filePath}`, 'success');
-            showAlert(`Successfully exported ${mappedData.length} results to:\n${filePath}`, 'Export Complete');
-        }
-    } catch (e) {
-        logToConsole(`Export failed: ${e.message}`, 'error');
-        showError(e.message, 'Export Failed');
+    if (filePath) {
+      await window.electronAPI.writeFile(filePath, csvContent);
+      logToConsole(`Results exported to ${filePath}`, 'success');
+      showAlert(
+        `Successfully exported ${mappedData.length} results to:\n${filePath}`,
+        'Export Complete',
+      );
     }
+  } catch (e) {
+    logToConsole(`Export failed: ${e.message}`, 'error');
+    showError(e.message, 'Export Failed');
+  }
 }
 
 async function exportPrivacySearchResults() {
-    if (lastPrivacyScanResults.length === 0) return;
+  if (lastPrivacyScanResults.length === 0) return;
 
-    try {
-        const headers = ['projectName', 'filePath', 'absolutePath', 'lineNumber', 'searchTerm', 'lineSnippet'];
+  try {
+    const headers = [
+      'projectName',
+      'filePath',
+      'absolutePath',
+      'lineNumber',
+      'searchTerm',
+      'lineSnippet',
+    ];
 
-        const mappedData = lastPrivacyScanResults.map(item => {
-            const repo = findRepoForPath(item.filePath);
-            let relPath = item.filePath;
-            if (repo) {
-                relPath = item.filePath.substring(repo.path.length).replace(/^[\\\/]/, '').replace(/\\/g, '/');
-            }
-            return {
-                projectName: item.repoName,
-                filePath: relPath,
-                absolutePath: item.filePath.replace(/\\/g, '/'),
-                lineNumber: item.lineNumber,
-                searchTerm: item.patternName,
-                lineSnippet: (item.lineText || '').trim().substring(0, 200)
-            };
-        });
+    const mappedData = lastPrivacyScanResults.map((item) => {
+      const repo = findRepoForPath(item.filePath);
+      let relPath = item.filePath;
+      if (repo) {
+        relPath = item.filePath
+          .substring(repo.path.length)
+          .replace(/^[\\\/]/, '')
+          .replace(/\\/g, '/');
+      }
+      return {
+        projectName: item.repoName,
+        filePath: relPath,
+        absolutePath: item.filePath.replace(/\\/g, '/'),
+        lineNumber: item.lineNumber,
+        searchTerm: item.patternName,
+        lineSnippet: (item.lineText || '').trim().substring(0, 200),
+      };
+    });
 
-        const csvContent = convertToCSV(mappedData, headers);
+    const csvContent = convertToCSV(mappedData, headers);
 
-        const filePath = await window.electronAPI.showSaveDialog({
-            title: 'Export Privacy Search Results',
-            defaultPath: 'privacy_matches.csv',
-            filters: [{ name: 'CSV Files', extensions: ['csv'] }]
-        });
+    const filePath = await window.electronAPI.showSaveDialog({
+      title: 'Export Privacy Search Results',
+      defaultPath: 'privacy_matches.csv',
+      filters: [{ name: 'CSV Files', extensions: ['csv'] }],
+    });
 
-        if (filePath) {
-            await window.electronAPI.writeFile(filePath, csvContent);
-            logToConsole(`Privacy matches exported to ${filePath}`, 'success');
-            showAlert(`Successfully exported ${mappedData.length} matches to:\n${filePath}`, 'Export Complete');
-        }
-    } catch (e) {
-        logToConsole(`Export failed: ${e.message}`, 'error');
-        showError(e.message, 'Export Failed');
+    if (filePath) {
+      await window.electronAPI.writeFile(filePath, csvContent);
+      logToConsole(`Privacy matches exported to ${filePath}`, 'success');
+      showAlert(
+        `Successfully exported ${mappedData.length} matches to:\n${filePath}`,
+        'Export Complete',
+      );
     }
+  } catch (e) {
+    logToConsole(`Export failed: ${e.message}`, 'error');
+    showError(e.message, 'Export Failed');
+  }
 }
 
 async function exportAdvancedSearchResultsMarkdown() {
-    if (lastAdvancedSearchResults.length === 0) return;
+  if (lastAdvancedSearchResults.length === 0) return;
 
-    try {
-        const query = (elements.advSearchQuery.value || '').trim();
-        const now = new Date().toISOString().split('T')[0];
+  try {
+    const query = (elements.advSearchQuery.value || '').trim();
+    const now = new Date().toISOString().split('T')[0];
 
-        let md = `# Search Export Results\n`;
-        md += `* **Query:** \`${query}\`\n`;
-        md += `* **Date:** ${now}\n`;
-        md += `* **Total Matches:** ${lastAdvancedSearchResults.length}\n\n---\n\n`;
+    let md = `# Search Export Results\n`;
+    md += `* **Query:** \`${query}\`\n`;
+    md += `* **Date:** ${now}\n`;
+    md += `* **Total Matches:** ${lastAdvancedSearchResults.length}\n\n---\n\n`;
 
-        // Group by project
-        const projects = {};
-        lastAdvancedSearchResults.forEach(item => {
-            if (!projects[item.repoName]) projects[item.repoName] = [];
-            projects[item.repoName].push(item);
-        });
+    // Group by project
+    const projects = {};
+    lastAdvancedSearchResults.forEach((item) => {
+      if (!projects[item.repoName]) projects[item.repoName] = [];
+      projects[item.repoName].push(item);
+    });
 
-        for (const [projectName, items] of Object.entries(projects)) {
-            md += `## Project: ${projectName}\n`;
-            items.forEach(item => {
-                const absPath = `${item.repoPath}/${item.path}`.replace(/\\/g, '/').replace(/\/+/g, '/');
-                const snippet = (item.text || '').trim().substring(0, 200);
-                md += `* [\`${item.path}:${item.line || 0}\`](file:///${absPath}) — \`${snippet}\`\n`;
-            });
-            md += `\n`;
-        }
-
-        const filePath = await window.electronAPI.showSaveDialog({
-            title: 'Export Advanced Search Results (Markdown)',
-            defaultPath: 'search_results.md',
-            filters: [{ name: 'Markdown Files', extensions: ['md'] }]
-        });
-
-        if (filePath) {
-            await window.electronAPI.writeFile(filePath, md);
-            logToConsole(`Markdown results exported to ${filePath}`, 'success');
-            showAlert(`Successfully exported ${lastAdvancedSearchResults.length} results to:\n${filePath}`, 'Export Complete');
-        }
-    } catch (e) {
-        logToConsole(`Markdown export failed: ${e.message}`, 'error');
-        showError(e.message, 'Export Failed');
+    for (const [projectName, items] of Object.entries(projects)) {
+      md += `## Project: ${projectName}\n`;
+      items.forEach((item) => {
+        const absPath = `${item.repoPath}/${item.path}`.replace(/\\/g, '/').replace(/\/+/g, '/');
+        const snippet = (item.text || '').trim().substring(0, 200);
+        md += `* [\`${item.path}:${item.line || 0}\`](file:///${absPath}) — \`${snippet}\`\n`;
+      });
+      md += `\n`;
     }
+
+    const filePath = await window.electronAPI.showSaveDialog({
+      title: 'Export Advanced Search Results (Markdown)',
+      defaultPath: 'search_results.md',
+      filters: [{ name: 'Markdown Files', extensions: ['md'] }],
+    });
+
+    if (filePath) {
+      await window.electronAPI.writeFile(filePath, md);
+      logToConsole(`Markdown results exported to ${filePath}`, 'success');
+      showAlert(
+        `Successfully exported ${lastAdvancedSearchResults.length} results to:\n${filePath}`,
+        'Export Complete',
+      );
+    }
+  } catch (e) {
+    logToConsole(`Markdown export failed: ${e.message}`, 'error');
+    showError(e.message, 'Export Failed');
+  }
 }
 
 async function exportPrivacySearchResultsMarkdown() {
-    if (lastPrivacyScanResults.length === 0) return;
+  if (lastPrivacyScanResults.length === 0) return;
 
-    try {
-        const now = new Date().toISOString().split('T')[0];
+  try {
+    const now = new Date().toISOString().split('T')[0];
 
-        let md = `# Privacy Search Export Results\n`;
-        md += `* **Date:** ${now}\n`;
-        md += `* **Total Matches:** ${lastPrivacyScanResults.length}\n\n---\n\n`;
+    let md = `# Privacy Search Export Results\n`;
+    md += `* **Date:** ${now}\n`;
+    md += `* **Total Matches:** ${lastPrivacyScanResults.length}\n\n---\n\n`;
 
-        // Group by project
-        const projects = {};
-        lastPrivacyScanResults.forEach(item => {
-            if (!projects[item.repoName]) projects[item.repoName] = [];
-            projects[item.repoName].push(item);
-        });
+    // Group by project
+    const projects = {};
+    lastPrivacyScanResults.forEach((item) => {
+      if (!projects[item.repoName]) projects[item.repoName] = [];
+      projects[item.repoName].push(item);
+    });
 
-        for (const [projectName, items] of Object.entries(projects)) {
-            md += `## Project: ${projectName}\n`;
-            items.forEach(item => {
-                const repo = findRepoForPath(item.filePath);
-                let relPath = item.filePath;
-                if (repo) {
-                    relPath = item.filePath.substring(repo.path.length).replace(/^[\\\/]/, '').replace(/\\/g, '/');
-                }
-                const absPath = item.filePath.replace(/\\/g, '/');
-                const snippet = (item.lineText || '').trim().substring(0, 200);
-                md += `* [\`${relPath}:${item.lineNumber}\`](file:///${absPath}) — **${item.patternName}** — \`${snippet}\`\n`;
-            });
-            md += `\n`;
+    for (const [projectName, items] of Object.entries(projects)) {
+      md += `## Project: ${projectName}\n`;
+      items.forEach((item) => {
+        const repo = findRepoForPath(item.filePath);
+        let relPath = item.filePath;
+        if (repo) {
+          relPath = item.filePath
+            .substring(repo.path.length)
+            .replace(/^[\\\/]/, '')
+            .replace(/\\/g, '/');
         }
-
-        const filePath = await window.electronAPI.showSaveDialog({
-            title: 'Export Privacy Search Results (Markdown)',
-            defaultPath: 'privacy_matches.md',
-            filters: [{ name: 'Markdown Files', extensions: ['md'] }]
-        });
-
-        if (filePath) {
-            await window.electronAPI.writeFile(filePath, md);
-            logToConsole(`Markdown matches exported to ${filePath}`, 'success');
-            showAlert(`Successfully exported ${lastPrivacyScanResults.length} matches to:\n${filePath}`, 'Export Complete');
-        }
-    } catch (e) {
-        logToConsole(`Markdown export failed: ${e.message}`, 'error');
-        showError(e.message, 'Export Failed');
+        const absPath = item.filePath.replace(/\\/g, '/');
+        const snippet = (item.lineText || '').trim().substring(0, 200);
+        md += `* [\`${relPath}:${item.lineNumber}\`](file:///${absPath}) — **${item.patternName}** — \`${snippet}\`\n`;
+      });
+      md += `\n`;
     }
+
+    const filePath = await window.electronAPI.showSaveDialog({
+      title: 'Export Privacy Search Results (Markdown)',
+      defaultPath: 'privacy_matches.md',
+      filters: [{ name: 'Markdown Files', extensions: ['md'] }],
+    });
+
+    if (filePath) {
+      await window.electronAPI.writeFile(filePath, md);
+      logToConsole(`Markdown matches exported to ${filePath}`, 'success');
+      showAlert(
+        `Successfully exported ${lastPrivacyScanResults.length} matches to:\n${filePath}`,
+        'Export Complete',
+      );
+    }
+  } catch (e) {
+    logToConsole(`Markdown export failed: ${e.message}`, 'error');
+    showError(e.message, 'Export Failed');
+  }
 }
 
 function convertToCSV(data, headers) {
-    const rows = [headers.join(',')];
-    data.forEach(item => {
-        const row = headers.map(header => {
-            let val = item[header];
-            if (val === undefined || val === null) val = '';
-            // Escape double quotes and wrap in double quotes
-            const escaped = String(val).replace(/"/g, '""');
-            return `"${escaped}"`;
-        });
-        rows.push(row.join(','));
+  const rows = [headers.join(',')];
+  data.forEach((item) => {
+    const row = headers.map((header) => {
+      let val = item[header];
+      if (val === undefined || val === null) val = '';
+      // Escape double quotes and wrap in double quotes
+      const escaped = String(val).replace(/"/g, '""');
+      return `"${escaped}"`;
     });
-    return rows.join('\n');
+    rows.push(row.join(','));
+  });
+  return rows.join('\n');
 }
-
-
 
 // --- GIST MANAGEMENT LOGIC ---
 
 async function showGistView() {
-    if (!(await setActiveNavItem(elements.navGist))) return;
-    elements.gistView.style.display = 'flex';
+  if (!(await setActiveNavItem(elements.navGist))) return;
+  elements.gistView.style.display = 'flex';
 
-    if (!settings.githubToken) {
-        elements.gistList.innerHTML = `
+  if (!settings.githubToken) {
+    elements.gistList.innerHTML = `
             <div style="grid-column: 1 / -1; padding: 60px; text-align: center; color: var(--text-muted);">
                 <div style="font-size: 40px; margin-bottom: 20px; opacity: 0.3;">🔑</div>
                 <h3>GitHub Token Required</h3>
@@ -9644,52 +11391,55 @@ async function showGistView() {
                 <button class="button button-primary" onclick="showSettings()">Go to Settings</button>
             </div>
         `;
-        return;
-    }
+    return;
+  }
 
-    await refreshGists();
+  await refreshGists();
 }
 
 async function refreshGists() {
-    if (!settings.githubToken) return;
+  if (!settings.githubToken) return;
 
-    elements.gistList.innerHTML = '<div style="grid-column: 1 / -1; padding: 60px; text-align: center; color: var(--text-muted);"><div class="spinner"></div> Loading your Gists...</div>';
+  elements.gistList.innerHTML =
+    '<div style="grid-column: 1 / -1; padding: 60px; text-align: center; color: var(--text-muted);"><div class="spinner"></div> Loading your Gists...</div>';
 
-    try {
-        setTaskState(true);
-        const res = await window.electronAPI.fetchGitHubGists(settings.githubToken);
-        if (res.expiration) updateTokenExpirationUI(res.expiration);
-        renderGistList(res.gists);
-    } catch (err) {
-        let msg = err.message;
-        if (err.message.includes('403')) {
-            msg = "GitHub API Error 403: Permission Denied.<br><br>This usually means your Personal Access Token (PAT) is missing the 'gist' scope. You can update your token permissions in the <a href=\"https://github.com/settings/tokens\" target=\"_blank\" style=\"color: var(--accent-blue); text-decoration: underline;\">GitHub Settings</a>.";
-        }
-        logToConsole(`Gist Error: ${msg.replace(/<[^>]*>/g, '')}`, 'error');
-        elements.gistList.innerHTML = `<div style="grid-column: 1 / -1; padding: 60px; text-align: center; color: var(--accent-red);">Failed to load Gists: ${msg}</div>`;
-    } finally {
-        setTaskState(false);
+  try {
+    setTaskState(true);
+    const res = await window.electronAPI.fetchGitHubGists(settings.githubToken);
+    if (res.expiration) updateTokenExpirationUI(res.expiration);
+    renderGistList(res.gists);
+  } catch (err) {
+    let msg = err.message;
+    if (err.message.includes('403')) {
+      msg =
+        'GitHub API Error 403: Permission Denied.<br><br>This usually means your Personal Access Token (PAT) is missing the \'gist\' scope. You can update your token permissions in the <a href="https://github.com/settings/tokens" target="_blank" style="color: var(--accent-blue); text-decoration: underline;">GitHub Settings</a>.';
     }
+    logToConsole(`Gist Error: ${msg.replace(/<[^>]*>/g, '')}`, 'error');
+    elements.gistList.innerHTML = `<div style="grid-column: 1 / -1; padding: 60px; text-align: center; color: var(--accent-red);">Failed to load Gists: ${msg}</div>`;
+  } finally {
+    setTaskState(false);
+  }
 }
 
 function renderGistList(gists) {
-    if (!gists || gists.length === 0) {
-        elements.gistList.innerHTML = '<div style="grid-column: 1 / -1; padding: 60px; text-align: center; color: var(--text-muted);">No Gists found.</div>';
-        return;
-    }
+  if (!gists || gists.length === 0) {
+    elements.gistList.innerHTML =
+      '<div style="grid-column: 1 / -1; padding: 60px; text-align: center; color: var(--text-muted);">No Gists found.</div>';
+    return;
+  }
 
-    elements.gistList.innerHTML = '';
-    const fragment = document.createDocumentFragment();
+  elements.gistList.innerHTML = '';
+  const fragment = document.createDocumentFragment();
 
-    gists.forEach(gist => {
-        const card = document.createElement('div');
-        card.className = 'dashboard-card';
-        card.style.cursor = 'default';
+  gists.forEach((gist) => {
+    const card = document.createElement('div');
+    card.className = 'dashboard-card';
+    card.style.cursor = 'default';
 
-        const files = Object.keys(gist.files);
-        const date = new Date(gist.updated_at).toLocaleDateString();
+    const files = Object.keys(gist.files);
+    const date = new Date(gist.updated_at).toLocaleDateString();
 
-        card.innerHTML = `
+    card.innerHTML = `
             <div class="card-header">
                 <div class="card-title" style="display: flex; align-items: center; gap: 8px;">
                     <span style="color: var(--accent-blue); font-size: 16px;">${gist.public ? '🌐' : '🔒'}</span>
@@ -9698,9 +11448,16 @@ function renderGistList(gists) {
                 <div class="card-branch">${date}</div>
             </div>
             <div style="flex: 1; display: flex; flex-direction: column; gap: 4px; margin-top: 8px;">
-                ${files.slice(0, 5).map(f => `<div style="font-size: 12px; font-family: monospace; color: var(--text-muted); display: flex; align-items: center; gap: 6px;">
+                ${files
+                  .slice(0, 5)
+                  .map(
+                    (
+                      f,
+                    ) => `<div style="font-size: 12px; font-family: monospace; color: var(--text-muted); display: flex; align-items: center; gap: 6px;">
                     <span style="color: var(--accent-green);">📄</span> ${f}
-                </div>`).join('')}
+                </div>`,
+                  )
+                  .join('')}
                 ${files.length > 5 ? `<div style="font-size: 11px; color: var(--text-muted); padding-left: 20px;">+ ${files.length - 5} more files</div>` : ''}
             </div>
             <div class="quick-actions" style="opacity: 1; margin-top: 16px;">
@@ -9710,54 +11467,59 @@ function renderGistList(gists) {
             </div>
         `;
 
-        card.querySelector('.gist-view-btn').onclick = () => window.electronAPI.openExternal(gist.html_url);
-        card.querySelector('.gist-edit-btn').onclick = () => showGistEditModal(gist);
-        card.querySelector('.gist-delete-btn').onclick = () => handleDeleteGist(gist.id);
+    card.querySelector('.gist-view-btn').onclick = () =>
+      window.electronAPI.openExternal(gist.html_url);
+    card.querySelector('.gist-edit-btn').onclick = () => showGistEditModal(gist);
+    card.querySelector('.gist-delete-btn').onclick = () => handleDeleteGist(gist.id);
 
-        fragment.appendChild(card);
-    });
+    fragment.appendChild(card);
+  });
 
-    elements.gistList.appendChild(fragment);
+  elements.gistList.appendChild(fragment);
 }
 
 // Gist Creation
-if (elements.gistNewBtn) elements.gistNewBtn.onclick = () => {
+if (elements.gistNewBtn)
+  elements.gistNewBtn.onclick = () => {
     elements.gistCreateModal.style.display = 'flex';
     elements.gistCreateDescription.value = '';
     elements.gistCreateFilename.value = '';
     elements.gistCreateContent.value = '';
     elements.gistCreatePublic.checked = false;
-};
+  };
 
-if (elements.gistCreateBrowse) elements.gistCreateBrowse.onclick = async () => {
+if (elements.gistCreateBrowse)
+  elements.gistCreateBrowse.onclick = async () => {
     const filePath = await window.electronAPI.showOpenDialog({
-        properties: ['openFile'],
-        title: 'Select file for Gist',
-        buttonLabel: 'Select File'
+      properties: ['openFile'],
+      title: 'Select file for Gist',
+      buttonLabel: 'Select File',
     });
 
     if (filePath) {
-        // In Node.js, path.basename(filePath) would work, but here we are in renderer.
-        // We can split by / or \.
-        const fileName = filePath.split(/[\\/]/).pop();
+      // In Node.js, path.basename(filePath) would work, but here we are in renderer.
+      // We can split by / or \.
+      const fileName = filePath.split(/[\\/]/).pop();
 
-        try {
-            const res = await window.electronAPI.readFile(filePath);
-            elements.gistCreateFilename.value = fileName;
-            elements.gistCreateContent.value = res.content;
-            if (!elements.gistCreateDescription.value) {
-                elements.gistCreateDescription.value = fileName;
-            }
-        } catch (err) {
-            logToConsole(`Failed to read file: ${err.message}`, 'error');
-            showError(`Could not read file: ${err.message}`, 'File Error');
+      try {
+        const res = await window.electronAPI.readFile(filePath);
+        elements.gistCreateFilename.value = fileName;
+        elements.gistCreateContent.value = res.content;
+        if (!elements.gistCreateDescription.value) {
+          elements.gistCreateDescription.value = fileName;
         }
+      } catch (err) {
+        logToConsole(`Failed to read file: ${err.message}`, 'error');
+        showError(`Could not read file: ${err.message}`, 'File Error');
+      }
     }
-};
+  };
 
-if (elements.gistCreateCancel) elements.gistCreateCancel.onclick = () => elements.gistCreateModal.style.display = 'none';
+if (elements.gistCreateCancel)
+  elements.gistCreateCancel.onclick = () => (elements.gistCreateModal.style.display = 'none');
 
-if (elements.gistCreateConfirm) elements.gistCreateConfirm.onclick = async () => {
+if (elements.gistCreateConfirm)
+  elements.gistCreateConfirm.onclick = async () => {
     const description = elements.gistCreateDescription.value;
     const filename = elements.gistCreateFilename.value || 'snippet.txt';
     const content = elements.gistCreateContent.value;
@@ -9770,42 +11532,47 @@ if (elements.gistCreateConfirm) elements.gistCreateConfirm.onclick = async () =>
     logToConsole(`Creating new ${isPublic ? 'public' : 'private'} Gist...`, 'info');
 
     try {
-        const files = { [filename]: { content } };
-        const res = await window.electronAPI.createGitHubGist(settings.githubToken, description, files, isPublic);
-        if (res.expiration) updateTokenExpirationUI(res.expiration);
-        logToConsole(`Gist created successfully: ${res.gist.html_url}`, 'success');
-        await refreshGists();
+      const files = { [filename]: { content } };
+      const res = await window.electronAPI.createGitHubGist(
+        settings.githubToken,
+        description,
+        files,
+        isPublic,
+      );
+      if (res.expiration) updateTokenExpirationUI(res.expiration);
+      logToConsole(`Gist created successfully: ${res.gist.html_url}`, 'success');
+      await refreshGists();
     } catch (err) {
-        let msg = err.message;
-        if (err.message.includes('403')) {
-            msg = `GitHub API Error 403: Permission Denied.\n\nDetails: ${err.message}\n\nPlease check your token settings on GitHub: https://github.com/settings/tokens`;
-        }
-        logToConsole(`Gist Creation Failed: ${err.message}`, 'error');
-        showError(msg, 'Gist Error');
+      let msg = err.message;
+      if (err.message.includes('403')) {
+        msg = `GitHub API Error 403: Permission Denied.\n\nDetails: ${err.message}\n\nPlease check your token settings on GitHub: https://github.com/settings/tokens`;
+      }
+      logToConsole(`Gist Creation Failed: ${err.message}`, 'error');
+      showError(msg, 'Gist Error');
     } finally {
-        setTaskState(false);
+      setTaskState(false);
     }
-};
+  };
 
 // Gist Editing
 let activeEditGist = null;
 
 function showGistEditModal(gist) {
-    activeEditGist = gist;
-    elements.gistEditModal.style.display = 'flex';
-    elements.gistEditDescription.value = gist.description || '';
+  activeEditGist = gist;
+  elements.gistEditModal.style.display = 'flex';
+  elements.gistEditDescription.value = gist.description || '';
 
-    const container = elements.gistEditFilesContainer;
-    container.innerHTML = '';
+  const container = elements.gistEditFilesContainer;
+  container.innerHTML = '';
 
-    Object.keys(gist.files).forEach(filename => {
-        const row = document.createElement('div');
-        row.style.display = 'flex';
-        row.style.flexDirection = 'column';
-        row.style.gap = '4px';
-        row.style.marginBottom = '12px';
+  Object.keys(gist.files).forEach((filename) => {
+    const row = document.createElement('div');
+    row.style.display = 'flex';
+    row.style.flexDirection = 'column';
+    row.style.gap = '4px';
+    row.style.marginBottom = '12px';
 
-        row.innerHTML = `
+    row.innerHTML = `
             <div style="display: flex; justify-content: space-between; align-items: center;">
                 <label style="font-size: 11px; font-weight: 700; color: var(--text-muted);">${filename}</label>
                 <div style="display: flex; gap: 8px; align-items: center;">
@@ -9816,27 +11583,29 @@ function showGistEditModal(gist) {
             <textarea class="settings-input file-content" style="height: 120px; resize: vertical; font-family: monospace; font-size: 12px;"></textarea>
         `;
 
-        const textArea = row.querySelector('.file-content');
-        textArea.value = gist.files[filename].content || 'Loading...';
+    const textArea = row.querySelector('.file-content');
+    textArea.value = gist.files[filename].content || 'Loading...';
 
-        row.querySelector('.gist-open-editor-btn').onclick = () => openGistFileInEditor(gist, filename);
+    row.querySelector('.gist-open-editor-btn').onclick = () => openGistFileInEditor(gist, filename);
 
-        container.appendChild(row);
+    container.appendChild(row);
 
-        if (!gist.files[filename].content) {
-            fetch(gist.files[filename].raw_url)
-                .then(r => r.text())
-                .then(text => {
-                    gist.files[filename].content = text;
-                    textArea.value = text;
-                });
-        }
-    });
+    if (!gist.files[filename].content) {
+      fetch(gist.files[filename].raw_url)
+        .then((r) => r.text())
+        .then((text) => {
+          gist.files[filename].content = text;
+          textArea.value = text;
+        });
+    }
+  });
 }
 
-if (elements.gistEditCancel) elements.gistEditCancel.onclick = () => elements.gistEditModal.style.display = 'none';
+if (elements.gistEditCancel)
+  elements.gistEditCancel.onclick = () => (elements.gistEditModal.style.display = 'none');
 
-if (elements.gistEditConfirm) elements.gistEditConfirm.onclick = async () => {
+if (elements.gistEditConfirm)
+  elements.gistEditConfirm.onclick = async () => {
     if (!activeEditGist) return;
 
     const description = elements.gistEditDescription.value;
@@ -9845,16 +11614,16 @@ if (elements.gistEditConfirm) elements.gistEditConfirm.onclick = async () => {
 
     let index = 0;
     for (const originalFilename in activeEditGist.files) {
-        const row = fileRows[index++];
-        const newFilename = row.querySelector('.new-filename').value;
-        const newContent = row.querySelector('.file-content').value;
+      const row = fileRows[index++];
+      const newFilename = row.querySelector('.new-filename').value;
+      const newContent = row.querySelector('.file-content').value;
 
-        if (newFilename !== originalFilename) {
-            files[originalFilename] = null;
-            files[newFilename] = { content: newContent };
-        } else {
-            files[originalFilename] = { content: newContent };
-        }
+      if (newFilename !== originalFilename) {
+        files[originalFilename] = null;
+        files[newFilename] = { content: newContent };
+      } else {
+        files[originalFilename] = { content: newContent };
+      }
     }
 
     elements.gistEditModal.style.display = 'none';
@@ -9862,153 +11631,169 @@ if (elements.gistEditConfirm) elements.gistEditConfirm.onclick = async () => {
     logToConsole(`Updating Gist: ${activeEditGist.id}...`, 'info');
 
     try {
-        const res = await window.electronAPI.updateGitHubGist(settings.githubToken, activeEditGist.id, description, files);
-        if (res.expiration) updateTokenExpirationUI(res.expiration);
-        logToConsole(`Gist updated successfully.`, 'success');
-        await refreshGists();
+      const res = await window.electronAPI.updateGitHubGist(
+        settings.githubToken,
+        activeEditGist.id,
+        description,
+        files,
+      );
+      if (res.expiration) updateTokenExpirationUI(res.expiration);
+      logToConsole(`Gist updated successfully.`, 'success');
+      await refreshGists();
     } catch (err) {
-        let msg = err.message;
-        if (err.message.includes('403')) {
-            msg = "GitHub API Error 403: Permission Denied.\n\nThis usually means your Personal Access Token (PAT) is missing the 'gist' scope. Please check your token settings on GitHub: https://github.com/settings/tokens";
-        }
-        logToConsole(`Gist Update Failed: ${msg}`, 'error');
-        showError(msg, 'Gist Error');
+      let msg = err.message;
+      if (err.message.includes('403')) {
+        msg =
+          "GitHub API Error 403: Permission Denied.\n\nThis usually means your Personal Access Token (PAT) is missing the 'gist' scope. Please check your token settings on GitHub: https://github.com/settings/tokens";
+      }
+      logToConsole(`Gist Update Failed: ${msg}`, 'error');
+      showError(msg, 'Gist Error');
     } finally {
-        setTaskState(false);
+      setTaskState(false);
     }
-};
+  };
 
 async function handleDeleteGist(id) {
-    if (!(await showConfirm('Are you sure you want to delete this Gist? This cannot be undone.', 'Delete Gist'))) return;
+  if (
+    !(await showConfirm(
+      'Are you sure you want to delete this Gist? This cannot be undone.',
+      'Delete Gist',
+    ))
+  )
+    return;
 
-    setTaskState(true);
-    logToConsole(`Deleting Gist: ${id}...`, 'info');
+  setTaskState(true);
+  logToConsole(`Deleting Gist: ${id}...`, 'info');
 
-    try {
-        const res = await window.electronAPI.deleteGitHubGist(settings.githubToken, id);
-        if (res.expiration) updateTokenExpirationUI(res.expiration);
-        logToConsole(`Gist deleted successfully.`, 'success');
-        await refreshGists();
-    } catch (err) {
-        let msg = err.message;
-        if (err.message.includes('403')) {
-            msg = `GitHub API Error 403: Permission Denied.\n\nDetails: ${err.message}\n\nPlease check your token settings on GitHub: https://github.com/settings/tokens`;
-        }
-        logToConsole(`Gist Deletion Failed: ${err.message}`, 'error');
-        showError(msg, 'Gist Error');
-    } finally {
-        setTaskState(false);
+  try {
+    const res = await window.electronAPI.deleteGitHubGist(settings.githubToken, id);
+    if (res.expiration) updateTokenExpirationUI(res.expiration);
+    logToConsole(`Gist deleted successfully.`, 'success');
+    await refreshGists();
+  } catch (err) {
+    let msg = err.message;
+    if (err.message.includes('403')) {
+      msg = `GitHub API Error 403: Permission Denied.\n\nDetails: ${err.message}\n\nPlease check your token settings on GitHub: https://github.com/settings/tokens`;
     }
+    logToConsole(`Gist Deletion Failed: ${err.message}`, 'error');
+    showError(msg, 'Gist Error');
+  } finally {
+    setTaskState(false);
+  }
 }
 
 async function openGistFileInEditor(gist, filename) {
-    elements.gistEditModal.style.display = 'none';
-    if (!(await setActiveNavItem(null))) return;
+  elements.gistEditModal.style.display = 'none';
+  if (!(await setActiveNavItem(null))) return;
 
-    if (!monacoEditor) return;
+  if (!monacoEditor) return;
 
-    try {
-        currentEditingPath = `gist://${gist.id}/${filename}`;
-        elements.editorView.style.display = 'flex';
-        elements.editorFileName.textContent = `Gist: ${filename}`;
+  try {
+    currentEditingPath = `gist://${gist.id}/${filename}`;
+    elements.editorView.style.display = 'flex';
+    elements.editorFileName.textContent = `Gist: ${filename}`;
 
-        // Reset UI States
-        if (elements.mdViewControls) elements.mdViewControls.style.display = 'none';
-        elements.gitignoreScanBtn.style.display = 'none';
-        elements.editorSaveBtn.style.display = 'block';
+    // Reset UI States
+    if (elements.mdViewControls) elements.mdViewControls.style.display = 'none';
+    elements.gitignoreScanBtn.style.display = 'none';
+    elements.editorSaveBtn.style.display = 'block';
 
-        // Essential: Clear inline display styles so CSS classes can take over
-        if (elements.monacoContainer) elements.monacoContainer.style.display = '';
-        if (elements.markdownPreview) elements.markdownPreview.style.display = '';
-        if (elements.htmlPreview) elements.htmlPreview.style.display = 'none';
-        if (elements.imagePreview) elements.imagePreview.style.display = 'none';
+    // Essential: Clear inline display styles so CSS classes can take over
+    if (elements.monacoContainer) elements.monacoContainer.style.display = '';
+    if (elements.markdownPreview) elements.markdownPreview.style.display = '';
+    if (elements.htmlPreview) elements.htmlPreview.style.display = 'none';
+    if (elements.imagePreview) elements.imagePreview.style.display = 'none';
 
-        let content = gist.files[filename].content;
-        if (!content) {
-            setTaskState(true);
-            const res = await fetch(gist.files[filename].raw_url);
-            content = await res.text();
-            gist.files[filename].content = content;
-            setTaskState(false);
-        }
-
-        originalFileContent = content ? content.replace(/\r\n/g, '\n') : '';
-
-        // Intelligence: Automatically detect language using Monaco's internal registry
-        let detectedLanguage = 'plaintext';
-        const ext = filename.split('.').pop().toLowerCase();
-        if (typeof monaco !== 'undefined') {
-            const extension = '.' + ext;
-            const languages = monaco.languages.getLanguages();
-            const matchedLang = languages.find(lang =>
-                (lang.extensions && lang.extensions.includes(extension))
-            );
-            if (matchedLang) {
-                detectedLanguage = matchedLang.id;
-            }
-        }
-
-        const isMarkdown = detectedLanguage === 'markdown';
-        const isHTML = detectedLanguage === 'html';
-        const isRenderable = isMarkdown || isHTML;
-
-        if (elements.mdViewControls) elements.mdViewControls.style.display = isRenderable ? 'flex' : 'none';
-
-        const oldModel = monacoEditor.getModel();
-        if (oldModel) oldModel.dispose();
-
-        const model = monaco.editor.createModel(originalFileContent, detectedLanguage);
-        monacoEditor.setModel(model);
-
-        // Track changes
-        model.onDidChangeContent(() => {
-            const hasChanges = hasUnsavedChanges();
-            setTimeout(() => updateEditorButtonStates(hasChanges), 10);
-            if (isRenderable) {
-                const isShowingPreview = elements.editorContainerWrapper.classList.contains('editor-mode-split') ||
-                                       elements.editorContainerWrapper.classList.contains('editor-mode-preview');
-                if (isShowingPreview) {
-                    updateMarkdownPreviewContent();
-                }
-            }
-        });
-
-        if (isRenderable) {
-            setMarkdownViewMode('preview');
-        } else {
-            setMarkdownViewMode('standard');
-        }
-
-        updateEditorButtonStates(false);
-        updateEditorFileInfo();
-
-        setTimeout(() => {
-            monacoEditor.layout();
-            monacoEditor.focus();
-        }, 50);
-
-    } catch (e) {
-        if (currentEditingPath.startsWith('gist://')) setTaskState(false);
-        logToConsole(e.message, 'error');
-        showError(e.message, 'Open Gist Failed');
+    let content = gist.files[filename].content;
+    if (!content) {
+      setTaskState(true);
+      const res = await fetch(gist.files[filename].raw_url);
+      content = await res.text();
+      gist.files[filename].content = content;
+      setTaskState(false);
     }
+
+    originalFileContent = content ? content.replace(/\r\n/g, '\n') : '';
+
+    // Intelligence: Automatically detect language using Monaco's internal registry
+    let detectedLanguage = 'plaintext';
+    const ext = filename.split('.').pop().toLowerCase();
+    if (typeof monaco !== 'undefined') {
+      const extension = '.' + ext;
+      const languages = monaco.languages.getLanguages();
+      const matchedLang = languages.find(
+        (lang) => lang.extensions && lang.extensions.includes(extension),
+      );
+      if (matchedLang) {
+        detectedLanguage = matchedLang.id;
+      }
+    }
+
+    const isMarkdown = detectedLanguage === 'markdown';
+    const isHTML = detectedLanguage === 'html';
+    const isRenderable = isMarkdown || isHTML;
+
+    if (elements.mdViewControls)
+      elements.mdViewControls.style.display = isRenderable ? 'flex' : 'none';
+
+    const oldModel = monacoEditor.getModel();
+    if (oldModel) oldModel.dispose();
+
+    const model = monaco.editor.createModel(originalFileContent, detectedLanguage);
+    monacoEditor.setModel(model);
+
+    // Track changes
+    model.onDidChangeContent(() => {
+      const hasChanges = hasUnsavedChanges();
+      setTimeout(() => updateEditorButtonStates(hasChanges), 10);
+      if (isRenderable) {
+        const isShowingPreview =
+          elements.editorContainerWrapper.classList.contains('editor-mode-split') ||
+          elements.editorContainerWrapper.classList.contains('editor-mode-preview');
+        if (isShowingPreview) {
+          updateMarkdownPreviewContent();
+        }
+      }
+    });
+
+    if (isRenderable) {
+      setMarkdownViewMode('preview');
+    } else {
+      setMarkdownViewMode('standard');
+    }
+
+    updateEditorButtonStates(false);
+    updateEditorFileInfo();
+
+    setTimeout(() => {
+      monacoEditor.layout();
+      monacoEditor.focus();
+    }, 50);
+  } catch (e) {
+    if (currentEditingPath.startsWith('gist://')) setTaskState(false);
+    logToConsole(e.message, 'error');
+    showError(e.message, 'Open Gist Failed');
+  }
 }
 
 async function publishCurrentFileToGist() {
-    if (!monacoEditor || !currentEditingPath) return;
-    if (!settings.githubToken) {
-        showAlert('Please set your GitHub Personal Access Token in Settings to publish Gists.', 'Token Required');
-        return;
-    }
+  if (!monacoEditor || !currentEditingPath) return;
+  if (!settings.githubToken) {
+    showAlert(
+      'Please set your GitHub Personal Access Token in Settings to publish Gists.',
+      'Token Required',
+    );
+    return;
+  }
 
-    const filename = currentEditingPath.split(/[\\\/]/).pop();
-    const content = monacoEditor.getValue();
+  const filename = currentEditingPath.split(/[\\\/]/).pop();
+  const content = monacoEditor.getValue();
 
-    elements.gistCreateModal.style.display = 'flex';
-    elements.gistCreateDescription.value = `Published from GitScope: ${filename}`;
-    elements.gistCreateFilename.value = filename;
-    elements.gistCreateContent.value = content;
-    elements.gistCreatePublic.checked = false;
+  elements.gistCreateModal.style.display = 'flex';
+  elements.gistCreateDescription.value = `Published from GitScope: ${filename}`;
+  elements.gistCreateFilename.value = filename;
+  elements.gistCreateContent.value = content;
+  elements.gistCreatePublic.checked = false;
 }
 
 if (elements.gistRefreshBtn) elements.gistRefreshBtn.onclick = () => refreshGists();

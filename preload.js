@@ -31,7 +31,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   gitFetch: (path) => ipcRenderer.invoke('git-fetch', path),
   gitMerge: (path) => ipcRenderer.invoke('git-merge', path),
   gitPush: (path, force) => ipcRenderer.invoke('git-push', path, force),
-  gitPublishSequence: (path, cloneUrl) => ipcRenderer.invoke('git-publish-sequence', path, cloneUrl),
+  gitPublishSequence: (path, cloneUrl) =>
+    ipcRenderer.invoke('git-publish-sequence', path, cloneUrl),
   gitGetCommits: (path) => ipcRenderer.invoke('git-get-commits', path),
   gitRevertToCommit: (path, hash) => ipcRenderer.invoke('git-revert-to-commit', path, hash),
   gitRestoreToHead: (path) => ipcRenderer.invoke('git-restore-to-head', path),
@@ -39,7 +40,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   gitRestoreFile: (path, filePath) => ipcRenderer.invoke('git-restore-file', path, filePath),
   gitCreateBranch: (path, name) => ipcRenderer.invoke('git-create-branch', path, name),
   gitDeleteBranch: (path, name) => ipcRenderer.invoke('git-delete-branch', path, name),
-  gitRenameBranch: (path, oldName, newName) => ipcRenderer.invoke('git-rename-branch', path, oldName, newName),
+  gitRenameBranch: (path, oldName, newName) =>
+    ipcRenderer.invoke('git-rename-branch', path, oldName, newName),
   gitStageAll: (path) => ipcRenderer.invoke('git-stage-all', path),
   gitAddToGitignore: (path, entry) => ipcRenderer.invoke('git-add-to-gitignore', path, entry),
   gitStageFile: (path, filePath) => ipcRenderer.invoke('git-stage-file', path, filePath),
@@ -63,9 +65,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getDetailedChanges: (path) => ipcRenderer.invoke('git-detailed-changes', path),
   getFileDiff: (repoPath, filePath) => ipcRenderer.invoke('git-file-diff', repoPath, filePath),
   getFilePatch: (repoPath, filePath) => ipcRenderer.invoke('git-get-patch', repoPath, filePath),
-  applyPatch: (repoPath, patchString) => ipcRenderer.invoke('git-apply-patch', repoPath, patchString),
-  gitSubtreePush: (path, prefix, remoteUrl, branch, force) => ipcRenderer.invoke('git-subtree-push', path, prefix, remoteUrl, branch, force),
-  gitSubtreePull: (path, prefix, remoteUrl, branch) => ipcRenderer.invoke('git-subtree-pull', path, prefix, remoteUrl, branch),
+  applyPatch: (repoPath, patchString) =>
+    ipcRenderer.invoke('git-apply-patch', repoPath, patchString),
+  gitSubtreePush: (path, prefix, remoteUrl, branch, force) =>
+    ipcRenderer.invoke('git-subtree-push', path, prefix, remoteUrl, branch, force),
+  gitSubtreePull: (path, prefix, remoteUrl, branch) =>
+    ipcRenderer.invoke('git-subtree-pull', path, prefix, remoteUrl, branch),
   gitInit: (path) => ipcRenderer.invoke('git-init', path),
   gitClone: (url, dest) => ipcRenderer.invoke('git-clone', url, dest),
   getRepositories: () => ipcRenderer.invoke('get-repositories'),
@@ -79,13 +84,18 @@ contextBridge.exposeInMainWorld('electronAPI', {
   importSettings: () => ipcRenderer.invoke('import-settings'),
   getAvailableShells: () => ipcRenderer.invoke('get-available-shells'),
   fetchGitHubRepos: (token) => ipcRenderer.invoke('github-fetch-repos', token),
-  createGitHubRepo: (token, name, isPrivate) => ipcRenderer.invoke('github-create-repo', token, name, isPrivate),
-  deleteGitHubRepo: (token, owner, repo) => ipcRenderer.invoke('github-delete-repo', token, owner, repo),
+  createGitHubRepo: (token, name, isPrivate) =>
+    ipcRenderer.invoke('github-create-repo', token, name, isPrivate),
+  deleteGitHubRepo: (token, owner, repo) =>
+    ipcRenderer.invoke('github-delete-repo', token, owner, repo),
   getGitHubRepo: (token, owner, repo) => ipcRenderer.invoke('github-get-repo', token, owner, repo),
-  updateGitHubRepoVisibility: (token, owner, repo, isPrivate) => ipcRenderer.invoke('github-update-repo-visibility', token, owner, repo, isPrivate),
+  updateGitHubRepoVisibility: (token, owner, repo, isPrivate) =>
+    ipcRenderer.invoke('github-update-repo-visibility', token, owner, repo, isPrivate),
   fetchGitHubGists: (token) => ipcRenderer.invoke('github-fetch-gists', token),
-  createGitHubGist: (token, description, files, isPublic) => ipcRenderer.invoke('github-create-gist', token, description, files, isPublic),
-  updateGitHubGist: (token, id, description, files) => ipcRenderer.invoke('github-update-gist', token, id, description, files),
+  createGitHubGist: (token, description, files, isPublic) =>
+    ipcRenderer.invoke('github-create-gist', token, description, files, isPublic),
+  updateGitHubGist: (token, id, description, files) =>
+    ipcRenderer.invoke('github-update-gist', token, id, description, files),
   deleteGitHubGist: (token, id) => ipcRenderer.invoke('github-delete-gist', token, id),
   fetchGitignoreTemplates: () => ipcRenderer.invoke('github-fetch-gitignore-templates'),
   fetchGitignoreContent: (name) => ipcRenderer.invoke('github-fetch-gitignore-content', name),
@@ -107,8 +117,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Terminal IPCs
   terminalInput: (data) => ipcRenderer.send('terminal-input', data),
   onTerminalData: (callback) => ipcRenderer.on('terminal-data', (_event, value) => callback(value)),
-  onTerminalCommand: (callback) => ipcRenderer.on('terminal-command', (_event, value) => callback(value)),
-  onConsoleCommand: (callback) => ipcRenderer.on('console-command', (_event, value) => callback(value)),
+  onTerminalCommand: (callback) =>
+    ipcRenderer.on('terminal-command', (_event, value) => callback(value)),
+  onConsoleCommand: (callback) =>
+    ipcRenderer.on('console-command', (_event, value) => callback(value)),
   terminalResize: (cols, rows) => ipcRenderer.send('terminal-resize', { cols, rows }),
 
   openVSCode: (path) => ipcRenderer.invoke('open-in-vscode', path),
@@ -123,8 +135,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
   revealInExplorer: (path) => ipcRenderer.invoke('reveal-in-explorer', path),
   trashItem: (path) => ipcRenderer.invoke('trash-item', path),
   showContextMenu: (options) => ipcRenderer.invoke('show-context-menu', options),
-  onContextMenuCommand: (callback) => ipcRenderer.on('context-menu-command', (_event, value) => callback(value)),
-  onExternalChange: (callback) => ipcRenderer.on('external-change', (_event, value) => callback(value)),
-  onTriggerAddRepo: (callback) => ipcRenderer.on('trigger-add-repo', (_event, value) => callback(value)),
-  onShowError: (callback) => ipcRenderer.on('show-error', (_event, value) => callback(value))
+  onContextMenuCommand: (callback) =>
+    ipcRenderer.on('context-menu-command', (_event, value) => callback(value)),
+  onExternalChange: (callback) =>
+    ipcRenderer.on('external-change', (_event, value) => callback(value)),
+  onTriggerAddRepo: (callback) =>
+    ipcRenderer.on('trigger-add-repo', (_event, value) => callback(value)),
+  onShowError: (callback) => ipcRenderer.on('show-error', (_event, value) => callback(value)),
 });
