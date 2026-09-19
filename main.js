@@ -1289,8 +1289,12 @@ if (!gotTheLock) {
     return await gitActions.applyPatch(repoPath, patchString);
   });
 
-  ipcMain.handle('git-blame', async (event, repoPath, filePath) => {
-    return await gitActions.blame(repoPath, filePath);
+  ipcMain.handle('git-blame', async (event, repoPath, filePath, commitHash, lineRange) => {
+    return await gitActions.blame(repoPath, filePath, commitHash, lineRange);
+  });
+
+  ipcMain.handle('git-commit-summary', async (event, repoPath, hash) => {
+    return await gitActions.getCommitSummary(repoPath, hash);
   });
 
   ipcMain.handle('get-workspace-stats', async (event, rootPath) => {

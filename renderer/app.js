@@ -11762,7 +11762,7 @@ async function publishCurrentFileToGist() {
   elements.gistCreatePublic.checked = false;
 }
 
-async function showGitBlame() {
+async function showGitBlame(targetCommitHash = null, targetLineRange = null) {
   if (!currentEditingPath || !activeRepo) return;
   const modal = document.getElementById('git-blame-modal');
   const container = document.getElementById('git-blame-container');
@@ -11770,12 +11770,70 @@ async function showGitBlame() {
   if (!modal || !container || !title) return;
 
   const filename = currentEditingPath.split(/[\\\/]/).pop();
-  title.textContent = `Blame: ${filename}`;
+  let titleText = `Blame: ${filename}`;
+  if (targetCommitHash) titleText += ` @ ${targetCommitHash.substring(0, 7)}`;
+  if (targetLineRange) titleText += ` (Lines ${targetLineRange.start}-${targetLineRange.end})`;
+  title.textContent = titleText;
+
   container.innerHTML = '<p style="padding: 20px; color: var(--text-muted); text-align: center;">Loading blame information...</p>';
   modal.style.display = 'flex';
 
+  // Manage header controls dynamically
+  let controlsDiv = document.getElementById('blame-modal-controls');
+  if (!controlsDiv) {
+    controlsDiv = document.createElement('div');
+    controlsDiv.id = 'blame-modal-controls';
+    controlsDiv.style.display = 'flex';
+    controlsDiv.style.gap = '8px';
+    controlsDiv.style.alignItems = 'center';
+    controlsDiv.style.marginLeft = '16px';
+
+    const rangeBtn = document.createElement('button');
+    rangeBtn.id = 'blame-range-btn';
+    rangeBtn.className = 'button';
+    rangeBtn.style.fontSize = '10px';
+    rangeBtn.style.padding = '4px 8px';
+    rangeBtn.textContent = 'Blame Selected Range';
+    rangeBtn.disabled = true;
+
+    const resetBtn = document.createElement('button');
+    resetBtn.id = 'blame-reset-btn';
+    resetBtn.className = 'button';
+    resetBtn.style.fontSize = '10px';
+    resetBtn.style.padding = '4px 8px';
+    resetBtn.textContent = 'Reset Filter';
+
+    const backBtn = document.createElement('button');
+    backBtn.id = 'blame-back-btn';
+    backBtn.className = 'button';
+    backBtn.style.fontSize = '10px';
+    backBtn.style.padding = '4px 8px';
+    backBtn.textContent = 'Full History';
+
+    controlsDiv.appendChild(backBtn);
+    controlsDiv.appendChild(resetBtn);
+    controlsDiv.appendChild(rangeBtn);
+
+    title.parentNode.insertBefore(controlsDiv, title.nextSibling);
+  }
+
+  const rangeBtn = document.getElementById('blame-range-btn');
+  const resetBtn = document.getElementById('blame-reset-btn');
+  const backBtn = document.getElementById('blame-back-btn');
+
+  resetBtn.style.display = targetLineRange ? 'inline-block' : 'none';
+  backBtn.style.display = targetCommitHash ? 'inline-block' : 'none';
+  rangeBtn.disabled = true;
+
+  resetBtn.onclick = () => showGitBlame(targetCommitHash, null);
+  backBtn.onclick = () => showGitBlame(null, targetLineRange);
+
   document.getElementById('git-blame-close').onclick = () => {
     modal.style.display = 'none';
+    const cm = document.getElementById('blame-context-menu');
+    if (cm) cm.remove();
+    const tt = document.getElementById('blame-tooltip');
+    if (tt) tt.remove();
   };
 
   try {
@@ -11784,64 +11842,248 @@ async function showGitBlame() {
     let relPath = fPath.substring(repoBase.length);
     if (relPath.startsWith('/')) relPath = relPath.substring(1);
 
-    const res = await window.electronAPI.gitBlame(activeRepo.path, relPath);
+    const res = await window.electronAPI.gitBlame(activeRepo.path, relPath, targetCommitHash, targetLineRange);
     if (!res.success) {
       container.innerHTML = `<div style="padding:20px; color:var(--accent-red)">Error: ${res.output}</div>`;
       return;
     }
 
     container.innerHTML = '';
-    res.blame.forEach((b) => {
+
+    let isSelecting = false;
+    let startRowIndex = -1;
+    let selectedRows = new Set();
+    const rowElements = [];
+
+    function updateSelectionUI() {
+      rowElements.forEach((row, idx) => {
+        if (selectedRows.has(idx)) {
+          row.style.backgroundColor = 'rgba(58, 166, 255, 0.15)';
+        } else {
+          row.style.backgroundColor = '';
+        }
+      });
+
+      if (selectedRows.size > 0) {
+        rangeBtn.disabled = false;
+      } else {
+        rangeBtn.disabled = true;
+      }
+    }
+
+    rangeBtn.onclick = () => {
+      if (selectedRows.size === 0) return;
+      const sortedIdxs = Array.from(selectedRows).sort((a, b) => a - b);
+      const startLineNum = parseInt(rowElements[sortedIdxs[0]].dataset.lineNum);
+      const endLineNum = parseInt(rowElements[sortedIdxs[sortedIdxs.length - 1]].dataset.lineNum);
+      showGitBlame(targetCommitHash, { start: startLineNum, end: endLineNum });
+    };
+
+    let tooltip = document.getElementById('blame-tooltip');
+    if (!tooltip) {
+      tooltip = document.createElement('div');
+      tooltip.id = 'blame-tooltip';
+      tooltip.style.position = 'absolute';
+      tooltip.style.zIndex = '12000';
+      tooltip.style.background = 'var(--bg-surface, #1e1e1e)';
+      tooltip.style.border = '1px solid var(--border-color, #333)';
+      tooltip.style.borderRadius = '6px';
+      tooltip.style.padding = '12px';
+      tooltip.style.boxShadow = '0 8px 24px rgba(0,0,0,0.5)';
+      tooltip.style.color = 'var(--text-main, #ccc)';
+      tooltip.style.fontFamily = 'monospace';
+      tooltip.style.fontSize = '11px';
+      tooltip.style.maxWidth = '350px';
+      tooltip.style.display = 'none';
+      tooltip.style.pointerEvents = 'none';
+      document.body.appendChild(tooltip);
+    }
+
+    res.blame.forEach((b, index) => {
       const row = document.createElement('div');
+      row.className = 'blame-data-row';
+      row.dataset.index = index;
+      row.dataset.lineNum = b.lineNum || (index + 1);
       row.style.display = 'flex';
       row.style.fontFamily = 'monospace';
       row.style.fontSize = '12px';
       row.style.lineHeight = '1.5';
-      row.style.borderBottom = '1px solid rgba(255,255,255,0.05)';
+      row.style.borderBottom = '1px solid rgba(255,255,255,0.02)';
       row.style.padding = '2px 0';
+      row.style.userSelect = 'none';
+
+      // Strip any leading ^ for boundary commits to ensure standard hashes are used everywhere
+      const displayHash = b.commit ? (b.commit.startsWith('^') ? b.commit.substring(1) : b.commit) : '';
 
       const commitCol = document.createElement('div');
-      commitCol.style.width = '80px';
-      commitCol.style.color = 'var(--text-muted)';
+      commitCol.style.width = '75px';
+      commitCol.style.color = displayHash && !displayHash.startsWith('00000000') ? 'var(--accent-blue, #58a6ff)' : 'var(--text-muted)';
       commitCol.style.overflow = 'hidden';
       commitCol.style.textOverflow = 'ellipsis';
-      commitCol.style.paddingRight = '8px';
-      commitCol.textContent = b.commit.substring(0, 7) || 'Uncommitted';
+      commitCol.style.paddingRight = '6px';
+      commitCol.style.whiteSpace = 'nowrap';
+      commitCol.textContent = displayHash ? displayHash.substring(0, 7) : 'Uncommitted';
+
+      if (displayHash && !displayHash.startsWith('00000000')) {
+        commitCol.style.cursor = 'pointer';
+        commitCol.style.textDecoration = 'underline';
+        commitCol.onclick = (e) => {
+          e.stopPropagation();
+          showCommitDiff(displayHash, '');
+        };
+      }
 
       const authorCol = document.createElement('div');
-      authorCol.style.width = '120px';
-      authorCol.style.color = 'var(--accent-blue, #58a6ff)';
+      authorCol.style.width = '110px';
+      authorCol.style.color = 'var(--accent-green, #7ee787)';
       authorCol.style.overflow = 'hidden';
       authorCol.style.textOverflow = 'ellipsis';
-      authorCol.style.paddingRight = '8px';
+      authorCol.style.paddingRight = '6px';
+      authorCol.style.whiteSpace = 'nowrap';
       authorCol.textContent = b.author || '';
 
+      if (displayHash && !displayHash.startsWith('00000000')) {
+        authorCol.style.cursor = 'pointer';
+        authorCol.style.textDecoration = 'underline';
+        authorCol.onclick = (e) => {
+          e.stopPropagation();
+          showCommitDiff(displayHash, '');
+        };
+      }
+
       const dateCol = document.createElement('div');
-      dateCol.style.width = '140px';
+      dateCol.style.width = '130px';
       dateCol.style.color = 'var(--text-muted)';
-      dateCol.style.paddingRight = '8px';
+      dateCol.style.paddingRight = '6px';
+      dateCol.style.whiteSpace = 'nowrap';
       dateCol.textContent = b.date || '';
 
+      const actionCol = document.createElement('div');
+      actionCol.style.width = '55px';
+      actionCol.style.paddingRight = '6px';
+      if (displayHash && !displayHash.startsWith('00000000')) {
+        const priorBtn = document.createElement('span');
+        priorBtn.textContent = '⏮️ Prior';
+        priorBtn.style.fontSize = '10px';
+        priorBtn.style.cursor = 'pointer';
+        priorBtn.style.color = 'var(--text-muted)';
+        priorBtn.style.opacity = '0.5';
+        priorBtn.style.border = '1px solid rgba(255,255,255,0.1)';
+        priorBtn.style.borderRadius = '3px';
+        priorBtn.style.padding = '1px 3px';
+
+        priorBtn.onmouseenter = () => { priorBtn.style.opacity = '1'; priorBtn.style.color = '#ff7b72'; };
+        priorBtn.onmouseleave = () => { priorBtn.style.opacity = '0.5'; priorBtn.style.color = 'var(--text-muted)'; };
+
+        priorBtn.onclick = (e) => {
+          e.stopPropagation();
+          showGitBlame(displayHash, targetLineRange);
+        };
+        actionCol.appendChild(priorBtn);
+      }
+
       const lineNumCol = document.createElement('div');
-      lineNumCol.style.width = '40px';
-      lineNumCol.style.color = 'rgba(255,255,255,0.3)';
+      lineNumCol.style.width = '35px';
+      lineNumCol.style.color = 'rgba(255,255,255,0.25)';
       lineNumCol.style.textAlign = 'right';
-      lineNumCol.style.paddingRight = '12px';
+      lineNumCol.style.paddingRight = '8px';
       lineNumCol.textContent = b.lineNum || '';
 
       const contentCol = document.createElement('div');
       contentCol.style.flex = '1';
       contentCol.style.whiteSpace = 'pre-wrap';
       contentCol.style.wordBreak = 'break-all';
+      contentCol.style.userSelect = 'text';
       contentCol.textContent = b.content || '';
 
       row.appendChild(commitCol);
       row.appendChild(authorCol);
       row.appendChild(dateCol);
+      row.appendChild(actionCol);
       row.appendChild(lineNumCol);
       row.appendChild(contentCol);
       container.appendChild(row);
+      rowElements.push(row);
+
+      row.onmousedown = (e) => {
+        if (e.button !== 0) return;
+        isSelecting = true;
+        startRowIndex = index;
+        selectedRows.clear();
+        selectedRows.add(index);
+        updateSelectionUI();
+      };
+
+      row.onmouseenter = (e) => {
+        if (isSelecting) {
+          selectedRows.clear();
+          const start = Math.min(startRowIndex, index);
+          const end = Math.max(startRowIndex, index);
+          for (let i = start; i <= end; i++) {
+            selectedRows.add(i);
+          }
+          updateSelectionUI();
+        }
+      };
+
+      row.oncontextmenu = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+
+        const existingMenu = document.getElementById('blame-context-menu');
+        if (existingMenu) existingMenu.remove();
+
+        const menu = document.createElement('div');
+        menu.id = 'blame-context-menu';
+        menu.style.position = 'absolute';
+        menu.style.zIndex = '13000';
+        menu.style.background = 'var(--bg-surface, #252526)';
+        menu.style.border = '1px solid var(--border-color, #454545)';
+        menu.style.borderRadius = '4px';
+        menu.style.boxShadow = '0 4px 12px rgba(0,0,0,0.4)';
+        menu.style.padding = '4px 0';
+        menu.style.fontFamily = 'sans-serif';
+        menu.style.fontSize = '12px';
+        menu.style.top = `${e.pageY}px`;
+        menu.style.left = `${e.pageX}px`;
+
+        const createMenuItem = (label, action) => {
+          const item = document.createElement('div');
+          item.textContent = label;
+          item.style.padding = '6px 12px';
+          item.style.cursor = 'pointer';
+          item.style.color = 'var(--text-main, #fff)';
+          item.onmouseenter = () => item.style.background = 'rgba(58, 166, 255, 0.2)';
+          item.onmouseleave = () => item.style.background = '';
+          item.onclick = () => {
+            action();
+            menu.remove();
+          };
+          return item;
+        };
+
+        if (displayHash) {
+          menu.appendChild(createMenuItem('📋 Copy Commit Hash', () => navigator.clipboard.writeText(displayHash)));
+        }
+        if (b.author) {
+          menu.appendChild(createMenuItem('📋 Copy Author Name', () => navigator.clipboard.writeText(b.author)));
+        }
+        menu.appendChild(createMenuItem('📋 Copy Line Content', () => navigator.clipboard.writeText(b.content || '')));
+        menu.appendChild(createMenuItem('📋 Copy Line Number', () => navigator.clipboard.writeText(b.lineNum || '')));
+
+        document.body.appendChild(menu);
+      };
     });
+
+    window.addEventListener('mouseup', () => {
+      isSelecting = false;
+    });
+
+    window.addEventListener('click', () => {
+      const menu = document.getElementById('blame-context-menu');
+      if (menu) menu.remove();
+    });
+
   } catch (e) {
     container.innerHTML = `<div style="padding:20px; color:var(--accent-red)">Error: ${e.message}</div>`;
   }
