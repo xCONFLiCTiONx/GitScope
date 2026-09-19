@@ -11694,6 +11694,7 @@ async function openGistFileInEditor(gist, filename) {
     if (elements.mdViewControls) elements.mdViewControls.style.display = 'none';
     elements.gitignoreScanBtn.style.display = 'none';
     elements.editorSaveBtn.style.display = 'block';
+    if (elements.editorBlameBtn) elements.editorBlameBtn.style.display = 'none';
 
     // Essential: Clear inline display styles so CSS classes can take over
     if (elements.monacoContainer) elements.monacoContainer.style.display = '';
@@ -11795,6 +11796,7 @@ async function publishCurrentFileToGist() {
 
 async function showGitBlame(targetCommitHash = null, targetLineRange = null) {
   if (!currentEditingPath || !activeRepo) return;
+  if (currentEditingPath.startsWith('gist://')) return;
   const modal = document.getElementById('git-blame-modal');
   const container = document.getElementById('git-blame-container');
   const title = document.getElementById('git-blame-title');
