@@ -2478,6 +2478,7 @@
                   Restore
                 </button>
                 <button id="editor-gist-btn" class="button" style="font-size: 10px">Gist</button>
+                <button id="editor-blame-btn" class="button" style="font-size: 10px">Blame</button>
                 <button id="editor-save-btn" class="button button-primary" style="font-size: 10px">
                   Save
                 </button>
@@ -5091,6 +5092,40 @@
           "
         >
           <!-- Diff content will be injected here -->
+        </div>
+      </div>
+    </div>
+
+    <div id="git-blame-modal" class="modal" style="z-index: 11000">
+      <div
+        class="modal-content"
+        style="width: 1000px; max-width: 95vw; height: 80vh; display: flex; flex-direction: column"
+      >
+        <div
+          style="
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+          "
+        >
+          <h3 id="git-blame-title">Git Blame</h3>
+          <button id="git-blame-close" class="button">Close</button>
+        </div>
+        <div
+          id="git-blame-container"
+          style="
+            flex: 1;
+            overflow: auto;
+            background: var(--bg-sidebar);
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 12px;
+            padding: 10px;
+          "
+        >
+          <!-- Blame content will be injected here -->
         </div>
       </div>
     </div>

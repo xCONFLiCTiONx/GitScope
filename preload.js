@@ -64,6 +64,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getChangedFiles: (path) => ipcRenderer.invoke('git-changed-files', path),
   getDetailedChanges: (path) => ipcRenderer.invoke('git-detailed-changes', path),
   getFileDiff: (repoPath, filePath) => ipcRenderer.invoke('git-file-diff', repoPath, filePath),
+  gitBlame: (repoPath, filePath) => ipcRenderer.invoke('git-blame', repoPath, filePath),
   getFilePatch: (repoPath, filePath) => ipcRenderer.invoke('git-get-patch', repoPath, filePath),
   applyPatch: (repoPath, patchString) =>
     ipcRenderer.invoke('git-apply-patch', repoPath, patchString),

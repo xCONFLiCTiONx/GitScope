@@ -1289,6 +1289,10 @@ if (!gotTheLock) {
     return await gitActions.applyPatch(repoPath, patchString);
   });
 
+  ipcMain.handle('git-blame', async (event, repoPath, filePath) => {
+    return await gitActions.blame(repoPath, filePath);
+  });
+
   ipcMain.handle('get-workspace-stats', async (event, rootPath) => {
     const unborn = await getUnbornFolders(rootPath);
     return { unborn };

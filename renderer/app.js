@@ -580,6 +580,9 @@ const elements = {
   get editorGistBtn() {
     return document.getElementById('editor-gist-btn');
   },
+  get editorBlameBtn() {
+    return document.getElementById('editor-blame-btn');
+  },
   get editorRestoreBtn() {
     return document.getElementById('editor-restore-btn');
   },
@@ -2168,6 +2171,7 @@ function initEventListeners() {
 
   if (elements.editorSaveBtn) elements.editorSaveBtn.onclick = () => saveCurrentFile();
   if (elements.editorGistBtn) elements.editorGistBtn.onclick = () => publishCurrentFileToGist();
+  if (elements.editorBlameBtn) elements.editorBlameBtn.onclick = () => showGitBlame();
   if (elements.editorRestoreBtn) elements.editorRestoreBtn.onclick = () => handleRestoreFile();
   if (elements.editorUndoBtn)
     elements.editorUndoBtn.onclick = () => {
@@ -7498,6 +7502,7 @@ async function openFileInEditor(
     if (elements.mdViewControls) elements.mdViewControls.style.display = 'none';
     elements.gitignoreScanBtn.style.display = 'none';
     elements.editorSaveBtn.style.display = 'block';
+    if (elements.editorBlameBtn) elements.editorBlameBtn.style.display = 'block';
 
     // Essential: Clear inline display styles so CSS classes can take over
     if (elements.monacoContainer) elements.monacoContainer.style.display = '';
@@ -7537,6 +7542,7 @@ async function openFileInEditor(
       elements.previewImg.src = `data:${mimeMap[ext] || 'image/' + ext};base64,${base64}`;
       elements.imagePreview.style.display = 'flex';
       elements.editorSaveBtn.style.display = 'none'; // Can't save images in text editor
+      if (elements.editorBlameBtn) elements.editorBlameBtn.style.display = 'none';
     } else {
       // Handle Text Editor
       const result = await window.electronAPI.readFile(filePath);
@@ -11754,6 +11760,91 @@ async function publishCurrentFileToGist() {
   elements.gistCreateFilename.value = filename;
   elements.gistCreateContent.value = content;
   elements.gistCreatePublic.checked = false;
+}
+
+async function showGitBlame() {
+  if (!currentEditingPath || !activeRepo) return;
+  const modal = document.getElementById('git-blame-modal');
+  const container = document.getElementById('git-blame-container');
+  const title = document.getElementById('git-blame-title');
+  if (!modal || !container || !title) return;
+
+  const filename = currentEditingPath.split(/[\\\/]/).pop();
+  title.textContent = `Blame: ${filename}`;
+  container.innerHTML = '<p style="padding: 20px; color: var(--text-muted); text-align: center;">Loading blame information...</p>';
+  modal.style.display = 'flex';
+
+  document.getElementById('git-blame-close').onclick = () => {
+    modal.style.display = 'none';
+  };
+
+  try {
+    const repoBase = activeRepo.path.replace(/\\/g, '/');
+    const fPath = currentEditingPath.replace(/\\/g, '/');
+    let relPath = fPath.substring(repoBase.length);
+    if (relPath.startsWith('/')) relPath = relPath.substring(1);
+
+    const res = await window.electronAPI.gitBlame(activeRepo.path, relPath);
+    if (!res.success) {
+      container.innerHTML = `<div style="padding:20px; color:var(--accent-red)">Error: ${res.output}</div>`;
+      return;
+    }
+
+    container.innerHTML = '';
+    res.blame.forEach((b) => {
+      const row = document.createElement('div');
+      row.style.display = 'flex';
+      row.style.fontFamily = 'monospace';
+      row.style.fontSize = '12px';
+      row.style.lineHeight = '1.5';
+      row.style.borderBottom = '1px solid rgba(255,255,255,0.05)';
+      row.style.padding = '2px 0';
+
+      const commitCol = document.createElement('div');
+      commitCol.style.width = '80px';
+      commitCol.style.color = 'var(--text-muted)';
+      commitCol.style.overflow = 'hidden';
+      commitCol.style.textOverflow = 'ellipsis';
+      commitCol.style.paddingRight = '8px';
+      commitCol.textContent = b.commit.substring(0, 7) || 'Uncommitted';
+
+      const authorCol = document.createElement('div');
+      authorCol.style.width = '120px';
+      authorCol.style.color = 'var(--accent-blue, #58a6ff)';
+      authorCol.style.overflow = 'hidden';
+      authorCol.style.textOverflow = 'ellipsis';
+      authorCol.style.paddingRight = '8px';
+      authorCol.textContent = b.author || '';
+
+      const dateCol = document.createElement('div');
+      dateCol.style.width = '140px';
+      dateCol.style.color = 'var(--text-muted)';
+      dateCol.style.paddingRight = '8px';
+      dateCol.textContent = b.date || '';
+
+      const lineNumCol = document.createElement('div');
+      lineNumCol.style.width = '40px';
+      lineNumCol.style.color = 'rgba(255,255,255,0.3)';
+      lineNumCol.style.textAlign = 'right';
+      lineNumCol.style.paddingRight = '12px';
+      lineNumCol.textContent = b.lineNum || '';
+
+      const contentCol = document.createElement('div');
+      contentCol.style.flex = '1';
+      contentCol.style.whiteSpace = 'pre-wrap';
+      contentCol.style.wordBreak = 'break-all';
+      contentCol.textContent = b.content || '';
+
+      row.appendChild(commitCol);
+      row.appendChild(authorCol);
+      row.appendChild(dateCol);
+      row.appendChild(lineNumCol);
+      row.appendChild(contentCol);
+      container.appendChild(row);
+    });
+  } catch (e) {
+    container.innerHTML = `<div style="padding:20px; color:var(--accent-red)">Error: ${e.message}</div>`;
+  }
 }
 
 if (elements.gistRefreshBtn) elements.gistRefreshBtn.onclick = () => refreshGists();
