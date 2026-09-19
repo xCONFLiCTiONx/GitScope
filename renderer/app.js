@@ -7488,7 +7488,7 @@ async function openFileInEditor(
 
   try {
     const ext = filePath.split('.').pop().toLowerCase();
-    const imageExts = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'ico', 'svg'];
+    const imageExts = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'ico'];
 
     currentEditingPath = filePath;
     elements.editorView.style.display = 'flex';
@@ -7571,7 +7571,7 @@ async function openFileInEditor(
 
       const isMarkdown = detectedLanguage === 'markdown';
       const isHTML = detectedLanguage === 'html';
-      const isRenderable = isMarkdown || isHTML;
+      const isRenderable = isMarkdown || isHTML || ext === 'svg';
 
       if (elements.mdViewControls)
         elements.mdViewControls.style.display = isRenderable ? 'flex' : 'none';
@@ -9814,6 +9814,14 @@ function updateMarkdownPreviewContent() {
   const contentArea = getPreviewContentArea();
   if (!contentArea) return;
 
+  if (ext === 'svg') {
+    contentArea.contentEditable = 'false';
+    contentArea.innerHTML = content;
+    return;
+  } else {
+    contentArea.contentEditable = 'true';
+  }
+
   let html = typeof marked !== 'undefined' ? marked.parse(content) : '<p>Parser fail.</p>';
 
   // INTELLIGENCE: Use DOMParser for safer path resolution and to isolate body content if needed
@@ -9868,7 +9876,7 @@ function updateMarkdownPreviewContent() {
  */
 function syncPreviewToEditor() {
   const ext = currentEditingPath ? currentEditingPath.split('.').pop().toLowerCase() : '';
-  if (ext === 'html' || ext === 'htm') return; // Don't sync from HTML preview iframe
+  if (ext === 'html' || ext === 'htm' || ext === 'svg') return; // Don't sync from HTML or SVG previews
 
   const contentArea = getPreviewContentArea();
   if (!monacoEditor || !contentArea) return;
@@ -11683,7 +11691,7 @@ async function openGistFileInEditor(gist, filename) {
 
     const isMarkdown = detectedLanguage === 'markdown';
     const isHTML = detectedLanguage === 'html';
-    const isRenderable = isMarkdown || isHTML;
+    const isRenderable = isMarkdown || isHTML || ext === 'svg';
 
     if (elements.mdViewControls)
       elements.mdViewControls.style.display = isRenderable ? 'flex' : 'none';

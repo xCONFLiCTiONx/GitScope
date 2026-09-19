@@ -541,20 +541,22 @@ if (!gotTheLock) {
         return true;
       });
 
-      const lowerQuery = query.toLowerCase();
+      const cleanQuery = query.trim().toLowerCase();
       let matches;
 
-      if (lowerQuery.includes('*')) {
+      if (cleanQuery === '*.*' || cleanQuery === '*') {
+        matches = allFiles;
+      } else if (cleanQuery.includes('*')) {
         // GLOB SEARCH: Convert * to regex .* and escape other special chars
-        const escaped = lowerQuery.replace(/[.+^${}()|[\]\\]/g, '\\$&').replace(/\\\*/g, '.*');
+        const escaped = cleanQuery.replace(/[.+^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*');
         const re = new RegExp(`^${escaped}$`, 'i');
         matches = allFiles.filter((f) => re.test(f));
-      } else if (lowerQuery.startsWith('.')) {
+      } else if (cleanQuery.startsWith('.')) {
         // EXTENSION SEARCH: Match suffix
-        matches = allFiles.filter((f) => f.toLowerCase().endsWith(lowerQuery));
+        matches = allFiles.filter((f) => f.toLowerCase().endsWith(cleanQuery));
       } else {
         // CONTAIN SEARCH
-        matches = allFiles.filter((f) => f.toLowerCase().includes(lowerQuery));
+        matches = allFiles.filter((f) => f.toLowerCase().includes(cleanQuery));
       }
 
       // Return max 100 matches per repo for performance
@@ -600,20 +602,22 @@ if (!gotTheLock) {
               matches = [];
             }
           } else {
-            const lowerQuery = query.toLowerCase();
-            if (lowerQuery.includes('*')) {
+            const cleanQuery = query.trim().toLowerCase();
+            if (cleanQuery === '*.*' || cleanQuery === '*') {
+              matches = allFiles;
+            } else if (cleanQuery.includes('*')) {
               // GLOB SEARCH
-              const escaped = lowerQuery
+              const escaped = cleanQuery
                 .replace(/[.+^${}()|[\]\\]/g, '\\$&')
-                .replace(/\\\*/g, '.*');
+                .replace(/\*/g, '.*');
               const re = new RegExp(`^${escaped}$`, 'i');
               matches = allFiles.filter((f) => re.test(f));
-            } else if (lowerQuery.startsWith('.')) {
+            } else if (cleanQuery.startsWith('.')) {
               // EXTENSION SEARCH
-              matches = allFiles.filter((f) => f.toLowerCase().endsWith(lowerQuery));
+              matches = allFiles.filter((f) => f.toLowerCase().endsWith(cleanQuery));
             } else {
               // CONTAIN SEARCH
-              matches = allFiles.filter((f) => f.toLowerCase().includes(lowerQuery));
+              matches = allFiles.filter((f) => f.toLowerCase().includes(cleanQuery));
             }
           }
 
