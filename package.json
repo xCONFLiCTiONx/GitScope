@@ -20,7 +20,10 @@
     "nsis": {
       "artifactName": "${productName}-Setup.${ext}"
     },
-    "npmRebuild": false
+    "npmRebuild": false,
+    "asarUnpack": [
+      "**/node_modules/prettier/**"
+    ]
   },
   "keywords": [
     "git",
@@ -35,13 +38,13 @@
     "marked": "^5.1.2",
     "monaco-editor": "^0.43.0",
     "node-pty": "^1.0.0",
+    "prettier": "2.8.8",
     "simple-git": "^3.19.0",
     "xterm": "^5.2.1",
     "xterm-addon-fit": "^0.7.0"
   },
   "devDependencies": {
     "electron": "^25.3.0",
-    "electron-builder": "^26.15.3",
-    "prettier": "^3.9.8"
+    "electron-builder": "^26.15.3"
   }
 }
