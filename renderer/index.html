@@ -1850,6 +1850,14 @@
                   Subtrees
                 </button>
                 <button
+                  id="repo-optimize-btn"
+                  class="button"
+                  style="height: 24px; font-size: 10px"
+                  title="Optimize and Compress Git Database"
+                >
+                  Optimize
+                </button>
+                <button
                   id="repo-status-btn"
                   class="button"
                   style="height: 24px; font-size: 10px"
@@ -5126,6 +5134,54 @@
           "
         >
           <!-- Blame content will be injected here -->
+        </div>
+      </div>
+    </div>
+
+    <!-- Compress Modal -->
+    <div id="compress-modal" class="modal" style="z-index: 13000">
+      <div class="modal-content" style="width: 500px">
+        <h3>Compress Git Database</h3>
+        <p>Optimize your repository's storage and performance by running internal Git cleanup tasks.</p>
+
+        <div style="display: flex; flex-direction: column; gap: 12px; margin-top: 10px">
+          <label style="display: flex; gap: 12px; cursor: pointer; background: rgba(255,255,255,0.03); padding: 12px; border-radius: 8px; border: 1px solid var(--border-color);">
+            <input type="radio" name="compress-level" value="standard" checked>
+            <div>
+              <div style="font-weight: 600; font-size: 14px;">Standard Cleanup (Fast)</div>
+              <div style="font-size: 11px; color: var(--text-muted);">Packs loose objects and removes dangling data safely. Recommended for routine maintenance.</div>
+            </div>
+          </label>
+
+          <label style="display: flex; gap: 12px; cursor: pointer; background: rgba(255,255,255,0.03); padding: 12px; border-radius: 8px; border: 1px solid var(--border-color);">
+            <input type="radio" name="compress-level" value="aggressive">
+            <div>
+              <div style="font-weight: 600; font-size: 14px;">Aggressive Compression</div>
+              <div style="font-size: 11px; color: var(--text-muted);">Forces Git to actively search for better compression opportunities. May take longer.</div>
+            </div>
+          </label>
+
+          <label style="display: flex; gap: 12px; cursor: pointer; background: rgba(255,255,255,0.03); padding: 12px; border-radius: 8px; border: 1px solid var(--border-color);">
+            <input type="radio" name="compress-level" value="deep">
+            <div>
+              <div style="font-weight: 600; font-size: 14px;">Deep Clean (Reflog Purge)</div>
+              <div style="font-size: 11px; color: var(--text-muted);">Clears recent checkout/commit history (reflog) before compression for maximum space saving.</div>
+            </div>
+          </label>
+
+          <label style="display: flex; gap: 12px; cursor: pointer; background: rgba(255,255,255,0.03); padding: 12px; border-radius: 8px; border: 1px solid var(--border-color);">
+            <input type="radio" name="compress-level" value="hardcore">
+            <div>
+              <div style="font-weight: 600; font-size: 14px;">Hard-Core Repacking</div>
+              <div style="font-weight: 600; color: var(--accent-yellow); font-size: 10px; text-transform: uppercase;">Maximum Space Saving</div>
+              <div style="font-size: 11px; color: var(--text-muted);">Rebuilds all packfiles from scratch with deeper similarity searching. Very CPU intensive.</div>
+            </div>
+          </label>
+        </div>
+
+        <div style="text-align: right; margin-top: 24px; display: flex; justify-content: flex-end; gap: 8px;">
+          <button id="compress-cancel" class="button">Cancel</button>
+          <button id="compress-confirm" class="button button-primary">Start Optimization</button>
         </div>
       </div>
     </div>

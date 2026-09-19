@@ -1327,6 +1327,18 @@ const elements = {
   get serverImportCancel() {
     return document.getElementById('server-import-cancel');
   },
+  get repoOptimizeBtn() {
+    return document.getElementById('repo-optimize-btn');
+  },
+  get compressModal() {
+    return document.getElementById('compress-modal');
+  },
+  get compressConfirm() {
+    return document.getElementById('compress-confirm');
+  },
+  get compressCancel() {
+    return document.getElementById('compress-cancel');
+  },
 };
 
 // Initialize app
@@ -2155,6 +2167,9 @@ function initEventListeners() {
   if (elements.githubVisibilityBtn)
     elements.githubVisibilityBtn.onclick = () => handleToggleGitHubVisibility();
   if (elements.repoSubtreeBtn) elements.repoSubtreeBtn.onclick = () => showSubtreeHubModal();
+  if (elements.repoOptimizeBtn) elements.repoOptimizeBtn.onclick = () => showCompressModal();
+  if (elements.compressCancel) elements.compressCancel.onclick = () => (elements.compressModal.style.display = 'none');
+  if (elements.compressConfirm) elements.compressConfirm.onclick = () => handleOptimizeRepository();
 
   // Project-specific Git Operation Toggles
   if (elements.gitForceToggle) {
@@ -2889,6 +2904,37 @@ async function quickGitAction(action) {
     await refreshActiveRepoUI(false);
   } catch (e) {
     logToConsole(e.message, 'error');
+    showError(e.message, 'System Error');
+  } finally {
+    setTaskState(false);
+  }
+}
+
+async function showCompressModal() {
+  if (!activeRepo) return;
+  elements.compressModal.style.display = 'flex';
+}
+
+async function handleOptimizeRepository() {
+  if (!activeRepo) return;
+
+  const level = elements.compressModal.querySelector('input[name="compress-level"]:checked').value;
+  elements.compressModal.style.display = 'none';
+
+  setTaskState(true);
+  logToConsole(`Launching optimization (${level.toUpperCase()}) for ${activeRepo.name}...`, 'info');
+
+  try {
+    const res = await window.electronAPI.gitOptimizeRepository(activeRepo.path, level);
+    if (res.success) {
+      logToConsole(res.output, 'success');
+      showAlert(`Repository optimization completed successfully.`, 'Optimization Complete');
+    } else {
+      logToConsole(`Optimization Failed: ${res.output}`, 'error');
+      showError(res.output, 'Optimization Failed');
+    }
+  } catch (e) {
+    logToConsole(`System Error: ${e.message}`, 'error');
     showError(e.message, 'System Error');
   } finally {
     setTaskState(false);

@@ -23,6 +23,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   gitStatus: (path) => ipcRenderer.invoke('git-status', path),
   gitQuickStatus: (path) => ipcRenderer.invoke('git-quick-status', path),
   gitRawStatus: (path) => ipcRenderer.invoke('git-raw-status', path),
+  gitOptimizeRepository: (path, level) => ipcRenderer.invoke('git-optimize-repository', path, level),
   gitStashSave: (path, message) => ipcRenderer.invoke('git-stash-save', path, message),
   gitStashList: (path) => ipcRenderer.invoke('git-stash-list', path),
   gitStashPop: (path, index) => ipcRenderer.invoke('git-stash-pop', path, index),

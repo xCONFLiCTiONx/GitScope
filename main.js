@@ -916,6 +916,10 @@ if (!gotTheLock) {
     return await gitActions.getRawStatus(path);
   });
 
+  ipcMain.handle('git-optimize-repository', async (event, path, level) => {
+    return await gitActions.optimizeRepository(path, level);
+  });
+
   ipcMain.handle('git-stash-save', async (event, path, message) => {
     return await gitActions.stashSave(path, message);
   });
