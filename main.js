@@ -11,7 +11,7 @@ const {
 } = require('electron');
 const path = require('path');
 const fs = require('fs-extra');
-const { scanDirectory, listDirectory, getUnbornFolders } = require('./lib/git-scanner');
+const { scanDirectory, listDirectory, getUnbornFolders, getWindowsAttributes } = require('./lib/git-scanner');
 const gitActions = require('./lib/git-actions');
 const githubApi = require('./lib/github-api');
 const chokidar = require('chokidar');
@@ -1303,16 +1303,43 @@ if (!gotTheLock) {
   });
 
   ipcMain.handle('get-repositories', async () => {
-    if (cachedRepos) return cachedRepos;
+    let repos = [];
     try {
       if (fs.existsSync(configPath)) {
         const config = await fs.readJson(configPath);
-        cachedRepos = config.repositories || [];
-        return cachedRepos;
+        repos = config.repositories || [];
       }
     } catch (e) {}
-    cachedRepos = [];
+
+    if (process.platform === 'win32') {
+      repos = repos.filter((r) => {
+        try {
+          const attrs = getWindowsAttributes(r.path);
+          return !attrs.system;
+        } catch (err) {
+          return true;
+        }
+      });
+    }
+
+    cachedRepos = repos;
     return cachedRepos;
+  });
+
+  ipcMain.handle('set-windows-attributes', async (event, targetPath, isHidden) => {
+    if (process.platform !== 'win32') return false;
+    try {
+      const { execSync } = require('child_process');
+      if (isHidden) {
+        execSync(`attrib +h +s "${targetPath}"`);
+      } else {
+        execSync(`attrib -h -s "${targetPath}"`);
+      }
+      return true;
+    } catch (e) {
+      console.error('Error setting windows attributes:', e);
+      return false;
+    }
   });
 
   ipcMain.handle('save-repositories', async (event, repos) => {
@@ -2188,6 +2215,12 @@ if (!gotTheLock) {
         label: isMulti ? `Delete ${totalCount} items to Recycle Bin` : 'Delete to Recycle Bin',
         click: () => event.sender.send('context-menu-command', { command: 'delete', paths }),
       });
+      template.push({ type: 'separator' });
+      template.push({
+        label: 'Hide (Windows Attribute)',
+        click: () =>
+          event.sender.send('context-menu-command', { command: 'hide-item', path: paths[0] }),
+      });
     } else {
       template.push({ type: 'separator' });
       template.push({
@@ -2228,6 +2261,12 @@ if (!gotTheLock) {
           repoCount > 1 ? `Remove ${repoCount} projects from Workspace` : 'Remove from Workspace',
         click: () =>
           event.sender.send('context-menu-command', { command: 'remove', paths: repoPaths }),
+      });
+      template.push({ type: 'separator' });
+      template.push({
+        label: 'Hide Project from Tree View',
+        click: () =>
+          event.sender.send('context-menu-command', { command: 'hide-project', path: paths[0] }),
       });
     }
 

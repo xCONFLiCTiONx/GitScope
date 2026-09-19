@@ -19,7 +19,7 @@ window.onunhandledrejection = function (event) {
 let repositories = [];
 let activeRepo = null;
 let isRendering = false;
-let hideIgnoredFiles = false;
+let treeViewMode = 'default'; // 'default', 'tracked', 'all'
 let settings = { shell: 'powershell.exe', rootRepoDir: '', githubToken: '', obsidianIni: '' };
 let selectedNodes = new Set();
 let expandedNodes = new Set();
@@ -1378,6 +1378,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       name: r.name || 'Unnamed Project',
       path: String(r.path || '').replace(/\\/g, '/'),
       expanded: false,
+      hidden: !!r.hidden,
       subtrees: r.subtrees || [],
     }));
 
@@ -1990,17 +1991,22 @@ function initEventListeners() {
 
   if (elements.sidebarToggleIgnored) {
     elements.sidebarToggleIgnored.onclick = () => {
-      hideIgnoredFiles = !hideIgnoredFiles;
-      elements.sidebarToggleIgnored.textContent = hideIgnoredFiles ? '👓' : '👁';
-      elements.sidebarToggleIgnored.title = hideIgnoredFiles
-        ? 'Show All Files'
-        : 'Show Tracked Files Only';
-      logToConsole(
-        hideIgnoredFiles
-          ? 'Filter: Only showing tracked/non-ignored files.'
-          : 'Filter: Showing all files.',
-        'info',
-      );
+      if (treeViewMode === 'default') {
+        treeViewMode = 'tracked';
+        elements.sidebarToggleIgnored.textContent = '👓';
+        elements.sidebarToggleIgnored.title = 'Show Tracked Files Only';
+        logToConsole('Filter: Only showing tracked/non-ignored files.', 'info');
+      } else if (treeViewMode === 'tracked') {
+        treeViewMode = 'all';
+        elements.sidebarToggleIgnored.textContent = '🌐';
+        elements.sidebarToggleIgnored.title = 'Show All Files';
+        logToConsole('Filter: Showing all files.', 'info');
+      } else {
+        treeViewMode = 'default';
+        elements.sidebarToggleIgnored.textContent = '👁';
+        elements.sidebarToggleIgnored.title = 'Default View';
+        logToConsole('Filter: Default View (Respects .gitignore and Windows hidden/system attributes).', 'info');
+      }
       renderTree(elements.repoFilter.value);
     };
   }
@@ -4640,7 +4646,7 @@ async function renderTree(filter = '') {
 
     // Performance: Parallel search across all repositories
     const searchPromises = repositories.map(async (repo) => {
-      if (!repo || !repo.name) return { repo, fileMatches: [] };
+      if (!repo || !repo.name || repo.hidden) return null;
       let fileMatches = [];
       if (search.length >= 1) {
         fileMatches = await window.electronAPI.searchFiles(repo.path, search);
@@ -4648,7 +4654,7 @@ async function renderTree(filter = '') {
       return { repo, fileMatches };
     });
 
-    const results = await Promise.all(searchPromises);
+    const results = (await Promise.all(searchPromises)).filter(Boolean);
     const fragment = document.createDocumentFragment();
     let hasDirectMatches = false;
 
@@ -4876,7 +4882,7 @@ function createTreeNode(name, fullPath, isDirectory, depth, repo) {
       filePaths,
       repoPath: repo.path,
       isTracked,
-      hideIgnoredFiles,
+      treeViewMode,
       isRepoRoot,
       isDirectory,
       isSubtreeMapped,
@@ -4981,7 +4987,7 @@ async function toggleFolder(container, dirPath, depth, repo, forceExpand = false
   expandedNodes.add(normPath);
 
   try {
-    const children = await window.electronAPI.listDirectory(dirPath, !hideIgnoredFiles);
+    const children = await window.electronAPI.listDirectory(dirPath, treeViewMode);
     const childrenContainer = document.createElement('div');
     childrenContainer.className = 'children-container';
     for (const child of children) {
@@ -5230,6 +5236,10 @@ async function showDashboard(forceRefresh = true) {
                             <div style="font-size: 8px; color: var(--text-muted); text-transform: uppercase; font-weight: 700; opacity: 0.6;">
                                 ${isLocal ? 'LOCAL' : 'REMOTE'}
                             </div>
+                            <label style="font-size: 11px; display: flex; align-items: center; gap: 4px; color: var(--text-muted); cursor: pointer;" onclick="event.stopPropagation();">
+                                <input type="checkbox" class="hide-from-tree-cb" ${repo.hidden ? 'checked' : ''} style="cursor: pointer;" />
+                                Hide Tree
+                            </label>
                         </div>
                     </div>
 
@@ -5250,6 +5260,16 @@ async function showDashboard(forceRefresh = true) {
                         <button class="button quick-btn commit-btn" title="Quick Commit (Stages all)" style="flex:1; padding:4px; font-size:11px;">COMMIT</button>
                         <button class="button quick-btn button-primary push-btn" title="Push" style="flex:1; padding:4px; font-size:11px;">PUSH</button>
                     </div>`;
+
+        const hideCb = card.querySelector('.hide-from-tree-cb');
+        if (hideCb) {
+          hideCb.onchange = async (e) => {
+            e.stopPropagation();
+            repo.hidden = hideCb.checked;
+            await window.electronAPI.saveRepositories(repositories);
+            renderTree(elements.repoFilter.value);
+          };
+        }
 
         const cardPullBtn = card.querySelector('.pull-btn');
         const cardPushBtn = card.querySelector('.push-btn');
@@ -8046,6 +8066,17 @@ async function handleContextMenuCommand({ command, paths, path, repoPath }) {
   else if (command === 'remove') {
     logToConsole(`Context Menu: Removing ${targets.length} items...`, 'info');
     removeRepositories(targets);
+  } else if (command === 'hide-project') {
+    const repo = repositories.find(r => r.path.replace(/\\/g, '/').toLowerCase() === targets[0].replace(/\\/g, '/').toLowerCase());
+    if (repo) {
+      repo.hidden = true;
+      await window.electronAPI.saveRepositories(repositories);
+      renderTree(elements.repoFilter.value);
+      showDashboard(false);
+    }
+  } else if (command === 'hide-item') {
+    await window.electronAPI.setWindowsAttributes(targets[0], true);
+    renderTree(elements.repoFilter.value);
   }
 }
 
