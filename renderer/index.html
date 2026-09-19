@@ -1,4 +1,4 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
@@ -1433,9 +1433,7 @@
               height: 100%;
               width: 0%;
               background: var(--accent-blue);
-              transition:
-                width 0.2s ease,
-                opacity 0.5s ease;
+              transition: width 0.2s ease, opacity 0.5s ease;
             "
           ></div>
         </div>
@@ -1481,9 +1479,7 @@
                   min-width: 0;
                   color: var(--text-main);
                   font-weight: 500;
-                  transition:
-                    opacity 0.3s ease,
-                    transform 0.3s ease;
+                  transition: opacity 0.3s ease, transform 0.3s ease;
                 "
               >
                 Initializing workspace intelligence...
@@ -1508,13 +1504,6 @@
               </p>
             </div>
             <div style="display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end">
-              <button
-                id="dashboard-bulk-restore-btn"
-                class="button button-warning dashboard-git-btn"
-                title="Wipe all uncommitted changes in ALL projects"
-              >
-                Restore
-              </button>
               <button
                 id="dashboard-bulk-fetch-btn"
                 class="button dashboard-git-btn"
@@ -1549,6 +1538,13 @@
                 title="Push committed changes to remotes"
               >
                 Push
+              </button>
+              <button
+                id="dashboard-bulk-restore-btn"
+                class="button button-warning dashboard-git-btn"
+                title="Wipe all uncommitted changes in ALL projects"
+              >
+                Restore
               </button>
             </div>
           </div>
