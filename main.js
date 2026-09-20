@@ -2014,7 +2014,7 @@ if (!gotTheLock) {
       if (options.path && !options.path.startsWith('gist://')) {
         template.push({ type: 'separator' });
         template.push({
-          label: 'Open in Chrome',
+          label: 'Chrome',
           click: () => openFileInChrome(options.path),
         });
       }
@@ -2030,7 +2030,7 @@ if (!gotTheLock) {
       if (options.path && !options.path.startsWith('gist://')) {
         template.push({ type: 'separator' });
         template.push({
-          label: 'Open in Chrome',
+          label: 'Chrome',
           click: () => openFileInChrome(options.path),
         });
       }
@@ -2232,7 +2232,7 @@ if (!gotTheLock) {
       ];
       if (!binaryExts.includes(ext)) {
         openSubmenu.push({
-          label: 'Open in Chrome',
+          label: 'Chrome',
           click: () => openFileInChrome(paths[0]),
         });
       }
