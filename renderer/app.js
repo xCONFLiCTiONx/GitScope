@@ -9902,8 +9902,7 @@ const PREVIEW_STYLES = `
     }
     #content img { max-width: 100%; height: auto; }
     #content h1, #content h2, #content h3 { color: var(--text-main); margin-top: 24px; margin-bottom: 16px; font-weight: 600; }
-    #content a { color: var(--accent-blue); text-decoration: none; cursor: text; }
-    :host(.ctrl-active) #content a { cursor: pointer; }
+    #content a { color: var(--accent-blue); text-decoration: none; cursor: pointer; }
     #content a:hover { text-decoration: underline; }
 `;
 
@@ -9916,48 +9915,7 @@ function getPreviewContentArea() {
     style.textContent = PREVIEW_STYLES;
     const content = document.createElement('div');
     content.id = 'content';
-    content.contentEditable = 'true';
-
-    let previewSyncTimeout = null;
-    let lastSyncTime = 0;
-    content.oninput = (e) => {
-      if (previewSyncTimeout) clearTimeout(previewSyncTimeout);
-      const now = Date.now();
-
-      // Intelligence: Force immediate sync on space/enter to create undo "stages"
-      const isBoundary =
-        e.inputType === 'insertLineBreak' || e.inputType === 'insertParagraph' || e.data === ' ';
-
-      if (isBoundary || now - lastSyncTime > 1000) {
-        syncPreviewToEditor();
-        lastSyncTime = now;
-      } else {
-        previewSyncTimeout = setTimeout(() => {
-          syncPreviewToEditor();
-          lastSyncTime = Date.now();
-        }, 200);
-      }
-    };
-
-    // Tab and Shortcut handling
-    content.onkeydown = (e) => {
-      if (e.ctrlKey || e.metaKey) {
-        if (e.key.toLowerCase() === 'z') {
-          e.preventDefault();
-          if (e.shiftKey) {
-            if (monacoEditor) monacoEditor.trigger('source', 'redo');
-          } else {
-            if (monacoEditor) monacoEditor.trigger('source', 'undo');
-          }
-        } else if (e.key.toLowerCase() === 'y') {
-          e.preventDefault();
-          if (monacoEditor) monacoEditor.trigger('source', 'redo');
-        } else if (e.key.toLowerCase() === 's') {
-          e.preventDefault();
-          saveCurrentFile();
-        }
-      }
-    };
+    content.contentEditable = 'false';
 
     shadow.appendChild(style);
     shadow.appendChild(content);
@@ -10031,7 +9989,7 @@ function updateMarkdownPreviewContent() {
     contentArea.innerHTML = content;
     return;
   } else {
-    contentArea.contentEditable = 'true';
+    contentArea.contentEditable = 'false';
   }
 
   let html = typeof marked !== 'undefined' ? marked.parse(content) : '<p>Parser fail.</p>';

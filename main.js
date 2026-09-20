@@ -796,6 +796,40 @@ if (!gotTheLock) {
 
   ipcMain.handle('format-code', async (event, { code, filePath }) => {
     try {
+      const ext = filePath ? filePath.split('.').pop().toLowerCase() : '';
+      if (ext === 'md' || ext === 'markdown') {
+        // Prettify Markdown following strict specifications:
+        // Add two spaces at the end of each non-empty, non-block/list line to act as a proper hard line break
+        let lines = code.split(/\r?\n/);
+        let formattedLines = lines.map((line) => {
+          let trimmed = line.trim();
+          // Skip if it's already an empty line, a markdown list item, heading, blockquote, or code fence/block
+          if (trimmed === '' ||
+              trimmed.startsWith('-') ||
+              trimmed.startsWith('*') ||
+              trimmed.startsWith('+') ||
+              /^\d+\./.test(trimmed) ||
+              trimmed.startsWith('#') ||
+              trimmed.startsWith('>') ||
+              trimmed.startsWith('`') ||
+              line.endsWith('  ')) {
+            return line;
+          }
+          return line + '  ';
+        });
+
+        let mdCode = formattedLines.join('\n');
+
+        // Pass the processed markdown text to prettier for global structure formatting
+        const options = await prettier.resolveConfig(filePath);
+        const formatted = await prettier.format(mdCode, {
+          ...options,
+          filepath: filePath,
+          proseWrap: 'preserve' // Maintain the hard line breaks and specifications exactly as structured
+        });
+        return { success: true, formatted };
+      }
+
       const options = await prettier.resolveConfig(filePath);
       const formatted = await prettier.format(code, {
         ...options,
