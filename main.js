@@ -11,7 +11,12 @@ const {
 } = require('electron');
 const path = require('path');
 const fs = require('fs-extra');
-const { scanDirectory, listDirectory, getUnbornFolders, getWindowsAttributes } = require('./lib/git-scanner');
+const {
+  scanDirectory,
+  listDirectory,
+  getUnbornFolders,
+  getWindowsAttributes,
+} = require('./lib/git-scanner');
 const gitActions = require('./lib/git-actions');
 const githubApi = require('./lib/github-api');
 const chokidar = require('chokidar');
@@ -60,6 +65,7 @@ let installedEditors = {
   vscode: false,
   androidStudio: false,
   visualStudio: false,
+  antigravity: false,
 };
 const configPath = path.join(app.getPath('userData'), 'config.json');
 const settingsPath = path.join(app.getPath('userData'), 'settings.json');
@@ -160,6 +166,37 @@ if (!gotTheLock) {
       }
     } catch (e) {
       console.error('Visual Studio detection failed:', e);
+    }
+
+    // Antigravity
+    const antigravityPaths = [
+      path.join(
+        process.env.LOCALAPPDATA || '',
+        'Programs',
+        'Antigravity IDE',
+        'bin',
+        'antigravity-ide.cmd',
+      ),
+      path.join(
+        process.env.LOCALAPPDATA || '',
+        'Programs',
+        'Antigravity IDE',
+        'Antigravity IDE.exe',
+      ),
+      path.join(process.env.LOCALAPPDATA || '', 'Programs', 'antigravity', 'Antigravity.exe'),
+      'C:\\Program Files\\Antigravity IDE\\Antigravity IDE.exe',
+      'C:\\Program Files\\antigravity\\Antigravity.exe',
+    ];
+    try {
+      execSync('antigravity --version', { stdio: 'ignore' });
+      installedEditors.antigravity = true;
+    } catch (e) {
+      try {
+        execSync('agy --version', { stdio: 'ignore' });
+        installedEditors.antigravity = true;
+      } catch (err) {
+        installedEditors.antigravity = antigravityPaths.some((p) => p && fs.existsSync(p));
+      }
     }
   }
 
@@ -607,9 +644,7 @@ if (!gotTheLock) {
               matches = allFiles;
             } else if (cleanQuery.includes('*')) {
               // GLOB SEARCH
-              const escaped = cleanQuery
-                .replace(/[.+^${}()|[\]\\]/g, '\\$&')
-                .replace(/\*/g, '.*');
+              const escaped = cleanQuery.replace(/[.+^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*');
               const re = new RegExp(`^${escaped}$`, 'i');
               matches = allFiles.filter((f) => re.test(f));
             } else if (cleanQuery.startsWith('.')) {
@@ -1265,8 +1300,8 @@ if (!gotTheLock) {
           detectedType === 'feat'
             ? 'Implement'
             : detectedType === 'fix'
-              ? 'Resolve issue in'
-              : 'Update';
+            ? 'Resolve issue in'
+            : 'Update';
         const target =
           fileList.length === 1 ? path.basename(fileList[0]) : `${fileList.length} resources`;
         return `${detectedType}: ${action} ${target} with ${additions} changes`;
@@ -1730,6 +1765,52 @@ if (!gotTheLock) {
     tryNext(0);
   });
 
+  ipcMain.handle('open-in-antigravity', async (event, filePath) => {
+    const { exec } = require('child_process');
+    const nativePath = path.win32.normalize(filePath);
+
+    const commands = [
+      `antigravity "${nativePath}"`,
+      `agy "${nativePath}"`,
+      `"${path.join(
+        process.env.LOCALAPPDATA || '',
+        'Programs',
+        'Antigravity IDE',
+        'bin',
+        'antigravity-ide.cmd',
+      )}" "${nativePath}"`,
+      `"${path.join(
+        process.env.LOCALAPPDATA || '',
+        'Programs',
+        'Antigravity IDE',
+        'Antigravity IDE.exe',
+      )}" "${nativePath}"`,
+      `"${path.join(
+        process.env.LOCALAPPDATA || '',
+        'Programs',
+        'antigravity',
+        'Antigravity.exe',
+      )}" "${nativePath}"`,
+      `"C:\\Program Files\\Antigravity IDE\\Antigravity IDE.exe" "${nativePath}"`,
+      `"C:\\Program Files\\antigravity\\Antigravity.exe" "${nativePath}"`,
+    ];
+
+    const tryNext = (index) => {
+      if (index >= commands.length) {
+        console.error('Antigravity could not be located or launched.');
+        return;
+      }
+      exec(commands[index], (error) => {
+        if (error) {
+          console.warn(`Antigravity launch attempt ${index + 1} failed: ${commands[index]}`);
+          tryNext(index + 1);
+        }
+      });
+    };
+
+    tryNext(0);
+  });
+
   function findChrome() {
     if (process.platform !== 'win32') return null;
     const locations = [
@@ -2119,25 +2200,18 @@ if (!gotTheLock) {
     const openSubmenu = [];
     if (installedEditors.androidStudio) {
       openSubmenu.push({
-        label: isMulti ? `In Android Studio (${totalCount})` : 'In Android Studio',
+        label: isMulti ? `Android Studio (${totalCount})` : 'Android Studio',
         click: () =>
           event.sender.send('context-menu-command', { command: 'open-android-studio', paths }),
       });
     }
-    if (installedEditors.vscode) {
+    if (installedEditors.antigravity) {
       openSubmenu.push({
-        label: isMulti ? `In VS Code (${totalCount})` : 'In VS Code',
-        click: () => event.sender.send('context-menu-command', { command: 'open-vscode', paths }),
-      });
-    }
-    if (installedEditors.visualStudio) {
-      openSubmenu.push({
-        label: isMulti ? `In Visual Studio (${totalCount})` : 'In Visual Studio',
+        label: isMulti ? `Antigravity IDE (${totalCount})` : 'Antigravity',
         click: () =>
-          event.sender.send('context-menu-command', { command: 'open-visual-studio', paths }),
+          event.sender.send('context-menu-command', { command: 'open-antigravity', paths }),
       });
     }
-
     // Intelligence: Add Open in Chrome to the Open submenu
     if (!isFolder && totalCount === 1) {
       const ext = paths[0].split('.').pop().toLowerCase();
@@ -2163,17 +2237,37 @@ if (!gotTheLock) {
         });
       }
     }
+    if (installedEditors.visualStudio) {
+      openSubmenu.push({
+        label: isMulti ? `Visual Studio (${totalCount})` : 'Visual Studio',
+        click: () =>
+          event.sender.send('context-menu-command', { command: 'open-visual-studio', paths }),
+      });
+    }
+    if (installedEditors.vscode) {
+      openSubmenu.push({
+        label: isMulti ? `VS Code (${totalCount})` : 'VS Code',
+        click: () => event.sender.send('context-menu-command', { command: 'open-vscode', paths }),
+      });
+    }
+
     openSubmenu.push({
-      label: isMulti ? `Show in Folder (${totalCount})` : 'Show in Folder',
+      label: isMulti ? `Windows Explorer (${totalCount})` : 'Windows Explorer',
       click: () =>
         event.sender.send('context-menu-command', { command: 'reveal-in-explorer', paths }),
     });
+
+    openSubmenu.sort((a, b) => a.label.localeCompare(b.label));
+
     openSubmenu.push({ type: 'separator' });
     openSubmenu.push({
       label: 'Terminal',
       click: () => {
         const { exec } = require('child_process');
-        const psCommand = `Start-Process -FilePath 'powershell.exe' -WorkingDirectory '${terminalCwd.replace(/'/g, "''")}'`;
+        const psCommand = `Start-Process -FilePath 'powershell.exe' -WorkingDirectory '${terminalCwd.replace(
+          /'/g,
+          "''",
+        )}'`;
         const encodedCommand = Buffer.from(psCommand, 'utf16le').toString('base64');
         exec(`powershell.exe -NoProfile -ExecutionPolicy Bypass -EncodedCommand ${encodedCommand}`);
       },
@@ -2191,7 +2285,7 @@ if (!gotTheLock) {
     });
 
     template.push({
-      label: 'Open',
+      label: 'Open in...',
       submenu: openSubmenu,
     });
 

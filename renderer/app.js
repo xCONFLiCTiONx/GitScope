@@ -97,7 +97,7 @@ const PRIVACY_PATTERNS = [
   },
   {
     name: 'Plaintext Passwords',
-    regex: '(?:password|passwd|pwd)\\s*[:=]\\s*(["\']?)[^\\s"\'\`]{8,}\\1',
+    regex: '(?:password|passwd|pwd)\\s*[:=]\\s*(["\']?)[^\\s"\'`]{8,}\\1',
     flags: 'gi',
     enabled: true,
   },
@@ -1427,7 +1427,9 @@ document.addEventListener('DOMContentLoaded', async () => {
           elements.shellSelect.innerHTML = shells
             .map(
               (s) =>
-                `<option value="${s.path}" ${s.path === settings.shell ? 'selected' : ''}>${s.name}</option>`,
+                `<option value="${s.path}" ${s.path === settings.shell ? 'selected' : ''}>${
+                  s.name
+                }</option>`,
             )
             .join('');
         }
@@ -2021,7 +2023,10 @@ function initEventListeners() {
         treeViewMode = 'default';
         elements.sidebarToggleIgnored.textContent = '👁';
         elements.sidebarToggleIgnored.title = 'Default View';
-        logToConsole('Filter: Default View (Respects .gitignore and Windows hidden/system attributes).', 'info');
+        logToConsole(
+          'Filter: Default View (Respects .gitignore and Windows hidden/system attributes).',
+          'info',
+        );
       }
       renderTree(elements.repoFilter.value);
     };
@@ -2172,7 +2177,8 @@ function initEventListeners() {
     elements.githubVisibilityBtn.onclick = () => handleToggleGitHubVisibility();
   if (elements.repoSubtreeBtn) elements.repoSubtreeBtn.onclick = () => showSubtreeHubModal();
   if (elements.repoOptimizeBtn) elements.repoOptimizeBtn.onclick = () => showCompressModal();
-  if (elements.compressCancel) elements.compressCancel.onclick = () => (elements.compressModal.style.display = 'none');
+  if (elements.compressCancel)
+    elements.compressCancel.onclick = () => (elements.compressModal.style.display = 'none');
   if (elements.compressConfirm) elements.compressConfirm.onclick = () => handleOptimizeRepository();
 
   // Project-specific Git Operation Toggles
@@ -3562,13 +3568,22 @@ async function showRevertModal() {
       item.innerHTML = `
                 <div style="display: flex; justify-content: space-between; margin-bottom: 4px; align-items: center;">
                     <div style="display: flex; align-items: center; gap: 8px;">
-                        <span style="font-weight: 700; color: var(--accent-blue); font-family: monospace;">${commit.hash.substring(0, 7)}</span>
-                        <button class="button diff-commit-btn" data-hash="${commit.hash}" style="padding: 2px 6px; font-size: 9px; height: 18px;">Diff</button>
+                        <span style="font-weight: 700; color: var(--accent-blue); font-family: monospace;">${commit.hash.substring(
+                          0,
+                          7,
+                        )}</span>
+                        <button class="button diff-commit-btn" data-hash="${
+                          commit.hash
+                        }" style="padding: 2px 6px; font-size: 9px; height: 18px;">Diff</button>
                     </div>
                     <span style="font-size: 11px; color: var(--text-muted); pointer-events: none;">${date}</span>
                 </div>
-                <div style="font-size: 13px; color: #fff; margin-bottom: 4px; pointer-events: none;">${commit.message}</div>
-                <div style="font-size: 11px; color: var(--text-muted); pointer-events: none;">Author: ${commit.author_name}</div>
+                <div style="font-size: 13px; color: #fff; margin-bottom: 4px; pointer-events: none;">${
+                  commit.message
+                }</div>
+                <div style="font-size: 11px; color: var(--text-muted); pointer-events: none;">Author: ${
+                  commit.author_name
+                }</div>
             `;
 
       const diffBtn = item.querySelector('.diff-commit-btn');
@@ -3590,7 +3605,12 @@ async function showRevertModal() {
     confirmBtn.onclick = async () => {
       if (!selectedHash) return;
 
-      const warning = `ARE YOU SURE?\n\nThis will revert ${activeRepo.name} to commit ${selectedHash.substring(0, 7)}.\n\nALL uncommitted changes will be PERMANENTLY DELETED.`;
+      const warning = `ARE YOU SURE?\n\nThis will revert ${
+        activeRepo.name
+      } to commit ${selectedHash.substring(
+        0,
+        7,
+      )}.\n\nALL uncommitted changes will be PERMANENTLY DELETED.`;
       if (await showConfirm(warning, 'Confirm Revert')) {
         logToConsole(`Reverting ${activeRepo.name} to ${selectedHash.substring(0, 7)}...`, 'info');
         modal.style.display = 'none';
@@ -4059,10 +4079,18 @@ async function showSubtreeGitHubModal(targetIndex = -1) {
         .map(
           (r) => `
                 <label style="display:flex; align-items:center; gap:10px; padding:8px 12px; background:rgba(255,255,255,0.02); border-radius:4px; border:1px solid transparent; cursor:pointer; transition:all 0.2s;">
-                    <input type="${targetIndex >= 0 ? 'radio' : 'checkbox'}" class="gh-repo-item-cb" name="gh-repo-selection" value="${r.clone_url}" data-name="${r.name}">
+                    <input type="${
+                      targetIndex >= 0 ? 'radio' : 'checkbox'
+                    }" class="gh-repo-item-cb" name="gh-repo-selection" value="${
+            r.clone_url
+          }" data-name="${r.name}">
                     <div style="flex:1; min-width:0;">
-                        <div style="font-weight:600; font-size:13px; color:#fff; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${r.full_name}</div>
-                        <div style="font-size:11px; color:var(--text-muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${r.clone_url}</div>
+                        <div style="font-weight:600; font-size:13px; color:#fff; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${
+                          r.full_name
+                        }</div>
+                        <div style="font-size:11px; color:var(--text-muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${
+                          r.clone_url
+                        }</div>
                     </div>
                 </label>
             `,
@@ -4205,24 +4233,32 @@ function renderSubtreeMappings() {
             <div style="flex:1; min-width: 0;">
                 <label style="font-size:9px; font-weight:800; color:var(--text-muted); text-transform:uppercase; display:block; margin-bottom:4px;">Prefix (Folder)</label>
                 <div style="display:flex; gap:4px;">
-                    <input type="text" class="settings-input mapping-prefix" data-index="${index}" value="${m.prefix}" style="padding:4px 8px; height:28px; flex:1;">
+                    <input type="text" class="settings-input mapping-prefix" data-index="${index}" value="${
+        m.prefix
+      }" style="padding:4px 8px; height:28px; flex:1;">
                     <button class="button browse-prefix-btn" data-index="${index}" title="Select folder from project" style="height:28px; width:28px; padding:0;">📁</button>
                 </div>
             </div>
             <div style="flex:2; min-width: 0;">
                 <label style="font-size:9px; font-weight:800; color:var(--text-muted); text-transform:uppercase; display:block; margin-bottom:4px;">Remote Repository URL</label>
                 <div style="display:flex; gap:6px;">
-                    <input type="text" class="settings-input mapping-url" data-index="${index}" value="${m.url}" style="padding:4px 8px; height:28px; flex:1;">
+                    <input type="text" class="settings-input mapping-url" data-index="${index}" value="${
+        m.url
+      }" style="padding:4px 8px; height:28px; flex:1;">
                     <button class="button gh-select-btn" data-index="${index}" title="Select from GitHub" style="height:28px; width:28px; padding:0; border-color:var(--accent-blue);">G</button>
                 </div>
             </div>
             <div style="width: 80px; flex-shrink: 0;">
                 <label style="font-size:9px; font-weight:800; color:var(--text-muted); text-transform:uppercase; display:block; margin-bottom:4px;">Branch</label>
-                <input type="text" class="settings-input mapping-branch" data-index="${index}" value="${m.branch || 'main'}" style="padding:4px 8px; height:28px; width: 100%;">
+                <input type="text" class="settings-input mapping-branch" data-index="${index}" value="${
+        m.branch || 'main'
+      }" style="padding:4px 8px; height:28px; width: 100%;">
             </div>
             <div style="flex-shrink: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; height: 32px;">
                 <label style="font-size: 8px; font-weight: 800; color: var(--accent-red); text-transform: uppercase;">Force</label>
-                <input type="checkbox" class="mapping-force" data-index="${index}" ${m.force ? 'checked' : ''} style="width: 14px; height: 14px; cursor: pointer;">
+                <input type="checkbox" class="mapping-force" data-index="${index}" ${
+        m.force ? 'checked' : ''
+      } style="width: 14px; height: 14px; cursor: pointer;">
             </div>
             <div style="display: flex; gap: 6px; flex-shrink: 0;">
                 <button class="button button-danger remove-mapping-btn" data-index="${index}" style="height:28px; width:28px; padding:0;" title="Remove Mapping">×</button>
@@ -4633,7 +4669,9 @@ async function handleToggleGitHubVisibility() {
       );
       if (res.expiration) updateTokenExpirationUI(res.expiration);
       logToConsole(
-        `Successfully changed visibility to ${nextPrivate ? 'PRIVATE' : 'PUBLIC'} for ${owner}/${repo}`,
+        `Successfully changed visibility to ${
+          nextPrivate ? 'PRIVATE' : 'PUBLIC'
+        } for ${owner}/${repo}`,
         'success',
       );
 
@@ -4867,12 +4905,16 @@ function createTreeNode(name, fullPath, isDirectory, depth, repo) {
       isChanged = repo.changedFiles.some((f) => f.startsWith(normPathWithSlash));
     }
   }
-  item.className = `tree-node ${depth === 0 ? 'repo-root' : ''} ${isDirectory ? 'is-directory' : 'is-file'} ${isChanged ? 'changed-file' : ''}`;
+  item.className = `tree-node ${depth === 0 ? 'repo-root' : ''} ${
+    isDirectory ? 'is-directory' : 'is-file'
+  } ${isChanged ? 'changed-file' : ''}`;
   item.style.paddingLeft = '8px';
   if (selectedNodes.has(fullPath)) item.classList.add('active');
   const ext = name.split('.').pop().toLowerCase();
   const fileClass = !isDirectory ? `file-type-${ext.replace(/[^a-z0-9]/g, '-')}` : '';
-  item.innerHTML = `<span class="chevron">${isDirectory ? '▸' : ''}</span><span class="node-name ${fileClass}">${name}</span>`;
+  item.innerHTML = `<span class="chevron">${
+    isDirectory ? '▸' : ''
+  }</span><span class="node-name ${fileClass}">${name}</span>`;
 
   // Separate click handler for the expansion arrow (chevron)
   // This allows toggling expansion without selecting the item or opening the view.
@@ -5277,7 +5319,9 @@ async function showDashboard(forceRefresh = true) {
         card.innerHTML = `
                     <div class="card-header" style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:12px;">
                         <div style="flex:1; min-width:0;">
-                            <div class="card-title" style="font-weight:600; color:var(--accent-blue); font-size:15px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; margin-bottom: 2px;">${repo.name}</div>
+                            <div class="card-title" style="font-weight:600; color:var(--accent-blue); font-size:15px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; margin-bottom: 2px;">${
+                              repo.name
+                            }</div>
                             <div class="card-branch" style="font-size:11px; color:var(--text-muted); display: flex; align-items: center; gap: 4px;">
                                 branch: ${status.current || 'unknown'}
                             </div>
@@ -5287,7 +5331,9 @@ async function showDashboard(forceRefresh = true) {
                                 ${isLocal ? 'LOCAL' : 'REMOTE'}
                             </div>
                             <label style="font-size: 11px; display: flex; align-items: center; gap: 4px; color: var(--text-muted); cursor: pointer;" onclick="event.stopPropagation();">
-                                <input type="checkbox" class="hide-from-tree-cb" ${repo.hidden ? 'checked' : ''} style="cursor: pointer;" />
+                                <input type="checkbox" class="hide-from-tree-cb" ${
+                                  repo.hidden ? 'checked' : ''
+                                } style="cursor: pointer;" />
                                 Hide Tree
                             </label>
                         </div>
@@ -5296,11 +5342,15 @@ async function showDashboard(forceRefresh = true) {
                     <div style="display:flex; flex-direction:column; gap:8px; flex:1;">
                         <div class="stat-row" style="display:flex; justify-content:space-between; align-items: center; font-size:12px;">
                             <span style="color:var(--text-muted);">Uncommitted Changes</span>
-                            <span style="font-weight:600; color:${hasChanges ? 'var(--accent-red)' : 'var(--text-muted)'}">${(status.modified || 0) + (status.not_added || 0)}</span>
+                            <span style="font-weight:600; color:${
+                              hasChanges ? 'var(--accent-red)' : 'var(--text-muted)'
+                            }">${(status.modified || 0) + (status.not_added || 0)}</span>
                         </div>
                         <div class="stat-row" style="display:flex; justify-content:space-between; align-items: center; font-size:12px;">
                             <span style="color:var(--text-muted);">Sync Status</span>
-                            <span style="font-weight:600; color:${needsSync ? '#e3b341' : 'var(--text-muted)'}">↑ ${status.ahead || 0}  ↓ ${status.behind || 0}</span>
+                            <span style="font-weight:600; color:${
+                              needsSync ? '#e3b341' : 'var(--text-muted)'
+                            }">↑ ${status.ahead || 0}  ↓ ${status.behind || 0}</span>
                         </div>
                     </div>
 
@@ -5624,7 +5674,9 @@ function renderThemeVisualControls(ini, fromEditor = false) {
       const style = isAvailable ? '' : 'opacity: 0.6;';
       // Case-insensitive check for selection
       const isSelected = fontVal.trim().toLowerCase() === f.toLowerCase();
-      return `<option value="${f}" ${isSelected ? 'selected' : ''} style="${style} font-family: '${f}', monospace;">${label}</option>`;
+      return `<option value="${f}" ${
+        isSelected ? 'selected' : ''
+      } style="${style} font-family: '${f}', monospace;">${label}</option>`;
     })
     .join('');
 
@@ -5632,20 +5684,34 @@ function renderThemeVisualControls(ini, fromEditor = false) {
         <h3 style="margin-bottom: 12px; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 1.5px; color: var(--accent-blue);">Workspace Font</h3>
         <select id="theme-font-select" class="settings-input" style="width: 100%;">
             ${optionsHtml}
-            <option value="custom" ${!supportedFonts.some((f) => fontVal.includes(f)) ? 'selected' : ''}>-- Custom Font --</option>
+            <option value="custom" ${
+              !supportedFonts.some((f) => fontVal.includes(f)) ? 'selected' : ''
+            }>-- Custom Font --</option>
         </select>
         <div id="font-status-msg" style="font-size: 10px; margin-top: 6px; display: none;"></div>
-        <input type="text" id="theme-font-custom" class="settings-input" style="width: 100%; margin-top: 8px; display: ${supportedFonts.some((f) => fontVal.includes(f)) ? 'none' : 'block'};" value="${fontVal}" placeholder="Enter font name...">
+        <input type="text" id="theme-font-custom" class="settings-input" style="width: 100%; margin-top: 8px; display: ${
+          supportedFonts.some((f) => fontVal.includes(f)) ? 'none' : 'block'
+        };" value="${fontVal}" placeholder="Enter font name...">
 
         <div style="margin-top: 12px; display: flex; gap: 16px;">
             <div style="flex: 1;">
                 <label style="font-size: 11px; color: var(--text-muted); display: block; margin-bottom: 4px;">Weight</label>
                 <select id="theme-weight-select" class="settings-input" style="width: 100%;">
-                    <option value="300" ${weightVal === '300' || weightVal === 'light' ? 'selected' : ''}>Light (300)</option>
-                    <option value="normal" ${weightVal === 'normal' || weightVal === '400' ? 'selected' : ''}>Normal (400)</option>
-                    <option value="500" ${weightVal === '500' || weightVal === 'medium' ? 'selected' : ''}>Medium (500)</option>
-                    <option value="600" ${weightVal === '600' || weightVal === 'semibold' ? 'selected' : ''}>Semi-Bold (600)</option>
-                    <option value="bold" ${weightVal === 'bold' || weightVal === '700' ? 'selected' : ''}>Bold (700)</option>
+                    <option value="300" ${
+                      weightVal === '300' || weightVal === 'light' ? 'selected' : ''
+                    }>Light (300)</option>
+                    <option value="normal" ${
+                      weightVal === 'normal' || weightVal === '400' ? 'selected' : ''
+                    }>Normal (400)</option>
+                    <option value="500" ${
+                      weightVal === '500' || weightVal === 'medium' ? 'selected' : ''
+                    }>Medium (500)</option>
+                    <option value="600" ${
+                      weightVal === '600' || weightVal === 'semibold' ? 'selected' : ''
+                    }>Semi-Bold (600)</option>
+                    <option value="bold" ${
+                      weightVal === 'bold' || weightVal === '700' ? 'selected' : ''
+                    }>Bold (700)</option>
                 </select>
             </div>
         </div>
@@ -6091,8 +6157,14 @@ function renderGitConfig(content) {
 
       const isDiff = r.type === 'different';
       item.innerHTML = `
-                <span>[${r.section}] <b>${r.key}</b> = ${r.val || '(blank)'} ${isDiff ? `<span style="color:var(--accent-red); text-decoration:line-through; margin-left:4px;">(was ${r.current})</span>` : ''}</span>
-                <button class="button" style="height:20px; font-size:9px; padding:0 6px;">${isDiff ? 'Fix' : '+ Add'}</button>
+                <span>[${r.section}] <b>${r.key}</b> = ${r.val || '(blank)'} ${
+        isDiff
+          ? `<span style="color:var(--accent-red); text-decoration:line-through; margin-left:4px;">(was ${r.current})</span>`
+          : ''
+      }</span>
+                <button class="button" style="height:20px; font-size:9px; padding:0 6px;">${
+                  isDiff ? 'Fix' : '+ Add'
+                }</button>
             `;
 
       item.querySelector('button').onclick = () => {
@@ -6303,7 +6375,9 @@ function updateStatusFeed(stats = null) {
     const days = Math.floor((date - new Date()) / (1000 * 60 * 60 * 24));
     if (days < 7) {
       messages.push({
-        text: `⚠ Warning: GitHub token is expiring in ${days === 0 ? 'less than a day' : days + ' days'}!`,
+        text: `⚠ Warning: GitHub token is expiring in ${
+          days === 0 ? 'less than a day' : days + ' days'
+        }!`,
         color: 'var(--accent-red)',
         action: { label: 'RENEW NOW', url: 'https://github.com/settings/tokens' },
       });
@@ -6454,14 +6528,24 @@ function updateDashboardSummary(stats) {
       const valColor = hasValue ? item.color : 'var(--text-muted)';
 
       return `
-            <div class="summary-card ${isActive ? 'active' : ''}" data-filter="${item.id}" data-color="${item.color}"
-                 style="flex:1; background:var(--bg-surface); border:1px solid ${isActive ? item.color : 'var(--border-color)'}; border-radius:12px; padding:16px; cursor:pointer; transition:all 0.2s; position:relative; overflow:hidden; min-width: 120px;">
+            <div class="summary-card ${isActive ? 'active' : ''}" data-filter="${
+        item.id
+      }" data-color="${item.color}"
+                 style="flex:1; background:var(--bg-surface); border:1px solid ${
+                   isActive ? item.color : 'var(--border-color)'
+                 }; border-radius:12px; padding:16px; cursor:pointer; transition:all 0.2s; position:relative; overflow:hidden; min-width: 120px;">
 
-                <div style="font-size:9px; font-weight:800; color:var(--text-muted); text-transform:uppercase; letter-spacing:1px; white-space: nowrap; margin-bottom: 12px;">${item.label}</div>
+                <div style="font-size:9px; font-weight:800; color:var(--text-muted); text-transform:uppercase; letter-spacing:1px; white-space: nowrap; margin-bottom: 12px;">${
+                  item.label
+                }</div>
 
-                <div style="font-size:24px; font-weight:700; color:${valColor}; line-height:1; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;">${item.value}</div>
+                <div style="font-size:24px; font-weight:700; color:${valColor}; line-height:1; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;">${
+        item.value
+      }</div>
 
-                <div class="active-indicator" style="position:absolute; bottom:0; left:0; right:0; height:3px; background:${item.color}; display: ${isActive ? 'block' : 'none'};"></div>
+                <div class="active-indicator" style="position:absolute; bottom:0; left:0; right:0; height:3px; background:${
+                  item.color
+                }; display: ${isActive ? 'block' : 'none'};"></div>
             </div>
         `;
     })
@@ -6788,10 +6872,16 @@ async function handleBulkRestore() {
             ? `<span style="color:var(--accent-red);">${total} dirty files will be wiped</span>`
             : `<span style="color:var(--accent-green);">Clean</span>`;
         return `
-                <label style="display:flex; align-items:center; gap:8px; cursor:pointer; padding:8px; background:rgba(255,255,255,0.02); border-radius:4px; margin-bottom:4px; border: 1px solid ${total > 0 ? 'rgba(218, 54, 51, 0.2)' : 'transparent'};">
-                    <input type="checkbox" class="bulk-restore-item-cb" value="${repo.path}" data-name="${repo.name}" ${total > 0 ? 'checked' : ''}>
+                <label style="display:flex; align-items:center; gap:8px; cursor:pointer; padding:8px; background:rgba(255,255,255,0.02); border-radius:4px; margin-bottom:4px; border: 1px solid ${
+                  total > 0 ? 'rgba(218, 54, 51, 0.2)' : 'transparent'
+                };">
+                    <input type="checkbox" class="bulk-restore-item-cb" value="${
+                      repo.path
+                    }" data-name="${repo.name}" ${total > 0 ? 'checked' : ''}>
                     <div style="flex:1; min-width:0;">
-                        <div style="font-size:12px; font-weight:600; color:#fff; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${repo.name}</div>
+                        <div style="font-size:12px; font-weight:600; color:#fff; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${
+                          repo.name
+                        }</div>
                         <div style="font-size:10px;">${statusText}</div>
                     </div>
                 </label>
@@ -6987,10 +7077,16 @@ async function handleBulkPull() {
           : `<span style="color:var(--text-muted);">Up to date</span>`;
 
         return `
-                <label style="display:flex; align-items:center; gap:8px; cursor:pointer; padding:8px; background:rgba(255,255,255,0.02); border-radius:4px; margin-bottom:4px; border: 1px solid ${isBehind ? 'rgba(227, 179, 65, 0.2)' : 'transparent'};">
-                    <input type="checkbox" class="bulk-pull-item-cb" value="${repo.path}" data-name="${repo.name}" checked>
+                <label style="display:flex; align-items:center; gap:8px; cursor:pointer; padding:8px; background:rgba(255,255,255,0.02); border-radius:4px; margin-bottom:4px; border: 1px solid ${
+                  isBehind ? 'rgba(227, 179, 65, 0.2)' : 'transparent'
+                };">
+                    <input type="checkbox" class="bulk-pull-item-cb" value="${
+                      repo.path
+                    }" data-name="${repo.name}" checked>
                     <div style="flex:1; min-width:0;">
-                        <div style="font-size:12px; font-weight:600; color:#fff; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${repo.name}</div>
+                        <div style="font-size:12px; font-weight:600; color:#fff; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${
+                          repo.name
+                        }</div>
                         <div style="font-size:10px;">${subtext}</div>
                     </div>
                 </label>
@@ -7084,18 +7180,26 @@ async function handleProtocolConverter() {
       return `
             <div class="protocol-item" style="display:flex; flex-direction:column; gap:6px; padding:10px; background:rgba(255,255,255,0.02); border-radius:6px; border: 1px solid var(--border-color);">
                 <div style="display:flex; align-items:center; gap:8px;">
-                    <input type="checkbox" class="protocol-item-cb" value="${repo.path}" data-name="${repo.name}" data-url="${remote.url}" checked>
+                    <input type="checkbox" class="protocol-item-cb" value="${
+                      repo.path
+                    }" data-name="${repo.name}" data-url="${remote.url}" checked>
                     <div style="flex:1; font-weight:600; font-size:13px;">${repo.name}</div>
                     <div style="font-size:10px; padding:2px 6px; border-radius:4px; background:rgba(255,255,255,0.05); color:var(--text-muted);">${type}</div>
                 </div>
-                <div style="font-size:11px; color:var(--text-muted); margin-left:24px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${remote.url}</div>
+                <div style="font-size:11px; color:var(--text-muted); margin-left:24px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${
+                  remote.url
+                }</div>
                 <div style="margin-left:24px; margin-top:4px; display:flex; gap:15px; align-items:center;">
                     <span style="font-size:10px; font-weight:700; color:var(--accent-blue);">TARGET:</span>
                     <label style="display:flex; align-items:center; gap:4px; font-size:11px; cursor:pointer;">
-                        <input type="radio" name="protocol-${repo.name}" value="ssh" ${!isSSH ? 'checked' : ''} style="margin:0;"> SSH
+                        <input type="radio" name="protocol-${repo.name}" value="ssh" ${
+        !isSSH ? 'checked' : ''
+      } style="margin:0;"> SSH
                     </label>
                     <label style="display:flex; align-items:center; gap:4px; font-size:11px; cursor:pointer;">
-                        <input type="radio" name="protocol-${repo.name}" value="https" ${isSSH ? 'checked' : ''} style="margin:0;"> HTTPS
+                        <input type="radio" name="protocol-${repo.name}" value="https" ${
+        isSSH ? 'checked' : ''
+      } style="margin:0;"> HTTPS
                     </label>
                 </div>
             </div>
@@ -7239,7 +7343,9 @@ async function showUnbornFoldersModal(unbornList) {
                 <div style="font-weight: 600; color: var(--text-main);">${folder.name}</div>
                 <div style="font-size: 11px; color: var(--text-muted);">${folder.reason}</div>
             </div>
-            <button class="button ${isRepo ? 'button-secondary' : 'button-primary'}" style="font-size: 10px; padding: 4px 8px;">${btnText}</button>
+            <button class="button ${
+              isRepo ? 'button-secondary' : 'button-primary'
+            }" style="font-size: 10px; padding: 4px 8px;">${btnText}</button>
         `;
 
     const actionBtn = item.querySelector('button');
@@ -8078,6 +8184,8 @@ async function handleContextMenuCommand({ command, paths, path, repoPath }) {
     targets.forEach((p) => window.electronAPI.openAndroidStudio(p));
   else if (command === 'open-visual-studio')
     targets.forEach((p) => window.electronAPI.openVisualStudio(p));
+  else if (command === 'open-antigravity')
+    targets.forEach((p) => window.electronAPI.openAntigravity(p));
   else if (command === 'open-default') targets.forEach((p) => window.electronAPI.openPath(p));
   else if (command === 'reveal-in-explorer')
     targets.forEach((p) => window.electronAPI.revealInExplorer(p));
@@ -8117,7 +8225,10 @@ async function handleContextMenuCommand({ command, paths, path, repoPath }) {
     logToConsole(`Context Menu: Removing ${targets.length} items...`, 'info');
     removeRepositories(targets);
   } else if (command === 'hide-project') {
-    const repo = repositories.find(r => r.path.replace(/\\/g, '/').toLowerCase() === targets[0].replace(/\\/g, '/').toLowerCase());
+    const repo = repositories.find(
+      (r) =>
+        r.path.replace(/\\/g, '/').toLowerCase() === targets[0].replace(/\\/g, '/').toLowerCase(),
+    );
     if (repo) {
       repo.hidden = true;
       await window.electronAPI.saveRepositories(repositories);
@@ -8849,7 +8960,9 @@ function renderChangesList(repo, detailedChanges) {
                     ? `<button class="button mini-action-btn btn-unstage" title="Unstage">⊖</button>`
                     : `<button class="button mini-action-btn btn-stage" title="Stage">⊕</button>`
                 }
-                <button class="button mini-action-btn btn-restore" title="${isUntracked ? 'Delete' : 'Restore'}">✕</button>
+                <button class="button mini-action-btn btn-restore" title="${
+                  isUntracked ? 'Delete' : 'Restore'
+                }">✕</button>
             </div>
         `;
 
@@ -8989,8 +9102,13 @@ async function listStashes() {
 
       div.innerHTML = `
                 <div style="flex:1; overflow:hidden;">
-                    <div style="font-size:12px; color:#fff; font-weight:600; white-space:nowrap; text-overflow:ellipsis; overflow:hidden;">${s.message}</div>
-                    <div style="font-size:10px; color:var(--text-muted); margin-top:2px;">${s.hash.substring(0, 7)} • stash@{${idx}}</div>
+                    <div style="font-size:12px; color:#fff; font-weight:600; white-space:nowrap; text-overflow:ellipsis; overflow:hidden;">${
+                      s.message
+                    }</div>
+                    <div style="font-size:10px; color:var(--text-muted); margin-top:2px;">${s.hash.substring(
+                      0,
+                      7,
+                    )} • stash@{${idx}}</div>
                 </div>
                 <div style="display:flex; gap:6px;">
                     <button class="button apply-btn" style="font-size:10px; height:24px;" title="Apply changes but keep stash">Apply</button>
@@ -9163,8 +9281,9 @@ async function handleNewItem(type, parentPath) {
   elements.newItemName.value = '';
   elements.newItemName.focus();
 
-  document.getElementById('new-item-title').textContent =
-    `New ${type.charAt(0).toUpperCase() + type.slice(1)}`;
+  document.getElementById('new-item-title').textContent = `New ${
+    type.charAt(0).toUpperCase() + type.slice(1)
+  }`;
 
   const confirmBtn = document.getElementById('new-item-confirm');
   const cancelBtn = document.getElementById('new-item-cancel');
@@ -9347,7 +9466,13 @@ async function showGitHubImportModal() {
       const div = document.createElement('div');
       div.style.padding = '8px';
       div.style.borderBottom = '1px solid var(--border-color)';
-      div.innerHTML = `<label style="display: flex; justify-content: space-between; align-items: center; cursor: pointer;"><div><div style="font-weight: 600; color: var(--text-main);">${r.full_name}</div><div style="font-size: 11px; color: var(--text-muted);">${r.description || 'No description'}</div></div><input type="checkbox" name="github-repo" value="${r.clone_url}" data-name="${r.name}"></label>`;
+      div.innerHTML = `<label style="display: flex; justify-content: space-between; align-items: center; cursor: pointer;"><div><div style="font-weight: 600; color: var(--text-main);">${
+        r.full_name
+      }</div><div style="font-size: 11px; color: var(--text-muted);">${
+        r.description || 'No description'
+      }</div></div><input type="checkbox" name="github-repo" value="${r.clone_url}" data-name="${
+        r.name
+      }"></label>`;
       list.appendChild(div);
     });
     document.getElementById('import-confirm').disabled = false;
@@ -9618,10 +9743,10 @@ function setMarkdownViewMode(mode) {
     mode === 'code'
       ? elements.mdViewCodeBtn
       : mode === 'split'
-        ? elements.mdViewSplitBtn
-        : mode === 'preview'
-          ? elements.mdViewPreviewBtn
-          : null;
+      ? elements.mdViewSplitBtn
+      : mode === 'preview'
+      ? elements.mdViewPreviewBtn
+      : null;
   if (activeBtn) {
     activeBtn.classList.add('active', 'button-primary');
   }
@@ -10877,15 +11002,23 @@ function renderPrivacyPatterns() {
   list.innerHTML = activePrivacyPatterns
     .map(
       (p, index) => `
-        <div class="privacy-pattern-item" data-id="${p.id}" style="background: rgba(255,255,255,0.02); padding: 8px; border-radius: 4px; border: 1px solid var(--border-color);">
+        <div class="privacy-pattern-item" data-id="${
+          p.id
+        }" style="background: rgba(255,255,255,0.02); padding: 8px; border-radius: 4px; border: 1px solid var(--border-color);">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
-                <input type="text" class="settings-input pattern-name" data-index="${index}" value="${p.name}" style="font-size: 11px; font-weight: 800; background: transparent; border: none; padding: 0; color: var(--text-main); flex: 1;">
+                <input type="text" class="settings-input pattern-name" data-index="${index}" value="${
+        p.name
+      }" style="font-size: 11px; font-weight: 800; background: transparent; border: none; padding: 0; color: var(--text-main); flex: 1;">
                 <div style="display: flex; gap: 8px; align-items: center;">
-                    <input type="checkbox" class="pattern-enabled" data-index="${index}" ${p.enabled ? 'checked' : ''} title="Enable/Disable Pattern">
+                    <input type="checkbox" class="pattern-enabled" data-index="${index}" ${
+        p.enabled ? 'checked' : ''
+      } title="Enable/Disable Pattern">
                     <button class="button pattern-remove" data-index="${index}" style="padding: 0 4px; height: 18px; font-size: 10px; color: var(--accent-red); border-color: var(--accent-red); background: transparent;">×</button>
                 </div>
             </div>
-            <textarea class="settings-input pattern-regex" data-index="${index}" style="width: 100%; font-size: 10px; font-family: var(--font-mono); height: 40px; margin-top: 4px; resize: vertical; border-color: rgba(255,255,255,0.05);">${p.regex}</textarea>
+            <textarea class="settings-input pattern-regex" data-index="${index}" style="width: 100%; font-size: 10px; font-family: var(--font-mono); height: 40px; margin-top: 4px; resize: vertical; border-color: rgba(255,255,255,0.05);">${
+        p.regex
+      }</textarea>
         </div>
     `,
     )
@@ -11050,9 +11183,7 @@ async function findIgnoredCachedFiles(rootPath = null) {
   let foundCount = 0;
 
   try {
-    const targets = rootPath
-      ? repositories.filter((r) => r.path === rootPath)
-      : repositories;
+    const targets = rootPath ? repositories.filter((r) => r.path === rootPath) : repositories;
 
     if (targets.length === 0 && rootPath) {
       targets.push({ name: rootPath.split(/[\\\/]/).pop(), path: rootPath });
@@ -11239,11 +11370,19 @@ function renderPrivacyMatch(match, skipScroll = false, defaultChecked = false) {
         <div style="display: flex; justify-content: space-between; align-items: flex-start;">
             <div style="display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0;">
                 <div style="display: flex; align-items: center; gap: 6px;">
-                    <input type="checkbox" class="match-select" data-path="${match.filePath}" ${defaultChecked ? 'checked' : ''}>
-                    <span style="font-weight: 800; color: ${badgeColor}; font-size: 10px; text-transform: uppercase;">${match.patternName}</span>
-                    <span style="color: var(--text-muted); font-size: 10px;">${match.repoName}</span>
+                    <input type="checkbox" class="match-select" data-path="${match.filePath}" ${
+    defaultChecked ? 'checked' : ''
+  }>
+                    <span style="font-weight: 800; color: ${badgeColor}; font-size: 10px; text-transform: uppercase;">${
+    match.patternName
+  }</span>
+                    <span style="color: var(--text-muted); font-size: 10px;">${
+                      match.repoName
+                    }</span>
                 </div>
-                <div class="privacy-file-path" style="font-weight: 600; color: var(--text-main); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; cursor: default;">${match.filePath}</div>
+                <div class="privacy-file-path" style="font-weight: 600; color: var(--text-main); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; cursor: default;">${
+                  match.filePath
+                }</div>
             </div>
             <div style="display: flex; gap: 4px;">
                 <button class="button privacy-edit-btn" style="padding: 2px 6px; font-size: 10px;" title="Open in Editor">Edit</button>
@@ -11294,12 +11433,17 @@ function renderPrivacyMatch(match, skipScroll = false, defaultChecked = false) {
         if (repo) {
           const relPath =
             match.relativePath ||
-            match.filePath.substring(repo.path.length).replace(/^[\\\/]/, '').replace(/\\/g, '/');
+            match.filePath
+              .substring(repo.path.length)
+              .replace(/^[\\\/]/, '')
+              .replace(/\\/g, '/');
           const res = await window.electronAPI.gitStopTracking(repo.path, relPath);
           if (res && res.success !== false) {
             logToConsole(`Untracked ${fileName} (git rm --cached)`, 'success');
             item.remove();
-            lastPrivacyScanResults = lastPrivacyScanResults.filter((m) => m.filePath !== match.filePath);
+            lastPrivacyScanResults = lastPrivacyScanResults.filter(
+              (m) => m.filePath !== match.filePath,
+            );
             updatePrivacyResultsCount();
             await smartRefreshTree();
           } else {
@@ -11325,7 +11469,9 @@ function renderPrivacyMatch(match, skipScroll = false, defaultChecked = false) {
           `.privacy-match-item [data-path="${match.filePath}"]`,
         );
         allMatchesForFile.forEach((el) => el.closest('.privacy-match-item').remove());
-        lastPrivacyScanResults = lastPrivacyScanResults.filter((m) => m.filePath !== match.filePath);
+        lastPrivacyScanResults = lastPrivacyScanResults.filter(
+          (m) => m.filePath !== match.filePath,
+        );
         updatePrivacyResultsCount();
       } else {
         showError(res.error, 'Delete Failed');
@@ -11791,7 +11937,9 @@ function renderGistList(gists) {
     card.innerHTML = `
             <div class="card-header">
                 <div class="card-title" style="display: flex; align-items: center; gap: 8px;">
-                    <span style="color: var(--accent-blue); font-size: 16px;">${gist.public ? '🌐' : '🔒'}</span>
+                    <span style="color: var(--accent-blue); font-size: 16px;">${
+                      gist.public ? '🌐' : '🔒'
+                    }</span>
                     ${gist.description || 'No description'}
                 </div>
                 <div class="card-branch">${date}</div>
@@ -11807,12 +11955,24 @@ function renderGistList(gists) {
                 </div>`,
                   )
                   .join('')}
-                ${files.length > 5 ? `<div style="font-size: 11px; color: var(--text-muted); padding-left: 20px;">+ ${files.length - 5} more files</div>` : ''}
+                ${
+                  files.length > 5
+                    ? `<div style="font-size: 11px; color: var(--text-muted); padding-left: 20px;">+ ${
+                        files.length - 5
+                      } more files</div>`
+                    : ''
+                }
             </div>
             <div class="quick-actions" style="opacity: 1; margin-top: 16px;">
-                <button class="button gist-view-btn" data-url="${gist.html_url}" title="View on GitHub">↗</button>
-                <button class="button gist-edit-btn" data-id="${gist.id}" title="Edit Gist">✎</button>
-                <button class="button button-danger gist-delete-btn" data-id="${gist.id}" title="Delete Gist">×</button>
+                <button class="button gist-view-btn" data-url="${
+                  gist.html_url
+                }" title="View on GitHub">↗</button>
+                <button class="button gist-edit-btn" data-id="${
+                  gist.id
+                }" title="Edit Gist">✎</button>
+                <button class="button button-danger gist-delete-btn" data-id="${
+                  gist.id
+                }" title="Delete Gist">×</button>
             </div>
         `;
 
@@ -12160,7 +12320,8 @@ async function showGitBlame(targetCommitHash = null, targetLineRange = null) {
   if (targetLineRange) titleText += ` (Lines ${targetLineRange.start}-${targetLineRange.end})`;
   title.textContent = titleText;
 
-  container.innerHTML = '<p style="padding: 20px; color: var(--text-muted); text-align: center;">Loading blame information...</p>';
+  container.innerHTML =
+    '<p style="padding: 20px; color: var(--text-muted); text-align: center;">Loading blame information...</p>';
   modal.style.display = 'flex';
 
   // Manage header controls dynamically
@@ -12227,7 +12388,12 @@ async function showGitBlame(targetCommitHash = null, targetLineRange = null) {
     let relPath = fPath.substring(repoBase.length);
     if (relPath.startsWith('/')) relPath = relPath.substring(1);
 
-    const res = await window.electronAPI.gitBlame(activeRepo.path, relPath, targetCommitHash, targetLineRange);
+    const res = await window.electronAPI.gitBlame(
+      activeRepo.path,
+      relPath,
+      targetCommitHash,
+      targetLineRange,
+    );
     if (!res.success) {
       container.innerHTML = `<div style="padding:20px; color:var(--accent-red)">Error: ${res.output}</div>`;
       return;
@@ -12288,7 +12454,7 @@ async function showGitBlame(targetCommitHash = null, targetLineRange = null) {
       const row = document.createElement('div');
       row.className = 'blame-data-row';
       row.dataset.index = index;
-      row.dataset.lineNum = b.lineNum || (index + 1);
+      row.dataset.lineNum = b.lineNum || index + 1;
       row.style.display = 'flex';
       row.style.fontFamily = 'monospace';
       row.style.fontSize = '12px';
@@ -12298,11 +12464,18 @@ async function showGitBlame(targetCommitHash = null, targetLineRange = null) {
       row.style.userSelect = 'none';
 
       // Strip any leading ^ for boundary commits to ensure standard hashes are used everywhere
-      const displayHash = b.commit ? (b.commit.startsWith('^') ? b.commit.substring(1) : b.commit) : '';
+      const displayHash = b.commit
+        ? b.commit.startsWith('^')
+          ? b.commit.substring(1)
+          : b.commit
+        : '';
 
       const commitCol = document.createElement('div');
       commitCol.style.width = '75px';
-      commitCol.style.color = displayHash && !displayHash.startsWith('00000000') ? 'var(--accent-blue, #58a6ff)' : 'var(--text-muted)';
+      commitCol.style.color =
+        displayHash && !displayHash.startsWith('00000000')
+          ? 'var(--accent-blue, #58a6ff)'
+          : 'var(--text-muted)';
       commitCol.style.overflow = 'hidden';
       commitCol.style.textOverflow = 'ellipsis';
       commitCol.style.paddingRight = '6px';
@@ -12357,8 +12530,14 @@ async function showGitBlame(targetCommitHash = null, targetLineRange = null) {
         priorBtn.style.borderRadius = '3px';
         priorBtn.style.padding = '1px 3px';
 
-        priorBtn.onmouseenter = () => { priorBtn.style.opacity = '1'; priorBtn.style.color = '#ff7b72'; };
-        priorBtn.onmouseleave = () => { priorBtn.style.opacity = '0.5'; priorBtn.style.color = 'var(--text-muted)'; };
+        priorBtn.onmouseenter = () => {
+          priorBtn.style.opacity = '1';
+          priorBtn.style.color = '#ff7b72';
+        };
+        priorBtn.onmouseleave = () => {
+          priorBtn.style.opacity = '0.5';
+          priorBtn.style.color = 'var(--text-muted)';
+        };
 
         priorBtn.onclick = (e) => {
           e.stopPropagation();
@@ -12438,8 +12617,8 @@ async function showGitBlame(targetCommitHash = null, targetLineRange = null) {
           item.style.padding = '6px 12px';
           item.style.cursor = 'pointer';
           item.style.color = 'var(--text-main, #fff)';
-          item.onmouseenter = () => item.style.background = 'rgba(58, 166, 255, 0.2)';
-          item.onmouseleave = () => item.style.background = '';
+          item.onmouseenter = () => (item.style.background = 'rgba(58, 166, 255, 0.2)');
+          item.onmouseleave = () => (item.style.background = '');
           item.onclick = () => {
             action();
             menu.remove();
@@ -12448,13 +12627,25 @@ async function showGitBlame(targetCommitHash = null, targetLineRange = null) {
         };
 
         if (displayHash) {
-          menu.appendChild(createMenuItem('📋 Copy Commit Hash', () => navigator.clipboard.writeText(displayHash)));
+          menu.appendChild(
+            createMenuItem('📋 Copy Commit Hash', () => navigator.clipboard.writeText(displayHash)),
+          );
         }
         if (b.author) {
-          menu.appendChild(createMenuItem('📋 Copy Author Name', () => navigator.clipboard.writeText(b.author)));
+          menu.appendChild(
+            createMenuItem('📋 Copy Author Name', () => navigator.clipboard.writeText(b.author)),
+          );
         }
-        menu.appendChild(createMenuItem('📋 Copy Line Content', () => navigator.clipboard.writeText(b.content || '')));
-        menu.appendChild(createMenuItem('📋 Copy Line Number', () => navigator.clipboard.writeText(b.lineNum || '')));
+        menu.appendChild(
+          createMenuItem('📋 Copy Line Content', () =>
+            navigator.clipboard.writeText(b.content || ''),
+          ),
+        );
+        menu.appendChild(
+          createMenuItem('📋 Copy Line Number', () =>
+            navigator.clipboard.writeText(b.lineNum || ''),
+          ),
+        );
 
         document.body.appendChild(menu);
       };
@@ -12468,7 +12659,6 @@ async function showGitBlame(targetCommitHash = null, targetLineRange = null) {
       const menu = document.getElementById('blame-context-menu');
       if (menu) menu.remove();
     });
-
   } catch (e) {
     container.innerHTML = `<div style="padding:20px; color:var(--accent-red)">Error: ${e.message}</div>`;
   }

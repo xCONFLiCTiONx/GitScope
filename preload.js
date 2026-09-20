@@ -7,8 +7,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
   showSaveDialog: (options) => ipcRenderer.invoke('show-save-dialog', options),
   showOpenDialog: (options) => ipcRenderer.invoke('show-open-dialog', options),
   scanDirectory: (path) => ipcRenderer.invoke('scan-directory', path),
-  listDirectory: (path, viewModeOrShowIgnored) => ipcRenderer.invoke('list-directory', path, viewModeOrShowIgnored),
-  setWindowsAttributes: (path, isHidden) => ipcRenderer.invoke('set-windows-attributes', path, isHidden),
+  listDirectory: (path, viewModeOrShowIgnored) =>
+    ipcRenderer.invoke('list-directory', path, viewModeOrShowIgnored),
+  setWindowsAttributes: (path, isHidden) =>
+    ipcRenderer.invoke('set-windows-attributes', path, isHidden),
   searchFiles: (repoPath, query) => ipcRenderer.invoke('search-files', repoPath, query),
   searchAdvanced: (repos, options) => ipcRenderer.invoke('search-advanced', repos, options),
   readFile: (path) => ipcRenderer.invoke('read-file', path),
@@ -23,7 +25,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   gitStatus: (path) => ipcRenderer.invoke('git-status', path),
   gitQuickStatus: (path) => ipcRenderer.invoke('git-quick-status', path),
   gitRawStatus: (path) => ipcRenderer.invoke('git-raw-status', path),
-  gitOptimizeRepository: (path, level) => ipcRenderer.invoke('git-optimize-repository', path, level),
+  gitOptimizeRepository: (path, level) =>
+    ipcRenderer.invoke('git-optimize-repository', path, level),
   gitStashSave: (path, message) => ipcRenderer.invoke('git-stash-save', path, message),
   gitStashList: (path) => ipcRenderer.invoke('git-stash-list', path),
   gitStashPop: (path, index) => ipcRenderer.invoke('git-stash-pop', path, index),
@@ -50,10 +53,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   gitUnstageAll: (path) => ipcRenderer.invoke('git-unstage-all', path),
   gitUnstageFile: (path, filePath) => ipcRenderer.invoke('git-unstage-file', path, filePath),
   gitStopTracking: (path, filePath) => ipcRenderer.invoke('git-stop-tracking', path, filePath),
-  gitGetIgnoredCachedFiles: (path) =>
-    ipcRenderer.invoke('git-get-ignored-cached-files', path),
-  gitRmCachedBatch: (path, filePaths) =>
-    ipcRenderer.invoke('git-rm-cached-batch', path, filePaths),
+  gitGetIgnoredCachedFiles: (path) => ipcRenderer.invoke('git-get-ignored-cached-files', path),
+  gitRmCachedBatch: (path, filePaths) => ipcRenderer.invoke('git-rm-cached-batch', path, filePaths),
   gitStartTracking: (path, filePath) => ipcRenderer.invoke('git-start-tracking', path, filePath),
   gitIsTracked: (path, filePath) => ipcRenderer.invoke('git-is-tracked', path, filePath),
   gitCommit: (path, message, amend) => ipcRenderer.invoke('git-commit', path, message, amend),
@@ -136,6 +137,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   openVSCode: (path) => ipcRenderer.invoke('open-in-vscode', path),
   openAndroidStudio: (path) => ipcRenderer.invoke('open-in-android-studio', path),
   openVisualStudio: (path) => ipcRenderer.invoke('open-in-visual-studio', path),
+  openAntigravity: (path) => ipcRenderer.invoke('open-in-antigravity', path),
   openFileInChrome: (path) => ipcRenderer.invoke('open-file-in-chrome', path),
   openContentInChrome: (options) => ipcRenderer.invoke('open-content-in-chrome', options),
   openExternalTerminal: (path) => ipcRenderer.invoke('open-external-terminal', path),
