@@ -598,9 +598,6 @@ const elements = {
   get editorWrapBtn() {
     return document.getElementById('editor-wrap-btn');
   },
-  get editorFolderBtn() {
-    return document.getElementById('editor-folder-btn');
-  },
   get editorFormatBtn() {
     return document.getElementById('editor-format-btn');
   },
@@ -792,6 +789,9 @@ const elements = {
   },
   get nukeReinitBtn() {
     return document.getElementById('nuke-reinit-btn');
+  },
+  get diffBlameBtn() {
+    return document.getElementById('diff-blame-btn');
   },
   get restoreFileBtn() {
     return document.getElementById('restore-file-btn');
@@ -2255,10 +2255,6 @@ function initEventListeners() {
         window.electronAPI.openFileInChrome(currentEditingPath);
       }
     };
-  if (elements.editorFolderBtn)
-    elements.editorFolderBtn.onclick = () => {
-      if (currentEditingPath) window.electronAPI.revealInExplorer(currentEditingPath);
-    };
   if (elements.editorFormatBtn)
     elements.editorFormatBtn.onclick = async () => {
       if (monacoEditor) {
@@ -2352,6 +2348,11 @@ function initEventListeners() {
 
       await openFileInEditor(path);
       await revealInTree(path);
+    };
+  if (elements.diffBlameBtn)
+    elements.diffBlameBtn.onclick = async () => {
+      if (!currentEditingPath) return;
+      await showGitBlame();
     };
   if (elements.diffBackBtn)
     elements.diffBackBtn.onclick = () => {
@@ -4743,6 +4744,13 @@ async function renderTree(filter = '') {
     });
 
     const results = (await Promise.all(searchPromises)).filter(Boolean);
+
+    // Disambiguation: Pre-calculate name counts for visible repositories to handle duplicates
+    const nameCounts = {};
+    results.forEach(({ repo }) => {
+      nameCounts[repo.name] = (nameCounts[repo.name] || 0) + 1;
+    });
+
     const fragment = document.createDocumentFragment();
     let hasDirectMatches = false;
 
@@ -4762,7 +4770,15 @@ async function renderTree(filter = '') {
 
       if (!search || nameMatch || fileMatches.length > 0) {
         hasDirectMatches = true;
-        const nodeContainer = createTreeNode(repo.name, repo.path, true, 0, repo);
+
+        let displayName = repo.name;
+        if (nameCounts[repo.name] > 1) {
+          const parts = repo.path.replace(/\\/g, '/').split('/');
+          const parent = parts[parts.length - 2] || '';
+          if (parent) displayName += ` (${parent})`;
+        }
+
+        const nodeContainer = createTreeNode(displayName, repo.path, true, 0, repo);
         fragment.appendChild(nodeContainer);
 
         // If searching and found files, show them as direct children
@@ -7773,13 +7789,9 @@ async function openFileInEditor(
       // Re-capture from Monaco to handle any internal normalization (BOM stripping, etc)
       originalFileContent = monacoEditor.getValue();
 
-      // Intelligence: Now that the content is loaded into the editor, we can safely trigger the preview
-      // Force standard mode if we're jumping to a specific line (e.g. from search)
-      if (isRenderable && line === null) {
-        setMarkdownViewMode('preview');
-      } else {
-        setMarkdownViewMode('standard');
-      }
+      // Intelligence: Now that the content is loaded into the editor, we can safely trigger the view mode
+      // User Preference: Coding View first for all files, including Markdown and HTML.
+      setMarkdownViewMode('standard');
 
       // Intelligence: Track changes to enable/disable buttons
       model.onDidChangeContent(() => {
@@ -9518,6 +9530,18 @@ function showCreateRepoModal() {
     if (!name || !parent)
       return showAlert('Repository name and parent path are required.', 'Missing Fields');
     const full = `${parent}/${name}`.replace(/\\/g, '/');
+
+    // Validation: Check if this repository is already in the workspace
+    const normFull = full.toLowerCase();
+    const existing = repositories.find(
+      (r) => r.path.replace(/\\/g, '/').toLowerCase() === normFull,
+    );
+    if (existing) {
+      return showAlert(
+        `A repository at "${full}" is already in your workspace as "${existing.name}".`,
+        'Duplicate Repository',
+      );
+    }
 
     modal.style.display = 'none';
     logToConsole(`Creating repository: ${name}...`, 'info');

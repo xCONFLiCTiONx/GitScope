@@ -2111,6 +2111,13 @@
                       Edit
                     </button>
                     <button
+                      id="diff-blame-btn"
+                      class="button"
+                      style="height: 22px; font-size: 9px"
+                    >
+                      Blame
+                    </button>
+                    <button
                       id="restore-file-btn"
                       class="button button-danger"
                       style="height: 22px; font-size: 9px"
@@ -2267,17 +2274,12 @@
             </div>
 
             <div style="display: flex; gap: 4px; align-items: center; flex-wrap: wrap">
-              <div id="editor-editing-toolbar" style="display: flex; gap: 4px; align-items: center">
+              <div
+                id="editor-editing-toolbar"
+                style="display: flex; gap: 4px; align-items: center; flex-wrap: wrap"
+              >
                 <!-- Global Toolbar (Shared across all files) -->
-                <div style="display: flex; gap: 4px; align-items: center">
-                  <button
-                    id="editor-wrap-btn"
-                    class="button"
-                    style="font-size: 10px"
-                    title="Toggle Word Wrap"
-                  >
-                    Wrap
-                  </button>
+                <div style="display: flex; gap: 4px; align-items: center; flex-wrap: wrap">
                   <button
                     id="editor-chrome-btn"
                     class="button"
@@ -2286,16 +2288,28 @@
                   >
                     Chrome
                   </button>
-                  <button
-                    id="editor-folder-btn"
-                    class="button"
-                    style="font-size: 10px"
-                    title="Open Containing Folder"
-                  >
-                    Folder
-                  </button>
 
                   <!-- Universal Snippets -->
+                  <button
+                    id="editor-wrap-btn"
+                    class="button"
+                    style="font-size: 10px; width: 26px; padding: 0"
+                    title="Toggle Word Wrap"
+                  >
+                    <svg
+                      width="12"
+                      height="12"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2.5"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    >
+                      <polyline points="9 10 4 15 9 20"></polyline>
+                      <path d="M20 4v7a4 4 0 0 1-4 4H4"></path>
+                    </svg>
+                  </button>
                   <button
                     id="md-list-btn"
                     class="button"
@@ -2374,7 +2388,7 @@
                 ></div>
 
                 <!-- Edit Group -->
-                <div style="display: flex; gap: 4px; align-items: center">
+                <div style="display: flex; gap: 4px; align-items: center; flex-wrap: wrap">
                   <button
                     id="editor-undo-btn"
                     class="button"
@@ -2402,10 +2416,22 @@
                   <button
                     id="editor-find-btn"
                     class="button"
-                    style="font-size: 10px"
+                    style="font-size: 10px; width: 26px; padding: 0"
                     title="Find & Replace (Ctrl+F)"
                   >
-                    Find
+                    <svg
+                      width="12"
+                      height="12"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2.5"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    >
+                      <circle cx="11" cy="11" r="8"></circle>
+                      <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                    </svg>
                   </button>
                 </div>
 
@@ -2544,14 +2570,30 @@
                 </div>
 
                 <div style="width: 8px"></div>
-                <button
-                  id="editor-restore-btn"
-                  class="button button-danger"
-                  style="font-size: 10px"
-                >
+                <button id="editor-restore-btn" class="button button-danger" style="font-size: 10px">
                   Restore
                 </button>
-                <button id="editor-gist-btn" class="button" style="font-size: 10px">Gist</button>
+                <button
+                  id="editor-gist-btn"
+                  class="button"
+                  style="font-size: 10px; width: 26px; padding: 0"
+                  title="Create Gist"
+                >
+                  <svg
+                    width="14"
+                    height="14"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <path
+                      d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"
+                    ></path>
+                  </svg>
+                </button>
                 <button id="editor-blame-btn" class="button" style="font-size: 10px">Blame</button>
                 <button id="editor-save-btn" class="button button-primary" style="font-size: 10px">
                   Save
