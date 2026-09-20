@@ -17,6 +17,19 @@ window.onunhandledrejection = function (event) {
 
 // State management
 let repositories = [];
+
+/**
+ * INTELLIGENCE: Robust path normalization to prevent duplicates.
+ * Handles: Backslashes, Double slashes, Trailing slashes, and Case sensitivity.
+ */
+function normalizeRepoPath(p) {
+  if (!p) return '';
+  return p
+    .replace(/\\/g, '/') // Convert to forward slashes
+    .replace(/\/+/g, '/') // Collapse multiple slashes (e.g. E:// -> E:/)
+    .replace(/\/$/, '') // Remove trailing slash
+    .toLowerCase(); // Case-insensitive comparison
+}
 let activeRepo = null;
 let isRendering = false;
 let treeViewMode = 'default'; // 'default', 'tracked', 'all'
@@ -137,11 +150,9 @@ const PRIVACY_PATTERNS = [
 // Intelligence: Repository Ownership Resolution Logic
 function findRepoForPath(filePath) {
   if (!filePath) return null;
-  const normPath = filePath.replace(/\\/g, '/').toLowerCase();
+  const normPath = normalizeRepoPath(filePath);
   const matches = repositories.filter((r) => {
-    const rPath = String(r.path || '')
-      .replace(/\\/g, '/')
-      .toLowerCase();
+    const rPath = normalizeRepoPath(r.path);
     return normPath === rPath || normPath.startsWith(rPath + '/');
   });
   return matches.sort((a, b) => b.path.length - a.path.length)[0] || null;
@@ -2796,7 +2807,7 @@ async function autoImportFromRoot(rootPath) {
     let removedSystemFolders = false;
 
     repositories.forEach((r) => {
-      const norm = r.path.replace(/\\/g, '/').toLowerCase();
+      const norm = normalizeRepoPath(r.path);
       const name = r.name || '';
       if (!seen.has(norm)) {
         if (isSystemFolder(name) || isSystemFolder(r.path.split(/[\\\/]/).pop())) {
@@ -2823,13 +2834,14 @@ async function autoImportFromRoot(rootPath) {
 
       const scan = await window.electronAPI.scanDirectory(dir.path);
       if (scan.type === 'single') {
-        const normPath = scan.path.replace(/\\/g, '/');
+        const normPath = normalizeRepoPath(scan.path);
         const alreadyExists = repositories.some(
-          (r) => r.path.replace(/\\/g, '/').toLowerCase() === normPath.toLowerCase(),
+          (r) => normalizeRepoPath(r.path) === normPath,
         );
 
         if (!alreadyExists) {
-          repositories.push({ ...scan, path: normPath, expanded: false });
+          const cleanPath = scan.path.replace(/\\/g, '/').replace(/\/+/g, '/').replace(/\/$/, '');
+          repositories.push({ ...scan, path: cleanPath, expanded: false });
           addedCount++;
         }
       }
@@ -4744,13 +4756,6 @@ async function renderTree(filter = '') {
     });
 
     const results = (await Promise.all(searchPromises)).filter(Boolean);
-
-    // Disambiguation: Pre-calculate name counts for visible repositories to handle duplicates
-    const nameCounts = {};
-    results.forEach(({ repo }) => {
-      nameCounts[repo.name] = (nameCounts[repo.name] || 0) + 1;
-    });
-
     const fragment = document.createDocumentFragment();
     let hasDirectMatches = false;
 
@@ -4770,15 +4775,7 @@ async function renderTree(filter = '') {
 
       if (!search || nameMatch || fileMatches.length > 0) {
         hasDirectMatches = true;
-
-        let displayName = repo.name;
-        if (nameCounts[repo.name] > 1) {
-          const parts = repo.path.replace(/\\/g, '/').split('/');
-          const parent = parts[parts.length - 2] || '';
-          if (parent) displayName += ` (${parent})`;
-        }
-
-        const nodeContainer = createTreeNode(displayName, repo.path, true, 0, repo);
+        const nodeContainer = createTreeNode(repo.name, repo.path, true, 0, repo);
         fragment.appendChild(nodeContainer);
 
         // If searching and found files, show them as direct children
@@ -5115,11 +5112,11 @@ async function revealFileInSidebar(filePath) {
   if (!repo) return;
 
   // 1. Locate Repo Root in tree
-  const normRepoPath = repo.path.replace(/\\/g, '/').toLowerCase();
+  const normRepoPath = normalizeRepoPath(repo.path);
   let currentContainer = Array.from(elements.repoTree.querySelectorAll(':scope > div')).find(
     (div) => {
       const node = div.querySelector('.tree-node');
-      return node && node.dataset.path.replace(/\\/g, '/').toLowerCase() === normRepoPath;
+      return node && normalizeRepoPath(node.dataset.path) === normRepoPath;
     },
   );
 
@@ -8143,6 +8140,21 @@ async function updateTreeHighlights(specificRepoPath = null) {
 async function smartRefreshTree() {
   logToConsole('Syncing tree structure...', 'info');
 
+  // 0. Deduplicate repositories in memory to fix any existing double-entries
+  const uniqueRepos = [];
+  const seenPaths = new Set();
+  repositories.forEach((r) => {
+    const norm = normalizeRepoPath(r.path);
+    if (norm && !seenPaths.has(norm)) {
+      seenPaths.add(norm);
+      uniqueRepos.push(r);
+    }
+  });
+  if (uniqueRepos.length !== repositories.length) {
+    repositories = uniqueRepos;
+    window.electronAPI.saveRepositories(repositories);
+  }
+
   // 1. Re-scan root directory if configured to catch new folders/repos
   if (settings.rootRepoDir) {
     await autoImportFromRoot(settings.rootRepoDir);
@@ -9529,12 +9541,12 @@ function showCreateRepoModal() {
 
     if (!name || !parent)
       return showAlert('Repository name and parent path are required.', 'Missing Fields');
-    const full = `${parent}/${name}`.replace(/\\/g, '/');
+    const full = `${parent}/${name}`;
+    const normFull = normalizeRepoPath(full);
 
     // Validation: Check if this repository is already in the workspace
-    const normFull = full.toLowerCase();
     const existing = repositories.find(
-      (r) => r.path.replace(/\\/g, '/').toLowerCase() === normFull,
+      (r) => normalizeRepoPath(r.path) === normFull,
     );
     if (existing) {
       return showAlert(
@@ -10214,10 +10226,11 @@ function handleIndentationAction(e, targetType) {
 }
 
 function addRepository(repo, skipSave = false, skipRender = false) {
-  const normNew = repo.path.replace(/\\/g, '/').toLowerCase();
-  const exists = repositories.find((r) => r.path.replace(/\\/g, '/').toLowerCase() === normNew);
+  const normNew = normalizeRepoPath(repo.path);
+  const exists = repositories.find((r) => normalizeRepoPath(r.path) === normNew);
   if (!exists) {
-    repositories.push({ ...repo, path: repo.path.replace(/\\/g, '/'), expanded: false });
+    const cleanPath = repo.path.replace(/\\/g, '/').replace(/\/+/g, '/').replace(/\/$/, '');
+    repositories.push({ ...repo, path: cleanPath, expanded: false });
     sortRepositories();
     if (!skipSave) window.electronAPI.saveRepositories(repositories);
     if (!skipRender) renderTree(elements.repoFilter ? elements.repoFilter.value : '');
@@ -10239,21 +10252,16 @@ async function removeRepositories(paths, skipConfirm = false) {
 
   let removedAny = false;
   targets.forEach((path) => {
-    const normPath = String(path || '')
-      .replace(/\\/g, '/')
-      .toLowerCase();
+    const normPath = normalizeRepoPath(path);
     logToConsole(`Attempting to remove project at: ${normPath}`, 'info');
 
     const idx = repositories.findIndex(
-      (r) =>
-        String(r.path || '')
-          .replace(/\\/g, '/')
-          .toLowerCase() === normPath,
+      (r) => normalizeRepoPath(r.path) === normPath,
     );
     if (idx !== -1) {
       const removed = repositories.splice(idx, 1)[0];
       removedAny = true;
-      if (activeRepo && activeRepo.path.replace(/\\/g, '/').toLowerCase() === normPath) {
+      if (activeRepo && normalizeRepoPath(activeRepo.path) === normPath) {
         activeRepo = null;
       }
       logToConsole(`Successfully removed ${removed.name} from workspace configuration.`, 'success');
