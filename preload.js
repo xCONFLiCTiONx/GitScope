@@ -50,6 +50,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
   gitUnstageAll: (path) => ipcRenderer.invoke('git-unstage-all', path),
   gitUnstageFile: (path, filePath) => ipcRenderer.invoke('git-unstage-file', path, filePath),
   gitStopTracking: (path, filePath) => ipcRenderer.invoke('git-stop-tracking', path, filePath),
+  gitGetIgnoredCachedFiles: (path) =>
+    ipcRenderer.invoke('git-get-ignored-cached-files', path),
+  gitRmCachedBatch: (path, filePaths) =>
+    ipcRenderer.invoke('git-rm-cached-batch', path, filePaths),
   gitStartTracking: (path, filePath) => ipcRenderer.invoke('git-start-tracking', path, filePath),
   gitIsTracked: (path, filePath) => ipcRenderer.invoke('git-is-tracked', path, filePath),
   gitCommit: (path, message, amend) => ipcRenderer.invoke('git-commit', path, message, amend),

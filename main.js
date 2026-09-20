@@ -1033,6 +1033,14 @@ if (!gotTheLock) {
     return await gitActions.stopTracking(path, filePath);
   });
 
+  ipcMain.handle('git-get-ignored-cached-files', async (event, path) => {
+    return await gitActions.getIgnoredCachedFiles(path);
+  });
+
+  ipcMain.handle('git-rm-cached-batch', async (event, path, filePaths) => {
+    return await gitActions.removeCachedFiles(path, filePaths);
+  });
+
   ipcMain.handle('git-start-tracking', async (event, path, filePath) => {
     return await gitActions.startTracking(path, filePath);
   });

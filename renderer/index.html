@@ -4906,6 +4906,65 @@
                 </select>
               </div>
 
+              <!-- Git Ignored Cache Section -->
+              <div
+                style="
+                  margin-bottom: 16px;
+                  padding: 10px 12px;
+                  border: 1px solid var(--border-color);
+                  border-radius: 6px;
+                  background: rgba(255, 255, 255, 0.02);
+                "
+              >
+                <div
+                  style="
+                    font-size: 11px;
+                    font-weight: 800;
+                    color: var(--accent-yellow);
+                    text-transform: uppercase;
+                    margin-bottom: 4px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: space-between;
+                  "
+                >
+                  <span>Ignored But Tracked</span>
+                  <span
+                    style="
+                      font-size: 10px;
+                      font-family: var(--font-mono);
+                      color: var(--text-muted);
+                    "
+                    >git ls-files -i</span
+                  >
+                </div>
+                <div
+                  style="
+                    font-size: 11px;
+                    color: var(--text-muted);
+                    margin-bottom: 10px;
+                    line-height: 1.35;
+                  "
+                >
+                  Find files matching .gitignore that remain cached in the Git index.
+                </div>
+                <button
+                  id="privacy-scan-ignored-cached"
+                  class="button"
+                  style="
+                    width: 100%;
+                    font-size: 11px;
+                    font-weight: 600;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    gap: 6px;
+                  "
+                >
+                  <span>🔍</span> Find Ignored Cached Files
+                </button>
+              </div>
+
               <div
                 style="
                   display: flex;

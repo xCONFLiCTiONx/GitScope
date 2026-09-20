@@ -526,6 +526,9 @@ const elements = {
   get privacySearchProject() {
     return document.getElementById('privacy-search-project');
   },
+  get privacyScanIgnoredCached() {
+    return document.getElementById('privacy-scan-ignored-cached');
+  },
   get privacyScanStart() {
     return document.getElementById('privacy-scan-start');
   },
@@ -10749,6 +10752,14 @@ function showPrivacySearchModal(projectPath = null) {
     };
   }
 
+  if (elements.privacyScanIgnoredCached) {
+    elements.privacyScanIgnoredCached.onclick = () => {
+      const selectedPath = elements.privacySearchProject.value;
+      lastPrivacyScanProject = selectedPath;
+      findIgnoredCachedFiles(selectedPath === 'all' ? null : selectedPath);
+    };
+  }
+
   elements.privacyBulkGitRm.onclick = handlePrivacyBulkGitRm;
   elements.privacyBulkIgnore.onclick = handlePrivacyBulkIgnore;
   if (elements.privacyExportCsv) {
@@ -10827,6 +10838,10 @@ function filterPrivacyResults() {
   const items = elements.privacyResults.querySelectorAll('.privacy-match-item');
   items.forEach((item) => {
     const patternId = item.dataset.patternId;
+    if (patternId === 'ignored-cached') {
+      item.style.display = 'flex';
+      return;
+    }
     const pattern = activePrivacyPatterns.find((p) => p.id === patternId);
     if (pattern && pattern.enabled) {
       item.style.display = 'flex';
@@ -10929,6 +10944,91 @@ async function startPrivacyScan(rootPath = null) {
   }
 }
 
+async function findIgnoredCachedFiles(rootPath = null) {
+  if (isPrivacyScanning) return;
+  isPrivacyScanning = true;
+  stopPrivacyScanRequested = false;
+  lastPrivacyScanResults = []; // Clear previous results
+  if (elements.privacyExportCsv) elements.privacyExportCsv.style.display = 'none';
+  if (elements.privacyExportMd) elements.privacyExportMd.style.display = 'none';
+
+  const btn = elements.privacyScanIgnoredCached;
+  const originalBtnContent = btn ? btn.innerHTML : '';
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = '<span>⏳</span> Searching Git Cache...';
+  }
+
+  elements.privacyResults.innerHTML = '';
+  const statusEl = elements.privacyScanStatus;
+  statusEl.textContent = 'Querying Git index for ignored files...';
+
+  let foundCount = 0;
+
+  try {
+    const targets = rootPath
+      ? repositories.filter((r) => r.path === rootPath)
+      : repositories;
+
+    if (targets.length === 0 && rootPath) {
+      targets.push({ name: rootPath.split(/[\\\/]/).pop(), path: rootPath });
+    }
+
+    for (const repo of targets) {
+      if (stopPrivacyScanRequested) break;
+      try {
+        const ignoredFiles = await window.electronAPI.gitGetIgnoredCachedFiles(repo.path);
+        if (Array.isArray(ignoredFiles)) {
+          for (const relPath of ignoredFiles) {
+            foundCount++;
+            const fullPath = `${repo.path}/${relPath}`.replace(/\\/g, '/');
+            const match = {
+              patternId: 'ignored-cached',
+              patternName: 'Ignored & Cached',
+              repoName: repo.name || 'Unknown',
+              repoPath: repo.path,
+              filePath: fullPath,
+              relativePath: relPath,
+              lineText: 'Matches .gitignore rules but is still tracked in Git cache/index',
+              lineNumber: 0,
+              matchedText: relPath,
+              isIgnoredCached: true,
+            };
+            lastPrivacyScanResults.push(match);
+            renderPrivacyMatch(match, false, true);
+          }
+        }
+      } catch (repoErr) {
+        logToConsole(`Error querying ignored files for ${repo.name}: ${repoErr.message}`, 'error');
+      }
+    }
+
+    if (foundCount === 0) {
+      elements.privacyResults.innerHTML =
+        '<div style="padding: 60px; text-align: center; color: var(--accent-green);"><div style="font-size: 24px; margin-bottom: 8px;">✓</div>All clear! No ignored files are currently cached or tracked in Git.</div>';
+      statusEl.textContent = '0 ignored cached files found';
+      elements.privacyBulkGitRm.disabled = true;
+      elements.privacyBulkIgnore.disabled = true;
+    } else {
+      statusEl.textContent = `Found ${foundCount} ignored file(s) tracked in Git`;
+      elements.privacyBulkGitRm.disabled = false;
+      elements.privacyBulkIgnore.disabled = false;
+      if (elements.privacyExportCsv) elements.privacyExportCsv.style.display = 'block';
+      if (elements.privacyExportMd) elements.privacyExportMd.style.display = 'block';
+    }
+  } catch (e) {
+    logToConsole(`Privacy Search: Failed to query ignored cached files: ${e.message}`, 'error');
+    statusEl.textContent = 'Error scanning Git cache.';
+  } finally {
+    isPrivacyScanning = false;
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = originalBtnContent;
+    }
+    updateResultsSelectAllToggle();
+  }
+}
+
 async function scanRecursive(dir, patterns, onMatch) {
   if (stopPrivacyScanRequested) return;
 
@@ -11007,7 +11107,7 @@ async function scanFileForPrivacy(filePath, patterns, onMatch) {
   }
 }
 
-function renderPrivacyMatch(match, skipScroll = false) {
+function renderPrivacyMatch(match, skipScroll = false, defaultChecked = false) {
   const container = elements.privacyResults;
   const item = document.createElement('div');
   item.className = 'privacy-match-item';
@@ -11018,28 +11118,43 @@ function renderPrivacyMatch(match, skipScroll = false) {
   item.style.flexDirection = 'column';
   item.style.gap = '4px';
 
-  // Check if pattern is enabled, if not hide it immediately
-  const pattern = activePrivacyPatterns.find((p) => p.id === match.patternId);
-  if (pattern && !pattern.enabled) {
-    item.style.display = 'none';
+  const isIgnoredCached = match.patternId === 'ignored-cached';
+
+  // Check if pattern is enabled, if not hide it immediately (ignored-cached is always shown unless filtered)
+  if (!isIgnoredCached) {
+    const pattern = activePrivacyPatterns.find((p) => p.id === match.patternId);
+    if (pattern && !pattern.enabled) {
+      item.style.display = 'none';
+    }
   }
 
-  const escapedLine = match.lineText
+  const escapedLine = (match.lineText || '')
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;');
 
-  const escapedMatch = match.matchedText
+  const escapedMatch = (match.matchedText || '')
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;');
+
+  const badgeColor = isIgnoredCached ? 'var(--accent-yellow)' : 'var(--accent-red)';
+  const linePrefix = isIgnoredCached
+    ? '<span style="color: var(--accent-yellow); margin-right: 8px; font-weight: 700;">[Git Cache]</span>'
+    : `<span style="color: var(--text-muted); margin-right: 8px;">Line ${match.lineNumber}:</span>`;
+  const snippet = isIgnoredCached
+    ? `${escapedLine} &mdash; <span style="color: var(--text-muted);">Run "git rm --cached" to untrack</span>`
+    : escapedLine.replace(
+        escapedMatch,
+        `<mark style="background: var(--accent-red); color: #fff; border-radius: 2px; padding: 0 2px;">${escapedMatch}</mark>`,
+      );
 
   item.innerHTML = `
         <div style="display: flex; justify-content: space-between; align-items: flex-start;">
             <div style="display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0;">
                 <div style="display: flex; align-items: center; gap: 6px;">
-                    <input type="checkbox" class="match-select" data-path="${match.filePath}">
-                    <span style="font-weight: 800; color: var(--accent-red); font-size: 10px; text-transform: uppercase;">${match.patternName}</span>
+                    <input type="checkbox" class="match-select" data-path="${match.filePath}" ${defaultChecked ? 'checked' : ''}>
+                    <span style="font-weight: 800; color: ${badgeColor}; font-size: 10px; text-transform: uppercase;">${match.patternName}</span>
                     <span style="color: var(--text-muted); font-size: 10px;">${match.repoName}</span>
                 </div>
                 <div style="font-weight: 600; color: var(--text-main); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px;">${match.filePath}</div>
@@ -11048,17 +11163,18 @@ function renderPrivacyMatch(match, skipScroll = false) {
                 <button class="button privacy-edit-btn" style="padding: 2px 6px; font-size: 10px;" title="Open in Editor">Edit</button>
                 <button class="button privacy-tree-btn" style="padding: 2px 6px; font-size: 10px;" title="Reveal in Project Tree">Tree</button>
                 <button class="button privacy-reveal-btn" style="padding: 2px 6px; font-size: 10px;" title="Show in Explorer">Reveal</button>
+                <button class="button button-danger privacy-untrack-btn" style="padding: 2px 6px; font-size: 10px;" title="Untrack from Git (git rm --cached)">Untrack</button>
                 <button class="button button-danger privacy-delete-btn" style="padding: 2px 6px; font-size: 10px;" title="Delete to Recycle Bin">Delete</button>
             </div>
         </div>
         <div style="background: rgba(0,0,0,0.3); padding: 6px 10px; border-radius: 4px; color: var(--accent-yellow); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--font-mono); font-size: 11px; margin-top: 4px; border: 1px solid rgba(255,255,255,0.05);">
-            <span style="color: var(--text-muted); margin-right: 8px;">Line ${match.lineNumber}:</span>
-            ${escapedLine.replace(escapedMatch, `<mark style="background: var(--accent-red); color: #fff; border-radius: 2px; padding: 0 2px;">${escapedMatch}</mark>`)}
+            ${linePrefix}
+            ${snippet}
         </div>
     `;
 
   item.querySelector('.privacy-edit-btn').onclick = () => {
-    openFileInEditor(match.filePath, match.lineNumber, 1, match.matchedText);
+    openFileInEditor(match.filePath, match.lineNumber || 1, 1, match.matchedText);
     elements.searchHubModal.style.display = 'none';
   };
 
@@ -11069,6 +11185,40 @@ function renderPrivacyMatch(match, skipScroll = false) {
 
   item.querySelector('.privacy-reveal-btn').onclick = () => {
     window.electronAPI.revealInExplorer(match.filePath);
+  };
+
+  item.querySelector('.privacy-untrack-btn').onclick = async () => {
+    const fileName = match.filePath.split(/[\\\/]/).pop();
+    if (
+      await showConfirm(
+        `Untrack "${fileName}" from Git using "git rm --cached"?\n\nThis will remove it from the Git index but keep your physical file on disk.`,
+        'Confirm Untrack',
+      )
+    ) {
+      setTaskState(true);
+      try {
+        const repo = findRepoForPath(match.filePath);
+        if (repo) {
+          const relPath =
+            match.relativePath ||
+            match.filePath.substring(repo.path.length).replace(/^[\\\/]/, '').replace(/\\/g, '/');
+          const res = await window.electronAPI.gitStopTracking(repo.path, relPath);
+          if (res && res.success !== false) {
+            logToConsole(`Untracked ${fileName} (git rm --cached)`, 'success');
+            item.remove();
+            lastPrivacyScanResults = lastPrivacyScanResults.filter((m) => m.filePath !== match.filePath);
+            updatePrivacyResultsCount();
+            await smartRefreshTree();
+          } else {
+            showError(res.output || res.error || 'Failed to untrack file.', 'Git Error');
+          }
+        }
+      } catch (err) {
+        showError(err.message, 'Untrack Failed');
+      } finally {
+        setTaskState(false);
+      }
+    }
   };
 
   item.querySelector('.privacy-delete-btn').onclick = async () => {
@@ -11082,7 +11232,8 @@ function renderPrivacyMatch(match, skipScroll = false) {
           `.privacy-match-item [data-path="${match.filePath}"]`,
         );
         allMatchesForFile.forEach((el) => el.closest('.privacy-match-item').remove());
-        filterPrivacyResults();
+        lastPrivacyScanResults = lastPrivacyScanResults.filter((m) => m.filePath !== match.filePath);
+        updatePrivacyResultsCount();
       } else {
         showError(res.error, 'Delete Failed');
       }
@@ -11092,6 +11243,27 @@ function renderPrivacyMatch(match, skipScroll = false) {
   container.appendChild(item);
   if (!skipScroll) container.scrollTop = container.scrollHeight;
 
+  updateResultsSelectAllToggle();
+}
+
+function updatePrivacyResultsCount() {
+  const items = Array.from(elements.privacyResults.querySelectorAll('.privacy-match-item'));
+  const visibleItems = items.filter((i) => i.style.display !== 'none');
+  const statusEl = elements.privacyScanStatus;
+
+  if (items.length === 0) {
+    elements.privacyResults.innerHTML =
+      '<div style="padding: 60px; text-align: center; color: var(--accent-green);"><div style="font-size: 24px; margin-bottom: 8px;">✓</div>All selected files have been removed or untracked from Git!</div>';
+    statusEl.textContent = '0 matches';
+    elements.privacyBulkGitRm.disabled = true;
+    elements.privacyBulkIgnore.disabled = true;
+    if (elements.privacyExportCsv) elements.privacyExportCsv.style.display = 'none';
+    if (elements.privacyExportMd) elements.privacyExportMd.style.display = 'none';
+  } else {
+    statusEl.textContent = `Matches remaining: ${visibleItems.length}`;
+    elements.privacyBulkGitRm.disabled = visibleItems.length === 0;
+    elements.privacyBulkIgnore.disabled = visibleItems.length === 0;
+  }
   updateResultsSelectAllToggle();
 }
 
@@ -11119,12 +11291,14 @@ async function handlePrivacyBulkGitRm() {
 
   if (
     await showConfirm(
-      `Run "git rm --cached" on ${paths.length} files?\n\nThis will stop Git from tracking them but keep the local files on disk.`,
+      `Run "git rm --cached" on ${paths.length} file(s)?\n\nThis will untrack them from the Git index but keep the local files on disk.`,
       'Confirm Git Action',
     )
   ) {
     setTaskState(true);
     try {
+      // Group by repo
+      const repoFilesMap = new Map();
       for (const fullPath of paths) {
         const repo = findRepoForPath(fullPath);
         if (repo) {
@@ -11132,11 +11306,50 @@ async function handlePrivacyBulkGitRm() {
             .substring(repo.path.length)
             .replace(/^[\\\/]/, '')
             .replace(/\\/g, '/');
-          await window.electronAPI.gitStopTracking(repo.path, relPath);
+          if (!repoFilesMap.has(repo.path)) {
+            repoFilesMap.set(repo.path, []);
+          }
+          repoFilesMap.get(repo.path).push(relPath);
         }
       }
-      logToConsole(`Privacy: Removed ${paths.length} files from Git cache.`, 'success');
-      showAlert(`Successfully removed ${paths.length} files from Git tracking.`, 'Success');
+
+      let untrackedCount = 0;
+      for (const [repoPath, relPaths] of repoFilesMap.entries()) {
+        if (window.electronAPI.gitRmCachedBatch) {
+          const res = await window.electronAPI.gitRmCachedBatch(repoPath, relPaths);
+          if (res && res.success) {
+            untrackedCount += res.count || relPaths.length;
+          } else {
+            // fallback
+            for (const rPath of relPaths) {
+              await window.electronAPI.gitStopTracking(repoPath, rPath);
+              untrackedCount++;
+            }
+          }
+        } else {
+          for (const rPath of relPaths) {
+            await window.electronAPI.gitStopTracking(repoPath, rPath);
+            untrackedCount++;
+          }
+        }
+      }
+
+      logToConsole(`Privacy: Removed ${untrackedCount} files from Git cache.`, 'success');
+      showAlert(`Successfully removed ${untrackedCount} file(s) from Git tracking.`, 'Success');
+
+      // Remove untracked items from DOM and lastPrivacyScanResults
+      for (const p of paths) {
+        const matchingEls = elements.privacyResults.querySelectorAll(
+          `.privacy-match-item [data-path="${p}"]`,
+        );
+        matchingEls.forEach((el) => {
+          const itemEl = el.closest('.privacy-match-item');
+          if (itemEl) itemEl.remove();
+        });
+        lastPrivacyScanResults = lastPrivacyScanResults.filter((m) => m.filePath !== p);
+      }
+
+      updatePrivacyResultsCount();
       await smartRefreshTree();
     } catch (e) {
       logToConsole(`Privacy Action Failed: ${e.message}`, 'error');
