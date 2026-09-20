@@ -163,38 +163,38 @@
       }
 
       :root {
-          /* Default to Deeply Integrated Modern Windows Dark Theme */
-          --bg-main: #202020;
-          --bg-surface: #2d2d2d;
-          --bg-sidebar: #1a1a1a;
-          --border-color: #333333;
+          /* 2026 Vision - High Contrast & Glassmorphism */
+          --bg-main: rgba(32, 32, 32, 0.85);
+          --bg-surface: rgba(45, 45, 45, 0.7);
+          --bg-sidebar: rgba(26, 26, 26, 0.6);
+          --border-color: rgba(255, 255, 255, 0.15);
           --text-main: #ffffff;
-          --text-muted: #a0a0a0;
-          --accent-green: #2bc265;
-          --accent-yellow: #ffd333;
-          --accent-red: #ff4d4d;
-          --accent-blue: #0078d4;
-          --hover-bg: #333333;
-          --active-bg: #0078d4;
-          --nav-rail-bg: #141414;
+          --text-muted: #b0b0b0;
+          --accent-green: #30d158;
+          --accent-yellow: #ffd60a;
+          --accent-red: #ff453a;
+          --accent-blue: #0a84ff;
+          --hover-bg: rgba(255, 255, 255, 0.1);
+          --active-bg: #0a84ff;
+          --nav-rail-bg: rgba(20, 20, 20, 0.8);
+          --glass-blur: blur(20px) saturate(180%);
       }
 
       @media (prefers-color-scheme: light) {
           :root {
-              /* Deeply Integrated Modern Windows Light Theme */
-              --bg-main: #f3f3f3;
-              --bg-surface: #ffffff;
-              --bg-sidebar: #f3f3f3;
-              --border-color: #e5e5e5;
+              --bg-main: rgba(243, 243, 243, 0.85);
+              --bg-surface: rgba(255, 255, 255, 0.7);
+              --bg-sidebar: rgba(243, 243, 243, 0.6);
+              --border-color: rgba(0, 0, 0, 0.15);
               --text-main: #000000;
-              --text-muted: #5f5f5f;
-              --accent-green: #107c41;
-              --accent-yellow: #ffb900;
-              --accent-red: #e81123;
-              --accent-blue: #0078d4;
-              --hover-bg: #e5e5e5;
-              --active-bg: #0078d4;
-              --nav-rail-bg: #eeeeee;
+              --text-muted: #555555;
+              --accent-green: #248a3d;
+              --accent-yellow: #e6b800;
+              --accent-red: #d70015;
+              --accent-blue: #007aff;
+              --hover-bg: rgba(0, 0, 0, 0.05);
+              --active-bg: #007aff;
+              --nav-rail-bg: rgba(238, 238, 238, 0.8);
           }
       }
 
@@ -354,6 +354,7 @@
           flex-direction: column;
           flex-shrink: 0;
           position: relative;
+          backdrop-filter: var(--glass-blur);
       }
       #sidebar-resizer {
           width: 4px;
@@ -447,10 +448,11 @@
       .git-btn.highlight-pull, .pull-btn.highlight-pull, #dashboard-bulk-pull-btn.highlight-pull {
           background: var(--accent-blue) !important;
           color: #fff !important;
-          box-shadow: 0 0 12px var(--accent-blue);
+          box-shadow: 0 0 20px var(--accent-blue);
           animation: pulse-blue 2s infinite;
           border-color: #fff !important;
           font-weight: 800 !important;
+          transform: scale(1.05);
       }
 
       @keyframes pulse-blue {
@@ -668,7 +670,7 @@
       #repo-header {
           background: var(--bg-surface);
           border: 1px solid var(--border-color);
-          border-radius: 8px;
+          border-radius: 12px;
           padding: 16px 20px;
           margin-bottom: 20px;
           display: flex;
@@ -676,6 +678,8 @@
           align-items: center;
           flex-wrap: wrap;
           gap: 16px;
+          backdrop-filter: var(--glass-blur);
+          box-shadow: 0 4px 24px rgba(0,0,0,0.2);
       }
 
       .repo-title-box h2 {
@@ -901,36 +905,72 @@
       @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 
       .button {
-          padding: 4px 10px;
+          padding: 4px 14px;
           font-size: 11px;
-          font-weight: 500;
-          border-radius: 4px;
+          font-weight: 600;
+          border-radius: 8px;
           border: 1px solid var(--border-color);
+          background: linear-gradient(180deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.02) 100%);
           background-color: var(--bg-surface);
           color: var(--text-main);
           cursor: pointer;
-          transition: all 0.15s ease;
+          transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
           display: inline-flex;
           align-items: center;
           justify-content: center;
           gap: 6px;
-          height: 28px;
+          height: 30px;
           white-space: nowrap;
+          backdrop-filter: var(--glass-blur);
+          box-shadow: 0 1px 2px rgba(0,0,0,0.2);
       }
-      .button:hover { background-color: var(--hover-bg); border-color: var(--text-muted); color: var(--text-main); }
-      .button:active { transform: translateY(1px); }
-      .button:disabled { opacity: 0.4; cursor: not-allowed; pointer-events: none; filter: grayscale(1); }
+      .button:hover {
+          background-color: var(--hover-bg);
+          border-color: rgba(255, 255, 255, 0.4);
+          color: var(--text-main);
+          box-shadow: 0 0 15px rgba(255, 255, 255, 0.1);
+          transform: translateY(-1px);
+      }
+      .button:active { transform: translateY(0); scale: 0.98; }
+      .button:disabled { opacity: 0.3; cursor: not-allowed; pointer-events: none; filter: grayscale(1); }
 
-      .button-primary { border-color: var(--accent-green); color: var(--accent-green); }
-      .button-primary:hover { background-color: var(--accent-green); color: #fff; }
+      .button-primary {
+          border-color: var(--accent-green);
+          color: var(--accent-green);
+          background: rgba(48, 209, 88, 0.05);
+      }
+      .button-primary:hover {
+          background-color: var(--accent-green);
+          color: #000;
+          box-shadow: 0 0 20px rgba(48, 209, 88, 0.4);
+          border-color: #fff;
+      }
 
-      .button-blue { border-color: var(--accent-blue); color: var(--accent-blue); }
-      .button-blue:hover { background-color: var(--accent-blue); color: #fff; }
+      .button-blue {
+          border-color: var(--accent-blue);
+          color: var(--accent-blue);
+          background: rgba(10, 132, 255, 0.05);
+      }
+      .button-blue:hover {
+          background-color: var(--accent-blue);
+          color: #fff;
+          box-shadow: 0 0 20px rgba(10, 132, 255, 0.4);
+          border-color: #fff;
+      }
 
-      .button-warning { border-color: var(--accent-red); color: var(--accent-red); }
-      .button-warning:hover { background-color: var(--accent-red); color: #fff; }
+      .button-warning { border-color: var(--accent-yellow); color: var(--accent-yellow); }
+      .button-warning:hover {
+          background-color: var(--accent-yellow);
+          color: #000;
+          box-shadow: 0 0 20px rgba(255, 214, 10, 0.4);
+      }
+
       .button-danger { border-color: var(--accent-red); color: var(--accent-red); }
-      .button-danger:hover { background-color: var(--accent-red); color: #fff; }
+      .button-danger:hover {
+          background-color: var(--accent-red);
+          color: #fff;
+          box-shadow: 0 0 20px rgba(255, 69, 58, 0.4);
+      }
 
       #delete-github-btn:hover { background: transparent !important; box-shadow: none !important; }
 
@@ -1786,7 +1826,7 @@
                 <!-- Divider 1 -->
                 <span
                   aria-hidden="true"
-                  style="border-left: 1px solid #ccc; height: 16px; margin: 0 4px"
+                  style="border-left: 1px solid rgba(255,255,255,0.2); height: 20px; margin: 0 8px"
                 ></span>
 
                 <button
@@ -1841,7 +1881,7 @@
                 <!-- Divider 2 -->
                 <span
                   aria-hidden="true"
-                  style="border-left: 1px solid #ccc; height: 16px; margin: 0 4px"
+                  style="border-left: 1px solid rgba(255,255,255,0.2); height: 20px; margin: 0 8px"
                 ></span>
 
                 <button

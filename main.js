@@ -302,7 +302,11 @@ if (!gotTheLock) {
         width: state.width,
         height: state.height,
         show: false, // Don't show until content is ready to prevent white flash
-        backgroundColor: nativeTheme.shouldUseDarkColors ? '#202020' : '#f3f3f3', // Match Windows native theme background
+        backgroundColor: '#00000000', // Transparent background for vibrancy
+        transparent: process.platform === 'darwin', // MacOS transparency
+        frame: true,
+        vibrancy: 'under-window', // MacOS vibrancy
+        visualEffectState: 'active',
         icon: path.join(__dirname, 'ICON.png'),
         webPreferences: {
           preload: path.join(__dirname, 'preload.js'),
@@ -313,6 +317,11 @@ if (!gotTheLock) {
           allowRunningInsecureContent: true,
         },
       });
+
+      // Enable Windows 11 Mica/Acrylic effect if possible
+      if (process.platform === 'win32') {
+        mainWindow.setBackgroundMaterial('mica');
+      }
 
       // Performance: Show window as soon as content is ready
       mainWindow.once('ready-to-show', () => {
