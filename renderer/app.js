@@ -1967,6 +1967,7 @@ function initEventListeners() {
   if (elements.searchHubClose) {
     elements.searchHubClose.onclick = () => {
       elements.searchHubModal.style.display = 'none';
+      hideFloatingTooltip();
       if (isAdvancedSearching) stopAdvancedSearchRequested = true;
       if (isPrivacyScanning) stopPrivacyScanRequested = true;
     };
@@ -10248,6 +10249,84 @@ window.addEventListener('blur', () => {
   if (preview) preview.classList.remove('ctrl-active');
 });
 
+// Floating Tooltip Helper for Long Text / Paths
+let appFloatingTooltip = null;
+
+function getAppFloatingTooltip() {
+  if (!appFloatingTooltip) {
+    appFloatingTooltip = document.getElementById('app-floating-tooltip');
+    if (!appFloatingTooltip) {
+      appFloatingTooltip = document.createElement('div');
+      appFloatingTooltip.id = 'app-floating-tooltip';
+      appFloatingTooltip.style.position = 'fixed';
+      appFloatingTooltip.style.zIndex = '120000';
+      appFloatingTooltip.style.background = 'var(--bg-card, #1c2128)';
+      appFloatingTooltip.style.border = '1px solid var(--accent-blue, #0078d4)';
+      appFloatingTooltip.style.borderRadius = '6px';
+      appFloatingTooltip.style.padding = '8px 12px';
+      appFloatingTooltip.style.boxShadow = '0 8px 24px rgba(0, 0, 0, 0.7)';
+      appFloatingTooltip.style.color = 'var(--text-main, #e6edf3)';
+      appFloatingTooltip.style.fontFamily = 'var(--font-mono, monospace)';
+      appFloatingTooltip.style.fontSize = '11px';
+      appFloatingTooltip.style.maxWidth = 'min(700px, 85vw)';
+      appFloatingTooltip.style.maxHeight = '50vh';
+      appFloatingTooltip.style.overflowY = 'auto';
+      appFloatingTooltip.style.wordBreak = 'break-all';
+      appFloatingTooltip.style.overflowWrap = 'anywhere';
+      appFloatingTooltip.style.whiteSpace = 'normal';
+      appFloatingTooltip.style.lineHeight = '1.45';
+      appFloatingTooltip.style.display = 'none';
+      appFloatingTooltip.style.pointerEvents = 'none';
+      document.body.appendChild(appFloatingTooltip);
+    }
+  }
+  return appFloatingTooltip;
+}
+
+function showFloatingTooltip(e, text) {
+  if (!text) return;
+  const tooltip = getAppFloatingTooltip();
+  tooltip.textContent = text;
+  tooltip.style.display = 'block';
+
+  const padding = 12;
+  const tooltipWidth = tooltip.offsetWidth || 300;
+  const tooltipHeight = tooltip.offsetHeight || 30;
+
+  let left = e.clientX + 14;
+  let top = e.clientY + 14;
+
+  // Prevent right edge overflow
+  if (left + tooltipWidth > window.innerWidth - padding) {
+    left = Math.max(padding, e.clientX - tooltipWidth - 10);
+    if (left + tooltipWidth > window.innerWidth - padding) {
+      left = Math.max(padding, window.innerWidth - tooltipWidth - padding);
+    }
+  }
+
+  // Prevent bottom edge overflow
+  if (top + tooltipHeight > window.innerHeight - padding) {
+    top = Math.max(padding, e.clientY - tooltipHeight - 10);
+    if (top + tooltipHeight > window.innerHeight - padding) {
+      top = Math.max(padding, window.innerHeight - tooltipHeight - padding);
+    }
+  }
+
+  // Prevent negative / off-screen top-left
+  if (left < padding) left = padding;
+  if (top < padding) top = padding;
+
+  tooltip.style.left = `${left}px`;
+  tooltip.style.top = `${top}px`;
+}
+
+function hideFloatingTooltip() {
+  const tooltip = getAppFloatingTooltip();
+  if (tooltip) {
+    tooltip.style.display = 'none';
+  }
+}
+
 function showSearchHub(tab = 'advanced', projectPath = null) {
   elements.searchHubModal.style.display = 'flex';
   switchSearchTab(tab, projectPath);
@@ -10427,11 +10506,16 @@ function renderAdvancedSearchResultsIncremental(results, searchQuery = null, isR
     header.style.marginBottom = '6px';
     header.style.alignItems = 'center';
 
+    const fullResPath = `${res.repoPath}/${res.path}`.replace(/\\/g, '/');
     const pathEl = document.createElement('span');
+    pathEl.className = 'adv-search-file-path';
     pathEl.style.overflow = 'hidden';
     pathEl.style.textOverflow = 'ellipsis';
     pathEl.style.whiteSpace = 'nowrap';
     pathEl.innerHTML = `<span style="color: var(--accent-blue); font-weight: 800; font-family: var(--font-sans);">[${res.repoName}]</span> <span style="color: var(--text-main);">${res.path}</span>`;
+    pathEl.onmouseenter = (e) => showFloatingTooltip(e, fullResPath);
+    pathEl.onmousemove = (e) => showFloatingTooltip(e, fullResPath);
+    pathEl.onmouseleave = hideFloatingTooltip;
     header.appendChild(pathEl);
 
     if (res.line) {
@@ -11149,6 +11233,8 @@ function renderPrivacyMatch(match, skipScroll = false, defaultChecked = false) {
         `<mark style="background: var(--accent-red); color: #fff; border-radius: 2px; padding: 0 2px;">${escapedMatch}</mark>`,
       );
 
+  const escapedFilePath = (match.filePath || '').replace(/"/g, '&quot;');
+
   item.innerHTML = `
         <div style="display: flex; justify-content: space-between; align-items: flex-start;">
             <div style="display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0;">
@@ -11157,7 +11243,7 @@ function renderPrivacyMatch(match, skipScroll = false, defaultChecked = false) {
                     <span style="font-weight: 800; color: ${badgeColor}; font-size: 10px; text-transform: uppercase;">${match.patternName}</span>
                     <span style="color: var(--text-muted); font-size: 10px;">${match.repoName}</span>
                 </div>
-                <div style="font-weight: 600; color: var(--text-main); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px;">${match.filePath}</div>
+                <div class="privacy-file-path" style="font-weight: 600; color: var(--text-main); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; cursor: default;">${match.filePath}</div>
             </div>
             <div style="display: flex; gap: 4px;">
                 <button class="button privacy-edit-btn" style="padding: 2px 6px; font-size: 10px;" title="Open in Editor">Edit</button>
@@ -11172,6 +11258,13 @@ function renderPrivacyMatch(match, skipScroll = false, defaultChecked = false) {
             ${snippet}
         </div>
     `;
+
+  const filePathEl = item.querySelector('.privacy-file-path');
+  if (filePathEl) {
+    filePathEl.onmouseenter = (e) => showFloatingTooltip(e, match.filePath);
+    filePathEl.onmousemove = (e) => showFloatingTooltip(e, match.filePath);
+    filePathEl.onmouseleave = hideFloatingTooltip;
+  }
 
   item.querySelector('.privacy-edit-btn').onclick = () => {
     openFileInEditor(match.filePath, match.lineNumber || 1, 1, match.matchedText);
