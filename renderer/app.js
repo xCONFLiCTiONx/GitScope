@@ -2024,7 +2024,7 @@ function initEventListeners() {
         elements.sidebarToggleIgnored.textContent = '👁';
         elements.sidebarToggleIgnored.title = 'Default View';
         logToConsole(
-          'Filter: Default View (Respects .gitignore and Windows hidden/system attributes).',
+          'Filter: Default View (Hides .git and hidden/system files, shows everything else).',
           'info',
         );
       }
