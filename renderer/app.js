@@ -3135,7 +3135,7 @@ async function handleCommit(pushAfter = false) {
   // Safety Check: If pushing after commit, check if we are behind
   if (pushAfter) {
     try {
-      const status = await window.electronAPI.gitStatus(activeRepo.path);
+      const status = await window.electronAPI.gitStatus(activeRepo.path, { includeIgnored: false });
       if (status.behind > 0) {
         const proceed = await showConfirm(
           `You have ${status.behind} incoming commits from remote. It is highly recommended to PULL first.\n\nAre you sure you want to COMMIT and PUSH anyway?`,

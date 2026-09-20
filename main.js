@@ -982,8 +982,8 @@ if (!gotTheLock) {
     return { success: true };
   });
 
-  ipcMain.handle('git-status', async (event, path) => {
-    return await gitActions.getStatus(path);
+  ipcMain.handle('git-status', async (event, path, options) => {
+    return await gitActions.getStatus(path, options);
   });
 
   ipcMain.handle('git-quick-status', async (event, path) => {
@@ -1363,8 +1363,8 @@ if (!gotTheLock) {
     return await gitActions.getChangedFiles(path);
   });
 
-  ipcMain.handle('git-detailed-changes', async (event, path) => {
-    return await gitActions.getDetailedChanges(path);
+  ipcMain.handle('git-detailed-changes', async (event, path, options) => {
+    return await gitActions.getDetailedChanges(path, options);
   });
 
   ipcMain.handle('git-file-diff', async (event, repoPath, filePath) => {

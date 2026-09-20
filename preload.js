@@ -22,7 +22,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   copyFile: (src, dest) => ipcRenderer.invoke('copy-file', src, dest),
   copyFileForce: (src, dest) => ipcRenderer.invoke('copy-file-force', src, dest),
   renameItem: (oldPath, newPath) => ipcRenderer.invoke('rename-item', oldPath, newPath),
-  gitStatus: (path) => ipcRenderer.invoke('git-status', path),
+  gitStatus: (path, options) => ipcRenderer.invoke('git-status', path, options),
   gitQuickStatus: (path) => ipcRenderer.invoke('git-quick-status', path),
   gitRawStatus: (path) => ipcRenderer.invoke('git-raw-status', path),
   gitOptimizeRepository: (path, level) =>
@@ -69,7 +69,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getCommitDiff: (path, hash) => ipcRenderer.invoke('git-get-commit-diff', path, hash),
   generateCommitMsg: (diff) => ipcRenderer.invoke('generate-commit-msg', diff),
   getChangedFiles: (path) => ipcRenderer.invoke('git-changed-files', path),
-  getDetailedChanges: (path) => ipcRenderer.invoke('git-detailed-changes', path),
+  getDetailedChanges: (path, options) => ipcRenderer.invoke('git-detailed-changes', path, options),
   getFileDiff: (repoPath, filePath) => ipcRenderer.invoke('git-file-diff', repoPath, filePath),
   gitBlame: (repoPath, filePath, commitHash, lineRange) =>
     ipcRenderer.invoke('git-blame', repoPath, filePath, commitHash, lineRange),
