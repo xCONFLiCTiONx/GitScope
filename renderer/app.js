@@ -7726,6 +7726,9 @@ async function openFileInEditor(
       };
       elements.previewImg.src = `data:${mimeMap[ext] || 'image/' + ext};base64,${base64}`;
       elements.imagePreview.style.display = 'flex';
+      if (elements.monacoContainer) elements.monacoContainer.style.display = 'none';
+      if (elements.markdownPreview) elements.markdownPreview.style.display = 'none';
+      if (elements.htmlPreview) elements.htmlPreview.style.display = 'none';
       elements.editorSaveBtn.style.display = 'none'; // Can't save images in text editor
       if (elements.editorBlameBtn) elements.editorBlameBtn.style.display = 'none';
     } else {

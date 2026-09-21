@@ -265,6 +265,22 @@
           --nav-rail-bg: rgba(20, 20, 20, 0.8);
       }
 
+      /* Image Preview Solid Background */
+      #image-preview {
+          background: #2d2d2d !important;
+      }
+      .theme-light #image-preview {
+          background: #ffffff !important;
+      }
+      .theme-dark #image-preview {
+          background: #2d2d2d !important;
+      }
+      @media (prefers-color-scheme: light) {
+          :root:not(.theme-dark) #image-preview {
+              background: #ffffff !important;
+          }
+      }
+
       /* Tabs UI */
       .tab-bar {
           display: flex;
