@@ -167,6 +167,7 @@
           --bg-main: rgba(32, 32, 32, 0.85);
           --bg-surface: rgba(45, 45, 45, 0.7);
           --bg-sidebar: rgba(26, 26, 26, 0.6);
+          --bg-inset: rgba(0, 0, 0, 0.2);
           --border-color: rgba(255, 255, 255, 0.15);
           --text-main: #ffffff;
           --text-muted: #b0b0b0;
@@ -178,6 +179,40 @@
           --active-bg: #0a84ff;
           --nav-rail-bg: rgba(20, 20, 20, 0.8);
           --glass-blur: blur(20px) saturate(180%);
+      }
+
+      /* Manual Theme Overrides */
+      .theme-light {
+          --bg-main: rgba(243, 243, 243, 0.95);
+          --bg-surface: rgba(255, 255, 255, 0.95);
+          --bg-sidebar: #f3f3f3;
+          --bg-inset: rgba(0, 0, 0, 0.05);
+          --border-color: rgba(0, 0, 0, 0.15);
+          --text-main: #000000;
+          --text-muted: #555555;
+          --accent-green: #248a3d;
+          --accent-yellow: #e6b800;
+          --accent-red: #d70015;
+          --accent-blue: #007aff;
+          --hover-bg: rgba(0, 0, 0, 0.05);
+          --active-bg: #007aff;
+          --nav-rail-bg: rgba(238, 238, 238, 0.95);
+      }
+
+      .theme-dark {
+          --bg-main: rgba(32, 32, 32, 0.85);
+          --bg-surface: rgba(45, 45, 45, 0.7);
+          --bg-sidebar: rgba(26, 26, 26, 0.6);
+          --border-color: rgba(255, 255, 255, 0.15);
+          --text-main: #ffffff;
+          --text-muted: #b0b0b0;
+          --accent-green: #30d158;
+          --accent-yellow: #ffd60a;
+          --accent-red: #ff453a;
+          --accent-blue: #0a84ff;
+          --hover-bg: rgba(255, 255, 255, 0.1);
+          --active-bg: #0a84ff;
+          --nav-rail-bg: rgba(20, 20, 20, 0.8);
       }
 
       @media (prefers-color-scheme: light) {
@@ -1119,35 +1154,40 @@
           padding: 20px;
       }
       .modal-content {
-          background-color: #1a1a1a !important;
-          border: 1px solid #555555 !important;
+          background-color: var(--bg-surface) !important;
+          border: 1px solid var(--border-color) !important;
           border-radius: 8px;
           width: 450px;
           max-width: 100%;
           max-height: 95vh;
           overflow-y: auto;
           padding: 24px;
-          box-shadow: 0 12px 32px rgba(0,0,0,0.7);
+          box-shadow: 0 12px 32px rgba(0,0,0,0.5);
           display: flex;
           flex-direction: column;
           position: relative;
+          color: var(--text-main);
       }
       .modal .settings-input {
-          background-color: #111111 !important;
-          border: 1px solid #555555 !important;
-          color: #ffffff !important;
+          background-color: var(--bg-main) !important;
+          border: 1px solid var(--border-color) !important;
+          color: var(--text-main) !important;
       }
       .modal .settings-input:focus {
           border-color: var(--accent-blue) !important;
       }
       .modal .button {
-          background-color: #262626 !important;
-          border-color: #555555 !important;
-          color: #ffffff !important;
+          background-color: var(--bg-main) !important;
+          border: 1px solid var(--border-color) !important;
+          color: var(--text-main) !important;
+          padding: 8px 16px;
+          border-radius: 4px;
+          cursor: pointer;
+          transition: all 0.2s;
       }
       .modal .button:hover {
-          background-color: #333333 !important;
-          border-color: #777777 !important;
+          background-color: var(--hover-bg) !important;
+          border-color: var(--accent-blue) !important;
       }
       .modal .button-primary {
           border-color: var(--accent-green) !important;
@@ -1477,10 +1517,7 @@
         <div id="sidebar-header">
           <span>REPOSITORIES</span>
           <div style="display: flex; gap: 8px">
-            <span
-              class="sidebar-action-icon"
-              id="sidebar-toggle-ignored"
-              title="Default View"
+            <span class="sidebar-action-icon" id="sidebar-toggle-ignored" title="Default View"
               >👁</span
             >
             <span class="sidebar-action-icon" id="sidebar-refresh" title="Refresh">↻</span>
@@ -1846,7 +1883,11 @@
                 <!-- Divider 1 -->
                 <span
                   aria-hidden="true"
-                  style="border-left: 1px solid rgba(255,255,255,0.2); height: 20px; margin: 0 8px"
+                  style="
+                    border-left: 1px solid rgba(255, 255, 255, 0.2);
+                    height: 20px;
+                    margin: 0 8px;
+                  "
                 ></span>
 
                 <button
@@ -1901,7 +1942,11 @@
                 <!-- Divider 2 -->
                 <span
                   aria-hidden="true"
-                  style="border-left: 1px solid rgba(255,255,255,0.2); height: 20px; margin: 0 8px"
+                  style="
+                    border-left: 1px solid rgba(255, 255, 255, 0.2);
+                    height: 20px;
+                    margin: 0 8px;
+                  "
                 ></span>
 
                 <button
@@ -2122,11 +2167,7 @@
                     <button id="diff-edit-btn" class="button" style="height: 22px; font-size: 9px">
                       Edit
                     </button>
-                    <button
-                      id="diff-blame-btn"
-                      class="button"
-                      style="height: 22px; font-size: 9px"
-                    >
+                    <button id="diff-blame-btn" class="button" style="height: 22px; font-size: 9px">
                       Blame
                     </button>
                     <button
@@ -2582,13 +2623,18 @@
                 </div>
 
                 <div style="width: 8px"></div>
-                <button id="editor-restore-btn" class="button button-danger" style="font-size: 10px">
+                <button
+                  id="editor-restore-btn"
+                  class="button button-danger"
+                  style="font-size: 10px"
+                >
                   Restore
                 </button>
+
                 <button
                   id="editor-gist-btn"
                   class="button"
-                  style="font-size: 10px; width: 26px; padding: 0"
+                  style="font-size: 10px; width: 26px; padding: 2"
                   title="Create Gist"
                 >
                   <svg
@@ -2791,7 +2837,7 @@
                 id="settings-banner-dismiss"
                 class="button"
                 style="
-                  background: rgba(0, 0, 0, 0.2);
+                  background: var(--bg-inset);
                   border: 1px solid rgba(255, 255, 255, 0.3);
                   color: #fff;
                   padding: 6px 12px;
@@ -3411,11 +3457,7 @@
     <div id="github-import-modal" class="modal">
       <div
         class="modal-content"
-        style="
-          width: 600px;
-          background-color: var(--bg-surface);
-          color: var(--text-main);
-        "
+        style="width: 600px; background-color: var(--bg-surface); color: var(--text-main)"
       >
         <h3>Import from GitHub</h3>
         <div
@@ -3909,15 +3951,7 @@
             placeholder="Paste code here..."
           ></textarea>
         </div>
-        <div
-          style="
-            text-align: right;
-            margin-top: 20px;
-            display: flex;
-            justify-content: flex-end;
-            gap: 8px;
-          "
-        >
+        <div style="text-align: right; margin-top: 20px; display: flex; justify-content: flex-end; gap: 8px;">
           <button id="gist-create-cancel" class="button">Cancel</button>
           <button id="gist-create-confirm" class="button button-primary">Create Gist</button>
         </div>
@@ -4851,7 +4885,7 @@
               margin-bottom: 20px;
               align-items: center;
               padding: 10px;
-              background: rgba(0, 0, 0, 0.2);
+              background: var(--bg-inset);
               border-radius: 4px;
             "
           >
@@ -4949,7 +4983,7 @@
               overflow-y: auto;
               border: 1px solid var(--border-color);
               border-radius: 4px;
-              background: rgba(0, 0, 0, 0.1);
+              background: var(--bg-inset);
               font-family: var(--font-mono);
             "
           >
@@ -5007,7 +5041,7 @@
                   padding: 10px 12px;
                   border: 1px solid var(--border-color);
                   border-radius: 6px;
-                  background: rgba(255, 255, 255, 0.02);
+                  background: var(--bg-inset);
                 "
               >
                 <div
@@ -5024,11 +5058,7 @@
                 >
                   <span>Ignored But Tracked</span>
                   <span
-                    style="
-                      font-size: 10px;
-                      font-family: var(--font-mono);
-                      color: var(--text-muted);
-                    "
+                    style="font-size: 10px; font-family: var(--font-mono); color: var(--text-muted)"
                     >git ls-files -i</span
                   >
                 </div>
@@ -5321,44 +5351,114 @@
     <div id="compress-modal" class="modal" style="z-index: 13000">
       <div class="modal-content" style="width: 500px">
         <h3>Compress Git Database</h3>
-        <p>Optimize your repository's storage and performance by running internal Git cleanup tasks.</p>
+        <p>
+          Optimize your repository's storage and performance by running internal Git cleanup tasks.
+        </p>
 
         <div style="display: flex; flex-direction: column; gap: 12px; margin-top: 10px">
-          <label style="display: flex; gap: 12px; cursor: pointer; background: rgba(255,255,255,0.03); padding: 12px; border-radius: 8px; border: 1px solid var(--border-color);">
-            <input type="radio" name="compress-level" value="standard" checked>
+          <label
+            style="
+              display: flex;
+              gap: 12px;
+              cursor: pointer;
+              background: rgba(255, 255, 255, 0.03);
+              padding: 12px;
+              border-radius: 8px;
+              border: 1px solid var(--border-color);
+            "
+          >
+            <input type="radio" name="compress-level" value="standard" checked />
             <div>
-              <div style="font-weight: 600; font-size: 14px;">Standard Cleanup (Fast)</div>
-              <div style="font-size: 11px; color: var(--text-muted);">Packs loose objects and removes dangling data safely. Recommended for routine maintenance.</div>
+              <div style="font-weight: 600; font-size: 14px">Standard Cleanup (Fast)</div>
+              <div style="font-size: 11px; color: var(--text-muted)">
+                Packs loose objects and removes dangling data safely. Recommended for routine
+                maintenance.
+              </div>
             </div>
           </label>
 
-          <label style="display: flex; gap: 12px; cursor: pointer; background: rgba(255,255,255,0.03); padding: 12px; border-radius: 8px; border: 1px solid var(--border-color);">
-            <input type="radio" name="compress-level" value="aggressive">
+          <label
+            style="
+              display: flex;
+              gap: 12px;
+              cursor: pointer;
+              background: rgba(255, 255, 255, 0.03);
+              padding: 12px;
+              border-radius: 8px;
+              border: 1px solid var(--border-color);
+            "
+          >
+            <input type="radio" name="compress-level" value="aggressive" />
             <div>
-              <div style="font-weight: 600; font-size: 14px;">Aggressive Compression</div>
-              <div style="font-size: 11px; color: var(--text-muted);">Forces Git to actively search for better compression opportunities. May take longer.</div>
+              <div style="font-weight: 600; font-size: 14px">Aggressive Compression</div>
+              <div style="font-size: 11px; color: var(--text-muted)">
+                Forces Git to actively search for better compression opportunities. May take longer.
+              </div>
             </div>
           </label>
 
-          <label style="display: flex; gap: 12px; cursor: pointer; background: rgba(255,255,255,0.03); padding: 12px; border-radius: 8px; border: 1px solid var(--border-color);">
-            <input type="radio" name="compress-level" value="deep">
+          <label
+            style="
+              display: flex;
+              gap: 12px;
+              cursor: pointer;
+              background: rgba(255, 255, 255, 0.03);
+              padding: 12px;
+              border-radius: 8px;
+              border: 1px solid var(--border-color);
+            "
+          >
+            <input type="radio" name="compress-level" value="deep" />
             <div>
-              <div style="font-weight: 600; font-size: 14px;">Deep Clean (Reflog Purge)</div>
-              <div style="font-size: 11px; color: var(--text-muted);">Clears recent checkout/commit history (reflog) before compression for maximum space saving.</div>
+              <div style="font-weight: 600; font-size: 14px">Deep Clean (Reflog Purge)</div>
+              <div style="font-size: 11px; color: var(--text-muted)">
+                Clears recent checkout/commit history (reflog) before compression for maximum space
+                saving.
+              </div>
             </div>
           </label>
 
-          <label style="display: flex; gap: 12px; cursor: pointer; background: rgba(255,255,255,0.03); padding: 12px; border-radius: 8px; border: 1px solid var(--border-color);">
-            <input type="radio" name="compress-level" value="hardcore">
+          <label
+            style="
+              display: flex;
+              gap: 12px;
+              cursor: pointer;
+              background: rgba(255, 255, 255, 0.03);
+              padding: 12px;
+              border-radius: 8px;
+              border: 1px solid var(--border-color);
+            "
+          >
+            <input type="radio" name="compress-level" value="hardcore" />
             <div>
-              <div style="font-weight: 600; font-size: 14px;">Hard-Core Repacking</div>
-              <div style="font-weight: 600; color: var(--accent-yellow); font-size: 10px; text-transform: uppercase;">Maximum Space Saving</div>
-              <div style="font-size: 11px; color: var(--text-muted);">Rebuilds all packfiles from scratch with deeper similarity searching. Very CPU intensive.</div>
+              <div style="font-weight: 600; font-size: 14px">Hard-Core Repacking</div>
+              <div
+                style="
+                  font-weight: 600;
+                  color: var(--accent-yellow);
+                  font-size: 10px;
+                  text-transform: uppercase;
+                "
+              >
+                Maximum Space Saving
+              </div>
+              <div style="font-size: 11px; color: var(--text-muted)">
+                Rebuilds all packfiles from scratch with deeper similarity searching. Very CPU
+                intensive.
+              </div>
             </div>
           </label>
         </div>
 
-        <div style="text-align: right; margin-top: 24px; display: flex; justify-content: flex-end; gap: 8px;">
+        <div
+          style="
+            text-align: right;
+            margin-top: 24px;
+            display: flex;
+            justify-content: flex-end;
+            gap: 8px;
+          "
+        >
           <button id="compress-cancel" class="button">Cancel</button>
           <button id="compress-confirm" class="button button-primary">Start Optimization</button>
         </div>

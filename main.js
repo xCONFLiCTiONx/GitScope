@@ -295,6 +295,15 @@ if (!gotTheLock) {
   function createWindow() {
     try {
       const state = getWindowState();
+      const settings = getSettings();
+
+      // Determine initial background color to prevent flashes and potential DWM glitches
+      let initialBg = '#1a1a1a'; // Default dark
+      if (settings.themeMode === 'light') {
+        initialBg = '#ffffff';
+      } else if (settings.themeMode === 'system') {
+        initialBg = nativeTheme.shouldUseDarkColors ? '#1a1a1a' : '#ffffff';
+      }
 
       mainWindow = new BrowserWindow({
         x: state.x,
@@ -302,7 +311,7 @@ if (!gotTheLock) {
         width: state.width,
         height: state.height,
         show: false, // Don't show until content is ready to prevent white flash
-        backgroundColor: '#00000000', // Transparent background for vibrancy
+        backgroundColor: initialBg,
         transparent: process.platform === 'darwin', // MacOS transparency
         frame: true,
         vibrancy: 'under-window', // MacOS vibrancy
@@ -319,6 +328,8 @@ if (!gotTheLock) {
       });
 
       // Enable Windows 11 Mica/Acrylic effect if possible
+      // Intelligence: Mica is best used with a semi-transparent or specific background color
+      // but we avoid full '#00000000' on Windows to prevent DWM "bleed" issues in some OS versions.
       if (process.platform === 'win32') {
         mainWindow.setBackgroundMaterial('mica');
       }
@@ -1504,6 +1515,14 @@ if (!gotTheLock) {
 
     if (settings && settings.themeMode) {
       nativeTheme.themeSource = settings.themeMode;
+
+      // Intelligence: Update window background to prevent DWM artifacts when switching theme
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        const isDark =
+          settings.themeMode === 'dark' ||
+          (settings.themeMode === 'system' && nativeTheme.shouldUseDarkColors);
+        mainWindow.setBackgroundColor(isDark ? '#1a1a1a' : '#ffffff');
+      }
     }
 
     // If shell changed, restart PTY
