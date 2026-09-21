@@ -2375,6 +2375,14 @@ if (!gotTheLock) {
       template.push({
         label: 'Git Maintenance',
         submenu: [
+          {
+            label: 'Optimize Repository',
+            click: () =>
+              event.sender.send('context-menu-command', {
+                command: 'optimize-repo',
+                path: paths[0],
+              }),
+          },
           { type: 'separator' },
           {
             label: 'Create .gitignore',

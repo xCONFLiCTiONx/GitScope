@@ -1341,9 +1341,6 @@ const elements = {
   get serverImportCancel() {
     return document.getElementById('server-import-cancel');
   },
-  get repoOptimizeBtn() {
-    return document.getElementById('repo-optimize-btn');
-  },
   get compressModal() {
     return document.getElementById('compress-modal');
   },
@@ -2187,7 +2184,6 @@ function initEventListeners() {
   if (elements.githubVisibilityBtn)
     elements.githubVisibilityBtn.onclick = () => handleToggleGitHubVisibility();
   if (elements.repoSubtreeBtn) elements.repoSubtreeBtn.onclick = () => showSubtreeHubModal();
-  if (elements.repoOptimizeBtn) elements.repoOptimizeBtn.onclick = () => showCompressModal();
   if (elements.compressCancel)
     elements.compressCancel.onclick = () => (elements.compressModal.style.display = 'none');
   if (elements.compressConfirm) elements.compressConfirm.onclick = () => handleOptimizeRepository();
@@ -8226,6 +8222,14 @@ async function handleContextMenuCommand({ command, paths, path, repoPath }) {
     );
     if (repo) activeRepo = repo;
     showSubtreeHubModal();
+  } else if (command === 'optimize-repo') {
+    const repo = repositories.find((r) =>
+      targets[0].toLowerCase().startsWith(r.path.toLowerCase()),
+    );
+    if (repo) {
+      activeRepo = repo;
+      showCompressModal();
+    }
   } else if (command === 'add-subtree') handleAddSubtreeFromTree(targets[0]);
   else if (command === 'apply-patch') showPatchModal(targets[0]);
   else if (command === 'unstage-all') {
