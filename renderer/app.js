@@ -2967,6 +2967,8 @@ async function handleDashboardCommit(repo) {
   if (!repo) return;
   activeRepo = repo;
   setTaskState(true);
+  if (elements.commitBtn) elements.commitBtn.disabled = true;
+  if (elements.commitPushBtn) elements.commitPushBtn.disabled = true;
   logToConsole(`🚀 Quick Commit: ${repo.name}`, 'info');
 
   try {
@@ -2989,6 +2991,8 @@ async function handleDashboardCommit(repo) {
     logToConsole(`Commit Error: ${e.message}`, 'error');
     showError(e.message, 'Quick Commit Failed');
   } finally {
+    if (elements.commitBtn) elements.commitBtn.disabled = false;
+    if (elements.commitPushBtn) elements.commitPushBtn.disabled = false;
     setTaskState(false);
   }
 }
@@ -3059,6 +3063,8 @@ async function handleDashboardRestore(repo) {
 async function handleStageAll() {
   if (!activeRepo) return;
   setTaskState(true);
+  if (elements.commitBtn) elements.commitBtn.disabled = true;
+  if (elements.commitPushBtn) elements.commitPushBtn.disabled = true;
   logToConsole('Staging all changes (git add -A)...', 'info');
   try {
     const res = await window.electronAPI.gitStageAll(activeRepo.path);
@@ -3101,6 +3107,8 @@ async function handleStageAll() {
     logToConsole(`System Error: ${e.message}`, 'error');
     showError(e.message, 'System Error');
   } finally {
+    if (elements.commitBtn) elements.commitBtn.disabled = false;
+    if (elements.commitPushBtn) elements.commitPushBtn.disabled = false;
     setTaskState(false);
   }
 }
@@ -3108,6 +3116,8 @@ async function handleStageAll() {
 async function handleUnstageAll() {
   if (!activeRepo) return;
   setTaskState(true);
+  if (elements.commitBtn) elements.commitBtn.disabled = true;
+  if (elements.commitPushBtn) elements.commitPushBtn.disabled = true;
   logToConsole('Unstaging all changes (git reset .)...', 'info');
   try {
     const res = await window.electronAPI.gitUnstageAll(activeRepo.path);
@@ -3123,6 +3133,8 @@ async function handleUnstageAll() {
     logToConsole(`System Error: ${e.message}`, 'error');
     showError(e.message, 'System Error');
   } finally {
+    if (elements.commitBtn) elements.commitBtn.disabled = false;
+    if (elements.commitPushBtn) elements.commitPushBtn.disabled = false;
     setTaskState(false);
   }
 }
@@ -6733,6 +6745,8 @@ async function handleBulkStage() {
     elements.bulkStageModal.style.display = 'none';
     logToConsole(`🚀 Launching Bulk Stage for ${selectedCbs.length} projects...`, 'info');
     setTaskState(true);
+    if (elements.commitBtn) elements.commitBtn.disabled = true;
+    if (elements.commitPushBtn) elements.commitPushBtn.disabled = true;
 
     let success = 0;
     let fail = 0;
@@ -6753,6 +6767,8 @@ async function handleBulkStage() {
       await smartRefreshTree();
       showDashboard();
     } finally {
+      if (elements.commitBtn) elements.commitBtn.disabled = false;
+      if (elements.commitPushBtn) elements.commitPushBtn.disabled = false;
       setTaskState(false);
     }
   };
@@ -9007,6 +9023,8 @@ function renderChangesList(repo, detailedChanges) {
     actionBtn.onclick = async (e) => {
       e.stopPropagation();
       setTaskState(true);
+      if (elements.commitBtn) elements.commitBtn.disabled = true;
+      if (elements.commitPushBtn) elements.commitPushBtn.disabled = true;
       try {
         const res = isStaged
           ? await window.electronAPI.gitUnstageFile(repo.path, file)
@@ -9016,6 +9034,8 @@ function renderChangesList(repo, detailedChanges) {
       } catch (err) {
         logToConsole(err.message, 'error');
       } finally {
+        if (elements.commitBtn) elements.commitBtn.disabled = false;
+        if (elements.commitPushBtn) elements.commitPushBtn.disabled = false;
         setTaskState(false);
       }
     };
