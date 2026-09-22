@@ -25,6 +25,9 @@ const prettier = require('prettier');
 const os = require('os');
 const { isUtf8 } = require('buffer');
 
+// Disable Electron security warnings in dev mode (removes %c warnings in DevTools console)
+process.env.ELECTRON_DISABLE_SECURITY_WARNINGS = 'true';
+
 // Global error handling for the main process
 process.on('uncaughtException', (error) => {
   console.error('Uncaught Exception:', error);
@@ -351,6 +354,12 @@ if (!gotTheLock) {
       });
 
       mainWindow.loadFile(path.join(__dirname, 'renderer', 'index.html'));
+
+      mainWindow.webContents.on('console-message', (event, level, message, line, sourceId) => {
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          mainWindow.webContents.send('dev-console-message', { level, message, line, sourceId });
+        }
+      });
 
       // Intelligence: Open all external links in the default browser
       mainWindow.webContents.on('will-navigate', (event, url) => {

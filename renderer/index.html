@@ -2,6 +2,7 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob: file: https:;" />
     <link rel="stylesheet" href="../node_modules/xterm/css/xterm.css" />
     <style>
       /* Local Font Support */
@@ -1110,18 +1111,14 @@
       .console-tab.active { color: var(--accent-blue); border-bottom-color: var(--accent-blue); }
 
       #console-body { flex-grow: 1; position: relative; overflow: hidden; background: var(--bg-surface); }
-      #console-output, #terminal-container {
+      #console-output, #terminal-container, #developer-console-output {
           position: absolute; top: 0; left: 0; right: 0; bottom: 0;
           overflow: hidden; display: none;
       }
-      #console-output {
+      #console-output, #developer-console-output {
           padding: 10px 16px;
           overflow-y: auto;
           scroll-behavior: smooth;
-      }
-      #terminal-container { padding: 0; }
-      #console-output.active, #terminal-container.active { display: block; }
-      #console-output {
           font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
           font-size: 12px;
           line-height: 1.4;
@@ -1129,12 +1126,15 @@
           scrollbar-gutter: stable;
           user-select: text;
       }
+      #terminal-container { padding: 0; }
+      #console-output.active, #terminal-container.active, #developer-console-output.active { display: block; }
 
-      .log-entry { margin-bottom: 2px; }
+      .log-entry { margin-bottom: 2px; word-break: break-word; white-space: pre-wrap; }
       .log-info { color: var(--text-muted); }
       .log-success { color: var(--accent-green); }
       .log-warn { color: #e3b341; }
       .log-error { color: var(--accent-red); }
+      .log-debug { color: #8b949e; }
 
       /* Git Config Entry Styling */
       .config-section {
@@ -3050,7 +3050,7 @@
             ></div>
             <iframe
               id="html-preview"
-              sandbox="allow-scripts allow-modals allow-same-origin"
+              sandbox="allow-scripts allow-modals allow-popups allow-forms"
               style="
                 position: absolute;
                 inset: 0;
@@ -3827,11 +3827,15 @@
           <div class="console-tab" data-target="terminal-container">
             TERMINAL
           </div>
+          <div class="console-tab" data-target="developer-console-output">
+            DEVELOPER CONSOLE
+          </div>
         </div>
       </div>
       <div id="console-body">
         <div id="console-output" class="active"></div>
         <div id="terminal-container"></div>
+        <div id="developer-console-output"></div>
       </div>
     </div>
 

@@ -154,4 +154,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
   onTriggerAddRepo: (callback) =>
     ipcRenderer.on('trigger-add-repo', (_event, value) => callback(value)),
   onShowError: (callback) => ipcRenderer.on('show-error', (_event, value) => callback(value)),
+  onDevConsoleMessage: (callback) =>
+    ipcRenderer.on('dev-console-message', (_event, value) => callback(value)),
 });

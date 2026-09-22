@@ -230,10 +230,6 @@ function checkFontAvailability(fontName) {
 
 // Re-render theme controls when fonts finish loading to update (Not Installed) labels
 if (document.fonts) {
-  // Force browser to start loading project fonts by checking/requesting them
-  const projectFonts = ['Fira Code', 'JetBrains Mono', 'Source Code Pro', 'JetBrains Mono'];
-  projectFonts.forEach((f) => document.fonts.load(`12px "${f}"`));
-
   document.fonts.ready.then(() => {
     if (
       elements.themeEditorView &&
@@ -836,6 +832,9 @@ const elements = {
   },
   get consoleOutput() {
     return document.getElementById('console-output');
+  },
+  get devConsoleOutput() {
+    return document.getElementById('developer-console-output');
   },
   get sidebarCollapse() {
     return document.getElementById('sidebar-collapse');
@@ -2419,38 +2418,44 @@ function initEventListeners() {
   });
 
   // High-Precision Console Scrolling (Fix for Windows 3-line jump)
-  if (elements.consoleOutput) {
-    elements.consoleOutput.addEventListener(
-      'wheel',
-      (e) => {
-        e.preventDefault();
-        const delta = e.deltaY > 0 ? 30 : -30; // Scroll roughly one line at a time
-        elements.consoleOutput.scrollTop += delta;
-      },
-      { passive: false },
-    );
+  [elements.consoleOutput, elements.devConsoleOutput].forEach((outputEl) => {
+    if (outputEl) {
+      outputEl.addEventListener(
+        'wheel',
+        (e) => {
+          e.preventDefault();
+          const delta = e.deltaY > 0 ? 30 : -30; // Scroll roughly one line at a time
+          outputEl.scrollTop += delta;
+        },
+        { passive: false },
+      );
 
-    // Enable Context Menu for Copy/Clear
-    elements.consoleOutput.addEventListener('contextmenu', (e) => {
-      e.preventDefault();
-      window.electronAPI.showContextMenu({ type: 'console' });
-    });
-  }
+      // Enable Context Menu for Copy/Clear
+      outputEl.addEventListener('contextmenu', (e) => {
+        e.preventDefault();
+        window.electronAPI.showContextMenu({ type: 'console' });
+      });
+    }
+  });
 
   window.electronAPI.onConsoleCommand((command) => {
-    if (!elements.consoleOutput) return;
+    const activeTarget = document.querySelector('#console-body > div.active');
+    if (!activeTarget) return;
+
     if (command === 'copy') {
       const selection = window.getSelection().toString();
       if (selection) navigator.clipboard.writeText(selection);
     } else if (command === 'select-all') {
       const range = document.createRange();
-      range.selectNodeContents(elements.consoleOutput);
+      range.selectNodeContents(activeTarget);
       const selection = window.getSelection();
       selection.removeAllRanges();
       selection.addRange(range);
     } else if (command === 'clear') {
-      elements.consoleOutput.innerHTML = '';
-      logToConsole('Console output cleared.', 'info');
+      activeTarget.innerHTML = '';
+      if (activeTarget.id === 'console-output') {
+        logToConsole('Console output cleared.', 'info');
+      }
     }
   });
 
@@ -2742,6 +2747,11 @@ function initEventListeners() {
   window.electronAPI.onShowError((data) => {
     if (data && data.message) showError(data.message, data.title || 'Error');
   });
+  if (window.electronAPI.onDevConsoleMessage) {
+    window.electronAPI.onDevConsoleMessage((data) => {
+      handleDevConsoleMessage(data);
+    });
+  }
 
   // Keyboard Listeners
   window.onkeydown = (e) => {
@@ -8120,6 +8130,79 @@ function logToConsole(msg, type = 'info') {
   elements.consoleOutput.appendChild(entry);
   elements.consoleOutput.scrollTop = elements.consoleOutput.scrollHeight;
 }
+
+const pendingDevLogs = [];
+
+function cleanConsoleMessage(msg) {
+  if (!msg) return '';
+  let cleaned = String(msg).replace(/%c/g, '');
+  cleaned = cleaned.replace(/font-weight:\s*bold;?/gi, '');
+  cleaned = cleaned.replace(/color:\s*[^;]+;?/gi, '');
+  return cleaned.trim();
+}
+
+function renderDevConsoleEntry(container, data) {
+  const timestamp = new Date().toLocaleTimeString();
+  const entry = document.createElement('div');
+
+  const levelClassMap = { 0: 'info', 1: 'warn', 2: 'error', 3: 'info' };
+  const levelTextMap = { 0: 'LOG', 1: 'WARN', 2: 'ERROR', 3: 'INFO' };
+
+  const type = levelClassMap[data.level] || 'info';
+  const prefix = levelTextMap[data.level] || 'LOG';
+
+  entry.className = `log-entry log-${type}`;
+
+  let sourceInfo = '';
+  if (data.sourceId && data.sourceId !== 'console') {
+    let src = data.sourceId;
+    if (src.startsWith('file:///')) {
+      src = src.split('/').pop();
+    }
+    sourceInfo = data.line ? ` (${src}:${data.line})` : ` (${src})`;
+  }
+
+  const messageText = cleanConsoleMessage(data.message);
+  entry.textContent = `[${timestamp}] [${prefix}] ${messageText}${sourceInfo}`;
+  container.appendChild(entry);
+  container.scrollTop = container.scrollHeight;
+}
+
+function handleDevConsoleMessage(data) {
+  const container = document.getElementById('developer-console-output');
+  if (!container) {
+    pendingDevLogs.push(data);
+    return;
+  }
+
+  if (pendingDevLogs.length > 0) {
+    const items = pendingDevLogs.splice(0, pendingDevLogs.length);
+    items.forEach((item) => renderDevConsoleEntry(container, item));
+  }
+
+  renderDevConsoleEntry(container, data);
+}
+
+function setupConsoleInterception() {
+  window.addEventListener('error', (event) => {
+    handleDevConsoleMessage({
+      level: 2,
+      message: `Uncaught Error: ${event.message || ''}`,
+      sourceId: event.filename ? event.filename.split('/').pop() : '',
+      line: event.lineno,
+    });
+  });
+
+  window.addEventListener('unhandledrejection', (event) => {
+    handleDevConsoleMessage({
+      level: 2,
+      message: `Unhandled Rejection: ${event.reason || ''}`,
+      sourceId: 'promise',
+    });
+  });
+}
+
+setupConsoleInterception();
 
 function updateTreeSelectionUI() {
   document.querySelectorAll('.tree-node').forEach((n) => {
