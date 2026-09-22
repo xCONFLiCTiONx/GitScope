@@ -67,28 +67,21 @@ A real-time dashboard providing total visibility into your local development env
    `git clone https://github.com/xCONFLiCTiONx/GitScope.git
 `
 
-````
+
 2. **Install dependencies:**```
 `npm install
 `
-````
 
 3. **Launch the suite:**```
    `npm start
 `
 
-```
-
 ## 🏗️ Production Build
 
 To package GitScope as a standalone Windows executable:
 
-```
-
 `npm run build
 `
-
-```
 
 The portable binary will be generated in the `/dist` directory.
 
@@ -102,4 +95,3 @@ User Ctrl+Shift+I to open the developer console.
 - **Git:** Git for Windows installed and added to PATH.
 
 *Created for developers who demand more than a basic Git GUI.*
-```
