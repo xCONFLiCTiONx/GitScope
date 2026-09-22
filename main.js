@@ -28,15 +28,10 @@ const { isUtf8 } = require('buffer');
 // Global error handling for the main process
 process.on('uncaughtException', (error) => {
   console.error('Uncaught Exception:', error);
-  dialog.showErrorBox('An unexpected error occurred', error.stack || error.message);
 });
 
 process.on('unhandledRejection', (reason, promise) => {
   console.error('Unhandled Rejection at:', promise, 'reason:', reason);
-  dialog.showErrorBox(
-    'An unhandled promise rejection occurred',
-    (reason && reason.stack) || (reason && reason.message) || String(reason),
-  );
 });
 
 // Ensure Git credential manager popups are allowed
@@ -50,8 +45,6 @@ function reportError(title, error) {
   console.error(`${title}:`, error);
   if (mainWindow && !mainWindow.isDestroyed()) {
     mainWindow.webContents.send('show-error', { title, message });
-  } else {
-    dialog.showErrorBox(title, message);
   }
 }
 
@@ -456,7 +449,7 @@ if (!gotTheLock) {
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.webContents.send('show-error', { title, message });
     } else {
-      dialog.showErrorBox(title, message);
+      console.error(`[${title}] ${message}`);
     }
   });
 

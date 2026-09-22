@@ -1,18 +1,37 @@
 // Intelligence: Universal Error Catching to prevent "Empty Shell" syndromes
 window.onerror = function (message, source, lineno, colno, error) {
   // Ignore harmless ResizeObserver loop limit errors
-  if (message.includes('ResizeObserver loop limit exceeded')) return;
+  if (message && message.includes('ResizeObserver loop limit exceeded')) return;
 
   const errText = `[CRITICAL UI ERROR] ${message}\nAt: ${source}:${lineno}:${colno}`;
-  console.error(errText, error);
-  // Fallback alert if our custom UI hasn't loaded yet
-  alert(errText + (error && error.stack ? '\n\nStack: ' + error.stack : ''));
+  const fullError = errText + (error && error.stack ? '\n\nStack: ' + error.stack : '');
+  console.error(errText, error || '');
+
+  // Log to internal console if available
+  if (typeof logToConsole === 'function') {
+    logToConsole(fullError, 'error');
+  }
+
+  // Log to terminal if available
+  if (window.terminal && typeof window.terminal.write === 'function') {
+    window.terminal.write(`\r\n\x1b[31m${fullError.replace(/\n/g, '\r\n')}\x1b[0m\r\n`);
+  }
 };
 
 window.onunhandledrejection = function (event) {
   const errText = `[UNHANDLED PROMISE REJECTION] ${event.reason}`;
-  console.error(errText);
-  alert(errText + (event.reason && event.reason.stack ? '\n\nStack: ' + event.reason.stack : ''));
+  const fullError = errText + (event.reason && event.reason.stack ? '\n\nStack: ' + event.reason.stack : '');
+  console.error(errText, event.reason || '');
+
+  // Log to internal console if available
+  if (typeof logToConsole === 'function') {
+    logToConsole(fullError, 'error');
+  }
+
+  // Log to terminal if available
+  if (window.terminal && typeof window.terminal.write === 'function') {
+    window.terminal.write(`\r\n\x1b[31m${fullError.replace(/\n/g, '\r\n')}\x1b[0m\r\n`);
+  }
 };
 
 // State management
@@ -236,7 +255,11 @@ function showAlert(message, title = 'Notification') {
     const cancelBtn = document.getElementById('confirm-cancel');
 
     if (!modal || !titleEl || !msgEl || !okBtn) {
-      alert(title + ': ' + message);
+      console.warn(`[${title}] ${message}`);
+      if (typeof logToConsole === 'function') logToConsole(`[${title}] ${message}`, 'info');
+      if (window.terminal && typeof window.terminal.write === 'function') {
+        window.terminal.write(`\r\n\x1b[33m[${title}] ${message}\x1b[0m\r\n`);
+      }
       resolve(true);
       return;
     }
@@ -292,7 +315,11 @@ function showError(message, title = 'Error') {
     const cancelBtn = document.getElementById('confirm-cancel');
 
     if (!modal || !titleEl || !msgEl || !okBtn) {
-      alert('ERROR: ' + title + '\n\n' + message);
+      console.error(`[ERROR: ${title}] ${message}`);
+      if (typeof logToConsole === 'function') logToConsole(`[ERROR: ${title}] ${message}`, 'error');
+      if (window.terminal && typeof window.terminal.write === 'function') {
+        window.terminal.write(`\r\n\x1b[31m[ERROR: ${title}] ${message}\x1b[0m\r\n`);
+      }
       resolve(true);
       return;
     }
