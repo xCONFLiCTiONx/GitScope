@@ -10689,7 +10689,8 @@ function renderAdvancedSearchResultsIncremental(results, searchQuery = null, isR
     pathEl.style.overflow = 'hidden';
     pathEl.style.textOverflow = 'ellipsis';
     pathEl.style.whiteSpace = 'nowrap';
-    pathEl.innerHTML = `<span style="color: var(--accent-blue); font-weight: 800; font-family: var(--font-sans);">[${res.repoName}]</span> <span style="color: var(--text-main);">${res.path}</span>`;
+    const typeIcon = res.type === 'directory' ? '📁' : '📄';
+    pathEl.innerHTML = `<span style="color: var(--accent-blue); font-weight: 800; font-family: var(--font-sans);">[${res.repoName}]</span> ${typeIcon} <span style="color: var(--text-main);">${res.path}</span>`;
     pathEl.onmouseenter = (e) => showFloatingTooltip(e, fullResPath);
     pathEl.onmousemove = (e) => showFloatingTooltip(e, fullResPath);
     pathEl.onmouseleave = hideFloatingTooltip;
@@ -10716,7 +10717,7 @@ function renderAdvancedSearchResultsIncremental(results, searchQuery = null, isR
       textEl.style.background = 'rgba(0,0,0,0.2)';
       textEl.style.padding = '6px 10px';
       textEl.style.borderRadius = '3px';
-      textEl.style.borderLeft = '2px solid var(--accent-blue)';
+      textEl.style.borderLeft = `2px solid ${res.type === 'directory' ? 'var(--accent-yellow)' : 'var(--accent-blue)'}`;
       textEl.textContent = res.text;
       contentWrapper.appendChild(textEl);
     }
@@ -10725,7 +10726,11 @@ function renderAdvancedSearchResultsIncremental(results, searchQuery = null, isR
 
     item.onclick = () => {
       const fullPath = `${res.repoPath}/${res.path}`.replace(/\\/g, '/');
-      openFileInEditor(fullPath, res.line, res.column, searchQuery, isRegex);
+      if (res.type === 'directory') {
+        revealFileInSidebar(fullPath);
+      } else {
+        openFileInEditor(fullPath, res.line, res.column, searchQuery, isRegex);
+      }
       elements.searchHubModal.style.display = 'none';
     };
 

@@ -654,39 +654,54 @@ if (!gotTheLock) {
             return true;
           });
 
+          const dirSet = new Set();
+          allFiles.forEach((f) => {
+            const parts = f.split('/');
+            for (let i = 1; i < parts.length; i++) {
+              dirSet.add(parts.slice(0, i).join('/'));
+            }
+          });
+
+          const allItems = [
+            ...allFiles.map((f) => ({ path: f, type: 'file' })),
+            ...Array.from(dirSet).map((d) => ({ path: d, type: 'directory' })),
+          ];
+
           let matches;
           if (isRegex) {
             try {
               const re = new RegExp(query, 'i');
-              matches = allFiles.filter((f) => re.test(f));
+              matches = allItems.filter((item) => re.test(item.path));
             } catch (e) {
               matches = [];
             }
           } else {
             const cleanQuery = query.trim().toLowerCase();
             if (cleanQuery === '*.*' || cleanQuery === '*') {
-              matches = allFiles;
+              matches = allItems;
             } else if (cleanQuery.includes('*')) {
               // GLOB SEARCH
               const escaped = cleanQuery.replace(/[.+^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*');
               const re = new RegExp(`^${escaped}$`, 'i');
-              matches = allFiles.filter((f) => re.test(f));
+              matches = allItems.filter((item) => re.test(item.path));
             } else if (cleanQuery.startsWith('.')) {
               // EXTENSION SEARCH
-              matches = allFiles.filter((f) => f.toLowerCase().endsWith(cleanQuery));
+              matches = allItems.filter(
+                (item) => item.type === 'file' && item.path.toLowerCase().endsWith(cleanQuery),
+              );
             } else {
               // CONTAIN SEARCH
-              matches = allFiles.filter((f) => f.toLowerCase().includes(cleanQuery));
+              matches = allItems.filter((item) => item.path.toLowerCase().includes(cleanQuery));
             }
           }
 
-          matches.slice(0, 1000).forEach((f) => {
+          matches.slice(0, 1000).forEach((item) => {
             results.push({
               repoName: repo.name,
               repoPath: repo.path,
-              path: f,
-              text: `File name match: ${f}`,
-              type: 'file',
+              path: item.path,
+              text: `${item.type === 'directory' ? 'Folder' : 'File'} name match: ${item.path}`,
+              type: item.type,
             });
           });
         } catch (lsError) {
