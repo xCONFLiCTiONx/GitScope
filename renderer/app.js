@@ -9844,7 +9844,7 @@ function setMarkdownViewMode(mode) {
   });
 
   const activeBtn =
-    mode === 'code'
+    mode === 'code' || mode === 'standard'
       ? elements.mdViewCodeBtn
       : mode === 'split'
       ? elements.mdViewSplitBtn
