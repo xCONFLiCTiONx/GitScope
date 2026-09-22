@@ -94,4 +94,23 @@ User Ctrl+Shift+I to open the developer console.
 - **OS:** Windows 10 or 11
 - **Git:** Git for Windows installed and added to PATH.
 
+## 🔍 Screenshots
+
+![Alt text](screenshots/1.png)
+![Alt text](screenshots/2.png)
+![Alt text](screenshots/3.png)
+![Alt text](screenshots/4.png)
+![Alt text](screenshots/5.png)
+![Alt text](screenshots/6.png)
+![Alt text](screenshots/7.png)
+![Alt text](screenshots/8.png)
+![Alt text](screenshots/9.png)
+![Alt text](screenshots/10.png)
+![Alt text](screenshots/11.png)
+![Alt text](screenshots/12.png)
+![Alt text](screenshots/13.png)
+![Alt text](screenshots/14.png)
+![Alt text](screenshots/15.png)
+
+
 *Created for developers who demand more than a basic Git GUI.*
