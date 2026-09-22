@@ -7997,6 +7997,9 @@ function applyTextTransformation(type) {
     case 'camel':
       newText = text.toLowerCase().replace(/[^a-zA-Z0-9]+(.)/g, (m, chr) => chr.toUpperCase());
       break;
+    case 'single-line':
+      newText = text.replace(/\s+/g, ' ').replace(/\s+>/g, '>').replace(/<\s+/g, '<').trim();
+      break;
     case 'sort':
       newText = text
         .split(/\r?\n/)
