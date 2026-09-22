@@ -2954,6 +2954,64 @@
               </div>
             </div>
             <div class="settings-section">
+              <h3>Formatting & Prettify</h3>
+              <p>Configure code formatting preferences for the built-in editor.</p>
+              <div class="settings-control">
+                <label for="prettier-tab-width">Tab Width:</label>
+                <select id="prettier-tab-width" class="settings-input" style="width: 100px">
+                  <option value="2">2 Spaces</option>
+                  <option value="4">4 Spaces</option>
+                </select>
+              </div>
+              <div class="settings-control">
+                <label for="prettier-print-width">Print Width:</label>
+                <input
+                  type="number"
+                  id="prettier-print-width"
+                  class="settings-input"
+                  style="width: 80px"
+                  min="20"
+                  max="300"
+                />
+              </div>
+              <div style="margin-top: 12px; display: flex; flex-direction: column; gap: 10px">
+                <label
+                  style="
+                    display: flex;
+                    align-items: center;
+                    gap: 8px;
+                    font-size: 13px;
+                    cursor: pointer;
+                  "
+                >
+                  <input
+                    type="checkbox"
+                    id="prettier-semi"
+                    class="settings-cb"
+                    style="width: 16px; height: 16px"
+                  />
+                  Use Semicolons
+                </label>
+                <label
+                  style="
+                    display: flex;
+                    align-items: center;
+                    gap: 8px;
+                    font-size: 13px;
+                    cursor: pointer;
+                  "
+                >
+                  <input
+                    type="checkbox"
+                    id="prettier-single-quote"
+                    class="settings-cb"
+                    style="width: 16px; height: 16px"
+                  />
+                  Use Single Quotes
+                </label>
+              </div>
+            </div>
+            <div class="settings-section">
               <h3>Terminal</h3>
               <div class="settings-control">
                 <label for="shell-select">Shell:</label>

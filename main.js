@@ -221,6 +221,10 @@ if (!gotTheLock) {
       rootRepoDir: '',
       githubToken: '',
       themeMode: 'system',
+      prettierTabWidth: 2,
+      prettierSemi: true,
+      prettierSingleQuote: false,
+      prettierPrintWidth: 80,
     };
     return cachedSettings;
   }
@@ -842,18 +846,28 @@ if (!gotTheLock) {
 
         // Pass the processed markdown text to prettier for global structure formatting
         const options = await prettier.resolveConfig(filePath);
+        const settings = getSettings();
         const formatted = await prettier.format(mdCode, {
           ...options,
           filepath: filePath,
-          proseWrap: 'preserve' // Maintain the hard line breaks and specifications exactly as structured
+          tabWidth: settings.prettierTabWidth || 2,
+          semi: settings.prettierSemi !== undefined ? settings.prettierSemi : true,
+          singleQuote: settings.prettierSingleQuote !== undefined ? settings.prettierSingleQuote : false,
+          printWidth: settings.prettierPrintWidth || 80,
+          proseWrap: 'preserve', // Maintain the hard line breaks and specifications exactly as structured
         });
         return { success: true, formatted };
       }
 
       const options = await prettier.resolveConfig(filePath);
+      const settings = getSettings();
       const formatted = await prettier.format(code, {
         ...options,
         filepath: filePath,
+        tabWidth: settings.prettierTabWidth || 2,
+        semi: settings.prettierSemi !== undefined ? settings.prettierSemi : true,
+        singleQuote: settings.prettierSingleQuote !== undefined ? settings.prettierSingleQuote : false,
+        printWidth: settings.prettierPrintWidth || 80,
       });
       return { success: true, formatted };
     } catch (error) {

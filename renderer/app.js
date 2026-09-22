@@ -1068,6 +1068,18 @@ const elements = {
   get themeModeSelect() {
     return document.getElementById('theme-mode-select');
   },
+  get prettierTabWidth() {
+    return document.getElementById('prettier-tab-width');
+  },
+  get prettierPrintWidth() {
+    return document.getElementById('prettier-print-width');
+  },
+  get prettierSemi() {
+    return document.getElementById('prettier-semi');
+  },
+  get prettierSingleQuote() {
+    return document.getElementById('prettier-single-quote');
+  },
   get saveSettingsBtn() {
     return document.getElementById('save-settings-btn');
   },
@@ -1378,6 +1390,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (elements.githubPatInput) elements.githubPatInput.value = settings.githubToken || '';
     if (elements.notifRepoChanges) elements.notifRepoChanges.checked = !!settings.notifRepoChanges;
     if (elements.themeModeSelect) elements.themeModeSelect.value = settings.themeMode || 'system';
+    if (elements.prettierTabWidth)
+      elements.prettierTabWidth.value = settings.prettierTabWidth || 2;
+    if (elements.prettierPrintWidth)
+      elements.prettierPrintWidth.value = settings.prettierPrintWidth || 80;
+    if (elements.prettierSemi) elements.prettierSemi.checked = settings.prettierSemi !== false;
+    if (elements.prettierSingleQuote)
+      elements.prettierSingleQuote.checked = !!settings.prettierSingleQuote;
     updateApplicationThemeMode();
 
     // Note: Project-specific toggles (Force/AutoFetch) are hydrated in selectRepo()
@@ -2427,6 +2446,10 @@ function initEventListeners() {
     elements.shellSelect,
     elements.notifRepoChanges,
     elements.themeModeSelect,
+    elements.prettierTabWidth,
+    elements.prettierPrintWidth,
+    elements.prettierSemi,
+    elements.prettierSingleQuote,
   ].forEach((el) => {
     if (!el) return;
     const eventType = el.tagName === 'SELECT' || el.type === 'checkbox' ? 'change' : 'input';
@@ -3406,6 +3429,18 @@ async function saveGlobalSettings() {
   settings.notifRepoChanges = elements.notifRepoChanges ? elements.notifRepoChanges.checked : false;
   if (elements.themeModeSelect) {
     settings.themeMode = elements.themeModeSelect.value;
+  }
+  if (elements.prettierTabWidth) {
+    settings.prettierTabWidth = parseInt(elements.prettierTabWidth.value, 10);
+  }
+  if (elements.prettierPrintWidth) {
+    settings.prettierPrintWidth = parseInt(elements.prettierPrintWidth.value, 10);
+  }
+  if (elements.prettierSemi) {
+    settings.prettierSemi = elements.prettierSemi.checked;
+  }
+  if (elements.prettierSingleQuote) {
+    settings.prettierSingleQuote = elements.prettierSingleQuote.checked;
   }
 
   try {
