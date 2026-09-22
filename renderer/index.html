@@ -1370,6 +1370,29 @@
       ::selection {
           background: rgba(31, 111, 235, 0.4);
       }
+
+      /* Markdown View Toggle Controls Styling */
+      #md-view-controls .button {
+          color: var(--text-muted) !important;
+          background: transparent !important;
+          font-weight: 500 !important;
+          border-radius: 4px !important;
+          box-shadow: none !important;
+          border: none !important;
+          transition: all 0.2s ease !important;
+      }
+      #md-view-controls .button:hover {
+          color: var(--text-main) !important;
+          background: var(--hover-bg) !important;
+      }
+      #md-view-controls .button.active {
+          color: var(--text-main) !important;
+          background: rgba(255, 255, 255, 0.15) !important;
+          font-weight: 700 !important;
+      }
+      .theme-light #md-view-controls .button.active {
+          background: rgba(0, 0, 0, 0.1) !important;
+      }
     </style>
   </head>
   <body>
@@ -2089,14 +2112,15 @@
                 </button>
 
                 <!-- Divider 3 -->
-                <span
-                  aria-hidden="true"
+                <div
                   style="
-                    border-left: 1px solid #ccc;
+                    width: 1px;
                     height: 16px;
+                    background: var(--border-color);
                     margin: 0 4px;
+                    opacity: 0.6;
                   "
-                ></span>
+                ></div>
 
                 <button
                   id="repo-subtree-btn"
