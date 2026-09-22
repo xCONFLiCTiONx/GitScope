@@ -2212,7 +2212,6 @@ function initEventListeners() {
     elements.gitForceToggle.onchange = (e) => {
       if (activeRepo) {
         activeRepo.gitForce = e.target.checked;
-        window.electronAPI.saveRepositories(repositories);
         logToConsole(
           `FORCE mode ${activeRepo.gitForce ? 'ENABLED' : 'DISABLED'} for ${activeRepo.name}`,
           'info',
@@ -7467,7 +7466,8 @@ async function selectRepo(repo, fromDashboard = false) {
   if (window.terminal) window.terminal.sendCommand(`cd "${repo.path}"`);
 
   // Hydrate project-specific toggles
-  if (elements.gitForceToggle) elements.gitForceToggle.checked = !!repo.gitForce;
+  repo.gitForce = false;
+  if (elements.gitForceToggle) elements.gitForceToggle.checked = false;
   if (elements.commitAmendToggle) elements.commitAmendToggle.checked = false;
 
   await refreshActiveRepoUI();
@@ -7718,7 +7718,8 @@ async function openFileInEditor(
     const title = document.getElementById('active-repo-name');
     if (title) title.textContent = repo.name;
     if (window.terminal) window.terminal.sendCommand(`cd "${repo.path}"`);
-    if (elements.gitForceToggle) elements.gitForceToggle.checked = !!repo.gitForce;
+    repo.gitForce = false;
+    if (elements.gitForceToggle) elements.gitForceToggle.checked = false;
     if (elements.commitAmendToggle) elements.commitAmendToggle.checked = false;
     refreshActiveRepoUI(true); // Hydrate in background
   }
@@ -9252,7 +9253,8 @@ async function showFileDiff(filePath) {
     const title = document.getElementById('active-repo-name');
     if (title) title.textContent = repo.name;
     if (window.terminal) window.terminal.sendCommand(`cd "${repo.path}"`);
-    if (elements.gitForceToggle) elements.gitForceToggle.checked = !!repo.gitForce;
+    repo.gitForce = false;
+    if (elements.gitForceToggle) elements.gitForceToggle.checked = false;
     if (elements.commitAmendToggle) elements.commitAmendToggle.checked = false;
     refreshActiveRepoUI(true);
   }
@@ -9740,7 +9742,8 @@ async function handleFileDrop(data, destDir, destContainer, depth, sourceId) {
     const title = document.getElementById('active-repo-name');
     if (title) title.textContent = repo.name;
     if (window.terminal) window.terminal.sendCommand(`cd "${repo.path}"`);
-    if (elements.gitForceToggle) elements.gitForceToggle.checked = !!repo.gitForce;
+    repo.gitForce = false;
+    if (elements.gitForceToggle) elements.gitForceToggle.checked = false;
     if (elements.commitAmendToggle) elements.commitAmendToggle.checked = false;
     refreshActiveRepoUI(true);
   }
