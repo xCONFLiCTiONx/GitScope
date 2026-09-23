@@ -6485,6 +6485,50 @@
               </div>
             </div>
           </label>
+
+          <label
+            style="
+              display: flex;
+              gap: 12px;
+              cursor: pointer;
+              background: rgba(255, 255, 255, 0.03);
+              padding: 12px;
+              border-radius: 8px;
+              border: 1px solid var(--border-color);
+            "
+          >
+            <input type="radio" name="compress-level" value="local-clean" />
+            <div>
+              <div style="font-weight: 600; font-size: 14px">
+                Clean the Local Database
+              </div>
+              <div style="font-size: 11px; color: var(--text-muted)">
+                Once git-filter-repo alters your history, force Git to immediately drop the unlinked artifacts and rebuild the .git folder at maximum compression.
+              </div>
+            </div>
+          </label>
+
+          <label
+            style="
+              display: flex;
+              gap: 12px;
+              cursor: pointer;
+              background: rgba(255, 255, 255, 0.03);
+              padding: 12px;
+              border-radius: 8px;
+              border: 1px solid var(--border-color);
+            "
+          >
+            <input type="radio" name="compress-level" value="force-push" />
+            <div>
+              <div style="font-weight: 600; font-size: 14px">
+                Force the Changes to the Remote
+              </div>
+              <div style="font-size: 11px; color: var(--text-muted)">
+                Because your local commit history is now completely different from the remote server, a standard git push will be rejected. You must force-push to completely overwrite the remote history.
+              </div>
+            </div>
+          </label>
         </div>
 
         <div
