@@ -1,4 +1,7 @@
 @echo off
-echo Running npm build...
-npm start
+echo Running npm install...
+call npm install
 
+echo.
+echo Launching Electron app...
+call npm start
