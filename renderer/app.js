@@ -7771,6 +7771,7 @@ async function openFileInEditor(
     currentEditingPath = filePath;
     elements.editorView.style.display = 'flex';
     elements.editorFileName.textContent = filePath.split(/[\\\/]/).pop();
+    elements.editorFileName.title = filePath;
 
     // RESET UI States (Relying on classes now)
     if (elements.mdViewControls) elements.mdViewControls.style.display = 'none';
@@ -9380,6 +9381,7 @@ async function showFileDiff(filePath) {
   elements.statusView.style.display = 'none';
   elements.diffView.style.display = 'flex';
   elements.diffFileName.textContent = filePath.split(/[\\\/]/).pop();
+  elements.diffFileName.title = filePath;
 
   try {
     const repoBase = repo.path.replace(/\\/g, '/');
@@ -12374,6 +12376,7 @@ async function openGistFileInEditor(gist, filename) {
     currentEditingPath = `gist://${gist.id}/${filename}`;
     elements.editorView.style.display = 'flex';
     elements.editorFileName.textContent = `Gist: ${filename}`;
+    elements.editorFileName.title = currentEditingPath;
 
     // Reset UI States
     if (elements.mdViewControls) elements.mdViewControls.style.display = 'none';
