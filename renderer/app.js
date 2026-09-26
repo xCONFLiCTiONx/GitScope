@@ -2289,21 +2289,29 @@ function initEventListeners() {
       logToConsole(`Word wrap: ${next.toUpperCase()}`, 'info');
     };
   if (elements.editorChromeBtn)
-    elements.editorChromeBtn.onclick = () => {
+    elements.editorChromeBtn.onclick = async () => {
       if (!currentEditingPath) return;
 
       if (currentEditingPath.startsWith('gist://')) {
         // Handle Gists by saving to a deterministic temp file
         const content = monacoEditor.getValue();
         const filename = currentEditingPath.split('/').pop() || 'gist_file.txt';
-        window.electronAPI.openContentInChrome({
+        const res = await window.electronAPI.openContentInChrome({
           content,
           filename,
           identifier: currentEditingPath,
         });
+        if (res && res.url) {
+          logToConsole(`Web Preview running at ${res.url}`, 'info');
+        }
       } else {
-        // Handle regular files
-        window.electronAPI.openFileInChrome(currentEditingPath);
+        // Handle regular files and static web projects
+        const res = await window.electronAPI.openWebPreview(currentEditingPath);
+        if (res && res.url) {
+          logToConsole(`Web Preview active for [${res.entryFile}] at ${res.url}`, 'info');
+        } else if (res && res.error) {
+          logToConsole(`Web Preview error: ${res.error}`, 'error');
+        }
       }
     };
   if (elements.editorFormatBtn)

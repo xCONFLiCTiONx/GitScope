@@ -19,6 +19,7 @@ const {
 } = require('./lib/git-scanner');
 const gitActions = require('./lib/git-actions');
 const githubApi = require('./lib/github-api');
+const webPreviewServer = require('./lib/web-preview-server');
 const chokidar = require('chokidar');
 const pty = require('node-pty');
 const prettier = require('prettier');
@@ -99,6 +100,11 @@ if (!gotTheLock) {
 
   app.on('before-quit', () => {
     app.isQuitting = true;
+    try {
+      webPreviewServer.stopAllServers();
+    } catch (e) {
+      console.error('Error stopping web preview servers on quit:', e);
+    }
   });
 
   app.on('will-quit', () => {});
@@ -2015,31 +2021,55 @@ if (!gotTheLock) {
     return locations.find((p) => p && fs.existsSync(p));
   }
 
-  async function openFileInChrome(filePath) {
+  async function openWebPreview(filePath) {
     try {
       const { spawn } = require('child_process');
       const chromePath = findChrome();
-      const absolutePath = path.resolve(filePath);
+
+      const previewInfo = await webPreviewServer.resolvePreviewUrl(filePath);
+      const targetUrl = previewInfo.url;
 
       if (chromePath) {
-        spawn(chromePath, [absolutePath], {
+        spawn(chromePath, [targetUrl], {
           detached: true,
           stdio: 'ignore',
         }).unref();
-        return { success: true, forced: true };
+        return {
+          success: true,
+          url: targetUrl,
+          port: previewInfo.port,
+          projectRoot: previewInfo.projectRoot,
+          entryFile: previewInfo.entryFile,
+          forced: true,
+        };
       }
 
       // Fallback: Use the system default browser
-      shell.openExternal(`file:///${absolutePath.replace(/\\/g, '/')}`);
-      return { success: true, forced: false };
+      shell.openExternal(targetUrl);
+      return {
+        success: true,
+        url: targetUrl,
+        port: previewInfo.port,
+        projectRoot: previewInfo.projectRoot,
+        entryFile: previewInfo.entryFile,
+        forced: false,
+      };
     } catch (e) {
-      console.error('Failed to open in Chrome:', e);
+      console.error('Failed to launch Web Preview:', e);
       return { success: false, error: e.message };
     }
   }
 
+  async function openFileInChrome(filePath) {
+    return await openWebPreview(filePath);
+  }
+
+  ipcMain.handle('open-web-preview', async (event, filePath) => {
+    return await openWebPreview(filePath);
+  });
+
   ipcMain.handle('open-file-in-chrome', async (event, filePath) => {
-    return await openFileInChrome(filePath);
+    return await openWebPreview(filePath);
   });
 
   ipcMain.handle(
