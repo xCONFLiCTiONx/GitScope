@@ -16,6 +16,7 @@ const {
   listDirectory,
   getUnbornFolders,
   getWindowsAttributes,
+  isSystemFolder,
 } = require('./lib/git-scanner');
 const gitActions = require('./lib/git-actions');
 const githubApi = require('./lib/github-api');
@@ -681,19 +682,52 @@ if (!gotTheLock) {
     return await listDirectory(path, showIgnored);
   });
 
+  async function listAllFilesFallback(dirPath, maxDepth = 10) {
+    const result = [];
+    async function scan(currentDir, currentDepth) {
+      if (currentDepth > maxDepth) return;
+      try {
+        const entries = await fs.readdir(currentDir, { withFileTypes: true });
+        for (const entry of entries) {
+          const name = entry.name;
+          if (
+            name === 'node_modules' ||
+            name === '.git' ||
+            name === '.vs' ||
+            name === 'dist' ||
+            name === 'build' ||
+            isSystemFolder(name)
+          ) {
+            continue;
+          }
+          const fullPath = path.join(currentDir, name);
+          const relPath = path.relative(dirPath, fullPath).replace(/\\/g, '/');
+          if (entry.isDirectory()) {
+            await scan(fullPath, currentDepth + 1);
+          } else {
+            result.push(relPath);
+          }
+        }
+      } catch (e) {}
+    }
+    await scan(dirPath, 0);
+    return result;
+  }
+
   ipcMain.handle('search-files', async (event, repoPath, query) => {
     try {
       const simpleGit = require('simple-git');
       const git = simpleGit(repoPath);
 
-      // INTELLIGENCE: Include ignored files (like .exe) but skip huge junk directories
-      // -c: cached (tracked)
-      // -o: others (untracked)
-      // -i: ignored
-      // --exclude-standard: use .gitignore rules (required for -i to know what is ignored)
-      const files = await git.raw(['ls-files', '-c', '-o', '-i', '--exclude-standard']);
+      let fileListStr;
+      try {
+        // -c: cached (tracked), -o: others (untracked), --exclude-standard: use .gitignore rules
+        fileListStr = await git.raw(['ls-files', '-c', '-o', '--exclude-standard']);
+      } catch (gitErr) {
+        fileListStr = (await listAllFilesFallback(repoPath)).join('\n');
+      }
 
-      const allFiles = files.split('\n').filter((f) => {
+      const allFiles = fileListStr.split('\n').filter((f) => {
         const trimmed = f.trim();
         if (!trimmed) return false;
         // HARD FILTER: Never show results from internal junk
@@ -715,7 +749,10 @@ if (!gotTheLock) {
         // GLOB SEARCH: Convert * to regex .* and escape other special chars
         const escaped = cleanQuery.replace(/[.+^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*');
         const re = new RegExp(`^${escaped}$`, 'i');
-        matches = allFiles.filter((f) => re.test(f));
+        matches = allFiles.filter((f) => {
+          const baseName = path.basename(f);
+          return re.test(f) || re.test(baseName);
+        });
       } else if (cleanQuery.startsWith('.')) {
         // EXTENSION SEARCH: Match suffix
         matches = allFiles.filter((f) => f.toLowerCase().endsWith(cleanQuery));
@@ -744,9 +781,15 @@ if (!gotTheLock) {
 
       if (searchFiles) {
         try {
-          // INTELLIGENCE: Include ignored files (like .exe) but skip huge junk directories
-          const files = await git.raw(['ls-files', '-c', '-o', '-i', '--exclude-standard']);
-          const allFiles = files.split('\n').filter((f) => {
+          let fileListStr;
+          try {
+            // -c: cached (tracked), -o: others (untracked), --exclude-standard: use .gitignore rules
+            fileListStr = await git.raw(['ls-files', '-c', '-o', '--exclude-standard']);
+          } catch (gitErr) {
+            fileListStr = (await listAllFilesFallback(repo.path)).join('\n');
+          }
+
+          const allFiles = fileListStr.split('\n').filter((f) => {
             const trimmed = f.trim();
             if (!trimmed) return false;
             if (
@@ -775,7 +818,10 @@ if (!gotTheLock) {
           if (isRegex) {
             try {
               const re = new RegExp(query, 'i');
-              matches = allItems.filter((item) => re.test(item.path));
+              matches = allItems.filter((item) => {
+                const baseName = path.basename(item.path);
+                return re.test(item.path) || re.test(baseName);
+              });
             } catch (e) {
               matches = [];
             }
@@ -787,7 +833,10 @@ if (!gotTheLock) {
               // GLOB SEARCH
               const escaped = cleanQuery.replace(/[.+^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*');
               const re = new RegExp(`^${escaped}$`, 'i');
-              matches = allItems.filter((item) => re.test(item.path));
+              matches = allItems.filter((item) => {
+                const baseName = path.basename(item.path);
+                return re.test(item.path) || re.test(baseName);
+              });
             } else if (cleanQuery.startsWith('.')) {
               // EXTENSION SEARCH
               matches = allItems.filter(
