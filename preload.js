@@ -159,4 +159,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
   onShowError: (callback) => ipcRenderer.on('show-error', (_event, value) => callback(value)),
   onDevConsoleMessage: (callback) =>
     ipcRenderer.on('dev-console-message', (_event, value) => callback(value)),
+  onAppConsoleLog: (callback) =>
+    ipcRenderer.on('app-console-log', (_event, value) => callback(value)),
 });

@@ -2760,6 +2760,15 @@ function initEventListeners() {
       handleDevConsoleMessage(data);
     });
   }
+  if (window.electronAPI.onAppConsoleLog) {
+    window.electronAPI.onAppConsoleLog((data) => {
+      if (data && data.message) {
+        if (typeof logToConsole === 'function') {
+          logToConsole(data.message, data.type || 'info');
+        }
+      }
+    });
+  }
 
   // Keyboard Listeners
   window.onkeydown = (e) => {

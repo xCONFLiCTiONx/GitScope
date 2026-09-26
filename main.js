@@ -26,16 +26,75 @@ const prettier = require('prettier');
 const os = require('os');
 const { isUtf8 } = require('buffer');
 
+// Global state
+let mainWindow;
+let watcher;
+let ptyProcess;
+let cachedSettings = null;
+let cachedRepos = null;
+
 // Disable Electron security warnings in dev mode (removes %c warnings in DevTools console)
 process.env.ELECTRON_DISABLE_SECURITY_WARNINGS = 'true';
+
+// Wire up Web Preview Server logger listener
+webPreviewServer.setLogListener((level, message) => {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    const devLevel = level === 'error' ? 2 : level === 'warn' ? 1 : 0;
+    mainWindow.webContents.send('dev-console-message', {
+      level: devLevel,
+      message: `[Web Preview] ${message}`,
+      sourceId: 'web-preview-server',
+    });
+    mainWindow.webContents.send('app-console-log', {
+      message: `[Web Preview] ${message}`,
+      type: level,
+    });
+    if (
+      level === 'error' &&
+      (message.includes('critical error') ||
+        message.includes('Failed to resolve') ||
+        message.includes('Server Error') ||
+        message.includes('500'))
+    ) {
+      mainWindow.webContents.send('show-error', {
+        title: 'Web Preview Server Error',
+        message: `[Web Preview] ${message}`,
+      });
+    }
+  }
+});
 
 // Global error handling for the main process
 process.on('uncaughtException', (error) => {
   console.error('Uncaught Exception:', error);
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    const msg = error && error.stack ? error.stack : String(error);
+    mainWindow.webContents.send('dev-console-message', {
+      level: 2,
+      message: `Uncaught Exception: ${msg}`,
+      sourceId: 'main-process',
+    });
+    mainWindow.webContents.send('app-console-log', {
+      message: `[Main Process Error] ${error && error.message ? error.message : String(error)}`,
+      type: 'error',
+    });
+  }
 });
 
 process.on('unhandledRejection', (reason, promise) => {
   console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    const msg = reason && reason.stack ? reason.stack : String(reason);
+    mainWindow.webContents.send('dev-console-message', {
+      level: 2,
+      message: `Unhandled Rejection: ${msg}`,
+      sourceId: 'main-process',
+    });
+    mainWindow.webContents.send('app-console-log', {
+      message: `[Main Process Error] ${reason && reason.message ? reason.message : String(reason)}`,
+      type: 'error',
+    });
+  }
 });
 
 // Ensure Git credential manager popups are allowed
@@ -53,11 +112,6 @@ function reportError(title, error) {
 }
 
 // Global state
-let mainWindow;
-let watcher;
-let ptyProcess;
-let cachedSettings = null;
-let cachedRepos = null;
 let installedEditors = {
   vscode: false,
   androidStudio: false,
