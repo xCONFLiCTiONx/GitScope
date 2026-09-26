@@ -2355,7 +2355,6 @@ if (!gotTheLock) {
         click: () =>
           event.sender.send('context-menu-command', { command: 'privacy-search', path: paths[0] }),
       });
-      template.push({ type: 'separator' });
       template.push({
         label: 'New',
         submenu: [
@@ -2371,7 +2370,6 @@ if (!gotTheLock) {
           },
         ],
       });
-      template.push({ type: 'separator' });
       template.push({
         label: 'Convert',
         submenu: [
@@ -2399,6 +2397,14 @@ if (!gotTheLock) {
     const isFile = !options.isDirectory && !options.isRepoRoot && totalCount === 1;
     if (isFile) {
       const ext = paths[0].split('.').pop().toLowerCase();
+      if (['html', 'htm'].includes(ext)) {
+        template.push({
+          label: 'Debug',
+          click: () =>
+            event.sender.send('context-menu-command', { command: 'debug', path: paths[0] }),
+        });
+      }
+
       const executableExts = [
         'exe',
         'bat',
@@ -2432,19 +2438,10 @@ if (!gotTheLock) {
               }),
           },
         ];
-        if (['html', 'htm'].includes(ext)) {
-          executeSubmenu.push({ type: 'separator' });
-          executeSubmenu.push({
-            label: 'Debug',
-            click: () =>
-              event.sender.send('context-menu-command', { command: 'debug', path: paths[0] }),
-          });
-        }
         template.push({
           label: 'Execute',
           submenu: executeSubmenu,
         });
-        template.push({ type: 'separator' });
       }
 
       // Convert Menu
@@ -2494,7 +2491,6 @@ if (!gotTheLock) {
             },
           ],
         });
-        template.push({ type: 'separator' });
       }
     }
 
@@ -2605,7 +2601,6 @@ if (!gotTheLock) {
             repoPath: options.repoPath,
           }),
       });
-      template.push({ type: 'separator' });
       const isFolder = require('fs').statSync(paths[0]).isDirectory();
       if (!isMulti) {
         if (!isFolder) {
@@ -2626,7 +2621,6 @@ if (!gotTheLock) {
         label: isMulti ? `Delete ${totalCount} items to Recycle Bin` : 'Delete to Recycle Bin',
         click: () => event.sender.send('context-menu-command', { command: 'delete', paths }),
       });
-      template.push({ type: 'separator' });
       template.push({
         label: 'Hide (Windows Attribute)',
         click: () =>
