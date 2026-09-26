@@ -476,6 +476,49 @@ if (!gotTheLock) {
     return false;
   });
 
+  function resetPtyCwd() {
+    if (!ptyProcess) return;
+    try {
+      const settings = getSettings();
+      const isWin = process.platform === 'win32';
+      const isPowerShell = !settings.shell || settings.shell.toLowerCase().includes('powershell');
+      const safeDir = os.homedir() || os.tmpdir();
+
+      if (isWin) {
+        if (isPowerShell) {
+          ptyProcess.write(`Set-Location "${safeDir.replace(/"/g, '`"')}"\r`);
+        } else {
+          ptyProcess.write(`cd /d "${safeDir}"\r`);
+        }
+      } else {
+        ptyProcess.write(`cd "${safeDir}"\r`);
+      }
+    } catch (e) {
+      console.error('Failed to reset PTY CWD:', e);
+    }
+  }
+
+  ipcMain.handle('reset-pty-cwd', () => {
+    resetPtyCwd();
+    return { success: true };
+  });
+
+  ipcMain.handle('release-file-locks', async (event, targetPath) => {
+    resetPtyCwd();
+    if (watcher) {
+      try {
+        if (targetPath) {
+          watcher.unwatch(targetPath);
+        } else {
+          watcher.close();
+          watcher = null;
+        }
+      } catch (e) {}
+    }
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    return { success: true };
+  });
+
   function setupPTY() {
     const settings = getSettings();
     const defaultShell =
@@ -490,13 +533,9 @@ if (!gotTheLock) {
       } catch (e) {}
     }
 
-    // Determine and validate CWD to prevent Error 267 (Invalid Directory)
-    let workingDir =
-      settings.rootRepoDir || process.env.HOME || process.env.USERPROFILE || process.cwd();
-
-    // Final safety check: If the path doesn't exist, fallback to the app's current directory
+    // Default PTY spawn CWD to user home or temp directory to avoid locking user project folders
+    let workingDir = os.homedir() || os.tmpdir();
     if (!fs.existsSync(workingDir)) {
-      console.warn(`PTY: Directory ${workingDir} not found, falling back to process.cwd()`);
       workingDir = process.cwd();
     }
 
@@ -992,6 +1031,12 @@ if (!gotTheLock) {
 
   ipcMain.handle('move-file', async (event, src, dest) => {
     try {
+      resetPtyCwd();
+      if (watcher) {
+        try { watcher.unwatch(src); } catch (e) {}
+      }
+      await new Promise((r) => setTimeout(r, 100));
+
       await fs.move(src, dest, { overwrite: false });
       return { success: true };
     } catch (err) {
@@ -999,12 +1044,30 @@ if (!gotTheLock) {
         return { success: false, error: 'exists', src, dest };
       }
       return { success: false, error: err.message };
+    } finally {
+      if (cachedRepos && cachedRepos.length > 0 && (!watcher || watcher.closed)) {
+        setupWatcher(cachedRepos);
+      }
     }
   });
 
   ipcMain.handle('move-file-force', async (event, src, dest) => {
-    await fs.move(src, dest, { overwrite: true });
-    return { success: true };
+    try {
+      resetPtyCwd();
+      if (watcher) {
+        try { watcher.unwatch(src); } catch (e) {}
+      }
+      await new Promise((r) => setTimeout(r, 100));
+
+      await fs.move(src, dest, { overwrite: true });
+      return { success: true };
+    } catch (err) {
+      return { success: false, error: err.message };
+    } finally {
+      if (cachedRepos && cachedRepos.length > 0 && (!watcher || watcher.closed)) {
+        setupWatcher(cachedRepos);
+      }
+    }
   });
 
   ipcMain.handle('copy-file', async (event, src, dest) => {
@@ -1122,10 +1185,33 @@ if (!gotTheLock) {
 
   ipcMain.handle('rename-item', async (event, oldPath, newPath) => {
     try {
-      await fs.rename(oldPath, newPath);
-      return { success: true };
+      resetPtyCwd();
+      if (watcher) {
+        try { watcher.unwatch(oldPath); } catch (e) {}
+      }
+      await new Promise((r) => setTimeout(r, 100));
+
+      let lastErr;
+      for (let attempt = 1; attempt <= 5; attempt++) {
+        try {
+          await fs.rename(oldPath, newPath);
+          return { success: true };
+        } catch (e) {
+          lastErr = e;
+          if (e.code === 'EBUSY' || e.code === 'EPERM' || e.code === 'EACCES') {
+            await new Promise((r) => setTimeout(r, 150 * attempt));
+            continue;
+          }
+          break;
+        }
+      }
+      return { success: false, error: lastErr ? lastErr.message : 'Rename failed' };
     } catch (e) {
       return { success: false, error: e.message };
+    } finally {
+      if (cachedRepos && cachedRepos.length > 0 && (!watcher || watcher.closed)) {
+        setupWatcher(cachedRepos);
+      }
     }
   });
 
@@ -1481,12 +1567,18 @@ if (!gotTheLock) {
   });
 
   function setupWatcher(repos) {
-    if (watcher) watcher.close();
+    if (watcher) {
+      try {
+        watcher.close();
+      } catch (e) {}
+      watcher = null;
+    }
     const pathsToWatch = repos.map((r) => r.path);
     if (pathsToWatch.length === 0) return;
 
     // We watch the whole project but with specific exclusions.
-    // CRITICAL: We DO NOT ignore .git entirely, we need to see .git/index changes to detect commits/staging
+    // CRITICAL: On Windows, usePolling prevents chokidar from opening persistent OS directory handles (ReadDirectoryChangesW) that lock folders in Windows Explorer and Node.js
+    const isWin = process.platform === 'win32';
     watcher = chokidar.watch(pathsToWatch, {
       ignored: (p) => {
         // Ignore heavy folders that never contain relevant git source
@@ -1504,7 +1596,10 @@ if (!gotTheLock) {
       },
       persistent: true,
       ignoreInitial: true,
-      depth: 10, // Increase depth to catch changes in subfolders
+      depth: 10,
+      usePolling: isWin,
+      interval: 1500,
+      binaryInterval: 3000,
     });
 
     let pendingPaths = new Set();
@@ -2055,14 +2150,71 @@ if (!gotTheLock) {
   });
 
   ipcMain.handle('trash-item', async (event, filePath) => {
+    const nativePath = path.resolve(filePath);
+
+    // 1. Release PTY CWD and pause watcher directory handles
+    resetPtyCwd();
+    if (watcher) {
+      try {
+        watcher.unwatch(nativePath);
+      } catch (e) {}
+    }
+
+    // Brief pause for OS kernel handle release
+    await new Promise((resolve) => setTimeout(resolve, 100));
+
+    // 2. Retry loop for shell.trashItem (Recycle Bin)
+    let lastError;
+    for (let attempt = 1; attempt <= 5; attempt++) {
+      try {
+        await shell.trashItem(nativePath);
+        return { success: true };
+      } catch (e) {
+        lastError = e;
+        console.warn(`trashItem attempt ${attempt} failed for ${nativePath}: ${e.message}`);
+        await new Promise((resolve) => setTimeout(resolve, 150 * attempt));
+      }
+    }
+
+    // 3. Fallback: If Recycle Bin fails (e.g., locked or network drive), try fs.remove
     try {
-      // Ensure path is absolute and uses native separators for Electron shell API
-      const nativePath = path.resolve(filePath);
-      await shell.trashItem(nativePath);
-      return { success: true };
-    } catch (e) {
-      console.error('Trash Error:', e);
-      return { success: false, error: e.message };
+      if (process.platform === 'win32' && fs.existsSync(nativePath)) {
+        try {
+          const { execSync } = require('child_process');
+          execSync(`attrib -r -h -s "${nativePath}" /s /d`, { stdio: 'ignore' });
+        } catch (e) {}
+      }
+
+      await fs.remove(nativePath);
+      return { success: true, permanent: true };
+    } catch (fsErr) {
+      console.error(`fs.remove fallback failed for ${nativePath}:`, fsErr);
+
+      if (process.platform === 'win32' && fs.existsSync(nativePath)) {
+        try {
+          const { execSync } = require('child_process');
+          const stats = fs.statSync(nativePath);
+          if (stats.isDirectory()) {
+            execSync(`cmd.exe /c rmdir /s /q "${nativePath}"`, { stdio: 'ignore' });
+          } else {
+            execSync(`cmd.exe /c del /f /q "${nativePath}"`, { stdio: 'ignore' });
+          }
+          if (!fs.existsSync(nativePath)) {
+            return { success: true, permanent: true };
+          }
+        } catch (cmdErr) {
+          console.error(`cmd.exe fallback failed for ${nativePath}:`, cmdErr);
+        }
+      }
+
+      return {
+        success: false,
+        error: `Locked by system/process: ${lastError ? lastError.message : fsErr.message}`,
+      };
+    } finally {
+      if (cachedRepos && cachedRepos.length > 0 && (!watcher || watcher.closed)) {
+        setupWatcher(cachedRepos);
+      }
     }
   });
 

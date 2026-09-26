@@ -121,6 +121,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   formatCode: (options) => ipcRenderer.invoke('format-code', options),
   fixLineEndings: (path, type) => ipcRenderer.invoke('fix-line-endings', path, type),
   resetApp: () => ipcRenderer.invoke('reset-app'),
+  resetPtyCwd: () => ipcRenderer.invoke('reset-pty-cwd'),
+  releaseFileLocks: (targetPath) => ipcRenderer.invoke('release-file-locks', targetPath),
   sendNotification: (options) => ipcRenderer.invoke('send-notification', options),
   reportError: (title, message) => ipcRenderer.invoke('report-error', { title, message }),
   isWindows: process.platform === 'win32',

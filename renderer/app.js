@@ -2831,6 +2831,9 @@ function switchConsoleTab(tab) {
   if (target) {
     target.classList.add('active');
     if (targetId === 'terminal-container' && window.terminal) {
+      if (activeRepo && activeRepo.path) {
+        window.terminal.sendCommand(`cd "${activeRepo.path}"`);
+      }
       setTimeout(() => {
         window.terminal.fitAddon.fit();
         window.terminal.term.focus();
@@ -3773,6 +3776,9 @@ async function handleRestoreFile() {
     setTaskState(true);
     logToConsole(`Restoring ${fileName}...`, 'info');
     try {
+      if (window.electronAPI.releaseFileLocks) {
+        await window.electronAPI.releaseFileLocks(currentEditingPath);
+      }
       const res = await window.electronAPI.gitRestoreFile(activeRepo.path, relPath);
       if (res.success) {
         logToConsole(res.output, 'success');
@@ -4797,6 +4803,9 @@ async function handleNukeReinit() {
       setTaskState(true);
       logToConsole(`Nuking .git for ${activeRepo.name}...`, 'info');
       try {
+        if (window.electronAPI.releaseFileLocks) {
+          await window.electronAPI.releaseFileLocks(activeRepo.path);
+        }
         const res = await window.electronAPI.gitNukeReinit(activeRepo.path);
         if (res.success) {
           logToConsole(res.output, 'success');
@@ -7500,7 +7509,11 @@ async function selectRepo(repo, fromDashboard = false) {
 
   document.getElementById('active-repo-name').textContent = repo.name;
 
-  if (window.terminal) window.terminal.sendCommand(`cd "${repo.path}"`);
+  // Only cd in terminal if terminal view is currently active
+  const isTerminalActive = document.getElementById('terminal-container')?.classList.contains('active');
+  if (isTerminalActive && window.terminal) {
+    window.terminal.sendCommand(`cd "${repo.path}"`);
+  }
 
   // Hydrate project-specific toggles
   repo.gitForce = false;
@@ -10468,6 +10481,11 @@ function showDeleteModal(paths) {
 
   document.getElementById('delete-confirm').onclick = async () => {
     logToConsole(`Moving ${paths.length} items to Recycle Bin...`, 'info');
+
+    if (window.electronAPI.releaseFileLocks) {
+      await window.electronAPI.releaseFileLocks();
+    }
+
     let successCount = 0;
     for (const p of paths) {
       const res = await window.electronAPI.trashItem(p);
