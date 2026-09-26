@@ -63,16 +63,15 @@ A real-time dashboard providing total visibility into your local development env
 
 ## 📦 Getting Started
 
-1. **Clone the repository:**```
+1. **Clone the repository:**
    `git clone https://github.com/xCONFLiCTiONx/GitScope.git
 `
 
-
-2. **Install dependencies:**```
-`npm install
+2. **Install dependencies:**
+   `npm install
 `
 
-3. **Launch the suite:**```
+3. **Launch the suite:**
    `npm start
 `
 
@@ -89,6 +88,11 @@ The portable binary will be generated in the `/dist` directory.
 
 User Ctrl+Shift+I to open the developer console.
 
+## 🛠️ Extension Settings
+
+You can copy this file to your settings directory, typically at %userprofile%\AppData\Roaming\gitscope. This will add my custom commands.  
+[https://gist.github.com/xCONFLiCTiONx/adbbe50dc7038c290513e2c17c154588](https://gist.github.com/xCONFLiCTiONx/adbbe50dc7038c290513e2c17c154588)
+
 ## 📋 System Requirements
 
 - **OS:** Windows 10 or 11
@@ -96,21 +100,20 @@ User Ctrl+Shift+I to open the developer console.
 
 ## 🔍 Screenshots
 
-![Alt text](screenshots/1.png)
-![Alt text](screenshots/2.png)
-![Alt text](screenshots/3.png)
-![Alt text](screenshots/4.png)
-![Alt text](screenshots/5.png)
-![Alt text](screenshots/6.png)
-![Alt text](screenshots/7.png)
-![Alt text](screenshots/8.png)
-![Alt text](screenshots/9.png)
-![Alt text](screenshots/10.png)
-![Alt text](screenshots/11.png)
-![Alt text](screenshots/12.png)
-![Alt text](screenshots/13.png)
-![Alt text](screenshots/14.png)
+![Alt text](screenshots/1.png)  
+![Alt text](screenshots/2.png)  
+![Alt text](screenshots/3.png)  
+![Alt text](screenshots/4.png)  
+![Alt text](screenshots/5.png)  
+![Alt text](screenshots/6.png)  
+![Alt text](screenshots/7.png)  
+![Alt text](screenshots/8.png)  
+![Alt text](screenshots/9.png)  
+![Alt text](screenshots/10.png)  
+![Alt text](screenshots/11.png)  
+![Alt text](screenshots/12.png)  
+![Alt text](screenshots/13.png)  
+![Alt text](screenshots/14.png)  
 ![Alt text](screenshots/15.png)
 
-
-*Created for developers who demand more than a basic Git GUI.*
+_Created for developers who demand more than a basic Git GUI._
