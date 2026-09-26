@@ -3934,18 +3934,26 @@ async function handleRemoveRemote() {
             ) {
               setTaskState(true);
               logToConsole(`Deleting ${owner}/${repoName} from GitHub...`, 'info');
-              const delRes = await window.electronAPI.deleteGitHubRepo(
-                settings.githubToken,
-                owner,
-                repoName,
-              );
-              if (delRes.success) {
-                logToConsole(`Successfully deleted repository from GitHub.`, 'success');
-              } else {
-                logToConsole(`GitHub deletion failed: ${delRes.output}`, 'error');
-                showAlert(`GitHub deletion failed: ${delRes.output}`, 'Error');
+              try {
+                const delRes = await window.electronAPI.deleteGitHubRepo(
+                  settings.githubToken,
+                  owner,
+                  repoName,
+                );
+                if (delRes && delRes.success) {
+                  logToConsole(`Successfully deleted repository from GitHub.`, 'success');
+                } else {
+                  const errOutput =
+                    (delRes && delRes.output) || 'Repository not found on GitHub or deletion failed.';
+                  logToConsole(`GitHub deletion failed: ${errOutput}`, 'error');
+                  showAlert(`GitHub deletion failed: ${errOutput}`, 'Error');
+                }
+              } catch (delErr) {
+                logToConsole(`GitHub deletion failed: ${delErr.message}`, 'error');
+                showAlert(`GitHub deletion failed: ${delErr.message}`, 'Error');
+              } finally {
+                setTaskState(false);
               }
-              setTaskState(false);
             }
           }
         }
@@ -3957,6 +3965,8 @@ async function handleRemoveRemote() {
       }
     } catch (e) {
       logToConsole(`Remote removal error: ${e.message}`, 'error');
+    } finally {
+      setTaskState(false);
     }
   }
 }

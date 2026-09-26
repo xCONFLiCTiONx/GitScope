@@ -714,6 +714,106 @@ if (!gotTheLock) {
     return result;
   }
 
+  async function searchContentFallback(dirPath, query, isRegex, maxResults = 500) {
+    const results = [];
+    let patternRe;
+    try {
+      if (isRegex) {
+        patternRe = new RegExp(query, 'gi');
+      } else if (query.includes('*')) {
+        const escaped = query.replace(/[.+^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*');
+        patternRe = new RegExp(escaped, 'gi');
+      } else {
+        const escaped = query.replace(/[.+^${}()|[\]\\]/g, '\\$&');
+        patternRe = new RegExp(escaped, 'gi');
+      }
+    } catch (e) {
+      return [];
+    }
+
+    const binaryExts = new Set([
+      'png',
+      'jpg',
+      'jpeg',
+      'gif',
+      'pdf',
+      'exe',
+      'dll',
+      'zip',
+      'tar',
+      'gz',
+      'ico',
+      'woff',
+      'woff2',
+      'ttf',
+      'eot',
+      'mp3',
+      'mp4',
+      'wav',
+      'asar',
+      'pak',
+      'bin',
+      'iso',
+    ]);
+
+    async function scanDir(currentDir) {
+      if (results.length >= maxResults) return;
+      try {
+        const entries = await fs.readdir(currentDir, { withFileTypes: true });
+        for (const entry of entries) {
+          if (results.length >= maxResults) break;
+          const name = entry.name;
+          if (
+            name === 'node_modules' ||
+            name === '.git' ||
+            name === '.vs' ||
+            name === 'dist' ||
+            name === 'build' ||
+            isSystemFolder(name)
+          ) {
+            continue;
+          }
+
+          const fullPath = path.join(currentDir, name);
+          if (entry.isDirectory()) {
+            await scanDir(fullPath);
+          } else if (entry.isFile()) {
+            const ext = name.split('.').pop().toLowerCase();
+            if (binaryExts.has(ext)) continue;
+
+            try {
+              const stats = await fs.stat(fullPath);
+              if (stats.size > 10 * 1024 * 1024) continue; // Skip huge files > 10MB
+
+              const content = await fs.readFile(fullPath, 'utf8');
+              const lines = content.split(/\r?\n/);
+              const relPath = path.relative(dirPath, fullPath).replace(/\\/g, '/');
+
+              for (let i = 0; i < lines.length; i++) {
+                if (results.length >= maxResults) break;
+                const lineText = lines[i];
+                patternRe.lastIndex = 0;
+                const match = patternRe.exec(lineText);
+                if (match) {
+                  results.push({
+                    path: relPath,
+                    line: i + 1,
+                    column: match.index + 1,
+                    text: lineText.trim(),
+                    type: 'content',
+                  });
+                }
+              }
+            } catch (fileErr) {}
+          }
+        }
+      } catch (dirErr) {}
+    }
+
+    await scanDir(dirPath);
+    return results;
+  }
+
   ipcMain.handle('search-files', async (event, repoPath, query) => {
     try {
       const simpleGit = require('simple-git');
@@ -721,8 +821,8 @@ if (!gotTheLock) {
 
       let fileListStr;
       try {
-        // -c: cached (tracked), -o: others (untracked), --exclude-standard: use .gitignore rules
-        fileListStr = await git.raw(['ls-files', '-c', '-o', '--exclude-standard']);
+        // -c: cached (tracked), -o: others (untracked + ignored)
+        fileListStr = await git.raw(['ls-files', '-c', '-o']);
       } catch (gitErr) {
         fileListStr = (await listAllFilesFallback(repoPath)).join('\n');
       }
@@ -783,8 +883,8 @@ if (!gotTheLock) {
         try {
           let fileListStr;
           try {
-            // -c: cached (tracked), -o: others (untracked), --exclude-standard: use .gitignore rules
-            fileListStr = await git.raw(['ls-files', '-c', '-o', '--exclude-standard']);
+            // -c: cached (tracked), -o: others (untracked + ignored)
+            fileListStr = await git.raw(['ls-files', '-c', '-o']);
           } catch (gitErr) {
             fileListStr = (await listAllFilesFallback(repo.path)).join('\n');
           }
@@ -863,49 +963,66 @@ if (!gotTheLock) {
       }
 
       if (searchContent) {
-        const args = ['grep', '-n', '--column', '--ignore-case'];
-        let grepPattern = query;
-
-        if (isRegex) {
-          args.push('-E');
-        } else if (query.includes('*')) {
-          // Support wildcard * in non-regex search by converting to a regex
-          // Correctly escape other regex chars first
-          grepPattern = query.replace(/[.+^${}()|[\]\\]/g, '\\$&').replace(/\\\*/g, '.*');
-          args.push('-E');
-        } else {
-          args.push('-F'); // Fixed strings for better performance when no wildcard
-        }
-
-        args.push('--untracked');
-        args.push('-e', grepPattern);
-
+        let contentMatches = [];
         try {
+          const args = ['grep', '-n', '--column', '--ignore-case'];
+          let grepPattern = query;
+
+          if (isRegex) {
+            args.push('-E');
+          } else if (query.includes('*')) {
+            grepPattern = query.replace(/[.+^${}()|[\]\\]/g, '\\$&').replace(/\\\*/g, '.*');
+            args.push('-E');
+          } else {
+            args.push('-F');
+          }
+
+          args.push('--untracked');
+          args.push('-e', grepPattern);
+
           const grepOutput = await git.raw(args);
           const lines = grepOutput.split('\n').filter((l) => l.trim() !== '');
+
           lines.slice(0, 500).forEach((line) => {
-            const parts = line.split(':');
-            if (parts.length >= 3) {
-              const filePath = parts[0];
-              const lineNum = parts[1];
-              const column = parts[2];
-              const text = parts.slice(3).join(':');
-              results.push({
-                repoName: repo.name,
-                repoPath: repo.path,
-                path: filePath,
-                line: parseInt(lineNum),
-                column: parseInt(column),
-                text: text.trim(),
-                type: 'content',
+            const match4 = line.match(/^(.*?):(\d+):(\d+):(.*)$/);
+            const match3 = line.match(/^(.*?):(\d+):(.*)$/);
+
+            if (match4) {
+              contentMatches.push({
+                path: match4[1],
+                line: parseInt(match4[2]),
+                column: parseInt(match4[3]),
+                text: match4[4].trim(),
+              });
+            } else if (match3) {
+              contentMatches.push({
+                path: match3[1],
+                line: parseInt(match3[2]),
+                column: 1,
+                text: match3[3].trim(),
               });
             }
           });
-        } catch (grepError) {
-          if (grepError.exitCode !== 1 && !grepError.message.includes('exit code: 1')) {
-            console.error(`Grep failed for ${repo.name}:`, grepError);
-          }
+        } catch (grepErr) {
+          // git grep failed
         }
+
+        // Fallback: If git grep returned no matches or threw an error, perform filesystem scan
+        if (contentMatches.length === 0) {
+          contentMatches = await searchContentFallback(repo.path, query, isRegex);
+        }
+
+        contentMatches.slice(0, 500).forEach((item) => {
+          results.push({
+            repoName: repo.name,
+            repoPath: repo.path,
+            path: item.path,
+            line: item.line,
+            column: item.column,
+            text: item.text,
+            type: 'content',
+          });
+        });
       }
     } catch (e) {
       console.error(`Search failed for ${repo.name}:`, e);
@@ -1814,7 +1931,11 @@ if (!gotTheLock) {
   });
 
   ipcMain.handle('github-delete-repo', async (event, token, owner, repo) => {
-    return await githubApi.deleteRepo(token, owner, repo);
+    try {
+      return await githubApi.deleteRepo(token, owner, repo);
+    } catch (e) {
+      return { success: false, output: e.message };
+    }
   });
 
   ipcMain.handle('github-get-repo', async (event, token, owner, repo) => {
