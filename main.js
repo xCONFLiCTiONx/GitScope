@@ -2061,7 +2061,25 @@ if (!gotTheLock) {
   }
 
   async function openFileInChrome(filePath) {
-    return await openWebPreview(filePath);
+    try {
+      const { spawn } = require('child_process');
+      const chromePath = findChrome();
+      const absolutePath = path.resolve(filePath);
+
+      if (chromePath) {
+        spawn(chromePath, [absolutePath], {
+          detached: true,
+          stdio: 'ignore',
+        }).unref();
+        return { success: true, path: absolutePath };
+      }
+
+      shell.openPath(absolutePath);
+      return { success: true, path: absolutePath };
+    } catch (e) {
+      console.error('Failed to open file in Chrome:', e);
+      return { success: false, error: e.message };
+    }
   }
 
   ipcMain.handle('open-web-preview', async (event, filePath) => {
@@ -2069,7 +2087,7 @@ if (!gotTheLock) {
   });
 
   ipcMain.handle('open-file-in-chrome', async (event, filePath) => {
-    return await openWebPreview(filePath);
+    return await openFileInChrome(filePath);
   });
 
   ipcMain.handle(
@@ -2396,23 +2414,32 @@ if (!gotTheLock) {
         'jar',
       ];
       if (executableExts.includes(ext)) {
+        const executeSubmenu = [
+          {
+            label: 'Execute',
+            click: () =>
+              event.sender.send('context-menu-command', { command: 'execute', path: paths[0] }),
+          },
+          {
+            label: 'Execute as Admin',
+            click: () =>
+              event.sender.send('context-menu-command', {
+                command: 'execute-admin',
+                path: paths[0],
+              }),
+          },
+        ];
+        if (['html', 'htm'].includes(ext)) {
+          executeSubmenu.push({ type: 'separator' });
+          executeSubmenu.push({
+            label: 'Debug',
+            click: () =>
+              event.sender.send('context-menu-command', { command: 'debug', path: paths[0] }),
+          });
+        }
         template.push({
           label: 'Execute',
-          submenu: [
-            {
-              label: 'Execute',
-              click: () =>
-                event.sender.send('context-menu-command', { command: 'execute', path: paths[0] }),
-            },
-            {
-              label: 'Execute as Admin',
-              click: () =>
-                event.sender.send('context-menu-command', {
-                  command: 'execute-admin',
-                  path: paths[0],
-                }),
-            },
-          ],
+          submenu: executeSubmenu,
         });
         template.push({ type: 'separator' });
       }
