@@ -121,6 +121,7 @@ let installedEditors = {
 };
 const configPath = path.join(app.getPath('userData'), 'config.json');
 const settingsPath = path.join(app.getPath('userData'), 'settings.json');
+const secretsPath = path.join(app.getPath('userData'), 'secrets.json');
 const windowStatePath = path.join(app.getPath('userData'), 'window-state.json');
 const themesPath = path.join(app.getPath('userData'), 'themes.json');
 
@@ -262,36 +263,88 @@ if (!gotTheLock) {
 
   function getSettings() {
     if (cachedSettings) return cachedSettings;
+    let settingsObj = {};
     try {
       if (fs.existsSync(settingsPath)) {
-        cachedSettings = fs.readJsonSync(settingsPath);
-        if (cachedSettings && cachedSettings.themeMode) {
-          nativeTheme.themeSource = cachedSettings.themeMode;
-        }
-        return cachedSettings;
+        settingsObj = fs.readJsonSync(settingsPath) || {};
       }
     } catch (e) {
       reportError('Failed to get settings', e);
     }
+
+    let secretsObj = {};
+    try {
+      if (fs.existsSync(secretsPath)) {
+        secretsObj = fs.readJsonSync(secretsPath) || {};
+      }
+    } catch (e) {
+      reportError('Failed to get secrets', e);
+    }
+
+    // Auto-migrate secrets out of settings.json into secrets.json
+    let needsSave = false;
+    if (settingsObj.githubToken) {
+      secretsObj.githubToken = settingsObj.githubToken;
+      delete settingsObj.githubToken;
+      needsSave = true;
+    }
+
+    if (needsSave) {
+      try {
+        fs.writeJsonSync(secretsPath, secretsObj, { spaces: 2 });
+        fs.writeJsonSync(settingsPath, settingsObj, { spaces: 2 });
+      } catch (e) {
+        console.error('Failed migrating secrets to secrets.json:', e);
+      }
+    }
+
     cachedSettings = {
       shell:
         process.platform === 'win32'
           ? 'C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe'
           : '/bin/bash',
       rootRepoDir: '',
-      githubToken: '',
       themeMode: 'system',
       prettierTabWidth: 2,
       prettierSemi: true,
       prettierSingleQuote: false,
       prettierPrintWidth: 80,
+      ...settingsObj,
+      githubToken: secretsObj.githubToken || '',
     };
+
+    if (cachedSettings.themeMode) {
+      nativeTheme.themeSource = cachedSettings.themeMode;
+    }
+
     return cachedSettings;
   }
 
   function saveSettings(settings) {
     cachedSettings = settings;
-    fs.writeJsonSync(settingsPath, settings);
+
+    const { githubToken, ...generalSettings } = settings || {};
+
+    let secretsObj = {};
+    try {
+      if (fs.existsSync(secretsPath)) {
+        secretsObj = fs.readJsonSync(secretsPath) || {};
+      }
+    } catch (e) {}
+
+    secretsObj.githubToken = githubToken || '';
+
+    try {
+      fs.writeJsonSync(secretsPath, secretsObj, { spaces: 2 });
+    } catch (e) {
+      console.error('Failed to save secrets:', e);
+    }
+
+    try {
+      fs.writeJsonSync(settingsPath, generalSettings, { spaces: 2 });
+    } catch (e) {
+      console.error('Failed to save settings:', e);
+    }
   }
 
   function restoreWindow() {
@@ -2059,6 +2112,7 @@ if (!gotTheLock) {
     try {
       if (fs.existsSync(configPath)) await fs.remove(configPath);
       if (fs.existsSync(settingsPath)) await fs.remove(settingsPath);
+      if (fs.existsSync(secretsPath)) await fs.remove(secretsPath);
       if (fs.existsSync(windowStatePath)) await fs.remove(windowStatePath);
       if (fs.existsSync(themesPath)) await fs.remove(themesPath);
       app.relaunch();

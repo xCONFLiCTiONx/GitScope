@@ -14,6 +14,7 @@ release/
 # Local configurations & state (GitScope specific)
 config.json
 settings.json
+secrets.json
 window-state.json
 *.GS_TEMP
 
@@ -42,4 +43,3 @@ Thumbs.db
 *.lnk
 launch.vbs
 .vs
-privacy.md
