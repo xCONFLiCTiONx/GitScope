@@ -95,6 +95,9 @@ if (!gotTheLock) {
   });
 
   app.on('window-all-closed', () => {
+    try {
+      webPreviewServer.stopAllServers();
+    } catch (e) {}
     app.quit();
   });
 
