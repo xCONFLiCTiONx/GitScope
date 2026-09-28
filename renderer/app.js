@@ -7931,7 +7931,7 @@ async function openFileInEditor(
             elements.editorContainerWrapper.classList.contains('editor-mode-split') ||
             elements.editorContainerWrapper.classList.contains('editor-mode-preview');
           if (isShowingPreview) {
-            updateMarkdownPreviewContent();
+            debouncedUpdateMarkdownPreviewContent(150);
           }
         }
       });
@@ -10190,6 +10190,14 @@ function getPreviewContentArea() {
   }
 
   return elements.markdownPreview.shadowRoot.getElementById('content');
+}
+
+let updatePreviewDebounceTimer = null;
+function debouncedUpdateMarkdownPreviewContent(delay = 150) {
+  if (updatePreviewDebounceTimer) clearTimeout(updatePreviewDebounceTimer);
+  updatePreviewDebounceTimer = setTimeout(() => {
+    updateMarkdownPreviewContent();
+  }, delay);
 }
 
 function updateMarkdownPreviewContent() {
@@ -12490,7 +12498,7 @@ async function openGistFileInEditor(gist, filename) {
           elements.editorContainerWrapper.classList.contains('editor-mode-split') ||
           elements.editorContainerWrapper.classList.contains('editor-mode-preview');
         if (isShowingPreview) {
-          updateMarkdownPreviewContent();
+          debouncedUpdateMarkdownPreviewContent(150);
         }
       }
     });
