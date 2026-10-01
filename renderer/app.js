@@ -1091,6 +1091,9 @@ const elements = {
   get shellSelect() {
     return document.getElementById('shell-select');
   },
+  get browserSelect() {
+    return document.getElementById('browser-select');
+  },
   get themeModeSelect() {
     return document.getElementById('theme-mode-select');
   },
@@ -1487,6 +1490,32 @@ document.addEventListener('DOMContentLoaded', async () => {
             .join('');
         }
       });
+
+      if (window.electronAPI.getAvailableBrowsers) {
+        window.electronAPI.getAvailableBrowsers().then((browsers) => {
+          if (elements.browserSelect) {
+            elements.browserSelect.innerHTML = browsers
+              .map(
+                (b) =>
+                  `<option value="${b.id}" ${(settings.browser || 'default') === b.id ? 'selected' : ''}>${
+                    b.name
+                  }</option>`,
+              )
+              .join('');
+
+            const isCustom = (settings.browser || 'default') === 'custom';
+            const customBrowserInput = document.getElementById('custom-browser-path');
+            const browseBrowserBtn = document.getElementById('browse-custom-browser');
+            const customSeparator = document.getElementById('custom-browser-separator');
+            if (customBrowserInput) {
+              customBrowserInput.value = settings.customBrowserPath || '';
+              customBrowserInput.style.display = isCustom ? 'inline-block' : 'none';
+            }
+            if (browseBrowserBtn) browseBrowserBtn.style.display = isCustom ? 'inline-block' : 'none';
+            if (customSeparator) customSeparator.style.display = isCustom ? 'inline-block' : 'none';
+          }
+        });
+      }
     }, 500);
   } catch (e) {
     console.error('FATAL STARTUP ERROR:', e);
@@ -2664,6 +2693,30 @@ function initEventListeners() {
       }
     };
 
+  const browseBrowserBtn = document.getElementById('browse-custom-browser');
+  if (browseBrowserBtn)
+    browseBrowserBtn.onclick = async () => {
+      const path = await window.electronAPI.openFile();
+      if (path) {
+        const customBrowserInput = document.getElementById('custom-browser-path');
+        if (customBrowserInput) customBrowserInput.value = path;
+        if (elements.settingsBanner) elements.settingsBanner.style.display = 'flex';
+      }
+    };
+
+  if (elements.browserSelect) {
+    elements.browserSelect.onchange = () => {
+      const isCustom = elements.browserSelect.value === 'custom';
+      const customBrowserInput = document.getElementById('custom-browser-path');
+      const browseBrowserBtn = document.getElementById('browse-custom-browser');
+      const customSeparator = document.getElementById('custom-browser-separator');
+      if (customBrowserInput) customBrowserInput.style.display = isCustom ? 'inline-block' : 'none';
+      if (browseBrowserBtn) browseBrowserBtn.style.display = isCustom ? 'inline-block' : 'none';
+      if (customSeparator) customSeparator.style.display = isCustom ? 'inline-block' : 'none';
+      if (elements.settingsBanner) elements.settingsBanner.style.display = 'flex';
+    };
+  }
+
   const browseBtn = document.getElementById('browse-root-dir');
   if (browseBtn)
     browseBtn.onclick = async () => {
@@ -3485,6 +3538,13 @@ async function saveGlobalSettings() {
   settings.notifRepoChanges = elements.notifRepoChanges ? elements.notifRepoChanges.checked : false;
   if (elements.themeModeSelect) {
     settings.themeMode = elements.themeModeSelect.value;
+  }
+  if (elements.browserSelect) {
+    settings.browser = elements.browserSelect.value;
+  }
+  const customBrowserInput = document.getElementById('custom-browser-path');
+  if (customBrowserInput) {
+    settings.customBrowserPath = customBrowserInput.value;
   }
   if (elements.prettierTabWidth) {
     settings.prettierTabWidth = parseInt(elements.prettierTabWidth.value, 10);

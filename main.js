@@ -569,6 +569,10 @@ if (!gotTheLock) {
     return getAvailableShells();
   });
 
+  ipcMain.handle('get-available-browsers', () => {
+    return getAvailableBrowsers();
+  });
+
   ipcMain.handle('heartbeat', () => 'OK');
 
   ipcMain.handle('report-error', (event, { title, message }) => {
@@ -2302,38 +2306,196 @@ if (!gotTheLock) {
     return locations.find((p) => p && fs.existsSync(p));
   }
 
-  async function openWebPreview(filePath) {
-    try {
-      const { spawn } = require('child_process');
-      const chromePath = findChrome();
+  function getAvailableBrowsers() {
+    const settings = getSettings();
+    const browsers = [];
 
-      const previewInfo = await webPreviewServer.resolvePreviewUrl(filePath);
-      const targetUrl = previewInfo.url;
+    browsers.push({
+      id: 'default',
+      name: 'Default System Browser',
+      path: null,
+    });
 
-      if (chromePath) {
-        spawn(chromePath, [targetUrl], {
+    if (process.platform === 'win32') {
+      const checkList = [
+        {
+          id: 'chrome',
+          name: 'Google Chrome',
+          paths: [
+            path.join(process.env.PROGRAMFILES || '', 'Google', 'Chrome', 'Application', 'chrome.exe'),
+            path.join(
+              process.env['PROGRAMFILES(X86)'] || '',
+              'Google',
+              'Chrome',
+              'Application',
+              'chrome.exe',
+            ),
+            path.join(process.env.LOCALAPPDATA || '', 'Google', 'Chrome', 'Application', 'chrome.exe'),
+          ],
+        },
+        {
+          id: 'edge',
+          name: 'Microsoft Edge',
+          paths: [
+            path.join(
+              process.env['PROGRAMFILES(X86)'] || '',
+              'Microsoft',
+              'Edge',
+              'Application',
+              'msedge.exe',
+            ),
+            path.join(process.env.PROGRAMFILES || '', 'Microsoft', 'Edge', 'Application', 'msedge.exe'),
+            path.join(process.env.LOCALAPPDATA || '', 'Microsoft', 'Edge', 'Application', 'msedge.exe'),
+          ],
+        },
+        {
+          id: 'firefox',
+          name: 'Mozilla Firefox',
+          paths: [
+            path.join(process.env.PROGRAMFILES || '', 'Mozilla Firefox', 'firefox.exe'),
+            path.join(
+              process.env['PROGRAMFILES(X86)'] || '',
+              'Mozilla Firefox',
+              'firefox.exe',
+            ),
+            path.join(process.env.LOCALAPPDATA || '', 'Mozilla Firefox', 'firefox.exe'),
+          ],
+        },
+        {
+          id: 'brave',
+          name: 'Brave Browser',
+          paths: [
+            path.join(
+              process.env.PROGRAMFILES || '',
+              'BraveSoftware',
+              'Brave-Browser',
+              'Application',
+              'brave.exe',
+            ),
+            path.join(
+              process.env['PROGRAMFILES(X86)'] || '',
+              'BraveSoftware',
+              'Brave-Browser',
+              'Application',
+              'brave.exe',
+            ),
+            path.join(
+              process.env.LOCALAPPDATA || '',
+              'BraveSoftware',
+              'Brave-Browser',
+              'Application',
+              'brave.exe',
+            ),
+          ],
+        },
+        {
+          id: 'opera',
+          name: 'Opera',
+          paths: [
+            path.join(process.env.LOCALAPPDATA || '', 'Programs', 'Opera', 'launcher.exe'),
+            path.join(process.env.PROGRAMFILES || '', 'Opera', 'launcher.exe'),
+          ],
+        },
+        {
+          id: 'vivaldi',
+          name: 'Vivaldi',
+          paths: [
+            path.join(process.env.LOCALAPPDATA || '', 'Vivaldi', 'Application', 'vivaldi.exe'),
+            path.join(process.env.PROGRAMFILES || '', 'Vivaldi', 'Application', 'vivaldi.exe'),
+          ],
+        },
+      ];
+
+      for (const item of checkList) {
+        const foundPath = item.paths.find((p) => p && fs.existsSync(p));
+        if (foundPath) {
+          browsers.push({
+            id: item.id,
+            name: item.name,
+            path: foundPath,
+          });
+        }
+      }
+    }
+
+    browsers.push({
+      id: 'custom',
+      name: 'Custom Executable...',
+      path: settings.customBrowserPath || '',
+    });
+
+    return browsers;
+  }
+
+  function getBrowserPathAndName() {
+    const settings = getSettings();
+    const browserChoice = settings.browser || 'default';
+
+    if (browserChoice === 'default') {
+      return { path: null, label: 'Default Browser' };
+    }
+
+    if (browserChoice === 'custom') {
+      const customPath = settings.customBrowserPath;
+      if (customPath && fs.existsSync(customPath)) {
+        const name = path.basename(customPath, path.extname(customPath));
+        return { path: customPath, label: name || 'Custom Browser' };
+      }
+      return { path: null, label: 'Default Browser' };
+    }
+
+    const available = getAvailableBrowsers();
+    const match = available.find((b) => b.id === browserChoice);
+    if (match && match.path && fs.existsSync(match.path)) {
+      return { path: match.path, label: match.name };
+    }
+
+    return { path: null, label: 'Default Browser' };
+  }
+
+  async function launchInBrowser(targetUrlOrPath, isUrl = false) {
+    const { spawn } = require('child_process');
+    const { path: exePath, label } = getBrowserPathAndName();
+
+    if (exePath && fs.existsSync(exePath)) {
+      try {
+        spawn(exePath, [targetUrlOrPath], {
           detached: true,
           stdio: 'ignore',
         }).unref();
-        return {
-          success: true,
-          url: targetUrl,
-          port: previewInfo.port,
-          projectRoot: previewInfo.projectRoot,
-          entryFile: previewInfo.entryFile,
-          forced: true,
-        };
+        return { success: true, customBrowser: true, browserName: label };
+      } catch (err) {
+        console.warn(`Failed to launch browser (${exePath}), falling back to default browser:`, err);
       }
+    }
 
-      // Fallback: Use the system default browser
-      shell.openExternal(targetUrl);
+    if (isUrl) {
+      await shell.openExternal(targetUrlOrPath);
+    } else {
+      const absolutePath = path.resolve(targetUrlOrPath);
+      const err = await shell.openPath(absolutePath);
+      if (err) {
+        const fileUrl = require('url').pathToFileURL(absolutePath).href;
+        await shell.openExternal(fileUrl);
+      }
+    }
+    return { success: true, customBrowser: false, browserName: 'Default System Browser' };
+  }
+
+  async function openWebPreview(filePath) {
+    try {
+      const previewInfo = await webPreviewServer.resolvePreviewUrl(filePath);
+      const targetUrl = previewInfo.url;
+
+      const launchRes = await launchInBrowser(targetUrl, true);
+
       return {
         success: true,
         url: targetUrl,
         port: previewInfo.port,
         projectRoot: previewInfo.projectRoot,
         entryFile: previewInfo.entryFile,
-        forced: false,
+        browserName: launchRes.browserName,
       };
     } catch (e) {
       console.error('Failed to launch Web Preview:', e);
@@ -2343,22 +2505,11 @@ if (!gotTheLock) {
 
   async function openFileInChrome(filePath) {
     try {
-      const { spawn } = require('child_process');
-      const chromePath = findChrome();
       const absolutePath = path.resolve(filePath);
-
-      if (chromePath) {
-        spawn(chromePath, [absolutePath], {
-          detached: true,
-          stdio: 'ignore',
-        }).unref();
-        return { success: true, path: absolutePath };
-      }
-
-      shell.openPath(absolutePath);
-      return { success: true, path: absolutePath };
+      const launchRes = await launchInBrowser(absolutePath, false);
+      return { success: true, path: absolutePath, browserName: launchRes.browserName };
     } catch (e) {
-      console.error('Failed to open file in Chrome:', e);
+      console.error('Failed to open file in browser:', e);
       return { success: false, error: e.message };
     }
   }
@@ -2586,9 +2737,10 @@ if (!gotTheLock) {
       ];
 
       if (options.path && !options.path.startsWith('gist://')) {
+        const { label: browserLabel } = getBrowserPathAndName();
         template.push({ type: 'separator' });
         template.push({
-          label: 'Chrome',
+          label: browserLabel || 'Browser',
           click: () => openFileInChrome(options.path),
         });
       }
@@ -2602,9 +2754,10 @@ if (!gotTheLock) {
       const template = [{ role: 'copy' }, { type: 'separator' }, { role: 'selectAll' }];
 
       if (options.path && !options.path.startsWith('gist://')) {
+        const { label: browserLabel } = getBrowserPathAndName();
         template.push({ type: 'separator' });
         template.push({
-          label: 'Chrome',
+          label: browserLabel || 'Browser',
           click: () => openFileInChrome(options.path),
         });
       }
@@ -2791,7 +2944,7 @@ if (!gotTheLock) {
           event.sender.send('context-menu-command', { command: 'open-antigravity', paths }),
       });
     }
-    // Intelligence: Add Open in Chrome to the Open submenu
+    // Intelligence: Add Open in Browser to the Open submenu
     if (!isFolder && totalCount === 1) {
       const ext = paths[0].split('.').pop().toLowerCase();
       const binaryExts = [
@@ -2810,8 +2963,9 @@ if (!gotTheLock) {
         'pdf',
       ];
       if (!binaryExts.includes(ext)) {
+        const { label: browserLabel } = getBrowserPathAndName();
         openSubmenu.push({
-          label: 'Chrome',
+          label: browserLabel || 'Browser',
           click: () => openFileInChrome(paths[0]),
         });
       }

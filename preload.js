@@ -93,6 +93,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   exportSettings: () => ipcRenderer.invoke('export-settings'),
   importSettings: () => ipcRenderer.invoke('import-settings'),
   getAvailableShells: () => ipcRenderer.invoke('get-available-shells'),
+  getAvailableBrowsers: () => ipcRenderer.invoke('get-available-browsers'),
   fetchGitHubRepos: (token) => ipcRenderer.invoke('github-fetch-repos', token),
   createGitHubRepo: (token, name, isPrivate) =>
     ipcRenderer.invoke('github-create-repo', token, name, isPrivate),
