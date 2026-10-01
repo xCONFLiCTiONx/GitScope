@@ -2828,6 +2828,48 @@ if (!gotTheLock) {
 
     const template = [];
 
+    const isFile = !options.isDirectory && !options.isRepoRoot && totalCount === 1;
+    const ext = isFile ? paths[0].split('.').pop().toLowerCase() : '';
+    const binaryExts = [
+      'png', 'jpg', 'jpeg', 'gif', 'webp', 'ico', 'svg', 'exe', 'dll', 'zip', 'tar', 'gz', 'pdf', 'mp4', 'mp3', 'wav', 'woff', 'woff2', 'ttf', 'eot', 'jar', 'iso', 'bin'
+    ];
+    const executableExts = [
+      'exe', 'bat', 'cmd', 'vbs', 'vbe', 'js', 'jse', 'wsf', 'wsh', 'msc', 'ps1', 'sh', 'html', 'htm', 'jar'
+    ];
+    const isDebuggable = isFile && ['html', 'htm'].includes(ext);
+    const isExecutable = isFile && executableExts.includes(ext);
+
+    if (isDebuggable) {
+      template.push({
+        label: 'Debug',
+        click: () =>
+          event.sender.send('context-menu-command', { command: 'debug', path: paths[0] }),
+      });
+      template.push({ type: 'separator' });
+    }
+
+    if (isExecutable) {
+      template.push({
+        label: 'Execute',
+        submenu: [
+          {
+            label: 'Execute',
+            click: () =>
+              event.sender.send('context-menu-command', { command: 'execute', path: paths[0] }),
+          },
+          {
+            label: 'Execute as Admin',
+            click: () =>
+              event.sender.send('context-menu-command', {
+                command: 'execute-admin',
+                path: paths[0],
+              }),
+          },
+        ],
+      });
+      template.push({ type: 'separator' });
+    }
+
     if (options.isDirectory || options.isRepoRoot) {
       template.push({
         label: 'New',
@@ -2860,11 +2902,6 @@ if (!gotTheLock) {
         click: () => event.sender.send('context-menu-command', { command: 'copy-tree', path: paths[0] }),
       });
     }
-
-    const isFile = !options.isDirectory && !options.isRepoRoot && totalCount === 1;
-    const binaryExts = [
-      'png', 'jpg', 'jpeg', 'gif', 'webp', 'ico', 'svg', 'exe', 'dll', 'zip', 'tar', 'gz', 'pdf', 'mp4', 'mp3', 'wav', 'woff', 'woff2', 'ttf', 'eot', 'jar', 'iso', 'bin'
-    ];
 
     if (isFile) {
       const ext = paths[0].split('.').pop().toLowerCase();
@@ -2909,52 +2946,6 @@ if (!gotTheLock) {
 
     if (isFile) {
       const ext = paths[0].split('.').pop().toLowerCase();
-      if (['html', 'htm'].includes(ext)) {
-        template.push({
-          label: 'Debug',
-          click: () =>
-            event.sender.send('context-menu-command', { command: 'debug', path: paths[0] }),
-        });
-      }
-
-      const executableExts = [
-        'exe',
-        'bat',
-        'cmd',
-        'vbs',
-        'vbe',
-        'js',
-        'jse',
-        'wsf',
-        'wsh',
-        'msc',
-        'ps1',
-        'sh',
-        'html',
-        'htm',
-        'jar',
-      ];
-      if (executableExts.includes(ext)) {
-        const executeSubmenu = [
-          {
-            label: 'Execute',
-            click: () =>
-              event.sender.send('context-menu-command', { command: 'execute', path: paths[0] }),
-          },
-          {
-            label: 'Execute as Admin',
-            click: () =>
-              event.sender.send('context-menu-command', {
-                command: 'execute-admin',
-                path: paths[0],
-              }),
-          },
-        ];
-        template.push({
-          label: 'Execute',
-          submenu: executeSubmenu,
-        });
-      }
 
       // Convert Menu
       if (!binaryExts.includes(ext)) {
