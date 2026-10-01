@@ -5235,16 +5235,15 @@ function createTreeNode(name, fullPath, isDirectory, depth, repo) {
         e.dataTransfer.getData('source-container-id'),
       );
     };
-  } else {
-    item.draggable = true;
-    item.ondragstart = (e) => {
-      // If the dragged item is part of the selection, drag all selected items
-      // Otherwise, just drag the single item
-      const paths = selectedNodes.has(fullPath) ? Array.from(selectedNodes) : [fullPath];
-      e.dataTransfer.setData('text/plain', JSON.stringify(paths));
-      e.dataTransfer.setData('source-container-id', container.id);
-    };
   }
+  item.draggable = true;
+  item.ondragstart = (e) => {
+    // If the dragged item is part of the selection, drag all selected items
+    // Otherwise, just drag the single item
+    const paths = selectedNodes.has(fullPath) ? Array.from(selectedNodes) : [fullPath];
+    e.dataTransfer.setData('text/plain', JSON.stringify(paths));
+    e.dataTransfer.setData('source-container-id', container.id);
+  };
   container.appendChild(item);
   return container;
 }
@@ -9979,6 +9978,13 @@ async function handleFileDrop(data, destDir, destContainer, depth, sourceId) {
       const fileName = srcPath.split(/[\\\/]/).pop();
       const destPath = `${destDir}/${fileName}`;
       if (srcPath === destPath) continue;
+
+      const srcNorm = srcPath.replace(/\\/g, '/');
+      const destNorm = destDir.replace(/\\/g, '/');
+      if (destNorm === srcNorm || destNorm.startsWith(srcNorm + '/')) {
+        showError(`Cannot move or copy a folder into itself or its subfolder.`, 'Invalid Operation');
+        continue;
+      }
 
       try {
         let res =

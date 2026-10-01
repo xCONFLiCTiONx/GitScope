@@ -3143,41 +3143,39 @@ if (!gotTheLock) {
               resolvedCwd = repoPathStr || require('path').dirname(clickedPath);
             }
 
-            if (cmd.runAsAdmin) {
+            const ext = require('path').extname(cmd.path).toLowerCase();
+            let psCommand = '';
+            const escapedCwd = resolvedCwd ? `-WorkingDirectory '${resolvedCwd.replace(/'/g, "''")}'` : '';
+            const verb = cmd.runAsAdmin ? `-Verb RunAs` : '';
+
+            if (ext === '.bat' || ext === '.cmd') {
               const escapedPath = cmd.path.replace(/'/g, "''");
               const escapedArgs = resolvedArgs.replace(/'/g, "''");
-              const escapedCwd = resolvedCwd.replace(/'/g, "''");
-
-              let psCommand = `Start-Process -FilePath '${escapedPath}'`;
-              if (escapedArgs) psCommand += ` -ArgumentList '${escapedArgs}'`;
-              if (escapedCwd) psCommand += ` -WorkingDirectory '${escapedCwd}'`;
-              psCommand += ` -Verb RunAs`;
-
-              const encodedCommand = Buffer.from(psCommand, 'utf16le').toString('base64');
-              exec(
-                `powershell.exe -NoProfile -ExecutionPolicy Bypass -EncodedCommand ${encodedCommand}`,
-                (error) => {
-                  if (error) console.error('Admin execution error:', error);
-                },
-              );
+              psCommand = `Start-Process -FilePath 'cmd.exe' -ArgumentList ('/c', '"${escapedPath}"' ${escapedArgs ? ",'" + escapedArgs + "'" : ''}) ${escapedCwd} ${verb}`.trim();
+            } else if (ext === '.ps1') {
+              const escapedPath = cmd.path.replace(/'/g, "''");
+              const escapedArgs = resolvedArgs.replace(/'/g, "''");
+              psCommand = `Start-Process -FilePath 'powershell.exe' -ArgumentList ('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', '"${escapedPath}"' ${escapedArgs ? ",'" + escapedArgs + "'" : ''}) ${escapedCwd} ${verb}`.trim();
             } else {
-              // Using powershell to explicitly invoke the command with focus to avoid background state constraints
               const escapedPath = cmd.path.replace(/'/g, "''");
               const escapedArgs = resolvedArgs.replace(/'/g, "''");
-              const escapedCwd = resolvedCwd.replace(/'/g, "''");
-
-              let psCommand = `Start-Process -FilePath '${escapedPath}'`;
-              if (escapedArgs) psCommand += ` -ArgumentList '${escapedArgs}'`;
-              if (escapedCwd) psCommand += ` -WorkingDirectory '${escapedCwd}'`;
-
-              const encodedCommand = Buffer.from(psCommand, 'utf16le').toString('base64');
-              exec(
-                `powershell.exe -NoProfile -ExecutionPolicy Bypass -EncodedCommand ${encodedCommand}`,
-                (error) => {
-                  if (error) console.error('Execution error:', error);
-                },
-              );
+              const argList = escapedArgs ? `-ArgumentList '${escapedArgs}'` : '';
+              psCommand = `Start-Process -FilePath '${escapedPath}' ${argList} ${escapedCwd} ${verb}`.trim();
             }
+
+            const encodedCommand = Buffer.from(psCommand, 'utf16le').toString('base64');
+            exec(
+              `powershell.exe -NoProfile -ExecutionPolicy Bypass -EncodedCommand ${encodedCommand}`,
+              (error, stdout, stderr) => {
+                if (error) {
+                  if (error.message && error.message.includes('The operation was canceled by the user')) {
+                    console.log('User cancelled elevation.');
+                    return;
+                  }
+                  console.error('Command execution error:', error, stderr);
+                }
+              },
+            );
           },
         });
       }
