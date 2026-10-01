@@ -2693,20 +2693,65 @@ function initEventListeners() {
       }
     };
 
-  const browseBrowserBtn = document.getElementById('browse-custom-browser');
-  if (browseBrowserBtn)
-    browseBrowserBtn.onclick = async () => {
-      const path = await window.electronAPI.openFile();
-      if (path) {
-        const customBrowserInput = document.getElementById('custom-browser-path');
-        if (customBrowserInput) customBrowserInput.value = path;
-        if (elements.settingsBanner) elements.settingsBanner.style.display = 'flex';
+  const handleCustomBrowserBrowse = async () => {
+    const filePath = await window.electronAPI.openFile();
+    if (filePath) {
+      const customBrowserInput = document.getElementById('custom-browser-path');
+      if (customBrowserInput) customBrowserInput.value = filePath;
+      const exeName = filePath.split(/[\\\/]/).pop().replace(/\.exe$/i, '');
+
+      let customOpt = elements.browserSelect.querySelector('option[value="custom"]');
+      if (!customOpt) {
+        customOpt = document.createElement('option');
+        customOpt.value = 'custom';
+        const selectCustomOpt = elements.browserSelect.querySelector('option[value="select-custom"]');
+        if (selectCustomOpt) {
+          elements.browserSelect.insertBefore(customOpt, selectCustomOpt);
+        } else {
+          elements.browserSelect.appendChild(customOpt);
+        }
       }
-    };
+      customOpt.textContent = exeName;
+      customOpt.selected = true;
+      elements.browserSelect.value = 'custom';
+
+      const browseBrowserBtn = document.getElementById('browse-custom-browser');
+      const customSeparator = document.getElementById('custom-browser-separator');
+      if (customBrowserInput) customBrowserInput.style.display = 'inline-block';
+      if (browseBrowserBtn) browseBrowserBtn.style.display = 'inline-block';
+      if (customSeparator) customSeparator.style.display = 'inline-block';
+
+      if (elements.settingsBanner) elements.settingsBanner.style.display = 'flex';
+    } else {
+      elements.browserSelect.value = settings.browser || 'default';
+      const isCustom = elements.browserSelect.value === 'custom';
+      const customBrowserInput = document.getElementById('custom-browser-path');
+      const browseBrowserBtn = document.getElementById('browse-custom-browser');
+      const customSeparator = document.getElementById('custom-browser-separator');
+      if (customBrowserInput) customBrowserInput.style.display = isCustom ? 'inline-block' : 'none';
+      if (browseBrowserBtn) browseBrowserBtn.style.display = isCustom ? 'inline-block' : 'none';
+      if (customSeparator) customSeparator.style.display = isCustom ? 'inline-block' : 'none';
+    }
+  };
+
+  const browseBrowserBtn = document.getElementById('browse-custom-browser');
+  if (browseBrowserBtn) {
+    browseBrowserBtn.onclick = handleCustomBrowserBrowse;
+  }
 
   if (elements.browserSelect) {
     elements.browserSelect.onchange = () => {
-      const isCustom = elements.browserSelect.value === 'custom';
+      const val = elements.browserSelect.value;
+      if (
+        val === 'select-custom' ||
+        (val === 'custom' &&
+          !settings.customBrowserPath &&
+          !document.getElementById('custom-browser-path')?.value)
+      ) {
+        handleCustomBrowserBrowse();
+        return;
+      }
+      const isCustom = val === 'custom';
       const customBrowserInput = document.getElementById('custom-browser-path');
       const browseBrowserBtn = document.getElementById('browse-custom-browser');
       const customSeparator = document.getElementById('custom-browser-separator');

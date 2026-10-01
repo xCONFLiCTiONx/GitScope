@@ -2466,10 +2466,19 @@ if (!gotTheLock) {
       }
     }
 
+    if (settings.customBrowserPath && fs.existsSync(settings.customBrowserPath)) {
+      const exeName = path.basename(settings.customBrowserPath, path.extname(settings.customBrowserPath));
+      browsers.push({
+        id: 'custom',
+        name: exeName,
+        path: settings.customBrowserPath,
+      });
+    }
+
     browsers.push({
-      id: 'custom',
-      name: 'Custom Executable...',
-      path: settings.customBrowserPath || '',
+      id: 'select-custom',
+      name: 'Select Custom Browser Executable...',
+      path: null,
     });
 
     return browsers;
@@ -2507,7 +2516,8 @@ if (!gotTheLock) {
 
     if (exePath && fs.existsSync(exePath)) {
       try {
-        spawn(exePath, [targetUrlOrPath], {
+        const arg = isUrl ? targetUrlOrPath : require('url').pathToFileURL(path.resolve(targetUrlOrPath)).href;
+        spawn(exePath, [arg], {
           detached: true,
           stdio: 'ignore',
         }).unref();
@@ -2521,11 +2531,8 @@ if (!gotTheLock) {
       await shell.openExternal(targetUrlOrPath);
     } else {
       const absolutePath = path.resolve(targetUrlOrPath);
-      const err = await shell.openPath(absolutePath);
-      if (err) {
-        const fileUrl = require('url').pathToFileURL(absolutePath).href;
-        await shell.openExternal(fileUrl);
-      }
+      const fileUrl = require('url').pathToFileURL(absolutePath).href;
+      await shell.openExternal(fileUrl);
     }
     return { success: true, customBrowser: false, browserName: 'Default System Browser' };
   }
