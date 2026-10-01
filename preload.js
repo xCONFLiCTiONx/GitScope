@@ -7,6 +7,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   showSaveDialog: (options) => ipcRenderer.invoke('show-save-dialog', options),
   showOpenDialog: (options) => ipcRenderer.invoke('show-open-dialog', options),
   scanDirectory: (path) => ipcRenderer.invoke('scan-directory', path),
+  generateDirectoryTree: (path) => ipcRenderer.invoke('generate-directory-tree', path),
   listDirectory: (path, viewModeOrShowIgnored) =>
     ipcRenderer.invoke('list-directory', path, viewModeOrShowIgnored),
   setWindowsAttributes: (path, isHidden) =>

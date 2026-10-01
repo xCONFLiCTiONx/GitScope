@@ -8463,7 +8463,35 @@ async function smartRefreshTree() {
 
 async function handleContextMenuCommand({ command, paths, path, repoPath }) {
   const targets = paths || [path];
-  if (command === 'new-file') handleNewItem('file', targets[0]);
+  if (command === 'copy-path') {
+    const textToCopy = targets.join('\n');
+    await navigator.clipboard.writeText(textToCopy);
+    logToConsole(`Copied ${targets.length} path(s) to clipboard`, 'success');
+  } else if (command === 'copy-file-contents') {
+    try {
+      const res = await window.electronAPI.readFile(targets[0]);
+      if (res && res.content !== undefined) {
+        await navigator.clipboard.writeText(res.content);
+        logToConsole(`Copied contents of ${targets[0].split(/[\\\/]/).pop()} to clipboard`, 'success');
+      } else {
+        showError('Could not read file contents.', 'Copy Failed');
+      }
+    } catch (err) {
+      showError(err.message, 'Copy Failed');
+    }
+  } else if (command === 'copy-tree') {
+    try {
+      const treeText = await window.electronAPI.generateDirectoryTree(targets[0]);
+      if (treeText) {
+        await navigator.clipboard.writeText(treeText);
+        logToConsole(`Copied directory tree for ${targets[0].split(/[\\\/]/).pop()} to clipboard`, 'success');
+      } else {
+        showError('Could not generate directory tree.', 'Copy Tree Failed');
+      }
+    } catch (err) {
+      showError(err.message, 'Copy Tree Failed');
+    }
+  } else if (command === 'new-file') handleNewItem('file', targets[0]);
   else if (command === 'new-folder') handleNewItem('folder', targets[0]);
   else if (command === 'execute') window.electronAPI.openPath(targets[0]);
   else if (command === 'execute-admin') window.electronAPI.openPathAdmin(targets[0]);

@@ -735,6 +735,54 @@ if (!gotTheLock) {
     return await scanDirectory(path);
   });
 
+  async function generateTextTree(dirPath, prefix = '') {
+    const baseName = path.basename(dirPath);
+    let result = baseName + '/\n';
+
+    async function walk(currentDir, currentPrefix) {
+      let items;
+      try {
+        items = await fs.readdir(currentDir);
+      } catch (e) {
+        return;
+      }
+      items = items.filter(item => item !== '.git' && item !== 'node_modules' && item !== 'dist' && item !== 'build' && item !== '.gradle' && item !== '.idea');
+      items.sort((a, b) => {
+        let aIsDir = false, bIsDir = false;
+        try { aIsDir = fs.statSync(path.join(currentDir, a)).isDirectory(); } catch(e){}
+        try { bIsDir = fs.statSync(path.join(currentDir, b)).isDirectory(); } catch(e){}
+        if (aIsDir && !bIsDir) return -1;
+        if (!aIsDir && bIsDir) return 1;
+        return a.localeCompare(b);
+      });
+
+      for (let i = 0; i < items.length; i++) {
+        const item = items[i];
+        const fullPath = path.join(currentDir, item);
+        const isLast = i === items.length - 1;
+        const connector = isLast ? '└── ' : '├── ';
+        const childPrefix = currentPrefix + (isLast ? '    ' : '│   ');
+
+        let isDir = false;
+        try {
+          isDir = fs.statSync(fullPath).isDirectory();
+        } catch (e) {}
+
+        result += currentPrefix + connector + item + (isDir ? '/' : '') + '\n';
+        if (isDir) {
+          await walk(fullPath, childPrefix);
+        }
+      }
+    }
+
+    await walk(dirPath, '');
+    return result;
+  }
+
+  ipcMain.handle('generate-directory-tree', async (event, dirPath) => {
+    return await generateTextTree(dirPath);
+  });
+
   ipcMain.handle('list-directory', async (event, path, showIgnored) => {
     return await listDirectory(path, showIgnored);
   });
@@ -2780,7 +2828,18 @@ if (!gotTheLock) {
 
     const template = [];
 
+    template.push({
+      label: isMulti ? `Copy Paths (${totalCount})` : 'Copy Path',
+      click: () => event.sender.send('context-menu-command', { command: 'copy-path', paths }),
+    });
+    template.push({ type: 'separator' });
+
     if (options.isDirectory || options.isRepoRoot) {
+      template.push({
+        label: 'Copy Tree',
+        click: () => event.sender.send('context-menu-command', { command: 'copy-tree', path: paths[0] }),
+      });
+      template.push({ type: 'separator' });
       template.push({
         label: 'Privacy Search',
         click: () =>
@@ -2828,6 +2887,17 @@ if (!gotTheLock) {
     const isFile = !options.isDirectory && !options.isRepoRoot && totalCount === 1;
     if (isFile) {
       const ext = paths[0].split('.').pop().toLowerCase();
+      const binaryExts = [
+        'png', 'jpg', 'jpeg', 'gif', 'webp', 'ico', 'svg', 'exe', 'dll', 'zip', 'tar', 'gz', 'pdf', 'mp4', 'mp3', 'wav', 'woff', 'woff2', 'ttf', 'eot', 'jar', 'iso', 'bin'
+      ];
+      if (!binaryExts.includes(ext)) {
+        template.push({
+          label: 'Copy File Contents',
+          click: () => event.sender.send('context-menu-command', { command: 'copy-file-contents', path: paths[0] }),
+        });
+        template.push({ type: 'separator' });
+      }
+
       if (['html', 'htm'].includes(ext)) {
         template.push({
           label: 'Debug',
@@ -2876,21 +2946,6 @@ if (!gotTheLock) {
       }
 
       // Convert Menu
-      const binaryExts = [
-        'png',
-        'jpg',
-        'jpeg',
-        'gif',
-        'webp',
-        'ico',
-        'svg',
-        'exe',
-        'dll',
-        'zip',
-        'tar',
-        'gz',
-        'pdf',
-      ];
       if (!binaryExts.includes(ext)) {
         template.push({
           label: 'Convert',
@@ -2985,7 +3040,7 @@ if (!gotTheLock) {
     }
 
     openSubmenu.push({
-      label: isMulti ? `Windows Explorer (${totalCount})` : 'Windows Explorer',
+      label: isMulti ? `Explorer (${totalCount})` : 'Explorer',
       click: () =>
         event.sender.send('context-menu-command', { command: 'reveal-in-explorer', paths }),
     });
@@ -3018,7 +3073,7 @@ if (!gotTheLock) {
     });
 
     template.push({
-      label: 'Open in...',
+      label: 'Open with',
       submenu: openSubmenu,
     });
 
