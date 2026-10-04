@@ -3058,9 +3058,25 @@ async function quickGitAction(action) {
     // Ensure terminal is in correct directory
     window.terminal.sendCommand(`cd "${activeRepo.path}"`);
 
+    let curBranch = '';
+    if (action === 'push') {
+      try {
+        const branchData = await window.electronAPI.getBranches(activeRepo.path);
+        if (
+          branchData &&
+          branchData.current &&
+          branchData.current !== 'HEAD' &&
+          !branchData.current.startsWith('(') &&
+          !branchData.current.includes(' ')
+        ) {
+          curBranch = branchData.current;
+        }
+      } catch (e) {}
+    }
+
     const forceFlag =
       (action === 'push' || action === 'pull') && activeRepo.gitForce ? ' --force' : '';
-    const upstream = action === 'push' ? ' -u origin HEAD' : '';
+    const upstream = action === 'push' ? (curBranch ? ` -u origin "${curBranch}"` : ' -u origin') : '';
 
     // Construct the command
     const cmd = `git ${action}${forceFlag}${upstream}`;
@@ -3188,9 +3204,22 @@ async function handleDashboardPush(repo) {
     if (window.terminal) {
       // CRITICAL: Ensure terminal is in the correct directory before pushing
       window.terminal.sendCommand(`cd "${repo.path}"`);
-      // Use -u origin HEAD to ensure upstream is set automatically
+      let curBranch = '';
+      try {
+        const branchData = await window.electronAPI.getBranches(repo.path);
+        if (
+          branchData &&
+          branchData.current &&
+          branchData.current !== 'HEAD' &&
+          !branchData.current.startsWith('(') &&
+          !branchData.current.includes(' ')
+        ) {
+          curBranch = branchData.current;
+        }
+      } catch (e) {}
       const forceFlag = repo.gitForce ? ' --force' : '';
-      window.terminal.sendCommand(`git push -u origin HEAD${forceFlag}`);
+      const target = curBranch ? ` -u origin "${curBranch}"` : ' -u origin';
+      window.terminal.sendCommand(`git push${forceFlag}${target}`);
       setTimeout(async () => {
         await showDashboard();
         setTaskState(false);
@@ -3363,8 +3392,22 @@ async function handleCommit(pushAfter = false) {
         logToConsole('Pushing changes...', 'info');
         if (window.terminal) {
           window.terminal.sendCommand(`cd "${activeRepo.path}"`);
+          let curBranch = '';
+          try {
+            const branchData = await window.electronAPI.getBranches(activeRepo.path);
+            if (
+              branchData &&
+              branchData.current &&
+              branchData.current !== 'HEAD' &&
+              !branchData.current.startsWith('(') &&
+              !branchData.current.includes(' ')
+            ) {
+              curBranch = branchData.current;
+            }
+          } catch (e) {}
           const forceFlag = activeRepo.gitForce ? ' --force' : '';
-          window.terminal.sendCommand(`git push${forceFlag}`);
+          const target = curBranch ? ` -u origin "${curBranch}"` : '';
+          window.terminal.sendCommand(`git push${forceFlag}${target}`);
         } else await window.electronAPI.gitPush(activeRepo.path, activeRepo.gitForce);
       }
 
