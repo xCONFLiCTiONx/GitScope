@@ -2,7 +2,10 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob: file: https:;" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob: file: https:;"
+    />
     <link rel="stylesheet" href="../node_modules/xterm/css/xterm.css" />
     <style>
       /* Local Font Support */
@@ -1630,24 +1633,7 @@
           aria-label="Open Gemini"
         >
           <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true">
-            <defs>
-              <linearGradient
-                id="gemini-icon-gradient"
-                x1="2"
-                y1="21"
-                x2="22"
-                y2="3"
-                gradientUnits="userSpaceOnUse"
-              >
-                <stop offset="0" stop-color="#4285F4"></stop>
-                <stop offset="0.52" stop-color="#9B72CB"></stop>
-                <stop offset="1" stop-color="#D96570"></stop>
-              </linearGradient>
-            </defs>
-            <path
-              fill="url(#gemini-icon-gradient)"
-              d="M12 0C12 7.2 16.8 12 24 12C16.8 12 12 16.8 12 24C12 16.8 7.2 12 0 12C7.2 12 12 7.2 12 0Z"
-            ></path>
+            <path fill="#B0B0B0" d="M12 0C12 7.2 16.8 12 24 12C16.8 12 12 16.8 12 24C12 16.8 7.2 12 0 12C7.2 12 12 7.2 12 0Z" />
           </svg>
         </div>
         <div
@@ -3462,7 +3448,8 @@
             <div class="settings-section">
               <h3>Web Browser</h3>
               <p>
-                Select the preferred browser for Web Preview, HTML Debugging, and opening files.
+                Select the preferred browser for Web Preview, HTML Debugging,
+                and opening files.
               </p>
               <div class="settings-control">
                 <label for="browser-select">Browser:</label>
@@ -3473,7 +3460,11 @@
                 ></select>
                 <span
                   id="custom-browser-separator"
-                  style="font-size: 12px; color: var(--text-muted); display: none;"
+                  style="
+                    font-size: 12px;
+                    color: var(--text-muted);
+                    display: none;
+                  "
                   >or</span
                 >
                 <input
@@ -3482,13 +3473,15 @@
                   class="settings-input"
                   placeholder="Custom browser .exe path..."
                   readonly
-                  style="display: none;"
+                  style="display: none"
                 />
                 <button
                   id="browse-custom-browser"
                   class="button"
-                  style="display: none;"
-                >Browse</button>
+                  style="display: none"
+                >
+                  Browse
+                </button>
               </div>
             </div>
             <div class="settings-section">
@@ -6645,7 +6638,9 @@
                 Clean the Local Database
               </div>
               <div style="font-size: 11px; color: var(--text-muted)">
-                Once git-filter-repo alters your history, force Git to immediately drop the unlinked artifacts and rebuild the .git folder at maximum compression.
+                Once git-filter-repo alters your history, force Git to
+                immediately drop the unlinked artifacts and rebuild the .git
+                folder at maximum compression.
               </div>
             </div>
           </label>
@@ -6667,7 +6662,9 @@
                 Force the Changes to the Remote
               </div>
               <div style="font-size: 11px; color: var(--text-muted)">
-                Because your local commit history is now completely different from the remote server, a standard git push will be rejected. You must force-push to completely overwrite the remote history.
+                Because your local commit history is now completely different
+                from the remote server, a standard git push will be rejected.
+                You must force-push to completely overwrite the remote history.
               </div>
             </div>
           </label>
