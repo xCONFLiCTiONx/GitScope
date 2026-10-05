@@ -39,12 +39,15 @@ let cachedRepos = null;
 const GEMINI_URL = 'https://gemini.google.com/';
 const GEMINI_PARTITION = 'persist:gitscope-gemini';
 const DEFAULT_GEMINI_WIDTH = 440;
-const GEMINI_TOP_OFFSET = 64;
+const MIN_GEMINI_WIDTH = 280;
+const MIN_MAIN_CONTENT_WIDTH = 400;
 let geminiView = null;
 let geminiViewVisible = false;
 let geminiSession = null;
 let geminiLoadPromise = null;
 let geminiLoadError = null;
+let geminiWidth = DEFAULT_GEMINI_WIDTH;
+let geminiResizeActive = false;
 
 // Disable Electron security warnings in dev mode (removes %c warnings in DevTools console)
 process.env.ELECTRON_DISABLE_SECURITY_WARNINGS = 'true';
@@ -58,6 +61,7 @@ webPreviewServer.setLogListener((level, message) => {
       message: `[Web Preview] ${message}`,
       sourceId: 'web-preview-server',
     });
+
     mainWindow.webContents.send('app-console-log', {
       message: `[Web Preview] ${message}`,
       type: level,
@@ -153,6 +157,10 @@ if (!gotTheLock) {
   // App initialization
   app.whenReady().then(async () => {
     geminiSession = session.fromPartition(GEMINI_PARTITION);
+    const savedWindowState = getWindowState();
+    if (Number.isFinite(savedWindowState.geminiWidth)) {
+      geminiWidth = Math.max(MIN_GEMINI_WIDTH, savedWindowState.geminiWidth);
+    }
     const shortcutRegistered = globalShortcut.register('CommandOrControl+Shift+G', () => {
       if (mainWindow && !mainWindow.isDestroyed()) {
         toggleGeminiSidebar(true);
@@ -391,14 +399,80 @@ if (!gotTheLock) {
       return;
     }
 
-    const bounds = mainWindow.getBounds();
-    const sidebarInset = 8;
-    const x = Math.max(sidebarInset, bounds.width - DEFAULT_GEMINI_WIDTH - sidebarInset);
-    const y = GEMINI_TOP_OFFSET;
-    const width = DEFAULT_GEMINI_WIDTH;
-    const height = Math.max(240, bounds.height - y - 12);
+    const [contentWidth, contentHeight] = mainWindow.getContentSize();
+    const maxWidth = Math.max(MIN_GEMINI_WIDTH, contentWidth - MIN_MAIN_CONTENT_WIDTH);
+    geminiWidth = Math.min(maxWidth, Math.max(MIN_GEMINI_WIDTH, geminiWidth));
 
-    geminiView.setBounds({ x, y, width, height });
+    geminiView.setBounds({
+      x: contentWidth - geminiWidth,
+      y: 0,
+      width: geminiWidth,
+      height: contentHeight,
+    });
+  }
+
+  function installGeminiResizeHandle() {
+    if (!geminiView || geminiView.webContents.isDestroyed()) return;
+    geminiView.webContents.executeJavaScript(`
+      (() => {
+        const id = 'gitscope-gemini-resize-handle';
+        if (document.getElementById(id)) return;
+
+        const handle = document.createElement('div');
+        handle.id = id;
+        handle.title = 'Drag to resize Gemini';
+        Object.assign(handle.style, {
+          position: 'fixed',
+          top: '0',
+          left: '0',
+          bottom: '0',
+          width: '7px',
+          zIndex: '2147483647',
+          cursor: 'col-resize',
+          background: 'transparent',
+          touchAction: 'none',
+        });
+        const divider = document.createElement('div');
+        Object.assign(divider.style, {
+          position: 'absolute',
+          top: '0',
+          bottom: '0',
+          left: '3px',
+          width: '1px',
+          background: 'rgba(128, 128, 128, 0.45)',
+          pointerEvents: 'none',
+        });
+        handle.appendChild(divider);
+
+        let resizing = false;
+        handle.addEventListener('pointerdown', (event) => {
+          if (event.button !== 0) return;
+          event.preventDefault();
+          event.stopPropagation();
+          resizing = true;
+          handle.setPointerCapture(event.pointerId);
+          window.geminiResizeBridge.start();
+        });
+        handle.addEventListener('pointermove', (event) => {
+          if (!resizing) return;
+          event.preventDefault();
+          window.geminiResizeBridge.move(event.movementX);
+        });
+        const endResize = (event) => {
+          if (!resizing) return;
+          resizing = false;
+          if (event && handle.hasPointerCapture(event.pointerId)) {
+            handle.releasePointerCapture(event.pointerId);
+          }
+          window.geminiResizeBridge.end();
+        };
+        handle.addEventListener('pointerup', endResize);
+        handle.addEventListener('pointercancel', endResize);
+        document.documentElement.appendChild(handle);
+      })();
+    `).catch((error) => {
+      console.error('Failed to install Gemini resize handle:', error);
+    });
   }
 
   function ensureGeminiView() {
@@ -409,6 +483,7 @@ if (!gotTheLock) {
     geminiView = new WebContentsView({
       webPreferences: {
         session: geminiSession,
+        preload: path.join(__dirname, 'gemini-resize-preload.js'),
         contextIsolation: true,
         nodeIntegration: false,
         spellcheck: false,
@@ -428,6 +503,7 @@ if (!gotTheLock) {
       return { action: 'deny' };
     });
     geminiView.webContents.on('did-finish-load', () => {
+      installGeminiResizeHandle();
       if (mainWindow && !mainWindow.isDestroyed()) {
         mainWindow.webContents.send('gemini-sidebar-state', { isOpen: geminiViewVisible });
       }
@@ -585,7 +661,7 @@ if (!gotTheLock) {
 
     try {
       const isMaximized = mainWindow.isMaximized();
-      const state = { isMaximized };
+      const state = { isMaximized, geminiWidth };
 
       if (isMaximized) {
         // Save normal bounds so we can restore to them if unmaximized
@@ -716,6 +792,7 @@ if (!gotTheLock) {
         geminiViewVisible = false;
         geminiLoadPromise = null;
         geminiLoadError = null;
+        geminiResizeActive = false;
       });
 
       mainWindow.on('minimize', (event) => {
@@ -818,6 +895,26 @@ if (!gotTheLock) {
     }
     geminiView.webContents.reload();
     return true;
+  });
+
+  ipcMain.on('gemini-sidebar-resize-start', (event) => {
+    if (geminiView && event.sender === geminiView.webContents) {
+      geminiResizeActive = true;
+    }
+  });
+
+  ipcMain.on('gemini-sidebar-resize-delta', (event, deltaX) => {
+    if (!geminiResizeActive || !geminiView || event.sender !== geminiView.webContents) return;
+    if (!Number.isFinite(deltaX)) return;
+    geminiWidth -= deltaX;
+    updateGeminiViewBounds();
+  });
+
+  ipcMain.on('gemini-sidebar-resize-end', (event) => {
+    if (geminiView && event.sender === geminiView.webContents && geminiResizeActive) {
+      geminiResizeActive = false;
+      saveWindowState();
+    }
   });
 
   ipcMain.handle('report-error', (event, { title, message }) => {

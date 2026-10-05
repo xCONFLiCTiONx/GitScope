@@ -57,6 +57,7 @@ A real-time dashboard providing total visibility into your local development env
 ### ✨ Gemini Sidebar
 
 - Open the official Gemini web app from GitScope's sidebar or with **Ctrl+Shift+G**.
+- Drag the divider at the left edge of Gemini to resize it; its width is remembered between launches, and the sidebar fills the application content area below the native window title bar.
 - Opening Gemini sends context from the current GitScope view and submits it to Gemini. In the file editor, this includes the current buffer (including unsaved changes) and selected text when present.
 - Context is sent only when you explicitly open Gemini. Review [PRIVACY.md](PRIVACY.md) before sharing sensitive code or repository information.
 
