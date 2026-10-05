@@ -8,6 +8,9 @@ const {
   shell,
   Notification,
   nativeTheme,
+  WebContentsView,
+  session,
+  globalShortcut,
 } = require('electron');
 const path = require('path');
 const fs = require('fs-extra');
@@ -33,6 +36,15 @@ let watcher;
 let ptyProcess;
 let cachedSettings = null;
 let cachedRepos = null;
+const GEMINI_URL = 'https://gemini.google.com/';
+const GEMINI_PARTITION = 'persist:gitscope-gemini';
+const DEFAULT_GEMINI_WIDTH = 440;
+const GEMINI_TOP_OFFSET = 64;
+let geminiView = null;
+let geminiViewVisible = false;
+let geminiSession = null;
+let geminiLoadPromise = null;
+let geminiLoadError = null;
 
 // Disable Electron security warnings in dev mode (removes %c warnings in DevTools console)
 process.env.ELECTRON_DISABLE_SECURITY_WARNINGS = 'true';
@@ -140,6 +152,16 @@ if (!gotTheLock) {
 
   // App initialization
   app.whenReady().then(async () => {
+    geminiSession = session.fromPartition(GEMINI_PARTITION);
+    const shortcutRegistered = globalShortcut.register('CommandOrControl+Shift+G', () => {
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        toggleGeminiSidebar(true);
+        mainWindow.webContents.send('gemini-context-request');
+      }
+    });
+    if (!shortcutRegistered) {
+      console.warn('Gemini keyboard shortcut could not be registered.');
+    }
     await detectInstalledEditors();
     createWindow();
   });
@@ -166,7 +188,13 @@ if (!gotTheLock) {
     }
   });
 
-  app.on('will-quit', () => {});
+  app.on('will-quit', () => {
+    try {
+      globalShortcut.unregisterAll();
+    } catch (e) {
+      console.error('Failed to unregister global shortcuts:', e);
+    }
+  });
 
   function getThemes() {
     try {
@@ -358,6 +386,185 @@ if (!gotTheLock) {
     }
   }
 
+  function updateGeminiViewBounds() {
+    if (!mainWindow || mainWindow.isDestroyed() || !geminiView || geminiView.webContents.isDestroyed()) {
+      return;
+    }
+
+    const bounds = mainWindow.getBounds();
+    const sidebarInset = 8;
+    const x = Math.max(sidebarInset, bounds.width - DEFAULT_GEMINI_WIDTH - sidebarInset);
+    const y = GEMINI_TOP_OFFSET;
+    const width = DEFAULT_GEMINI_WIDTH;
+    const height = Math.max(240, bounds.height - y - 12);
+
+    geminiView.setBounds({ x, y, width, height });
+  }
+
+  function ensureGeminiView() {
+    if (geminiView && !geminiView.webContents.isDestroyed()) {
+      return geminiView;
+    }
+
+    geminiView = new WebContentsView({
+      webPreferences: {
+        session: geminiSession,
+        contextIsolation: true,
+        nodeIntegration: false,
+        spellcheck: false,
+      },
+    });
+
+    geminiView.setBackgroundColor('#171717');
+    geminiView.webContents.setWindowOpenHandler(({ url }) => {
+      if (
+        url.startsWith('https://gemini.google.com/') ||
+        url.startsWith('https://accounts.google.com/') ||
+        url.startsWith('https://myaccount.google.com/')
+      ) {
+        return { action: 'allow' };
+      }
+      shell.openExternal(url);
+      return { action: 'deny' };
+    });
+    geminiView.webContents.on('did-finish-load', () => {
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('gemini-sidebar-state', { isOpen: geminiViewVisible });
+      }
+    });
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.contentView.addChildView(geminiView);
+      updateGeminiViewBounds();
+      geminiView.setVisible(false);
+    }
+    geminiLoadError = null;
+    geminiLoadPromise = geminiView.webContents.loadURL(GEMINI_URL).then(
+      () => true,
+      (error) => {
+        geminiLoadError = error;
+        console.error('Failed to load Gemini:', error);
+        return false;
+      },
+    );
+
+    return geminiView;
+  }
+
+  function toggleGeminiSidebar(forceOpen) {
+    if (!mainWindow || mainWindow.isDestroyed()) {
+      return false;
+    }
+
+    ensureGeminiView();
+    const isOpen = typeof forceOpen === 'boolean' ? forceOpen : !geminiViewVisible;
+    geminiViewVisible = isOpen;
+    geminiView.setVisible(isOpen);
+    if (isOpen) {
+      updateGeminiViewBounds();
+    }
+    mainWindow.webContents.send('gemini-sidebar-state', { isOpen: geminiViewVisible });
+    return geminiViewVisible;
+  }
+
+  async function sendGeminiContext(context) {
+    if (!context || typeof context.prompt !== 'string' || !context.prompt.trim()) {
+      throw new Error('No GitScope context is available to send to Gemini.');
+    }
+
+    if (!toggleGeminiSidebar(true) || !geminiView) {
+      throw new Error('The Gemini sidebar could not be opened.');
+    }
+    if (geminiLoadPromise && !(await geminiLoadPromise)) {
+      throw new Error(`Gemini failed to load: ${geminiLoadError?.message || 'Unknown load error'}`);
+    }
+
+    const injection = await geminiView.webContents.executeJavaScript(
+      `new Promise((resolve) => {
+        const prompt = ${JSON.stringify(context.prompt)};
+        const findComposer = () => {
+          const candidates = Array.from(
+            document.querySelectorAll('textarea, [contenteditable="true"]'),
+          );
+          return candidates.find((element) => {
+            const rect = element.getBoundingClientRect();
+            const style = getComputedStyle(element);
+            return rect.width > 0 && rect.height > 0 &&
+              style.visibility !== 'hidden' && style.display !== 'none';
+          });
+        };
+
+        let attempts = 0;
+        const timer = setInterval(() => {
+          const composer = findComposer();
+          if (composer) {
+            clearInterval(timer);
+            composer.focus();
+            if (composer instanceof HTMLTextAreaElement) {
+              const descriptor = Object.getOwnPropertyDescriptor(
+                HTMLTextAreaElement.prototype,
+                'value',
+              );
+              if (descriptor && descriptor.set) descriptor.set.call(composer, prompt);
+              else composer.value = prompt;
+              composer.dispatchEvent(new Event('input', { bubbles: true }));
+              composer.dispatchEvent(new Event('change', { bubbles: true }));
+            } else {
+              composer.textContent = prompt;
+              composer.dispatchEvent(new InputEvent('input', {
+                bubbles: true,
+                inputType: 'insertText',
+                data: prompt,
+              }));
+            }
+
+            setTimeout(() => {
+              const buttons = Array.from(document.querySelectorAll('button'));
+              const sendButton = buttons.find((button) => {
+                const rect = button.getBoundingClientRect();
+                const style = getComputedStyle(button);
+                const label = [
+                  button.innerText || '',
+                  button.getAttribute('aria-label') || '',
+                  button.getAttribute('title') || '',
+                  button.getAttribute('data-tooltip') || '',
+                ].join(' ').toLowerCase();
+                return rect.width > 0 && rect.height > 0 &&
+                  style.visibility !== 'hidden' && style.display !== 'none' &&
+                  !button.disabled && /\\bsend\\b|send message|submit/.test(label);
+              });
+
+              if (!sendButton) {
+                resolve({
+                  ok: false,
+                  message: "Context is in Gemini's composer, but its Send button was not found.",
+                });
+                return;
+              }
+              sendButton.click();
+              resolve({ ok: true });
+            }, 500);
+            return;
+          }
+
+          attempts += 1;
+          if (attempts >= 60) {
+            clearInterval(timer);
+            resolve({
+              ok: false,
+              message: 'Gemini composer is unavailable. Sign in or wait for Gemini to finish loading.',
+            });
+          }
+        }, 250);
+      })`,
+      true,
+    );
+
+    if (!injection.ok) {
+      throw new Error(injection.message);
+    }
+    return { success: true };
+  }
+
   function getWindowState() {
     try {
       if (fs.existsSync(windowStatePath)) {
@@ -503,11 +710,23 @@ if (!gotTheLock) {
       mainWindow.on('close', () => {
         saveWindowState();
       });
+      mainWindow.on('closed', () => {
+        mainWindow = null;
+        geminiView = null;
+        geminiViewVisible = false;
+        geminiLoadPromise = null;
+        geminiLoadError = null;
+      });
 
       mainWindow.on('minimize', (event) => {
         saveWindowState(); // Ensure state is saved before hiding
       });
-      mainWindow.on('resize', saveWindowState);
+      mainWindow.on('resize', () => {
+        if (geminiView && geminiViewVisible) {
+          updateGeminiViewBounds();
+        }
+        saveWindowState();
+      });
       mainWindow.on('move', saveWindowState);
 
       const menuTemplate = [
@@ -574,6 +793,32 @@ if (!gotTheLock) {
   });
 
   ipcMain.handle('heartbeat', () => 'OK');
+
+  ipcMain.handle('toggle-gemini-sidebar', async () => {
+    return toggleGeminiSidebar();
+  });
+
+  ipcMain.handle('open-gemini-sidebar', async (event) => {
+    if (!mainWindow || event.sender !== mainWindow.webContents) {
+      throw new Error('Gemini can only be opened from the GitScope window.');
+    }
+    return toggleGeminiSidebar(true);
+  });
+
+  ipcMain.handle('send-gemini-context', async (event, context) => {
+    if (!mainWindow || event.sender !== mainWindow.webContents) {
+      throw new Error('Gemini context can only be sent from the GitScope window.');
+    }
+    return sendGeminiContext(context);
+  });
+
+  ipcMain.handle('reload-gemini-sidebar', async () => {
+    if (!geminiView || geminiView.webContents.isDestroyed()) {
+      return false;
+    }
+    geminiView.webContents.reload();
+    return true;
+  });
 
   ipcMain.handle('report-error', (event, { title, message }) => {
     if (mainWindow && !mainWindow.isDestroyed()) {

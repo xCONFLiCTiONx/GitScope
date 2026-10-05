@@ -60,6 +60,7 @@ let monacoEditor = null;
 let isSyncingFromPreview = false;
 let themeEditor = null;
 let currentEditingPath = null;
+let editorModelPath = null;
 let originalFileContent = null;
 let currentFileEncoding = 'UTF-8';
 let activeTasks = 0;
@@ -418,6 +419,9 @@ const elements = {
   },
   get navSettings() {
     return document.getElementById('nav-settings');
+  },
+  get navGemini() {
+    return document.getElementById('nav-gemini');
   },
   get repoTree() {
     return document.getElementById('repo-tree');
@@ -1956,6 +1960,171 @@ function initResizers() {
   }
 }
 
+function formatGeminiCodeBlock(content, language = '') {
+  let longestBacktickRun = 0;
+  for (const match of content.matchAll(/`+/g)) {
+    longestBacktickRun = Math.max(longestBacktickRun, match[0].length);
+  }
+  const fence = '`'.repeat(Math.max(3, longestBacktickRun + 1));
+  return `${fence}${language}\n${content}\n${fence}`;
+}
+
+async function getCurrentGeminiContext() {
+  if (elements.editorView && elements.editorView.style.display !== 'none') {
+    const filePath = currentEditingPath || '(unknown file)';
+    const repo = findRepoForPath(filePath);
+    const isImagePreview = elements.imagePreview && elements.imagePreview.style.display !== 'none';
+    const isGistFile = filePath.startsWith('gist://');
+    const hasCurrentEditorModel = monacoEditor && editorModelPath === currentEditingPath;
+    let content = !isImagePreview && hasCurrentEditorModel ? monacoEditor.getValue() : '';
+    if (!isImagePreview && !hasCurrentEditorModel && currentEditingPath && !isGistFile) {
+      const fileResult = await window.electronAPI.readFile(currentEditingPath);
+      content = fileResult.content || '';
+    }
+
+    const contextSections = [
+      `Current GitScope view: File editor\nFile: ${filePath}`,
+      repo ? `Repository: ${repo.name}\nRepository path: ${repo.path}` : '',
+    ];
+    const selection = !isImagePreview && hasCurrentEditorModel &&
+      monacoEditor.getSelection() && monacoEditor.getModel()
+      ? monacoEditor.getModel().getValueInRange(monacoEditor.getSelection()).trim()
+      : '';
+    if (selection) {
+      contextSections.push(
+        `Selected text:\n${formatGeminiCodeBlock(selection, monacoEditor.getModel().getLanguageId())}`,
+      );
+    }
+    if (content) {
+      const language = monacoEditor && monacoEditor.getModel()
+        ? monacoEditor.getModel().getLanguageId()
+        : '';
+      contextSections.push(
+        `Current file contents${hasCurrentEditorModel ? ' (including unsaved editor changes)' : ''}:\n${formatGeminiCodeBlock(content, language)}`,
+      );
+    } else if (!currentEditingPath) {
+      contextSections.push('No file is currently open in the editor.');
+    } else if (isGistFile) {
+      contextSections.push('Gist content is empty or still loading.');
+    } else {
+      contextSections.push('The current file is a binary or preview-only file; its contents are not available as text.');
+    }
+
+    return {
+      prompt: [
+        'I opened Gemini from GitScope and am sharing context from the current file editor.',
+        'Use the selected text as the focus when present, and the full file as surrounding context.',
+        'Please briefly acknowledge the context and wait for my question.',
+        '',
+        contextSections.filter(Boolean).join('\n\n'),
+      ].join('\n'),
+    };
+  }
+
+  if (elements.repoView && elements.repoView.style.display !== 'none' && activeRepo) {
+    const branch = elements.branchSelect && elements.branchSelect.value;
+    const changedFiles = [
+      elements.stagedList && elements.stagedList.innerText.trim()
+        ? `Staged files:\n${elements.stagedList.innerText.trim()}`
+        : '',
+      elements.unstagedList && elements.unstagedList.innerText.trim()
+        ? `Unstaged files:\n${elements.unstagedList.innerText.trim()}`
+        : '',
+    ].filter(Boolean);
+    let detail = '';
+
+    if (elements.statusView && elements.statusView.style.display !== 'none') {
+      detail = `Repository status:\n${elements.statusContainer.innerText.trim()}`;
+    } else if (elements.diffView && elements.diffView.style.display !== 'none') {
+      const diffName = elements.diffFileName && elements.diffFileName.textContent;
+      detail = `Visible file diff${diffName ? ` (${diffName})` : ''}:\n${elements.diffContainer.innerText.trim()}`;
+    } else {
+      const diff = await window.electronAPI.getFullDiff(activeRepo.path);
+      if (diff && diff.trim()) detail = `Current staged and unstaged diff:\n${diff.trim()}`;
+      const commitMessage = elements.commitMsg && elements.commitMsg.value.trim();
+      if (commitMessage) detail += `${detail ? '\n\n' : ''}Current commit message draft:\n${commitMessage}`;
+    }
+
+    return {
+      prompt: [
+        'I opened Gemini from GitScope and am sharing context from the current repository view.',
+        'Use this information as context for my next question and briefly acknowledge it.',
+        '',
+        `Repository: ${activeRepo.name}\nRepository path: ${activeRepo.path}`,
+        branch ? `Branch: ${branch}` : '',
+        ...changedFiles,
+        detail,
+      ].filter(Boolean).join('\n\n'),
+    };
+  }
+
+  if (elements.dashboardView && elements.dashboardView.style.display !== 'none') {
+    const repoSummary = repositories.length
+      ? repositories.map((repo) => `- ${repo.name}: ${repo.path}`).join('\n')
+      : 'No repositories are currently registered.';
+    return {
+      prompt: [
+        'I opened Gemini from GitScope and am sharing context from the dashboard.',
+        'Use this information as context for my next question and briefly acknowledge it.',
+        '',
+        `Repositories:\n${repoSummary}`,
+        elements.dashboardSummary && elements.dashboardSummary.innerText.trim()
+          ? `Dashboard summary:\n${elements.dashboardSummary.innerText.trim()}`
+          : '',
+      ].filter(Boolean).join('\n\n'),
+    };
+  }
+
+  if (elements.gistView && elements.gistView.style.display !== 'none') {
+    return {
+      prompt: [
+        'I opened Gemini from GitScope and am sharing context from the Gist view.',
+        'Use this information as context for my next question and briefly acknowledge it.',
+        '',
+        elements.gistList ? elements.gistList.innerText.trim() : 'The Gist list is empty.',
+      ].join('\n\n'),
+    };
+  }
+
+  if (elements.themeEditorView && elements.themeEditorView.style.display !== 'none' && themeEditor) {
+    return {
+      prompt: [
+        'I opened Gemini from GitScope and am sharing the current theme editor contents.',
+        'Use this information as context for my next question and briefly acknowledge it.',
+        '',
+        formatGeminiCodeBlock(themeEditor.getValue(), 'ini'),
+      ].join('\n\n'),
+    };
+  }
+
+  const viewName =
+    elements.settingsView && elements.settingsView.style.display !== 'none'
+      ? 'Settings'
+      : elements.customCommandsView && elements.customCommandsView.style.display !== 'none'
+        ? 'Custom Commands'
+        : elements.gitConfigView && elements.gitConfigView.style.display !== 'none'
+          ? 'Git Configuration'
+          : 'GitScope';
+  return {
+    prompt: [
+      `I opened Gemini from GitScope while viewing ${viewName}.`,
+      'Use this view as the context for my next question and briefly acknowledge it.',
+      'Sensitive settings and credential values are intentionally not included.',
+    ].join('\n\n'),
+  };
+}
+
+async function sendCurrentViewContextToGemini() {
+  try {
+    await window.electronAPI.openGeminiSidebar();
+    const context = await getCurrentGeminiContext();
+    await window.electronAPI.sendGeminiContext(context);
+  } catch (error) {
+    console.error('Failed to send GitScope context to Gemini:', error);
+    showError(error.message || String(error), 'Gemini Context Error');
+  }
+}
+
 function initEventListeners() {
   // Markdown Configuration
   if (typeof marked !== 'undefined') {
@@ -1982,6 +2151,34 @@ function initEventListeners() {
       e.stopPropagation();
       showSearchHub('advanced');
     };
+  if (elements.navGemini) {
+    const updateGeminiButtonState = (isOpen) => {
+      if (!elements.navGemini) return;
+      const nextState = !!isOpen;
+      elements.navGemini.classList.toggle('gemini-open', nextState);
+      elements.navGemini.title = nextState ? 'Close Gemini' : 'Open Gemini';
+      elements.navGemini.setAttribute('aria-label', nextState ? 'Close Gemini' : 'Open Gemini');
+      elements.navGemini.dataset.state = String(nextState);
+    };
+    updateGeminiButtonState(false);
+    if (window.electronAPI && typeof window.electronAPI.onGeminiSidebarStateChange === 'function') {
+      window.electronAPI.onGeminiSidebarStateChange(updateGeminiButtonState);
+    }
+    if (window.electronAPI && typeof window.electronAPI.onGeminiContextRequest === 'function') {
+      window.electronAPI.onGeminiContextRequest(sendCurrentViewContextToGemini);
+    }
+    elements.navGemini.onclick = async () => {
+      if (!window.electronAPI) {
+        return;
+      }
+      if (elements.navGemini.dataset.state === 'true') {
+        const nextState = await window.electronAPI.toggleGeminiSidebar();
+        updateGeminiButtonState(Boolean(nextState));
+      } else {
+        await sendCurrentViewContextToGemini();
+      }
+    };
+  }
   if (elements.navSettings) elements.navSettings.onclick = async () => await showSettings();
 
   // Import Choice Modal
@@ -7956,6 +8153,7 @@ async function openFileInEditor(
     const imageExts = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'ico'];
 
     currentEditingPath = filePath;
+    editorModelPath = null;
     elements.editorView.style.display = 'flex';
     elements.editorFileName.textContent = filePath.split(/[\\\/]/).pop();
     elements.editorFileName.title = filePath;
@@ -8058,6 +8256,7 @@ async function openFileInEditor(
         model.setEOL(0); // 0 = LF
       }
       monacoEditor.setModel(model);
+      editorModelPath = filePath;
 
       // Re-capture from Monaco to handle any internal normalization (BOM stripping, etc)
       originalFileContent = monacoEditor.getValue();
@@ -12620,6 +12819,7 @@ async function openGistFileInEditor(gist, filename) {
 
   try {
     currentEditingPath = `gist://${gist.id}/${filename}`;
+    editorModelPath = null;
     elements.editorView.style.display = 'flex';
     elements.editorFileName.textContent = `Gist: ${filename}`;
     elements.editorFileName.title = currentEditingPath;
@@ -12673,6 +12873,7 @@ async function openGistFileInEditor(gist, filename) {
 
     const model = monaco.editor.createModel(originalFileContent, detectedLanguage);
     monacoEditor.setModel(model);
+    editorModelPath = currentEditingPath;
 
     // Track changes
     model.onDidChangeContent(() => {

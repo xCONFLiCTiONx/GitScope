@@ -54,6 +54,12 @@ A real-time dashboard providing total visibility into your local development env
 - **Real-time Preview:** Professional Markdown environment with side-by-side preview and formatting normalization.
 - **Encoding Mastery:** Switch between UTF-8 and legacy Windows encodings with automated line-ending conversion.
 
+### ✨ Gemini Sidebar
+
+- Open the official Gemini web app from GitScope's sidebar or with **Ctrl+Shift+G**.
+- Opening Gemini sends context from the current GitScope view and submits it to Gemini. In the file editor, this includes the current buffer (including unsaved changes) and selected text when present.
+- Context is sent only when you explicitly open Gemini. Review [PRIVACY.md](PRIVACY.md) before sharing sensitive code or repository information.
+
 ## 🛠️ Technology Stack
 
 - **Framework:** Electron & Node.js

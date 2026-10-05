@@ -3,6 +3,20 @@ const { contextBridge, ipcRenderer } = require('electron');
 contextBridge.exposeInMainWorld('electronAPI', {
   openDirectory: () => ipcRenderer.invoke('open-directory'),
   heartbeat: () => ipcRenderer.invoke('heartbeat'),
+  toggleGeminiSidebar: () => ipcRenderer.invoke('toggle-gemini-sidebar'),
+  openGeminiSidebar: () => ipcRenderer.invoke('open-gemini-sidebar'),
+  reloadGeminiSidebar: () => ipcRenderer.invoke('reload-gemini-sidebar'),
+  sendGeminiContext: (context) => ipcRenderer.invoke('send-gemini-context', context),
+  onGeminiSidebarStateChange: (callback) => {
+    const listener = (_event, payload) => callback(payload);
+    ipcRenderer.on('gemini-sidebar-state', listener);
+    return () => ipcRenderer.removeListener('gemini-sidebar-state', listener);
+  },
+  onGeminiContextRequest: (callback) => {
+    const listener = () => callback();
+    ipcRenderer.on('gemini-context-request', listener);
+    return () => ipcRenderer.removeListener('gemini-context-request', listener);
+  },
   openFile: () => ipcRenderer.invoke('open-file'),
   showSaveDialog: (options) => ipcRenderer.invoke('show-save-dialog', options),
   showOpenDialog: (options) => ipcRenderer.invoke('show-open-dialog', options),

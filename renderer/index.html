@@ -384,6 +384,17 @@
       }
       .nav-item:hover { color: var(--text-main); background-color: var(--hover-bg); }
       .nav-item.active { color: var(--accent-blue); border-left: 2px solid var(--accent-blue); border-radius: 0; }
+      .nav-item.nav-gemini {
+          font-size: 12px;
+          font-weight: 700;
+          letter-spacing: 0.06em;
+      }
+      .nav-item.nav-gemini.gemini-open {
+          color: var(--accent-blue);
+          background-color: var(--hover-bg);
+          border-left: 2px solid var(--accent-blue);
+          border-radius: 0;
+      }
       .nav-item-bottom { margin-top: auto; margin-bottom: 10px; }
 
       /* Nav Popout */
@@ -1611,6 +1622,14 @@
             <polyline points="4 17 10 11 4 5"></polyline>
             <line x1="12" y1="19" x2="20" y2="19"></line>
           </svg>
+        </div>
+        <div
+          id="nav-gemini"
+          class="nav-item nav-gemini"
+          title="Open Gemini"
+          aria-label="Open Gemini"
+        >
+          G
         </div>
         <div
           id="nav-settings"
