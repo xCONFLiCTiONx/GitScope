@@ -1454,9 +1454,16 @@ if (!gotTheLock) {
           // git grep failed
         }
 
-        // Fallback: If git grep returned no matches or threw an error, perform filesystem scan
-        if (contentMatches.length === 0) {
-          contentMatches = await searchContentFallback(repo.path, query, isRegex);
+        const fallbackMatches = await searchContentFallback(repo.path, query, isRegex);
+        const seenMatches = new Set(
+          contentMatches.map((item) => `${item.path}:${item.line}:${item.column}`),
+        );
+        for (const item of fallbackMatches) {
+          const key = `${item.path}:${item.line}:${item.column}`;
+          if (seenMatches.has(key)) continue;
+          seenMatches.add(key);
+          contentMatches.push(item);
+          if (contentMatches.length >= 500) break;
         }
 
         contentMatches.slice(0, 500).forEach((item) => {
