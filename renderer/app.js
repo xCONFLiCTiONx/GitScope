@@ -11420,21 +11420,19 @@ function renderPrivacyPatterns() {
   list.innerHTML = activePrivacyPatterns
     .map(
       (p, index) => `
-        <div class="privacy-pattern-item" data-id="${
-          p.id
-        }" style="background: rgba(255,255,255,0.02); padding: 8px; border-radius: 4px; border: 1px solid var(--border-color);">
+        <div class="privacy-pattern-item" data-id="${p.id}">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
                 <input type="text" class="settings-input pattern-name" data-index="${index}" value="${
         p.name
-      }" style="font-size: 11px; font-weight: 800; background: transparent; border: none; padding: 0; color: var(--text-main); flex: 1;">
+      }" style="font-size: 11px; font-weight: 800; background: transparent !important; border: none !important; padding: 0 !important; color: var(--text-main); flex: 1;">
                 <div style="display: flex; gap: 8px; align-items: center;">
                     <input type="checkbox" class="pattern-enabled" data-index="${index}" ${
         p.enabled ? 'checked' : ''
-      } title="Enable/Disable Pattern">
-                    <button class="button pattern-remove" data-index="${index}" style="padding: 0 4px; height: 18px; font-size: 10px; color: var(--accent-red); border-color: var(--accent-red); background: transparent;">×</button>
+      } title="Enable/Disable Pattern" style="cursor: pointer;">
+                    <button class="button pattern-remove" data-index="${index}" title="Remove pattern">×</button>
                 </div>
             </div>
-            <textarea class="settings-input pattern-regex" data-index="${index}" style="width: 100%; font-size: 10px; font-family: var(--font-mono); height: 40px; margin-top: 4px; resize: vertical; border-color: rgba(255,255,255,0.05);">${
+            <textarea class="settings-input pattern-regex" data-index="${index}" style="width: 100%; font-size: 10px; font-family: var(--font-mono); height: 38px; margin-top: 4px; resize: vertical; border-color: rgba(255,255,255,0.1); border-radius: 4px; box-sizing: border-box;">${
         p.regex
       }</textarea>
         </div>
@@ -11745,11 +11743,11 @@ function renderPrivacyMatch(match, skipScroll = false, defaultChecked = false) {
   const item = document.createElement('div');
   item.className = 'privacy-match-item';
   item.dataset.patternId = match.patternId;
-  item.style.padding = '10px';
+  item.style.padding = '10px 12px';
   item.style.borderBottom = '1px solid var(--border-color)';
   item.style.display = 'flex';
   item.style.flexDirection = 'column';
-  item.style.gap = '4px';
+  item.style.gap = '6px';
 
   const isIgnoredCached = match.patternId === 'ignored-cached';
 
@@ -11772,45 +11770,44 @@ function renderPrivacyMatch(match, skipScroll = false, defaultChecked = false) {
     .replace(/>/g, '&gt;');
 
   const badgeColor = isIgnoredCached ? 'var(--accent-yellow)' : 'var(--accent-red)';
+  const badgeBg = isIgnoredCached ? 'rgba(255, 214, 10, 0.12)' : 'rgba(255, 69, 58, 0.12)';
   const linePrefix = isIgnoredCached
-    ? '<span style="color: var(--accent-yellow); margin-right: 8px; font-weight: 700;">[Git Cache]</span>'
+    ? '<span style="color: var(--accent-yellow); margin-right: 8px; font-weight: 700;">[Git Index]</span>'
     : `<span style="color: var(--text-muted); margin-right: 8px;">Line ${match.lineNumber}:</span>`;
   const snippet = isIgnoredCached
-    ? `${escapedLine} &mdash; <span style="color: var(--text-muted);">Run "git rm --cached" to untrack</span>`
+    ? `<span style="color: var(--text-main);">${escapedLine}</span> &mdash; <span style="color: var(--text-muted);">Run "git rm --cached" to untrack</span>`
     : escapedLine.replace(
         escapedMatch,
-        `<mark style="background: var(--accent-red); color: #fff; border-radius: 2px; padding: 0 2px;">${escapedMatch}</mark>`,
+        `<mark style="background: var(--accent-red); color: #fff; border-radius: 2px; padding: 0 3px; font-weight: 600;">${escapedMatch}</mark>`,
       );
 
-  const escapedFilePath = (match.filePath || '').replace(/"/g, '&quot;');
-
   item.innerHTML = `
-        <div style="display: flex; justify-content: space-between; align-items: flex-start;">
-            <div style="display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0;">
-                <div style="display: flex; align-items: center; gap: 6px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: nowrap; width: 100%;">
+            <div style="display: flex; flex-direction: column; gap: 3px; flex: 1; min-width: 0;">
+                <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
                     <input type="checkbox" class="match-select" data-path="${match.filePath}" ${
     defaultChecked ? 'checked' : ''
-  }>
-                    <span style="font-weight: 800; color: ${badgeColor}; font-size: 10px; text-transform: uppercase;">${
+  } style="cursor: pointer;">
+                    <span style="font-weight: 800; color: ${badgeColor}; background: ${badgeBg}; padding: 1px 6px; border-radius: 3px; font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px;">${
     match.patternName
   }</span>
-                    <span style="color: var(--text-muted); font-size: 10px;">${
+                    <span style="color: var(--text-muted); font-size: 11px; font-weight: 600;">${
                       match.repoName
                     }</span>
                 </div>
-                <div class="privacy-file-path" style="font-weight: 600; color: var(--text-main); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; cursor: default;">${
+                <div class="privacy-file-path" style="font-weight: 600; color: var(--text-main); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; cursor: pointer; line-height: 1.4; padding: 1px 0;" title="${match.filePath}">${
                   match.filePath
                 }</div>
             </div>
-            <div style="display: flex; gap: 4px;">
-                <button class="button privacy-edit-btn" style="padding: 2px 6px; font-size: 10px;" title="Open in Editor">Edit</button>
-                <button class="button privacy-tree-btn" style="padding: 2px 6px; font-size: 10px;" title="Reveal in Project Tree">Tree</button>
-                <button class="button privacy-reveal-btn" style="padding: 2px 6px; font-size: 10px;" title="Show in Explorer">Reveal</button>
-                <button class="button button-danger privacy-untrack-btn" style="padding: 2px 6px; font-size: 10px;" title="Untrack from Git (git rm --cached)">Untrack</button>
-                <button class="button button-danger privacy-delete-btn" style="padding: 2px 6px; font-size: 10px;" title="Delete to Recycle Bin">Delete</button>
+            <div class="privacy-match-actions" style="display: flex; gap: 4px; align-items: center; flex-shrink: 0;">
+                <button class="button privacy-edit-btn" title="Open in Editor">Edit</button>
+                <button class="button privacy-tree-btn" title="Reveal in Project Tree">Tree</button>
+                <button class="button privacy-reveal-btn" title="Show in Explorer">Reveal</button>
+                <button class="button button-danger privacy-untrack-btn" title="Untrack from Git (git rm --cached)">Untrack</button>
+                <button class="button button-danger privacy-delete-btn" title="Delete to Recycle Bin">Delete</button>
             </div>
         </div>
-        <div style="background: rgba(0,0,0,0.3); padding: 6px 10px; border-radius: 4px; color: var(--accent-yellow); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--font-mono); font-size: 11px; margin-top: 4px; border: 1px solid rgba(255,255,255,0.05);">
+        <div style="background: rgba(0,0,0,0.3); padding: 6px 10px; border-radius: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--font-mono); font-size: 11px; margin-top: 2px; border: 1px solid rgba(255,255,255,0.06); color: var(--text-main);">
             ${linePrefix}
             ${snippet}
         </div>

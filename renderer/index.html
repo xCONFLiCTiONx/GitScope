@@ -1185,37 +1185,109 @@
           color: var(--text-main);
       }
       .modal .settings-input {
-          background-color: var(--bg-main) !important;
-          border: 1px solid var(--border-color) !important;
-          color: var(--text-main) !important;
+          background-color: var(--bg-main);
+          border: 1px solid var(--border-color);
+          color: var(--text-main);
       }
       .modal .settings-input:focus {
-          border-color: var(--accent-blue) !important;
+          border-color: var(--accent-blue);
       }
       .modal .button {
-          background-color: var(--bg-main) !important;
-          border: 1px solid var(--border-color) !important;
-          color: var(--text-main) !important;
-          padding: 8px 16px;
+          background-color: var(--bg-main);
+          border: 1px solid var(--border-color);
+          color: var(--text-main);
+          padding: 6px 14px;
           border-radius: 4px;
           cursor: pointer;
           transition: all 0.2s;
       }
       .modal .button:hover {
-          background-color: var(--hover-bg) !important;
-          border-color: var(--accent-blue) !important;
+          background-color: var(--hover-bg);
+          border-color: var(--accent-blue);
       }
       .modal .button-primary {
           border-color: var(--accent-green) !important;
           color: var(--accent-green) !important;
-          background-color: transparent !important;
+          background-color: rgba(48, 209, 88, 0.05) !important;
       }
       .modal .button-primary:hover {
           background-color: var(--accent-green) !important;
           color: #ffffff !important;
       }
+      .modal .button-danger {
+          border-color: var(--accent-red) !important;
+          color: var(--accent-red) !important;
+          background-color: rgba(255, 69, 58, 0.05) !important;
+      }
+      .modal .button-danger:hover {
+          background-color: var(--accent-red) !important;
+          color: #ffffff !important;
+      }
+      .modal .button-blue {
+          border-color: var(--accent-blue) !important;
+          color: var(--accent-blue) !important;
+          background-color: rgba(10, 132, 255, 0.05) !important;
+      }
+      .modal .button-blue:hover {
+          background-color: var(--accent-blue) !important;
+          color: #ffffff !important;
+      }
       .modal h3 { margin-top: 0; font-size: 18px; color: var(--text-main); margin-bottom: 12px; }
       .modal p { color: var(--text-muted); font-size: 13px; line-height: 1.4; margin-bottom: 16px; }
+
+      /* Privacy Search & Pattern Item Styling */
+      .privacy-pattern-item {
+          background: rgba(255, 255, 255, 0.02) !important;
+          padding: 8px !important;
+          border-radius: 6px !important;
+          border: 1px solid var(--border-color) !important;
+      }
+      .privacy-pattern-item .pattern-name {
+          background: transparent !important;
+          border: none !important;
+          padding: 0 !important;
+          box-shadow: none !important;
+          height: auto !important;
+      }
+      .privacy-pattern-item .pattern-name:focus {
+          border: none !important;
+          box-shadow: none !important;
+          outline: none !important;
+      }
+      .privacy-pattern-item .pattern-remove {
+          padding: 0 !important;
+          height: 20px !important;
+          width: 20px !important;
+          min-height: 20px !important;
+          line-height: 18px !important;
+          font-size: 14px !important;
+          color: var(--accent-red) !important;
+          border-color: var(--accent-red) !important;
+          background: transparent !important;
+          display: inline-flex !important;
+          align-items: center !important;
+          justify-content: center !important;
+      }
+      .privacy-pattern-item .pattern-remove:hover {
+          background: var(--accent-red) !important;
+          color: #ffffff !important;
+      }
+      .privacy-match-item {
+          transition: background 0.15s ease;
+      }
+      .privacy-match-item:hover {
+          background: rgba(255, 255, 255, 0.03) !important;
+      }
+      .privacy-match-actions .button {
+          height: 24px !important;
+          min-height: 24px !important;
+          padding: 0 8px !important;
+          font-size: 10px !important;
+          line-height: 22px !important;
+          border-radius: 4px !important;
+          white-space: nowrap !important;
+          flex-shrink: 0 !important;
+      }
 
       /* Diff & Status Content Areas */
       #diff-container, #status-container {
