@@ -11738,6 +11738,15 @@ async function scanFileForPrivacy(filePath, patterns, onMatch) {
   }
 }
 
+function escapePrivacyHtml(value) {
+  return String(value == null ? '' : value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 function renderPrivacyMatch(match, skipScroll = false, defaultChecked = false) {
   const container = elements.privacyResults;
   const item = document.createElement('div');
@@ -11759,15 +11768,11 @@ function renderPrivacyMatch(match, skipScroll = false, defaultChecked = false) {
     }
   }
 
-  const escapedLine = (match.lineText || '')
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;');
-
-  const escapedMatch = (match.matchedText || '')
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;');
+  const escapedLine = escapePrivacyHtml(match.lineText);
+  const escapedMatch = escapePrivacyHtml(match.matchedText);
+  const escapedFilePath = escapePrivacyHtml(match.filePath);
+  const escapedPatternName = escapePrivacyHtml(match.patternName);
+  const escapedRepoName = escapePrivacyHtml(match.repoName);
 
   const badgeColor = isIgnoredCached ? 'var(--accent-yellow)' : 'var(--accent-red)';
   const badgeBg = isIgnoredCached ? 'rgba(255, 214, 10, 0.12)' : 'rgba(255, 69, 58, 0.12)';
@@ -11785,18 +11790,18 @@ function renderPrivacyMatch(match, skipScroll = false, defaultChecked = false) {
         <div style="display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: nowrap; width: 100%;">
             <div style="display: flex; flex-direction: column; gap: 3px; flex: 1; min-width: 0;">
                 <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
-                    <input type="checkbox" class="match-select" data-path="${match.filePath}" ${
+                    <input type="checkbox" class="match-select" data-path="${escapedFilePath}" ${
     defaultChecked ? 'checked' : ''
   } style="cursor: pointer;">
                     <span style="font-weight: 800; color: ${badgeColor}; background: ${badgeBg}; padding: 1px 6px; border-radius: 3px; font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px;">${
-    match.patternName
+    escapedPatternName
   }</span>
                     <span style="color: var(--text-muted); font-size: 11px; font-weight: 600;">${
-                      match.repoName
+                      escapedRepoName
                     }</span>
                 </div>
-                <div class="privacy-file-path" style="font-weight: 600; color: var(--text-main); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; cursor: pointer; line-height: 1.4; padding: 1px 0;" title="${match.filePath}">${
-                  match.filePath
+                <div class="privacy-file-path" style="font-weight: 600; color: var(--text-main); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; cursor: pointer; line-height: 1.4; padding: 1px 0;" title="${escapedFilePath}">${
+                  escapedFilePath
                 }</div>
             </div>
             <div class="privacy-match-actions" style="display: flex; gap: 4px; align-items: center; flex-shrink: 0;">
@@ -11880,10 +11885,12 @@ function renderPrivacyMatch(match, skipScroll = false, defaultChecked = false) {
       if (res.success) {
         logToConsole(`Deleted ${match.filePath}`, 'info');
         // Remove all matches for this file from the results
-        const allMatchesForFile = elements.privacyResults.querySelectorAll(
-          `.privacy-match-item [data-path="${match.filePath}"]`,
-        );
-        allMatchesForFile.forEach((el) => el.closest('.privacy-match-item').remove());
+        const allMatchesForFile = elements.privacyResults.querySelectorAll('.match-select');
+        allMatchesForFile.forEach((checkbox) => {
+          if (checkbox.dataset.path === match.filePath) {
+            checkbox.closest('.privacy-match-item').remove();
+          }
+        });
         lastPrivacyScanResults = lastPrivacyScanResults.filter(
           (m) => m.filePath !== match.filePath,
         );
@@ -11993,12 +12000,11 @@ async function handlePrivacyBulkGitRm() {
 
       // Remove untracked items from DOM and lastPrivacyScanResults
       for (const p of paths) {
-        const matchingEls = elements.privacyResults.querySelectorAll(
-          `.privacy-match-item [data-path="${p}"]`,
-        );
-        matchingEls.forEach((el) => {
-          const itemEl = el.closest('.privacy-match-item');
-          if (itemEl) itemEl.remove();
+        const matchingEls = elements.privacyResults.querySelectorAll('.match-select');
+        matchingEls.forEach((checkbox) => {
+          if (checkbox.dataset.path === p) {
+            checkbox.closest('.privacy-match-item').remove();
+          }
         });
         lastPrivacyScanResults = lastPrivacyScanResults.filter((m) => m.filePath !== p);
       }
