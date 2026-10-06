@@ -1088,6 +1088,17 @@
           position: relative;
           flex-shrink: 0;
       }
+      #console-panel.maximized {
+          position: absolute !important;
+          top: 0 !important;
+          left: 0 !important;
+          right: 0 !important;
+          bottom: 0 !important;
+          height: 100% !important;
+          width: 100% !important;
+          z-index: 99999 !important;
+          box-shadow: 0 0 20px rgba(0,0,0,0.5);
+      }
       #console-resizer {
           height: 4px;
           cursor: row-resize;
@@ -3966,6 +3977,10 @@
             DEVELOPER CONSOLE
           </div>
         </div>
+        <div class="console-controls" style="display: flex; align-items: center; gap: 4px; padding-right: 4px;">
+          <button id="console-maximize-btn" title="Maximize / Pop out" style="background: transparent; border: none; color: var(--text-muted); cursor: pointer; padding: 4px 8px; font-size: 13px; border-radius: 4px; display: inline-flex; align-items: center; justify-content: center;">🗖</button>
+          <button id="console-dock-btn" title="Dock to bottom" style="background: transparent; border: none; color: var(--text-muted); cursor: pointer; padding: 4px 8px; font-size: 13px; border-radius: 4px; display: none; align-items: center; justify-content: center;">🗗</button>
+        </div>
       </div>
       <div id="console-body">
         <div id="console-output" class="active"></div>
@@ -4980,6 +4995,15 @@
             class="settings-input"
             placeholder="Repository name on GitHub"
           />
+          <div id="publish-token-container" style="display: none; flex-direction: column; gap: 4px;">
+            <label style="font-size: 11px; color: var(--text-muted);">GitHub Personal Access Token (PAT)</label>
+            <input
+              type="password"
+              id="publish-repo-token"
+              class="settings-input"
+              placeholder="ghp_..."
+            />
+          </div>
           <label
             style="
               display: flex;
@@ -4993,8 +5017,7 @@
             <span>Private Repository</span>
           </label>
           <p style="font-size: 11px; color: var(--text-muted)">
-            Remote name will be set to 'origin'. Your Personal Access Token must
-            be set in Settings.
+            Remote name will be set to 'origin'.
           </p>
         </div>
         <div

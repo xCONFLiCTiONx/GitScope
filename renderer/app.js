@@ -861,6 +861,15 @@ const elements = {
   get consoleResizer() {
     return document.getElementById('console-resizer');
   },
+  get consoleHeader() {
+    return document.getElementById('console-header');
+  },
+  get consoleMaximizeBtn() {
+    return document.getElementById('console-maximize-btn');
+  },
+  get consoleDockBtn() {
+    return document.getElementById('console-dock-btn');
+  },
   get globalProgress() {
     return document.getElementById('global-progress-container');
   },
@@ -1958,6 +1967,40 @@ function initResizers() {
     const savedHeight = localStorage.getItem('console-height');
     if (savedHeight) elements.consolePanel.style.height = savedHeight + 'px';
   }
+
+  if (elements.consoleHeader) {
+    elements.consoleHeader.ondblclick = () => toggleConsoleMaximize();
+  }
+  if (elements.consoleMaximizeBtn) {
+    elements.consoleMaximizeBtn.onclick = (e) => {
+      e.stopPropagation();
+      toggleConsoleMaximize();
+    };
+  }
+  if (elements.consoleDockBtn) {
+    elements.consoleDockBtn.onclick = (e) => {
+      e.stopPropagation();
+      toggleConsoleMaximize();
+    };
+  }
+}
+
+function toggleConsoleMaximize() {
+  const panel = elements.consolePanel;
+  if (!panel) return;
+  const isMaximized = panel.classList.toggle('maximized');
+  if (elements.consoleMaximizeBtn) elements.consoleMaximizeBtn.style.display = isMaximized ? 'none' : 'inline-flex';
+  if (elements.consoleDockBtn) elements.consoleDockBtn.style.display = isMaximized ? 'inline-flex' : 'none';
+  if (isMaximized) {
+    if (elements.consoleResizer) elements.consoleResizer.style.display = 'none';
+  } else {
+    if (elements.consoleResizer) elements.consoleResizer.style.display = 'block';
+  }
+  setTimeout(() => {
+    if (window.terminal) {
+      window.terminal.fitAddon.fit();
+    }
+  }, 50);
 }
 
 function formatGeminiCodeBlock(content, language = '') {
@@ -5040,21 +5083,41 @@ function normalizeGitUrl(url) {
 
 async function handlePublishGitHub() {
   if (!activeRepo) return;
-  if (!settings.githubToken) {
-    showAlert('Please set your Personal Access Token (PAT) in Settings.', 'Auth Required');
-    showSettings();
-    return;
-  }
 
   elements.publishGitHubModal.style.display = 'flex';
   elements.publishRepoName.value = activeRepo.name.replace(/\s+/g, '-'); // Web-safe name
   elements.publishRepoName.focus();
+
+  const tokenContainer = document.getElementById('publish-token-container');
+  const tokenInput = document.getElementById('publish-repo-token');
+  if (tokenContainer && tokenInput) {
+    if (!settings.githubToken) {
+      tokenContainer.style.display = 'flex';
+      tokenInput.value = '';
+    } else {
+      tokenContainer.style.display = 'none';
+    }
+  }
 
   elements.publishCancel.onclick = () => (elements.publishGitHubModal.style.display = 'none');
 
   elements.publishConfirm.onclick = async () => {
     const repoName = elements.publishRepoName.value.trim();
     const isPrivate = elements.publishRepoPrivate.checked;
+
+    let token = settings.githubToken;
+    if (!token && tokenInput) {
+      token = tokenInput.value.trim();
+      if (token) {
+        settings.githubToken = token;
+        await window.electronAPI.saveSettings(settings);
+      }
+    }
+
+    if (!token) {
+      showAlert('GitHub Personal Access Token (PAT) is required.', 'Auth Required');
+      return;
+    }
 
     elements.publishGitHubModal.style.display = 'none';
     setTaskState(true);
