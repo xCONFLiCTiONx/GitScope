@@ -10252,7 +10252,7 @@ function showCreateRepoModal() {
         if (!skipRemote) {
           logToConsole('Unchecked "Skip remote" - Opening GitHub Wizard...', 'info');
           // We must select it as active first so handlePublishGitHub knows what to target
-          const repoObj = repositories.find((r) => r.path.toLowerCase() === full.toLowerCase());
+          const repoObj = repositories.find((r) => normalizeRepoPath(r.path) === normFull);
           if (repoObj) {
             await selectRepo(repoObj, true);
             await handlePublishGitHub();
