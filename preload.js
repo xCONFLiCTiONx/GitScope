@@ -4,7 +4,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   openDirectory: () => ipcRenderer.invoke('open-directory'),
   heartbeat: () => ipcRenderer.invoke('heartbeat'),
   toggleGeminiSidebar: () => ipcRenderer.invoke('toggle-gemini-sidebar'),
+  clickGeminiSidebar: () => ipcRenderer.invoke('click-gemini-sidebar'),
   openGeminiSidebar: () => ipcRenderer.invoke('open-gemini-sidebar'),
+  closeGeminiSidebar: () => ipcRenderer.invoke('close-gemini-sidebar'),
   reloadGeminiSidebar: () => ipcRenderer.invoke('reload-gemini-sidebar'),
   sendGeminiContext: (context) => ipcRenderer.invoke('send-gemini-context', context),
   onGeminiSidebarStateChange: (callback) => {

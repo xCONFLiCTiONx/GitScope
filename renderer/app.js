@@ -2116,7 +2116,6 @@ async function getCurrentGeminiContext() {
 
 async function sendCurrentViewContextToGemini() {
   try {
-    await window.electronAPI.openGeminiSidebar();
     const context = await getCurrentGeminiContext();
     await window.electronAPI.sendGeminiContext(context);
   } catch (error) {
@@ -2126,6 +2125,22 @@ async function sendCurrentViewContextToGemini() {
 }
 
 function initEventListeners() {
+  document.addEventListener(
+    'pointerdown',
+    (event) => {
+      if (elements.navGemini && elements.navGemini.contains(event.target)) {
+        return;
+      }
+      if (!elements.navGemini || elements.navGemini.dataset.state !== 'true') {
+        return;
+      }
+      if (window.electronAPI && typeof window.electronAPI.closeGeminiSidebar === 'function') {
+        window.electronAPI.closeGeminiSidebar();
+      }
+    },
+    true,
+  );
+
   // Markdown Configuration
   if (typeof marked !== 'undefined') {
     marked.use({
@@ -2171,12 +2186,7 @@ function initEventListeners() {
       if (!window.electronAPI) {
         return;
       }
-      if (elements.navGemini.dataset.state === 'true') {
-        const nextState = await window.electronAPI.toggleGeminiSidebar();
-        updateGeminiButtonState(Boolean(nextState));
-      } else {
-        await sendCurrentViewContextToGemini();
-      }
+      await window.electronAPI.clickGeminiSidebar();
     };
   }
   if (elements.navSettings) elements.navSettings.onclick = async () => await showSettings();

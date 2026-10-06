@@ -163,8 +163,7 @@ if (!gotTheLock) {
     }
     const shortcutRegistered = globalShortcut.register('CommandOrControl+Shift+G', () => {
       if (mainWindow && !mainWindow.isDestroyed()) {
-        toggleGeminiSidebar(true);
-        mainWindow.webContents.send('gemini-context-request');
+        openGeminiSidebarWithContext();
       }
     });
     if (!shortcutRegistered) {
@@ -542,6 +541,14 @@ if (!gotTheLock) {
     return geminiViewVisible;
   }
 
+  function openGeminiSidebarWithContext() {
+    if (!toggleGeminiSidebar(true)) {
+      return false;
+    }
+    mainWindow.webContents.send('gemini-context-request');
+    return true;
+  }
+
   async function sendGeminiContext(context) {
     if (!context || typeof context.prompt !== 'string' || !context.prompt.trim()) {
       throw new Error('No GitScope context is available to send to Gemini.');
@@ -798,6 +805,11 @@ if (!gotTheLock) {
       mainWindow.on('minimize', (event) => {
         saveWindowState(); // Ensure state is saved before hiding
       });
+      mainWindow.on('blur', () => {
+        if (geminiViewVisible && !geminiResizeActive) {
+          toggleGeminiSidebar(false);
+        }
+      });
       mainWindow.on('resize', () => {
         if (geminiView && geminiViewVisible) {
           updateGeminiViewBounds();
@@ -875,11 +887,28 @@ if (!gotTheLock) {
     return toggleGeminiSidebar();
   });
 
+  ipcMain.handle('click-gemini-sidebar', async (event) => {
+    if (!mainWindow || event.sender !== mainWindow.webContents) {
+      throw new Error('Gemini can only be toggled from the GitScope window.');
+    }
+    if (geminiViewVisible) {
+      return toggleGeminiSidebar(false);
+    }
+    return openGeminiSidebarWithContext();
+  });
+
   ipcMain.handle('open-gemini-sidebar', async (event) => {
     if (!mainWindow || event.sender !== mainWindow.webContents) {
       throw new Error('Gemini can only be opened from the GitScope window.');
     }
     return toggleGeminiSidebar(true);
+  });
+
+  ipcMain.handle('close-gemini-sidebar', async (event) => {
+    if (!mainWindow || event.sender !== mainWindow.webContents) {
+      throw new Error('Gemini can only be closed from the GitScope window.');
+    }
+    return toggleGeminiSidebar(false);
   });
 
   ipcMain.handle('send-gemini-context', async (event, context) => {
