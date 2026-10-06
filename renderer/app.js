@@ -2390,7 +2390,7 @@ function initEventListeners() {
   if (elements.markdownPreview) {
     elements.markdownPreview.oncontextmenu = (e) => {
       e.preventDefault();
-      window.electronAPI.showContextMenu({ type: 'preview', path: currentEditingPath });
+      showAppContextMenu({ x: e.clientX, y: e.clientY, type: 'preview', path: currentEditingPath });
     };
   }
 
@@ -2402,7 +2402,9 @@ function initEventListeners() {
         if (doc) {
           doc.oncontextmenu = (e) => {
             e.preventDefault();
-            window.electronAPI.showContextMenu({
+            showAppContextMenu({
+              x: e.clientX,
+              y: e.clientY,
               type: 'preview-readonly',
               path: currentEditingPath,
             });
@@ -2720,7 +2722,7 @@ function initEventListeners() {
       // Enable Context Menu for Copy/Clear
       outputEl.addEventListener('contextmenu', (e) => {
         e.preventDefault();
-        window.electronAPI.showContextMenu({ type: 'console' });
+        showAppContextMenu({ x: e.clientX, y: e.clientY, type: 'console' });
       });
     }
   });
@@ -5514,7 +5516,9 @@ function createTreeNode(name, fullPath, isDirectory, depth, repo) {
       }
     }
 
-    window.electronAPI.showContextMenu({
+    showAppContextMenu({
+      x: e.clientX,
+      y: e.clientY,
       paths: selection,
       repoPaths,
       filePaths,
@@ -10696,7 +10700,9 @@ function updateMarkdownPreviewContent() {
       if (doc) {
         doc.oncontextmenu = (e) => {
           e.preventDefault();
-          window.electronAPI.showContextMenu({
+          showAppContextMenu({
+            x: e.clientX,
+            y: e.clientY,
             type: 'preview-readonly',
             path: currentEditingPath,
           });
@@ -13361,3 +13367,203 @@ async function showGitBlame(targetCommitHash = null, targetLineRange = null) {
 }
 
 if (elements.gistRefreshBtn) elements.gistRefreshBtn.onclick = () => refreshGists();
+
+async function showAppContextMenu(options) {
+  const res = await window.electronAPI.showContextMenu(options);
+  if (res && res.items) {
+    showCustomContextMenu(res, options.x || 0, options.y || 0);
+  }
+}
+
+function showCustomContextMenu(menuData, x, y) {
+  document.querySelectorAll('.custom-context-menu, .custom-submenu').forEach(m => m.remove());
+
+  if (!menuData || !menuData.items || menuData.items.length === 0) return;
+
+  const menu = document.createElement('div');
+  menu.className = 'custom-context-menu';
+  menu.style.position = 'fixed';
+  menu.style.zIndex = '99999';
+  menu.style.background = '#252526';
+  menu.style.opacity = '1';
+  menu.style.border = '1px solid var(--border-color, #454545)';
+  menu.style.borderRadius = '4px';
+  menu.style.boxShadow = '0 4px 12px rgba(0,0,0,0.6)';
+  menu.style.padding = '4px 0';
+  menu.style.fontFamily = 'system-ui, -apple-system, sans-serif';
+  menu.style.fontSize = '12px';
+  menu.style.minWidth = '180px';
+  menu.style.color = '#cccccc';
+
+  let activeSubmenuEl = null;
+
+  const closeActiveSubmenu = () => {
+    if (activeSubmenuEl) {
+      activeSubmenuEl.style.display = 'none';
+      activeSubmenuEl = null;
+    }
+  };
+
+  const createItemEl = (item, isSubmenu = false) => {
+    if (item.type === 'separator') {
+      const sep = document.createElement('div');
+      sep.style.height = '1px';
+      sep.style.background = 'var(--border-color, #454545)';
+      sep.style.margin = '4px 0';
+      return sep;
+    }
+
+    const el = document.createElement('div');
+    el.style.padding = '5px 12px';
+    el.style.display = 'flex';
+    el.style.alignItems = 'center';
+    el.style.justifyContent = 'space-between';
+    el.style.cursor = item.enabled === false ? 'default' : 'pointer';
+    el.style.opacity = item.enabled === false ? '0.5' : '1';
+    el.style.whiteSpace = 'nowrap';
+
+    const labelSpan = document.createElement('span');
+    labelSpan.textContent = item.label || '';
+    el.appendChild(labelSpan);
+
+    if (item.submenu && item.submenu.length > 0) {
+      const arrow = document.createElement('span');
+      arrow.textContent = '▶';
+      arrow.style.fontSize = '9px';
+      arrow.style.marginLeft = '16px';
+      arrow.style.opacity = '0.7';
+      el.appendChild(arrow);
+
+      const subMenuEl = document.createElement('div');
+      subMenuEl.className = 'custom-submenu';
+      subMenuEl.style.position = 'fixed';
+      subMenuEl.style.zIndex = '100000';
+      subMenuEl.style.background = '#252526';
+      subMenuEl.style.opacity = '1';
+      subMenuEl.style.border = '1px solid var(--border-color, #454545)';
+      subMenuEl.style.borderRadius = '4px';
+      subMenuEl.style.boxShadow = '0 4px 12px rgba(0,0,0,0.6)';
+      subMenuEl.style.padding = '4px 0';
+      subMenuEl.style.fontFamily = 'system-ui, -apple-system, sans-serif';
+      subMenuEl.style.fontSize = '12px';
+      subMenuEl.style.minWidth = '160px';
+      subMenuEl.style.color = '#cccccc';
+      subMenuEl.style.display = 'none';
+
+      item.submenu.forEach(subItem => {
+        subMenuEl.appendChild(createItemEl(subItem, true));
+      });
+
+      document.body.appendChild(subMenuEl);
+
+      const openSubmenu = () => {
+        if (activeSubmenuEl === subMenuEl) return;
+        closeActiveSubmenu();
+
+        subMenuEl.style.display = 'block';
+        activeSubmenuEl = subMenuEl;
+
+        const rect = el.getBoundingClientRect();
+        const subRect = subMenuEl.getBoundingClientRect();
+        let subX = rect.right;
+        let subY = rect.top;
+
+        if (subX + subRect.width > window.innerWidth) {
+          subX = rect.left - subRect.width;
+        }
+        if (subY + subRect.height > window.innerHeight) {
+          subY = window.innerHeight - subRect.height - 4;
+        }
+
+        subMenuEl.style.left = `${subX}px`;
+        subMenuEl.style.top = `${subY}px`;
+      };
+
+      el.onmouseenter = () => {
+        if (item.enabled !== false) {
+          el.style.backgroundColor = '#094771';
+          el.style.color = '#fff';
+        }
+        openSubmenu();
+      };
+    } else {
+      el.onmouseenter = () => {
+        if (item.enabled !== false) {
+          el.style.backgroundColor = '#094771';
+          el.style.color = '#fff';
+        }
+        if (!isSubmenu) {
+          closeActiveSubmenu();
+        }
+      };
+    }
+
+    el.onmouseleave = () => {
+      el.style.backgroundColor = '';
+      el.style.color = '';
+    };
+
+    if (item.enabled !== false) {
+      el.onclick = async (e) => {
+        e.stopPropagation();
+        if (item.submenu) return;
+
+        document.querySelectorAll('.custom-context-menu, .custom-submenu').forEach(m => m.remove());
+
+        if (item.role === 'copy') {
+          document.execCommand('copy');
+        } else if (item.role === 'paste') {
+          try {
+            const text = await navigator.clipboard.readText();
+            document.execCommand('insertText', false, text);
+          } catch (err) {}
+        } else if (item.role === 'selectAll') {
+          const activeEl = document.activeElement;
+          if (activeEl && typeof activeEl.select === 'function') {
+            activeEl.select();
+          } else {
+            document.execCommand('selectAll');
+          }
+        } else if (item.actionId) {
+          await window.electronAPI.executeMenuAction(item.actionId);
+        }
+      };
+    }
+
+    return el;
+  };
+
+  menuData.items.forEach(item => {
+    menu.appendChild(createItemEl(item));
+  });
+
+  document.body.appendChild(menu);
+
+  const menuRect = menu.getBoundingClientRect();
+  let posX = x;
+  let posY = y;
+
+  if (posX + menuRect.width > window.innerWidth) {
+    posX = window.innerWidth - menuRect.width - 4;
+  }
+  if (posY + menuRect.height > window.innerHeight) {
+    posY = window.innerHeight - menuRect.height - 4;
+  }
+
+  menu.style.left = `${posX}px`;
+  menu.style.top = `${posY}px`;
+
+  const closeHandler = (e) => {
+    if (!menu.contains(e.target) && (!activeSubmenuEl || !activeSubmenuEl.contains(e.target))) {
+      document.querySelectorAll('.custom-context-menu, .custom-submenu').forEach(m => m.remove());
+      document.removeEventListener('mousedown', closeHandler, true);
+      document.removeEventListener('contextmenu', closeHandler, true);
+      window.removeEventListener('blur', closeHandler);
+    }
+  };
+  setTimeout(() => {
+    document.addEventListener('mousedown', closeHandler, true);
+    document.addEventListener('contextmenu', closeHandler, true);
+    window.addEventListener('blur', closeHandler);
+  }, 10);
+}

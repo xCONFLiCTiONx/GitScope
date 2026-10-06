@@ -3131,6 +3131,44 @@ if (!gotTheLock) {
     }
   });
 
+  let nextMenuActionId = 1;
+  const menuActionMap = new Map();
+
+  function serializeTemplate(template) {
+    return template.map(item => {
+      if (item.type === 'separator') {
+        return { type: 'separator' };
+      }
+      const serialized = {
+        label: item.label,
+        enabled: item.enabled !== false,
+        checked: item.checked,
+        type: item.type,
+        role: item.role
+      };
+      if (item.submenu) {
+        serialized.submenu = serializeTemplate(item.submenu);
+      }
+      if (item.click) {
+        const actionId = `menu_action_${nextMenuActionId++}`;
+        menuActionMap.set(actionId, item.click);
+        serialized.actionId = actionId;
+      }
+      return serialized;
+    });
+  }
+
+  ipcMain.handle('execute-menu-action', async (event, actionId) => {
+    const clickFn = menuActionMap.get(actionId);
+    if (clickFn) {
+      try {
+        await clickFn();
+      } catch (err) {
+        console.error('Error executing menu action:', err);
+      }
+    }
+  });
+
   ipcMain.handle('show-context-menu', async (event, options) => {
     if (options.type === 'terminal') {
       const template = [
@@ -3141,9 +3179,8 @@ if (!gotTheLock) {
         { type: 'separator' },
         { label: 'Clear Terminal', click: () => event.sender.send('terminal-command', 'clear') },
       ];
-      const menu = Menu.buildFromTemplate(template);
-      menu.popup(BrowserWindow.fromWebContents(event.sender));
-      return;
+      menuActionMap.clear();
+      return { items: serializeTemplate(template) };
     }
 
     if (options.type === 'console') {
@@ -3156,9 +3193,8 @@ if (!gotTheLock) {
           click: () => event.sender.send('console-command', 'clear'),
         },
       ];
-      const menu = Menu.buildFromTemplate(template);
-      menu.popup(BrowserWindow.fromWebContents(event.sender));
-      return;
+      menuActionMap.clear();
+      return { items: serializeTemplate(template) };
     }
 
     if (options.type === 'preview') {
@@ -3178,9 +3214,8 @@ if (!gotTheLock) {
         });
       }
 
-      const menu = Menu.buildFromTemplate(template);
-      menu.popup(BrowserWindow.fromWebContents(event.sender));
-      return;
+      menuActionMap.clear();
+      return { items: serializeTemplate(template) };
     }
 
     if (options.type === 'preview-readonly') {
@@ -3195,9 +3230,8 @@ if (!gotTheLock) {
         });
       }
 
-      const menu = Menu.buildFromTemplate(template);
-      menu.popup(BrowserWindow.fromWebContents(event.sender));
-      return;
+      menuActionMap.clear();
+      return { items: serializeTemplate(template) };
     }
 
     const paths = options.paths || [options.path];
@@ -3627,7 +3661,7 @@ if (!gotTheLock) {
       }
     }
 
-    const menu = Menu.buildFromTemplate(template);
-    menu.popup(BrowserWindow.fromWebContents(event.sender));
+    menuActionMap.clear();
+    return { items: serializeTemplate(template) };
   });
 }

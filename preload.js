@@ -168,6 +168,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   revealInExplorer: (path) => ipcRenderer.invoke('reveal-in-explorer', path),
   trashItem: (path) => ipcRenderer.invoke('trash-item', path),
   showContextMenu: (options) => ipcRenderer.invoke('show-context-menu', options),
+  executeMenuAction: (actionId) => ipcRenderer.invoke('execute-menu-action', actionId),
   onContextMenuCommand: (callback) =>
     ipcRenderer.on('context-menu-command', (_event, value) => callback(value)),
   onExternalChange: (callback) =>

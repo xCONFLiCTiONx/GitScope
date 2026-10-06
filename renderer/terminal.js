@@ -116,7 +116,7 @@ terminalContainer.addEventListener('paste', (e) => {
 // Enable selection and Context Menu
 terminalContainer.addEventListener('contextmenu', (e) => {
   e.preventDefault();
-  window.electronAPI.showContextMenu({ type: 'terminal' });
+  showAppContextMenu({ x: e.clientX, y: e.clientY, type: 'terminal' });
 });
 
 // High-Precision Terminal Scrolling (Fix for full page scrolling, scroll one line at a time)
