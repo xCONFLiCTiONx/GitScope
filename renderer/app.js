@@ -2171,7 +2171,7 @@ function initEventListeners() {
   document.addEventListener(
     'pointerdown',
     (event) => {
-      if (elements.navGemini && elements.navGemini.contains(event.target)) {
+      if (elements.navGemini && event.target instanceof Node && elements.navGemini.contains(event.target)) {
         return;
       }
       if (!elements.navGemini || elements.navGemini.dataset.state !== 'true') {
@@ -3144,7 +3144,7 @@ function initEventListeners() {
 
   // Modal background click handler
   window.onclick = (event) => {
-    if (event.target.classList.contains('modal')) {
+    if (event.target && event.target.classList && event.target.classList.contains('modal')) {
       event.target.style.display = 'none';
     }
   };
@@ -13554,7 +13554,10 @@ function showCustomContextMenu(menuData, x, y) {
   menu.style.top = `${posY}px`;
 
   const closeHandler = (e) => {
-    if (!menu.contains(e.target) && (!activeSubmenuEl || !activeSubmenuEl.contains(e.target))) {
+    const isNode = e.target instanceof Node;
+    const insideMenu = isNode && menu.contains(e.target);
+    const insideSubmenu = isNode && activeSubmenuEl && activeSubmenuEl.contains(e.target);
+    if (!insideMenu && !insideSubmenu) {
       document.querySelectorAll('.custom-context-menu, .custom-submenu').forEach(m => m.remove());
       document.removeEventListener('mousedown', closeHandler, true);
       document.removeEventListener('contextmenu', closeHandler, true);
